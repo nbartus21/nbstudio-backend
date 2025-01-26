@@ -6,7 +6,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'https://nbstudio-backend.onrender.com:5001',
+        target: 'https://nbstudio-backend.onrender.com',
         changeOrigin: true
       }
     }
