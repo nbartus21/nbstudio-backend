@@ -9,9 +9,12 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5001;
 
-// CORS beállítások
 app.use(cors({
-  origin: ['https://nbstudio-backend.onrender.com', 'https://nbstudio-backend-1.onrender.com'],
+  origin: [
+    'https://nbstudio-backend.onrender.com', 
+    'https://nbstudio-backend-1.onrender.com',
+    'https://nb-studio.net' // Új domain hozzáadva
+  ],
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true
 }));
