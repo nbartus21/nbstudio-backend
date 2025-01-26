@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-const API_URL = 'http://https://nbstudio-backend.onrender.com/api';
+const API_URL = 'https://nbstudio-backend.onrender.com/api';
 
 // Icon Components
 const EditIcon = () => (
