@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { generateSEOSuggestions, translateContent, generateMetaContent, suggestTags } from './deepseekService';
+import { generateSEOSuggestions, translateContent, generateMetaContent, suggestTags } from '../services/deepseekService';
 
 const SEOAssistant = ({ content, language, onUpdate }) => {
   const [loading, setLoading] = useState(false);
