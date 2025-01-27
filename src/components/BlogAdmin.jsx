@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Editor } from '@tinymce/tinymce-react';
 
 const API_URL = 'https://nbstudio-backend.onrender.com/api';
 
@@ -28,7 +29,7 @@ const Modal = ({ isOpen, onClose, children }) => {
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-50">
       <div className="flex items-center justify-center min-h-screen p-4">
-        <div className="relative bg-white rounded-lg w-full max-w-4xl p-6 shadow-xl">
+        <div className="relative bg-white rounded-lg w-full max-w-4xl p-6 shadow-xl max-h-[90vh] overflow-y-auto">
           {children}
         </div>
       </div>
@@ -43,6 +44,8 @@ const BlogAdmin = () => {
   const [error, setError] = useState(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingPost, setEditingPost] = useState(null);
+  const [scheduledDate, setScheduledDate] = useState('');
+  const editorRef = useRef(null);
 
   // Fetch posts
   const fetchPosts = async () => {
@@ -94,7 +97,8 @@ const BlogAdmin = () => {
         },
         slug: 'new-post-' + Date.now(),
         tags: [],
-        published: false
+        published: false,
+        scheduledDate: scheduledDate || null
       };
 
       const response = await fetch(`${API_URL}/posts`, {
@@ -123,15 +127,15 @@ const BlogAdmin = () => {
   };
 
   // Update post
-  const handleUpdatePost = async (e) => {
+  const handleUpdatePost = async (e, updatedPost) => {
     e.preventDefault();
     try {
-      const response = await fetch(`${API_URL}/posts/${editingPost._id}`, {
+      const response = await fetch(`${API_URL}/posts/${updatedPost._id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(editingPost),
+        body: JSON.stringify(updatedPost),
       });
 
       if (!response.ok) {
@@ -190,10 +194,164 @@ const BlogAdmin = () => {
     );
   }
 
+  // Edit Form Component
+  const EditForm = ({ post, onSubmit }) => {
+    const [activeTab, setActiveTab] = useState('de');
+    const [localPost, setLocalPost] = useState(post);
+
+    const handleEditorChange = (lang, content) => {
+      setLocalPost({
+        ...localPost,
+        content: { ...localPost.content, [lang]: content }
+      });
+    };
+
+    return (
+      <form onSubmit={(e) => onSubmit(e, localPost)} className="space-y-6">
+        <div className="flex justify-between items-center">
+          <h2 className="text-xl font-bold">Edit Post</h2>
+          <button
+            type="button"
+            onClick={() => setIsEditModalOpen(false)}
+            className="text-gray-400 hover:text-gray-500"
+          >
+            <span className="sr-only">Close</span>
+            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Language Tabs */}
+        <div className="border-b border-gray-200">
+          <nav className="-mb-px flex space-x-4">
+            {['de', 'en', 'hu'].map((lang) => (
+              <button
+                key={lang}
+                type="button"
+                onClick={() => setActiveTab(lang)}
+                className={`${
+                  activeTab === lang
+                    ? 'border-indigo-500 text-indigo-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+              >
+                {lang.toUpperCase()}
+              </button>
+            ))}
+          </nav>
+        </div>
+
+        {/* Active Language Content */}
+        <div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Title</label>
+            <input
+              type="text"
+              value={localPost.title[activeTab]}
+              onChange={(e) => setLocalPost({
+                ...localPost,
+                title: { ...localPost.title, [activeTab]: e.target.value }
+              })}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            />
+          </div>
+
+          <div className="mt-4">
+            <label className="block text-sm font-medium text-gray-700">Content</label>
+            <Editor
+              apiKey="kshcdddb1ogetllqn5eoqe0xny2tf1hhr9xf4e69hrdmy667"
+              value={localPost.content[activeTab]}
+              init={{
+                height: 400,
+                menubar: false,
+                plugins: 'link image code table lists',
+                toolbar: 'undo redo | formatselect | bold italic | alignleft aligncenter alignright | bullist numlist outdent indent | link image | code'
+              }}
+              onEditorChange={(content) => handleEditorChange(activeTab, content)}
+            />
+          </div>
+
+          <div className="mt-4">
+            <label className="block text-sm font-medium text-gray-700">Excerpt</label>
+            <textarea
+              value={localPost.excerpt[activeTab]}
+              onChange={(e) => setLocalPost({
+                ...localPost,
+                excerpt: { ...localPost.excerpt, [activeTab]: e.target.value }
+              })}
+              rows="2"
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            />
+          </div>
+        </div>
+
+        {/* Common Fields */}
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Slug</label>
+            <input
+              type="text"
+              value={localPost.slug}
+              onChange={(e) => setLocalPost({
+                ...localPost,
+                slug: e.target.value
+              })}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            />
+          </div>
+
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                checked={localPost.published}
+                onChange={(e) => setLocalPost({
+                  ...localPost,
+                  published: e.target.checked
+                })}
+                className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+              />
+              <label className="ml-2 text-sm text-gray-900">Published</label>
+            </div>
+
+            <div className="flex-1">
+              <label className="block text-sm font-medium text-gray-700">Schedule Publication</label>
+              <input
+                type="datetime-local"
+                value={localPost.scheduledDate || ''}
+                onChange={(e) => setLocalPost({
+                  ...localPost,
+                  scheduledDate: e.target.value
+                })}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-3">
+          <button
+            type="button"
+            onClick={() => setIsEditModalOpen(false)}
+            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700"
+          >
+            Save Changes
+          </button>
+        </div>
+      </form>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Blog Administration</h1>
           <button
@@ -240,6 +398,11 @@ const BlogAdmin = () => {
                       }`}>
                         {post.published ? 'Published' : 'Draft'}
                       </span>
+                      {post.scheduledDate && (
+                        <span className="block text-xs text-gray-500 mt-1">
+                          Scheduled: {new Date(post.scheduledDate).toLocaleString()}
+                        </span>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <button
@@ -265,109 +428,10 @@ const BlogAdmin = () => {
         {/* Edit Modal */}
         <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)}>
           {editingPost && (
-            <form onSubmit={handleUpdatePost} className="space-y-6">
-              <div className="flex justify-between items-center">
-                <h2 className="text-xl font-bold">Edit Post</h2>
-                <button
-                  type="button"
-                  onClick={() => setIsEditModalOpen(false)}
-                  className="text-gray-400 hover:text-gray-500"
-                >
-                  <span className="sr-only">Close</span>
-                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-
-              {/* Language Tabs */}
-              {['de', 'en', 'hu'].map((lang) => (
-                <div key={lang} className="space-y-4">
-                  <h3 className="text-lg font-medium">{lang.toUpperCase()}</h3>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Title</label>
-                    <input
-                      type="text"
-                      value={editingPost.title[lang]}
-                      onChange={(e) => setEditingPost({
-                        ...editingPost,
-                        title: { ...editingPost.title, [lang]: e.target.value }
-                      })}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Content</label>
-                    <textarea
-                      value={editingPost.content[lang]}
-                      onChange={(e) => setEditingPost({
-                        ...editingPost,
-                        content: { ...editingPost.content, [lang]: e.target.value }
-                      })}
-                      rows="3"
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Excerpt</label>
-                    <textarea
-                      value={editingPost.excerpt[lang]}
-                      onChange={(e) => setEditingPost({
-                        ...editingPost,
-                        excerpt: { ...editingPost.excerpt, [lang]: e.target.value }
-                      })}
-                      rows="2"
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                    />
-                  </div>
-                </div>
-              ))}
-
-              {/* Slug Field */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Slug</label>
-                <input
-                  type="text"
-                  value={editingPost.slug}
-                  onChange={(e) => setEditingPost({
-                    ...editingPost,
-                    slug: e.target.value
-                  })}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                />
-              </div>
-
-              {/* Published Toggle */}
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={editingPost.published}
-                  onChange={(e) => setEditingPost({
-                    ...editingPost,
-                    published: e.target.checked
-                  })}
-                  className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                />
-                <label className="ml-2 text-sm text-gray-900">Published</label>
-              </div>
-
-              {/* Modal Actions */}
-              <div className="flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setIsEditModalOpen(false)}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700"
-                >
-                  Save Changes
-                </button>
-              </div>
-            </form>
+            <EditForm 
+              post={editingPost} 
+              onSubmit={handleUpdatePost}
+            />
           )}
         </Modal>
       </div>
