@@ -368,12 +368,24 @@ const BlogAdmin = () => {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title (DE)</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title (EN)</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title (HU)</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Slug</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/4 max-w-xs">
+                  Title (DE)
+                </th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/4 max-w-xs">
+                  Title (EN)
+                </th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/4 max-w-xs">
+                  Title (HU)
+                </th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/6">
+                  Slug
+                </th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
+                  Status
+                </th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -386,11 +398,27 @@ const BlogAdmin = () => {
               ) : (
                 posts.map((post) => (
                   <tr key={post._id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">{post.title.de}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{post.title.en}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{post.title.hu}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{post.slug}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-3 py-4 text-sm text-gray-900 truncate max-w-xs">
+                      <div className="truncate" title={post.title.de}>
+                        {post.title.de}
+                      </div>
+                    </td>
+                    <td className="px-3 py-4 text-sm text-gray-900 truncate max-w-xs">
+                      <div className="truncate" title={post.title.en}>
+                        {post.title.en}
+                      </div>
+                    </td>
+                    <td className="px-3 py-4 text-sm text-gray-900 truncate max-w-xs">
+                      <div className="truncate" title={post.title.hu}>
+                        {post.title.hu}
+                      </div>
+                    </td>
+                    <td className="px-3 py-4 text-sm text-gray-500 truncate">
+                      <div className="truncate" title={post.slug}>
+                        {post.slug}
+                      </div>
+                    </td>
+                    <td className="px-3 py-4 whitespace-nowrap">
                       <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
                         post.published
                           ? 'bg-green-100 text-green-800'
@@ -404,19 +432,21 @@ const BlogAdmin = () => {
                         </span>
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <button
-                        onClick={() => handleEdit(post)}
-                        className="text-indigo-600 hover:text-indigo-900 mr-4"
-                      >
-                        <EditIcon />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(post._id)}
-                        className="text-red-600 hover:text-red-900"
-                      >
-                        <DeleteIcon />
-                      </button>
+                    <td className="px-3 py-4 whitespace-nowrap text-sm font-medium">
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => handleEdit(post)}
+                          className="text-indigo-600 hover:text-indigo-900"
+                        >
+                          <EditIcon />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(post._id)}
+                          className="text-red-600 hover:text-red-900"
+                        >
+                          <DeleteIcon />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
