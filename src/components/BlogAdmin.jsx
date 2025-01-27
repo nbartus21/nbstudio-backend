@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Editor } from '@tinymce/tinymce-react';
+import SEOAssistant from './SEOAssistant'; // Új komponens importálása
 
 const API_URL = 'https://nbstudio-backend.onrender.com/api';
 
@@ -223,8 +224,21 @@ const BlogAdmin = () => {
       });
     };
 
+    const handleSEOUpdate = (updatedContent, targetLang) => {
+      setLocalPost({
+        ...localPost,
+        content: { ...localPost.content, [targetLang]: updatedContent }
+      });
+    };
+
     return (
       <form onSubmit={(e) => onSubmit(e, localPost)} className="space-y-6">
+        <SEOAssistant 
+          content={localPost.content[activeTab]}
+          language={activeTab}
+          onUpdate={handleSEOUpdate}
+        />
+
         <div className="flex justify-between items-center">
           <h2 className="text-xl font-bold">Edit Post</h2>
           <button
