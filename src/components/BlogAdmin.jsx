@@ -22,6 +22,23 @@ const AddIcon = () => (
   </svg>
 );
 
+// InfoIcon komponens a tooltiphez
+const InfoIcon = () => (
+  <svg 
+    className="w-4 h-4 text-gray-400 hover:text-gray-600" 
+    fill="none" 
+    stroke="currentColor" 
+    viewBox="0 0 24 24"
+  >
+    <path 
+      strokeLinecap="round" 
+      strokeLinejoin="round" 
+      strokeWidth="2" 
+      d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" 
+    />
+  </svg>
+);
+
 // Modal Component
 const Modal = ({ isOpen, onClose, children }) => {
   if (!isOpen) return null;
@@ -364,95 +381,94 @@ const BlogAdmin = () => {
         </div>
 
         {/* Posts Table */}
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/4 max-w-xs">
-                  Title (DE)
-                </th>
-                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/4 max-w-xs">
-                  Title (EN)
-                </th>
-                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/4 max-w-xs">
-                  Title (HU)
-                </th>
-                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/6">
-                  Slug
-                </th>
-                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
-                  Status
-                </th>
-                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {posts.length === 0 ? (
-                <tr>
-                  <td colSpan="6" className="px-6 py-4 text-center text-gray-500">
-                    No posts found
-                  </td>
-                </tr>
-              ) : (
-                posts.map((post) => (
-                  <tr key={post._id} className="hover:bg-gray-50">
-                    <td className="px-3 py-4 text-sm text-gray-900 truncate max-w-xs">
-                      <div className="truncate" title={post.title.de}>
-                        {post.title.de}
-                      </div>
-                    </td>
-                    <td className="px-3 py-4 text-sm text-gray-900 truncate max-w-xs">
-                      <div className="truncate" title={post.title.en}>
-                        {post.title.en}
-                      </div>
-                    </td>
-                    <td className="px-3 py-4 text-sm text-gray-900 truncate max-w-xs">
-                      <div className="truncate" title={post.title.hu}>
-                        {post.title.hu}
-                      </div>
-                    </td>
-                    <td className="px-3 py-4 text-sm text-gray-500 truncate">
-                      <div className="truncate" title={post.slug}>
-                        {post.slug}
-                      </div>
-                    </td>
-                    <td className="px-3 py-4 whitespace-nowrap">
-                      <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        post.published
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-yellow-100 text-yellow-800'
-                      }`}>
-                        {post.published ? 'Published' : 'Draft'}
-                      </span>
-                      {post.scheduledDate && (
-                        <span className="block text-xs text-gray-500 mt-1">
-                          Scheduled: {new Date(post.scheduledDate).toLocaleString()}
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-3 py-4 whitespace-nowrap text-sm font-medium">
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={() => handleEdit(post)}
-                          className="text-indigo-600 hover:text-indigo-900"
-                        >
-                          <EditIcon />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(post._id)}
-                          className="text-red-600 hover:text-red-900"
-                        >
-                          <DeleteIcon />
-                        </button>
-                      </div>
-                    </td>
+        <div className="overflow-x-auto">
+          <div className="align-middle inline-block min-w-full">
+            <div className="shadow overflow-hidden border-b border-gray-200 sm:rounded-lg">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-64">
+                      Title (DE)
+                    </th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-64">
+                      Title (EN)
+                    </th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-64">
+                      Title (HU)
+                    </th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-40">
+                      Slug
+                    </th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
+                      Status
+                    </th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
+                      Actions
+                    </th>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {posts.map((post) => (
+                    <tr key={post._id} className="hover:bg-gray-50">
+                      {['de', 'en', 'hu'].map((lang) => (
+                        <td key={lang} className="px-3 py-4">
+                          <div className="flex items-center">
+                            <div className="truncate max-w-[200px]">
+                              {post.title[lang]}
+                            </div>
+                            <div className="ml-2 group relative cursor-pointer">
+                              <InfoIcon />
+                              <div className="hidden group-hover:block absolute z-10 w-64 p-2 bg-gray-800 text-white text-sm rounded shadow-lg -left-1/2 mt-1">
+                                {post.title[lang]}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                      ))}
+                      <td className="px-3 py-4">
+                        <div className="flex items-center">
+                          <div className="truncate max-w-[120px]">
+                            {post.slug}
+                          </div>
+                          <div className="ml-2 group relative cursor-pointer">
+                            <InfoIcon />
+                            <div className="hidden group-hover:block absolute z-10 w-64 p-2 bg-gray-800 text-white text-sm rounded shadow-lg -left-1/2 mt-1">
+                              {post.slug}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-3 py-4 whitespace-nowrap">
+                        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                          post.published
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          {post.published ? 'Published' : 'Draft'}
+                        </span>
+                      </td>
+                      <td className="px-3 py-4 whitespace-nowrap text-sm font-medium">
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => handleEdit(post)}
+                            className="text-indigo-600 hover:text-indigo-900"
+                          >
+                            <EditIcon />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(post._id)}
+                            className="text-red-600 hover:text-red-900"
+                          >
+                            <DeleteIcon />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
 
         {/* Edit Modal */}
