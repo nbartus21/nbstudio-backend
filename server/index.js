@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import postRoutes from './routes/posts.js';
+import contactRoutes from './routes/contacts.js';
 
 dotenv.config();
 
@@ -11,7 +12,7 @@ const PORT = process.env.PORT || 5001;
 
 app.use(cors({
   origin: [
-    'https://nbstudio-backend.onrender.com', 
+    'https://nbstudio-backend.onrender.com',
     'https://nbstudio-backend-1.onrender.com',
     'https://nb-studio.net' // Új domain hozzáadva
   ],
@@ -30,6 +31,7 @@ app.use((req, res, next) => {
 
 // Routes
 app.use('/api', postRoutes);
+app.use('/api', contactRoutes);  // <-- Ide kell betenni az új route-ot
 
 // Alap route teszteléshez
 app.get('/', (req, res) => {
