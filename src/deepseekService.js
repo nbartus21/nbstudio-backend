@@ -1,5 +1,6 @@
+
 const DEEPSEEK_API_KEY = 'sk-a781f0251b034cf6b91f970b43d9caa5';
-const DEEPSEEK_API_URL = 'https://api.deepseek.com/chat/completions';
+const DEEPSEEK_API_URL = 'https://api.deepseek.com/chat/completions'; // Módosított URL
 
 const callDeepSeekAPI = async (payload) => {
   try {
@@ -10,7 +11,7 @@ const callDeepSeekAPI = async (payload) => {
         'Authorization': `Bearer ${DEEPSEEK_API_KEY}`
       },
       body: JSON.stringify({
-        model: "deepseek-chat",
+        model: "deepseek-chat", // A dokumentáció szerint ezt kell használni
         messages: payload.messages,
         stream: false
       })
@@ -27,7 +28,7 @@ const callDeepSeekAPI = async (payload) => {
   }
 };
 
-// SEO FUNKCIÓK
+// SEO Optimalizáció
 export const generateSEOSuggestions = async (content, language) => {
   try {
     const response = await callDeepSeekAPI({
@@ -48,6 +49,7 @@ export const generateSEOSuggestions = async (content, language) => {
         ` }
       ]
     });
+
     return response.choices[0].message.content;
   } catch (error) {
     console.error('SEO suggestion generation failed:', error);
@@ -55,6 +57,7 @@ export const generateSEOSuggestions = async (content, language) => {
   }
 };
 
+// Automatikus fordítás
 export const translateContent = async (content, sourceLanguage, targetLanguage) => {
   try {
     const response = await callDeepSeekAPI({
@@ -69,6 +72,7 @@ export const translateContent = async (content, sourceLanguage, targetLanguage) 
         ` }
       ]
     });
+
     return response.choices[0].message.content;
   } catch (error) {
     console.error('Translation failed:', error);
@@ -76,6 +80,7 @@ export const translateContent = async (content, sourceLanguage, targetLanguage) 
   }
 };
 
+// SEO Meta címek és leírások generálása
 export const generateMetaContent = async (content, language) => {
   try {
     const response = await callDeepSeekAPI({
@@ -96,6 +101,7 @@ export const generateMetaContent = async (content, language) => {
         ` }
       ]
     });
+
     return JSON.parse(response.choices[0].message.content);
   } catch (error) {
     console.error('Meta content generation failed:', error);
@@ -103,6 +109,7 @@ export const generateMetaContent = async (content, language) => {
   }
 };
 
+// Automatikus tag javaslatok
 export const suggestTags = async (content, language) => {
   try {
     const response = await callDeepSeekAPI({
@@ -119,89 +126,10 @@ export const suggestTags = async (content, language) => {
         ` }
       ]
     });
+
     return JSON.parse(response.choices[0].message.content);
   } catch (error) {
     console.error('Tag suggestion failed:', error);
-    throw error;
-  }
-};
-
-// CONTACT KEZELÉS ÚJ FUNKCIÓK
-export const categorizeMessage = async (message) => {
-  try {
-    const response = await callDeepSeekAPI({
-      messages: [
-        {
-          role: "system",
-          content: "You are an AI assistant that analyzes customer messages. Categorize the message and determine its priority and sentiment."
-        },
-        {
-          role: "user",
-          content: `Analyze this message and respond in JSON format:
-          {
-            "category": "string (support/inquiry/feedback/complaint)",
-            "priority": "high/medium/low",
-            "sentiment": "positive/neutral/negative"
-          }
-          
-          Message:
-          ${message}`
-        }
-      ]
-    });
-    return JSON.parse(response.choices[0].message.content);
-  } catch (error) {
-    console.error('Message categorization failed:', error);
-    throw error;
-  }
-};
-
-export const generateResponseSuggestion = async (message) => {
-  try {
-    const response = await callDeepSeekAPI({
-      messages: [
-        {
-          role: "system",
-          content: "You are a professional customer service representative. Generate a polite and helpful response."
-        },
-        {
-          role: "user",
-          content: `Customer message: ${message}
-          
-          Generate a professional response that is:
-          1. Empathetic and understanding
-          2. Clear and concise
-          3. Solution-focused
-          4. Professional in tone`
-        }
-      ]
-    });
-    return response.choices[0].message.content;
-  } catch (error) {
-    console.error('Response suggestion failed:', error);
-    throw error;
-  }
-};
-
-export const generateSummary = async (message) => {
-  try {
-    const response = await callDeepSeekAPI({
-      messages: [
-        {
-          role: "system",
-          content: "Create brief summaries of customer messages."
-        },
-        {
-          role: "user",
-          content: `Summarize this message in 2-3 sentences:
-          
-          ${message}`
-        }
-      ]
-    });
-    return response.choices[0].message.content;
-  } catch (error) {
-    console.error('Summary generation failed:', error);
     throw error;
   }
 };
