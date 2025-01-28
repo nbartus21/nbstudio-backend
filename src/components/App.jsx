@@ -2,7 +2,7 @@ import React from 'react';
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
 import BlogAdmin from './BlogAdmin';
 import ContactAdmin from './ContactAdmin';
-import CalculatorAdmin from './components/CalculatorAdmin';
+import CalculatorAdmin from './CalculatorAdmin';
 
 
 
