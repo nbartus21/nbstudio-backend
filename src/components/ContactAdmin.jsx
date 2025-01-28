@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { categorizeMessage, generateResponseSuggestion, generateSummary, suggestTags } from '../services/deepseekService';
 
 const API_URL = 'https://nbstudio-backend.onrender.com/api';
 
@@ -9,10 +10,42 @@ const Modal = ({ isOpen, onClose, children }) => {
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-50">
       <div className="flex items-center justify-center min-h-screen p-4">
-        <div className="relative bg-white dark:bg-gray-800 rounded-lg w-full max-w-2xl p-6 shadow-xl">
+        <div className="relative bg-white dark:bg-gray-800 rounded-lg w-full max-w-4xl p-6 shadow-xl max-h-[90vh] overflow-y-auto">
           {children}
         </div>
       </div>
+    </div>
+  );
+};
+
+// Filter komponens
+const Filters = ({ onFilterChange }) => {
+  return (
+    <div className="flex gap-4 mb-6 flex-wrap">
+      <input
+        type="text"
+        placeholder="Search messages..."
+        onChange={(e) => onFilterChange('search', e.target.value)}
+        className="px-4 py-2 border rounded"
+      />
+      <select 
+        onChange={(e) => onFilterChange('status', e.target.value)}
+        className="px-4 py-2 border rounded"
+      >
+        <option value="">All Statuses</option>
+        <option value="new">New</option>
+        <option value="in-progress">In Progress</option>
+        <option value="completed">Completed</option>
+      </select>
+      <select 
+        onChange={(e) => onFilterChange('priority', e.target.value)}
+        className="px-4 py-2 border rounded"
+      >
+        <option value="">All Priorities</option>
+        <option value="high">High</option>
+        <option value="medium">Medium</option>
+        <option value="low">Low</option>
+      </select>
     </div>
   );
 };
@@ -23,6 +56,40 @@ const ContactAdmin = () => {
   const [error, setError] = useState(null);
   const [selectedContact, setSelectedContact] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [filters, setFilters] = useState({
+    search: '',
+    status: '',
+    priority: ''
+  });
+  const [aiAnalysis, setAiAnalysis] = useState(null);
+  const [analyzing, setAnalyzing] = useState(false);
+
+  // AI analízis indítása
+  const startAIAnalysis = async (message) => {
+    setAnalyzing(true);
+    try {
+      const [categoryData, summary, tags, suggestedResponse] = await Promise.all([
+        categorizeMessage(message),
+        generateSummary(message),
+        suggestTags(message),
+        generateResponseSuggestion(message)
+      ]);
+
+      setAiAnalysis({
+        category: categoryData.category,
+        priority: categoryData.priority,
+        sentiment: categoryData.sentiment,
+        summary,
+        tags,
+        suggestedResponse
+      });
+    } catch (error) {
+      console.error('AI analysis failed:', error);
+      setError('AI analysis failed');
+    } finally {
+      setAnalyzing(false);
+    }
+  };
 
   // Fetch contacts
   const fetchContacts = async () => {
@@ -43,23 +110,39 @@ const ContactAdmin = () => {
     fetchContacts();
   }, []);
 
+  // Filter contacts
+  const filteredContacts = contacts.filter(contact => {
+    const searchMatch = 
+      contact.name.toLowerCase().includes(filters.search.toLowerCase()) ||
+      contact.email.toLowerCase().includes(filters.search.toLowerCase()) ||
+      contact.message.toLowerCase().includes(filters.search.toLowerCase());
+    
+    const statusMatch = !filters.status || contact.status === filters.status;
+    const priorityMatch = !filters.priority || contact.priority === filters.priority;
+    
+    return searchMatch && statusMatch && priorityMatch;
+  });
+
   // View message details
-  const handleViewMessage = (contact) => {
+  const handleViewMessage = async (contact) => {
     setSelectedContact(contact);
     setIsModalOpen(true);
+    if (!contact.aiAnalysis) {
+      await startAIAnalysis(contact.message);
+    }
   };
 
-  // Update contact status
-  const handleStatusUpdate = async (id, newStatus) => {
+  // Update contact
+  const handleUpdate = async (id, updateData) => {
     try {
       const response = await fetch(`${API_URL}/contacts/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ status: newStatus }),
+        body: JSON.stringify(updateData),
       });
-      if (!response.ok) throw new Error('Failed to update status');
+      if (!response.ok) throw new Error('Failed to update contact');
       fetchContacts();
     } catch (error) {
       setError(error.message);
@@ -76,59 +159,55 @@ const ContactAdmin = () => {
       });
       if (!response.ok) throw new Error('Failed to delete contact');
       fetchContacts();
+      if (selectedContact?._id === id) {
+        setIsModalOpen(false);
+      }
     } catch (error) {
       setError(error.message);
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="text-red-500 p-4">Error: {error}</div>
-    );
-  }
+  const priorityColors = {
+    high: 'bg-red-100 text-red-800',
+    medium: 'bg-yellow-100 text-yellow-800',
+    low: 'bg-green-100 text-green-800'
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-8">Contact Messages</h1>
         
+        <Filters onFilterChange={(key, value) => 
+          setFilters(prev => ({ ...prev, [key]: value }))
+        } />
+
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200 shadow-sm rounded-lg">
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subject</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {contacts.map((contact) => (
+              {filteredContacts.map((contact) => (
                 <tr key={contact._id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">{contact.name}</td>
                   <td className="px-6 py-4 whitespace-nowrap">{contact.email}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <button
-                      onClick={() => handleViewMessage(contact)}
-                      className="text-blue-600 hover:text-blue-800"
-                    >
-                      View Message
-                    </button>
+                    <span className={`px-2 py-1 rounded-full text-xs ${priorityColors[contact.priority || 'medium']}`}>
+                      {contact.priority || 'medium'}
+                    </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <select
                       value={contact.status}
-                      onChange={(e) => handleStatusUpdate(contact._id, e.target.value)}
+                      onChange={(e) => handleUpdate(contact._id, { status: e.target.value })}
                       className="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                     >
                       <option value="new">New</option>
@@ -137,11 +216,16 @@ const ContactAdmin = () => {
                     </select>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    {new Date(contact.createdAt).toLocaleDateString()}
+                    {contact.category || '-'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <button
-                      onClick={() => handleDelete(contact._id)}
+                      onClick={() => handleViewMessage(contact)}
+                      className="text-blue-600 hover:text-blue-800 mr-3"
+                    >
+                      View
+                    </button>
+                    <button onClick={() => handleDelete(contact._id)}
                       className="text-red-600 hover:text-red-900"
                     >
                       Delete
@@ -157,8 +241,9 @@ const ContactAdmin = () => {
       {/* Message Detail Modal */}
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
         {selectedContact && (
-          <div>
-            <div className="flex justify-between items-center mb-4">
+          <div className="space-y-6">
+            {/* Header */}
+            <div className="flex justify-between items-center">
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Message Details</h2>
               <button
                 onClick={() => setIsModalOpen(false)}
@@ -170,36 +255,151 @@ const ContactAdmin = () => {
               </button>
             </div>
 
-            <div className="space-y-4">
-              <div>
-                <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">From</h3>
-                <p className="mt-1 text-gray-900 dark:text-white">{selectedContact.name} ({selectedContact.email})</p>
+            {/* Contact Info */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">From</h3>
+                  <p className="mt-1 text-gray-900 dark:text-white">
+                    {selectedContact.name} ({selectedContact.email})
+                  </p>
+                </div>
+
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Date</h3>
+                  <p className="mt-1 text-gray-900 dark:text-white">
+                    {new Date(selectedContact.createdAt).toLocaleString()}
+                  </p>
+                </div>
+
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Status</h3>
+                  <select
+                    value={selectedContact.status}
+                    onChange={(e) => handleUpdate(selectedContact._id, { status: e.target.value })}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                  >
+                    <option value="new">New</option>
+                    <option value="in-progress">In Progress</option>
+                    <option value="completed">Completed</option>
+                  </select>
+                </div>
               </div>
 
-              <div>
-                <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Date</h3>
-                <p className="mt-1 text-gray-900 dark:text-white">
-                  {new Date(selectedContact.createdAt).toLocaleString()}
-                </p>
-              </div>
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Priority</h3>
+                  <select
+                    value={selectedContact.priority || 'medium'}
+                    onChange={(e) => handleUpdate(selectedContact._id, { priority: e.target.value })}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                  >
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                    <option value="low">Low</option>
+                  </select>
+                </div>
 
-              <div>
-                <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Status</h3>
-                <p className="mt-1 text-gray-900 dark:text-white capitalize">{selectedContact.status}</p>
-              </div>
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Category</h3>
+                  <p className="mt-1 text-gray-900 dark:text-white">
+                    {selectedContact.category || 'Uncategorized'}
+                  </p>
+                </div>
 
-              <div>
-                <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Message</h3>
-                <p className="mt-1 text-gray-900 dark:text-white whitespace-pre-wrap">
-                  {selectedContact.message}
-                </p>
+                {selectedContact.tags && selectedContact.tags.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Tags</h3>
+                    <div className="mt-1 flex flex-wrap gap-2">
+                      {selectedContact.tags.map((tag, index) => (
+                        <span
+                          key={index}
+                          className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-sm"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
-            <div className="mt-6 flex justify-end">
+            {/* Message Content */}
+            <div>
+              <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Message</h3>
+              <p className="mt-1 text-gray-900 dark:text-white whitespace-pre-wrap">
+                {selectedContact.message}
+              </p>
+            </div>
+
+            {/* AI Analysis Section */}
+            <div className="border-t pt-4">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-medium">AI Analysis</h3>
+                <button
+                  onClick={() => startAIAnalysis(selectedContact.message)}
+                  className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
+                  disabled={analyzing}
+                >
+                  {analyzing ? 'Analyzing...' : 'Refresh Analysis'}
+                </button>
+              </div>
+
+              {analyzing ? (
+                <div className="flex justify-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent"></div>
+                </div>
+              ) : aiAnalysis ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-500">Sentiment Analysis</h4>
+                    <p className={`mt-1 capitalize ${
+                      aiAnalysis.sentiment === 'positive' ? 'text-green-600' :
+                      aiAnalysis.sentiment === 'negative' ? 'text-red-600' :
+                      'text-gray-600'
+                    }`}>
+                      {aiAnalysis.sentiment}
+                    </p>
+                  </div>
+
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-500">Summary</h4>
+                    <p className="mt-1">{aiAnalysis.summary}</p>
+                  </div>
+
+                  <div className="col-span-2">
+                    <h4 className="text-sm font-medium text-gray-500">Suggested Response</h4>
+                    <textarea
+                      value={aiAnalysis.suggestedResponse}
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+                      rows={4}
+                      readOnly
+                    />
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(aiAnalysis.suggestedResponse);
+                      }}
+                      className="mt-2 text-sm text-blue-500 hover:text-blue-700"
+                    >
+                      Copy to Clipboard
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex justify-end gap-3 border-t pt-4">
+              <button
+                onClick={() => handleDelete(selectedContact._id)}
+                className="px-4 py-2 text-red-600 hover:bg-red-50 rounded"
+              >
+                Delete
+              </button>
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
+                className="px-4 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
               >
                 Close
               </button>
