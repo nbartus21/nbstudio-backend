@@ -24,7 +24,7 @@ const Filters = ({ onFilterChange }) => {
     <div className="flex gap-4 mb-6 flex-wrap">
       <input
         type="text"
-        placeholder="Search messages..."
+        placeholder="Üzenetek keresése..."
         onChange={(e) => onFilterChange('search', e.target.value)}
         className="px-4 py-2 border rounded"
       />
@@ -32,19 +32,19 @@ const Filters = ({ onFilterChange }) => {
         onChange={(e) => onFilterChange('status', e.target.value)}
         className="px-4 py-2 border rounded"
       >
-        <option value="">All Statuses</option>
-        <option value="new">New</option>
-        <option value="in-progress">In Progress</option>
-        <option value="completed">Completed</option>
+        <option value="">Minden állapot</option>
+        <option value="new">Új</option>
+        <option value="in-progress">Folyamatban</option>
+        <option value="completed">Befejezett</option>
       </select>
       <select 
         onChange={(e) => onFilterChange('priority', e.target.value)}
         className="px-4 py-2 border rounded"
       >
-        <option value="">All Priorities</option>
-        <option value="high">High</option>
-        <option value="medium">Medium</option>
-        <option value="low">Low</option>
+        <option value="">Minden prioritás</option>
+        <option value="high">Magas</option>
+        <option value="medium">Közepes</option>
+        <option value="low">Alacsony</option>
       </select>
     </div>
   );
@@ -64,7 +64,7 @@ const ContactAdmin = () => {
   const [aiAnalysis, setAiAnalysis] = useState(null);
   const [analyzing, setAnalyzing] = useState(false);
 
-  // AI analízis indítása
+  // AI elemzés indítása
   const startAIAnalysis = async (message) => {
     setAnalyzing(true);
     try {
@@ -84,19 +84,19 @@ const ContactAdmin = () => {
         suggestedResponse
       });
     } catch (error) {
-      console.error('AI analysis failed:', error);
-      setError('AI analysis failed');
+      console.error('AI elemzés sikertelen:', error);
+      setError('AI elemzés sikertelen');
     } finally {
       setAnalyzing(false);
     }
   };
 
-  // Fetch contacts
+  // Kapcsolatok lekérése
   const fetchContacts = async () => {
     try {
       setLoading(true);
       const response = await fetch(`${API_URL}/contacts`);
-      if (!response.ok) throw new Error('Failed to fetch contacts');
+      if (!response.ok) throw new Error('A kapcsolatok lekérése sikertelen');
       const data = await response.json();
       setContacts(data);
     } catch (error) {
@@ -110,7 +110,7 @@ const ContactAdmin = () => {
     fetchContacts();
   }, []);
 
-  // Filter contacts
+  // Kapcsolatok szűrése
   const filteredContacts = contacts.filter(contact => {
     const searchMatch = 
       contact.name.toLowerCase().includes(filters.search.toLowerCase()) ||
@@ -123,7 +123,7 @@ const ContactAdmin = () => {
     return searchMatch && statusMatch && priorityMatch;
   });
 
-  // View message details
+  // Üzenet részleteinek megtekintése
   const handleViewMessage = async (contact) => {
     setSelectedContact(contact);
     setIsModalOpen(true);
@@ -132,7 +132,7 @@ const ContactAdmin = () => {
     }
   };
 
-  // Update contact
+  // Kapcsolat frissítése
   const handleUpdate = async (id, updateData) => {
     try {
       const response = await fetch(`${API_URL}/contacts/${id}`, {
@@ -142,22 +142,22 @@ const ContactAdmin = () => {
         },
         body: JSON.stringify(updateData),
       });
-      if (!response.ok) throw new Error('Failed to update contact');
+      if (!response.ok) throw new Error('A kapcsolat frissítése sikertelen');
       fetchContacts();
     } catch (error) {
       setError(error.message);
     }
   };
 
-  // Delete contact
+  // Kapcsolat törlése
   const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this contact?')) return;
+    if (!window.confirm('Biztosan törölni szeretnéd ezt a kapcsolatot?')) return;
     
     try {
       const response = await fetch(`${API_URL}/contacts/${id}`, {
         method: 'DELETE',
       });
-      if (!response.ok) throw new Error('Failed to delete contact');
+      if (!response.ok) throw new Error('A kapcsolat törlése sikertelen');
       fetchContacts();
       if (selectedContact?._id === id) {
         setIsModalOpen(false);
@@ -176,7 +176,7 @@ const ContactAdmin = () => {
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">Contact Messages</h1>
+        <h1 className="text-3xl font-bold text-gray-900 mb-8">Kapcsolati üzenetek</h1>
         
         <Filters onFilterChange={(key, value) => 
           setFilters(prev => ({ ...prev, [key]: value }))
@@ -186,12 +186,12 @@ const ContactAdmin = () => {
           <table className="min-w-full divide-y divide-gray-200 shadow-sm rounded-lg">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Név</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Prioritás</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Állapot</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kategória</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Műveletek</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -201,7 +201,7 @@ const ContactAdmin = () => {
                   <td className="px-6 py-4 whitespace-nowrap">{contact.email}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-2 py-1 rounded-full text-xs ${priorityColors[contact.priority || 'medium']}`}>
-                      {contact.priority || 'medium'}
+                      {contact.priority || 'közepes'}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -210,9 +210,9 @@ const ContactAdmin = () => {
                       onChange={(e) => handleUpdate(contact._id, { status: e.target.value })}
                       className="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                     >
-                      <option value="new">New</option>
-                      <option value="in-progress">In Progress</option>
-                      <option value="completed">Completed</option>
+                      <option value="new">Új</option>
+                      <option value="in-progress">Folyamatban</option>
+                      <option value="completed">Befejezett</option>
                     </select>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -223,12 +223,12 @@ const ContactAdmin = () => {
                       onClick={() => handleViewMessage(contact)}
                       className="text-blue-600 hover:text-blue-800 mr-3"
                     >
-                      View
+                      Megtekintés
                     </button>
                     <button onClick={() => handleDelete(contact._id)}
                       className="text-red-600 hover:text-red-900"
                     >
-                      Delete
+                      Törlés
                     </button>
                   </td>
                 </tr>
@@ -238,13 +238,13 @@ const ContactAdmin = () => {
         </div>
       </div>
 
-      {/* Message Detail Modal */}
+      {/* Üzenet részletei Modal */}
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
         {selectedContact && (
           <div className="space-y-6">
-            {/* Header */}
+            {/* Fejléc */}
             <div className="flex justify-between items-center">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Message Details</h2>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Üzenet részletei</h2>
               <button
                 onClick={() => setIsModalOpen(false)}
                 className="text-gray-500 hover:text-gray-700"
@@ -255,61 +255,61 @@ const ContactAdmin = () => {
               </button>
             </div>
 
-            {/* Contact Info */}
+            {/* Kapcsolat információk */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-4">
                 <div>
-                  <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">From</h3>
+                  <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Feladó</h3>
                   <p className="mt-1 text-gray-900 dark:text-white">
                     {selectedContact.name} ({selectedContact.email})
                   </p>
                 </div>
 
                 <div>
-                  <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Date</h3>
+                  <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Dátum</h3>
                   <p className="mt-1 text-gray-900 dark:text-white">
                     {new Date(selectedContact.createdAt).toLocaleString()}
                   </p>
                 </div>
 
                 <div>
-                  <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Status</h3>
+                  <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Állapot</h3>
                   <select
                     value={selectedContact.status}
                     onChange={(e) => handleUpdate(selectedContact._id, { status: e.target.value })}
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                   >
-                    <option value="new">New</option>
-                    <option value="in-progress">In Progress</option>
-                    <option value="completed">Completed</option>
+                    <option value="new">Új</option>
+                    <option value="in-progress">Folyamatban</option>
+                    <option value="completed">Befejezett</option>
                   </select>
                 </div>
               </div>
 
               <div className="space-y-4">
                 <div>
-                  <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Priority</h3>
+                  <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Prioritás</h3>
                   <select
                     value={selectedContact.priority || 'medium'}
                     onChange={(e) => handleUpdate(selectedContact._id, { priority: e.target.value })}
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                   >
-                    <option value="high">High</option>
-                    <option value="medium">Medium</option>
-                    <option value="low">Low</option>
+                    <option value="high">Magas</option>
+                    <option value="medium">Közepes</option>
+                    <option value="low">Alacsony</option>
                   </select>
                 </div>
 
                 <div>
-                  <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Category</h3>
+                  <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Kategória</h3>
                   <p className="mt-1 text-gray-900 dark:text-white">
-                    {selectedContact.category || 'Uncategorized'}
+                    {selectedContact.category || 'Nincs kategorizálva'}
                   </p>
                 </div>
 
                 {selectedContact.tags && selectedContact.tags.length > 0 && (
                   <div>
-                    <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Tags</h3>
+                    <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Címkék</h3>
                     <div className="mt-1 flex flex-wrap gap-2">
                       {selectedContact.tags.map((tag, index) => (
                         <span
@@ -325,24 +325,24 @@ const ContactAdmin = () => {
               </div>
             </div>
 
-            {/* Message Content */}
+            {/* Üzenet tartalma */}
             <div>
-              <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Message</h3>
+              <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Üzenet</h3>
               <p className="mt-1 text-gray-900 dark:text-white whitespace-pre-wrap">
                 {selectedContact.message}
               </p>
             </div>
 
-            {/* AI Analysis Section */}
+            {/* AI elemzés rész */}
             <div className="border-t pt-4">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-medium">AI Analysis</h3>
+                <h3 className="text-lg font-medium">AI elemzés</h3>
                 <button
                   onClick={() => startAIAnalysis(selectedContact.message)}
                   className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
                   disabled={analyzing}
                 >
-                  {analyzing ? 'Analyzing...' : 'Refresh Analysis'}
+                  {analyzing ? 'Elemzés folyamatban...' : 'Elemzés frissítése'}
                 </button>
               </div>
 
@@ -353,7 +353,7 @@ const ContactAdmin = () => {
               ) : aiAnalysis ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <h4 className="text-sm font-medium text-gray-500">Sentiment Analysis</h4>
+                    <h4 className="text-sm font-medium text-gray-500">Hangulatelemzés</h4>
                     <p className={`mt-1 capitalize ${
                       aiAnalysis.sentiment === 'positive' ? 'text-green-600' :
                       aiAnalysis.sentiment === 'negative' ? 'text-red-600' :
@@ -364,12 +364,12 @@ const ContactAdmin = () => {
                   </div>
 
                   <div>
-                    <h4 className="text-sm font-medium text-gray-500">Summary</h4>
+                    <h4 className="text-sm font-medium text-gray-500">Összefoglaló</h4>
                     <p className="mt-1">{aiAnalysis.summary}</p>
                   </div>
 
                   <div className="col-span-2">
-                    <h4 className="text-sm font-medium text-gray-500">Suggested Response</h4>
+                    <h4 className="text-sm font-medium text-gray-500">Javasolt válasz</h4>
                     <textarea
                       value={aiAnalysis.suggestedResponse}
                       className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
@@ -382,26 +382,26 @@ const ContactAdmin = () => {
                       }}
                       className="mt-2 text-sm text-blue-500 hover:text-blue-700"
                     >
-                      Copy to Clipboard
+                      Másolás vágólapra
                     </button>
                   </div>
                 </div>
               ) : null}
             </div>
 
-            {/* Action Buttons */}
+            {/* Művelet gombok */}
             <div className="flex justify-end gap-3 border-t pt-4">
               <button
                 onClick={() => handleDelete(selectedContact._id)}
                 className="px-4 py-2 text-red-600 hover:bg-red-50 rounded"
               >
-                Delete
+                Törlés
               </button>
               <button
                 onClick={() => setIsModalOpen(false)}
                 className="px-4 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
               >
-                Close
+                Bezárás
               </button>
             </div>
           </div>
@@ -415,15 +415,15 @@ const ContactAdmin = () => {
 const fetchContacts = async () => {
     try {
       setLoading(true);
-      console.log('Fetching contacts...');
+      console.log('Kapcsolatok lekérése...');
       const response = await fetch(`${API_URL}/contacts`);
-      console.log('Response:', response);
-      if (!response.ok) throw new Error('Failed to fetch contacts');
+      console.log('Válasz:', response);
+      if (!response.ok) throw new Error('A kapcsolatok lekérése sikertelen');
       const data = await response.json();
-      console.log('Fetched data:', data);
+      console.log('Lekért adatok:', data);
       setContacts(data);
     } catch (error) {
-      console.error('Error fetching contacts:', error);
+      console.error('Hiba a kapcsolatok lekérésekor:', error);
       setError(error.message);
     } finally {
       setLoading(false);

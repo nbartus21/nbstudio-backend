@@ -29,7 +29,7 @@ const CalculatorAdmin = () => {
     try {
       setLoading(true);
       const response = await fetch(`${API_URL}/calculators`);
-      if (!response.ok) throw new Error('Failed to fetch calculator entries');
+      if (!response.ok) throw new Error('Nem sikerült lekérni a kalkulátor bejegyzéseket');
       const data = await response.json();
       setEntries(data);
     } catch (error) {
@@ -56,7 +56,7 @@ const CalculatorAdmin = () => {
         suggestedResponse
       });
     } catch (error) {
-      console.error('AI analysis failed:', error);
+      console.error('AI elemzés sikertelen:', error);
     } finally {
       setAnalyzing(false);
     }
@@ -71,7 +71,7 @@ const CalculatorAdmin = () => {
         },
         body: JSON.stringify({ status })
       });
-      if (!response.ok) throw new Error('Failed to update status');
+      if (!response.ok) throw new Error('Nem sikerült frissíteni az állapotot');
       await fetchEntries();
     } catch (error) {
       setError(error.message);
@@ -79,12 +79,12 @@ const CalculatorAdmin = () => {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this entry?')) return;
+    if (!window.confirm('Biztosan törölni szeretné ezt a bejegyzést?')) return;
     try {
       const response = await fetch(`${API_URL}/calculators/${id}`, {
         method: 'DELETE'
       });
-      if (!response.ok) throw new Error('Failed to delete entry');
+      if (!response.ok) throw new Error('Nem sikerült törölni a bejegyzést');
       await fetchEntries();
     } catch (error) {
       setError(error.message);
@@ -102,24 +102,24 @@ const CalculatorAdmin = () => {
   }
 
   if (error) {
-    return <div className="text-red-500 p-4">Error: {error}</div>;
+    return <div className="text-red-500 p-4">Hiba: {error}</div>;
   }
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">Cost Calculator Entries</h1>
+        <h1 className="text-3xl font-bold text-gray-900 mb-8">Költségkalkulátor Bejegyzések</h1>
         
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200 shadow-sm rounded-lg">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dátum</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Project Type</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estimated Cost</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Projekt Típus</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Becsült Költség</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Állapot</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Műveletek</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -139,10 +139,10 @@ const CalculatorAdmin = () => {
                       onChange={(e) => handleStatusUpdate(entry._id, e.target.value)}
                       className="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                     >
-                      <option value="new">New</option>
-                      <option value="in-progress">In Progress</option>
-                      <option value="completed">Completed</option>
-                      <option value="cancelled">Cancelled</option>
+                      <option value="new">Új</option>
+                      <option value="in-progress">Folyamatban</option>
+                      <option value="completed">Befejezett</option>
+                      <option value="cancelled">Törölt</option>
                     </select>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -154,13 +154,13 @@ const CalculatorAdmin = () => {
                       }}
                       className="text-blue-600 hover:text-blue-800 mr-3"
                     >
-                      View Details
+                      Részletek
                     </button>
                     <button
                       onClick={() => handleDelete(entry._id)}
                       className="text-red-600 hover:text-red-800"
                     >
-                      Delete
+                      Törlés
                     </button>
                   </td>
                 </tr>
@@ -169,12 +169,12 @@ const CalculatorAdmin = () => {
           </table>
         </div>
 
-        {/* Details Modal */}
+        {/* Részletek Modal */}
         <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
           {selectedEntry && (
             <div className="space-y-6">
               <div className="flex justify-between items-center">
-                <h2 className="text-xl font-semibold">Project Details</h2>
+                <h2 className="text-xl font-semibold">Projekt Részletek</h2>
                 <button
                   onClick={() => setIsModalOpen(false)}
                   className="text-gray-500 hover:text-gray-700"
@@ -187,34 +187,34 @@ const CalculatorAdmin = () => {
 
               <div className="grid grid-cols-2 gap-6">
                 <div>
-                  <h3 className="text-lg font-medium mb-2">Client Information</h3>
+                  <h3 className="text-lg font-medium mb-2">Ügyfél Információ</h3>
                   <div className="space-y-2">
                     <p><span className="font-medium">Email:</span> {selectedEntry.email}</p>
-                    <p><span className="font-medium">Project Type:</span> {selectedEntry.projectType}</p>
-                    <p><span className="font-medium">Complexity:</span> {selectedEntry.complexity}</p>
-                    <p><span className="font-medium">Urgent Delivery:</span> {selectedEntry.urgentDelivery ? 'Yes' : 'No'}</p>
-                    <p><span className="font-medium">Maintenance:</span> {selectedEntry.maintenance ? 'Yes' : 'No'}</p>
+                    <p><span className="font-medium">Projekt Típus:</span> {selectedEntry.projectType}</p>
+                    <p><span className="font-medium">Bonyolultság:</span> {selectedEntry.complexity}</p>
+                    <p><span className="font-medium">Sürgős Szállítás:</span> {selectedEntry.urgentDelivery ? 'Igen' : 'Nem'}</p>
+                    <p><span className="font-medium">Karbantartás:</span> {selectedEntry.maintenance ? 'Igen' : 'Nem'}</p>
                   </div>
                 </div>
 
                 <div>
-                  <h3 className="text-lg font-medium mb-2">Cost Breakdown</h3>
+                  <h3 className="text-lg font-medium mb-2">Költség Felbontás</h3>
                   <div className="space-y-2">
-                    <p><span className="font-medium">Total Cost:</span> {formatCurrency(selectedEntry.estimatedCost.minCost)} - {formatCurrency(selectedEntry.estimatedCost.maxCost)}</p>
-                    <p><span className="font-medium">Development Hours:</span> {selectedEntry.breakdown.development.hours}h</p>
-                    <p><span className="font-medium">Feature Hours:</span> {selectedEntry.breakdown.features.hours}h</p>
-                    <p><span className="font-medium">Total Hours:</span> {selectedEntry.estimatedCost.hours}h</p>
+                    <p><span className="font-medium">Teljes Költség:</span> {formatCurrency(selectedEntry.estimatedCost.minCost)} - {formatCurrency(selectedEntry.estimatedCost.maxCost)}</p>
+                    <p><span className="font-medium">Fejlesztési Órák:</span> {selectedEntry.breakdown.development.hours}h</p>
+                    <p><span className="font-medium">Funkció Órák:</span> {selectedEntry.breakdown.features.hours}h</p>
+                    <p><span className="font-medium">Összes Óra:</span> {selectedEntry.estimatedCost.hours}h</p>
                   </div>
                 </div>
               </div>
 
               <div>
-                <h3 className="text-lg font-medium mb-2">Project Description</h3>
+                <h3 className="text-lg font-medium mb-2">Projekt Leírás</h3>
                 <p className="text-gray-700">{selectedEntry.projectDescription}</p>
               </div>
 
               <div>
-                <h3 className="text-lg font-medium mb-2">Selected Features</h3>
+                <h3 className="text-lg font-medium mb-2">Kiválasztott Funkciók</h3>
                 <div className="flex flex-wrap gap-2">{selectedEntry.features.map((feature, index) => (
                     <span
                       key={index}
@@ -226,16 +226,16 @@ const CalculatorAdmin = () => {
                 </div>
               </div>
 
-              {/* AI Analysis Section */}
+              {/* AI Elemzés Szakasz */}
               <div className="border-t pt-4">
                 <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-medium">AI Analysis</h3>
+                  <h3 className="text-lg font-medium">AI Elemzés</h3>
                   <button
                     onClick={() => handleAnalyze(selectedEntry)}
                     className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
                     disabled={analyzing}
                   >
-                    {analyzing ? 'Analyzing...' : 'Refresh Analysis'}
+                    {analyzing ? 'Elemzés folyamatban...' : 'Elemzés Frissítése'}
                   </button>
                 </div>
 
@@ -246,7 +246,7 @@ const CalculatorAdmin = () => {
                 ) : aiAnalysis ? (
                   <div className="space-y-4">
                     <div>
-                      <h4 className="text-sm font-medium text-gray-500">Priority Assessment</h4>
+                      <h4 className="text-sm font-medium text-gray-500">Prioritás Értékelés</h4>
                       <p className={`mt-1 capitalize ${
                         aiAnalysis.priority === 'high' ? 'text-red-600' :
                         aiAnalysis.priority === 'medium' ? 'text-yellow-600' :
@@ -257,12 +257,12 @@ const CalculatorAdmin = () => {
                     </div>
 
                     <div>
-                      <h4 className="text-sm font-medium text-gray-500">Project Category</h4>
+                      <h4 className="text-sm font-medium text-gray-500">Projekt Kategória</h4>
                       <p className="mt-1 capitalize">{aiAnalysis.category}</p>
                     </div>
 
                     <div>
-                      <h4 className="text-sm font-medium text-gray-500">Sentiment Analysis</h4>
+                      <h4 className="text-sm font-medium text-gray-500">Hangulat Elemzés</h4>
                       <p className={`mt-1 capitalize ${
                         aiAnalysis.sentiment === 'positive' ? 'text-green-600' :
                         aiAnalysis.sentiment === 'negative' ? 'text-red-600' :
@@ -273,7 +273,7 @@ const CalculatorAdmin = () => {
                     </div>
 
                     <div>
-                      <h4 className="text-sm font-medium text-gray-500">Suggested Response</h4>
+                      <h4 className="text-sm font-medium text-gray-500">Javasolt Válasz</h4>
                       <div className="mt-2 relative">
                         <textarea
                           readOnly
@@ -284,7 +284,7 @@ const CalculatorAdmin = () => {
                         <button
                           onClick={() => navigator.clipboard.writeText(aiAnalysis.suggestedResponse)}
                           className="absolute top-2 right-2 p-2 text-gray-500 hover:text-gray-700"
-                          title="Copy to clipboard"
+                          title="Másolás vágólapra"
                         >
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
@@ -296,9 +296,9 @@ const CalculatorAdmin = () => {
                 ) : null}
               </div>
 
-              {/* Notes Section */}
+              {/* Megjegyzések Szakasz */}
               <div className="border-t pt-4">
-                <h3 className="text-lg font-medium mb-4">Notes</h3>
+                <h3 className="text-lg font-medium mb-4">Megjegyzések</h3>
                 <div className="space-y-4">
                   {selectedEntry.notes?.map((note, index) => (
                     <div key={index} className="bg-gray-50 p-3 rounded">
@@ -311,7 +311,7 @@ const CalculatorAdmin = () => {
                   <div className="flex gap-2">
                     <input
                       type="text"
-                      placeholder="Add a note..."
+                      placeholder="Megjegyzés hozzáadása..."
                       className="flex-1 px-4 py-2 border rounded-lg"
                       onKeyPress={async (e) => {
                         if (e.key === 'Enter' && e.target.value.trim()) {
@@ -328,7 +328,7 @@ const CalculatorAdmin = () => {
                                 ]
                               })
                             });
-                            if (!response.ok) throw new Error('Failed to add note');
+                            if (!response.ok) throw new Error('Nem sikerült hozzáadni a megjegyzést');
                             await fetchEntries();
                             e.target.value = '';
                           } catch (error) {
@@ -341,19 +341,19 @@ const CalculatorAdmin = () => {
                 </div>
               </div>
 
-              {/* Action Buttons */}
+              {/* Művelet Gombok */}
               <div className="flex justify-end gap-3 border-t pt-4">
                 <button
                   onClick={() => handleDelete(selectedEntry._id)}
                   className="px-4 py-2 text-red-600 hover:bg-red-50 rounded"
                 >
-                  Delete
+                  Törlés
                 </button>
                 <button
                   onClick={() => setIsModalOpen(false)}
                   className="px-4 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
                 >
-                  Close
+                  Bezárás
                 </button>
               </div>
             </div>
