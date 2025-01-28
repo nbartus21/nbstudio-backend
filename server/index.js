@@ -14,7 +14,8 @@ app.use(cors({
   origin: [
     'https://nbstudio-backend.onrender.com',
     'https://nbstudio-backend-1.onrender.com',
-    'https://nb-studio.net' // Új domain hozzáadva
+    '104.151.62.206',
+    'https://nb-studio.net' // weblap
   ],
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true
