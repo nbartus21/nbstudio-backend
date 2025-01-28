@@ -2,6 +2,9 @@ import React from 'react';
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
 import BlogAdmin from './BlogAdmin';
 import ContactAdmin from './ContactAdmin';
+import CalculatorAdmin from './components/CalculatorAdmin';
+
+
 
 const App = () => {
   const location = useLocation();
@@ -38,6 +41,14 @@ const App = () => {
                   >
                     Contact Messages
                   </Link>
+                  <Link
+    to="/calculator"
+    className={`text-gray-300 hover:bg-gray-700 hover:text-white px-3 py-2 rounded-md text-sm font-medium ${
+      location.pathname === '/calculator' ? 'bg-gray-900 text-white' : ''
+    }`}
+  >
+    Calculator Entries
+  </Link>
                 </div>
               </div>
             </div>
@@ -51,6 +62,7 @@ const App = () => {
           <Route path="/" element={<BlogAdmin />} />
           <Route path="/blog" element={<BlogAdmin />} />
           <Route path="/contacts" element={<ContactAdmin />} />
+          <Route path="/calculator" element={<CalculatorAdmin />} />  {/* Új útvonal */}
         </Routes>
       </main>
     </div>

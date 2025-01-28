@@ -4,6 +4,9 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import postRoutes from './routes/posts.js';
 import contactRoutes from './routes/contacts.js';
+import calculatorRoutes from './routes/calculators.js';
+
+
 
 dotenv.config();
 
@@ -14,8 +17,7 @@ app.use(cors({
   origin: [
     'https://nbstudio-backend.onrender.com',
     'https://nbstudio-backend-1.onrender.com',
-    '104.151.62.206',
-    'https://nb-studio.net' // weblap
+    'https://nb-studio.net' // Új domain hozzáadva
   ],
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true
@@ -33,6 +35,8 @@ app.use((req, res, next) => {
 // Routes
 app.use('/api', postRoutes);
 app.use('/api', contactRoutes);  // <-- Ide kell betenni az új route-ot
+app.use('/api', calculatorRoutes); // masik uj
+
 
 // Alap route teszteléshez
 app.get('/', (req, res) => {
