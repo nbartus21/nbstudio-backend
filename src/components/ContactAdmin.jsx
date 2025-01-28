@@ -411,4 +411,23 @@ const ContactAdmin = () => {
   );
 };
 
+// ContactAdmin.jsx-ben adj hozzá console.log-okat
+const fetchContacts = async () => {
+    try {
+      setLoading(true);
+      console.log('Fetching contacts...');
+      const response = await fetch(`${API_URL}/contacts`);
+      console.log('Response:', response);
+      if (!response.ok) throw new Error('Failed to fetch contacts');
+      const data = await response.json();
+      console.log('Fetched data:', data);
+      setContacts(data);
+    } catch (error) {
+      console.error('Error fetching contacts:', error);
+      setError(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
 export default ContactAdmin;

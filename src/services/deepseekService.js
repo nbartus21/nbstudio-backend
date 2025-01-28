@@ -30,7 +30,7 @@ export const generateSEOSuggestions = async (content, language) => {
   try {
     const response = await callDeepSeekAPI({
       messages: [
-        { role: "system", content: "You are an SEO expert assistant." },
+        { role: "system", content: "You are an SEO expert assistant. Provide clear, structured suggestions." },
         { role: "user", content: `
           Analyze this content and provide SEO optimization suggestions.
           Content language: ${language}
@@ -46,10 +46,26 @@ export const generateSEOSuggestions = async (content, language) => {
         ` }
       ]
     });
-    return response.choices[0].message.content;
+
+    try {
+      return response.choices[0].message.content;
+    } catch (parseError) {
+      console.error('Parse error in SEO suggestions:', parseError);
+      return {
+        metaTitle: '',
+        metaDescription: '',
+        keywords: [],
+        suggestions: []
+      };
+    }
   } catch (error) {
     console.error('SEO suggestion generation failed:', error);
-    throw error;
+    return {
+      metaTitle: '',
+      metaDescription: '',
+      keywords: [],
+      suggestions: []
+    };
   }
 };
 
@@ -58,7 +74,7 @@ export const translateContent = async (content, sourceLanguage, targetLanguage) 
   try {
     const response = await callDeepSeekAPI({
       messages: [
-        { role: "system", content: "You are a professional translator." },
+        { role: "system", content: "You are a professional translator. Provide accurate translations." },
         { role: "user", content: `
           Translate this content from ${sourceLanguage} to ${targetLanguage}.
           Maintain the formatting and style.
@@ -68,10 +84,11 @@ export const translateContent = async (content, sourceLanguage, targetLanguage) 
         ` }
       ]
     });
+
     return response.choices[0].message.content;
   } catch (error) {
     console.error('Translation failed:', error);
-    throw error;
+    return content; // Return original content if translation fails
   }
 };
 
@@ -80,7 +97,10 @@ export const generateMetaContent = async (content, language) => {
   try {
     const response = await callDeepSeekAPI({
       messages: [
-        { role: "system", content: "You are an SEO metadata specialist." },
+        { 
+          role: "system", 
+          content: "You are an SEO metadata specialist. Respond ONLY with a valid JSON object containing metaTitle and metaDescription." 
+        },
         { role: "user", content: `
           Generate SEO-optimized meta title and description.
           Language: ${language}
@@ -88,82 +108,121 @@ export const generateMetaContent = async (content, language) => {
           Content:
           ${content}
           
-          Respond in this format:
-          {
-            "metaTitle": "60 characters max title",
-            "metaDescription": "160 characters max description"
-          }
+          Respond EXACTLY in this format:
+          {"metaTitle":"60 chars max title","metaDescription":"160 chars max description"}
         ` }
       ]
     });
-    return JSON.parse(response.choices[0].message.content);
+
+    try {
+      const result = JSON.parse(response.choices[0].message.content.trim());
+      return {
+        metaTitle: result.metaTitle || '',
+        metaDescription: result.metaDescription || ''
+      };
+    } catch (parseError) {
+      console.error('Meta content parse error:', parseError);
+      return {
+        metaTitle: '',
+        metaDescription: ''
+      };
+    }
   } catch (error) {
     console.error('Meta content generation failed:', error);
-    throw error;
+    return {
+      metaTitle: '',
+      metaDescription: ''
+    };
   }
 };
 
-// Automatikus tag javaslatok
+// Tag javaslatok
 export const suggestTags = async (content, language) => {
   try {
     const response = await callDeepSeekAPI({
       messages: [
-        { role: "system", content: "You are a content categorization specialist." },
+        { 
+          role: "system", 
+          content: "You are a content tagger. Respond ONLY with a valid JSON array of strings." 
+        },
         { role: "user", content: `
-          Suggest relevant tags for this content.
+          Generate relevant tags for this content.
           Language: ${language}
           
           Content:
           ${content}
           
-          Provide response as a JSON array of tags.
+          Respond EXACTLY in this format:
+          ["tag1","tag2","tag3"]
         ` }
       ]
     });
-    return JSON.parse(response.choices[0].message.content);
+
+    try {
+      const tags = JSON.parse(response.choices[0].message.content.trim());
+      return Array.isArray(tags) ? tags : [];
+    } catch (parseError) {
+      console.error('Tag parse error:', parseError);
+      return [];
+    }
   } catch (error) {
     console.error('Tag suggestion failed:', error);
-    throw error;
+    return [];
   }
 };
 
-// Contact elemzés
+// Contact üzenet kategorizálás
 export const categorizeMessage = async (message) => {
   try {
     const response = await callDeepSeekAPI({
       messages: [
         {
           role: "system",
-          content: "You are an AI assistant that analyzes customer messages."
+          content: "You are an AI assistant. Respond ONLY with a valid JSON object in the exact format shown."
         },
         {
           role: "user",
-          content: `Analyze this message and provide JSON with category, priority, and sentiment:
-          {
-            "category": "support/inquiry/feedback/complaint",
-            "priority": "high/medium/low",
-            "sentiment": "positive/neutral/negative"
-          }
+          content: `Analyze this message and respond EXACTLY in this format:
+          {"category":"support/inquiry/feedback/complaint","priority":"high/medium/low","sentiment":"positive/neutral/negative"}
           
           Message: ${message}`
         }
       ]
     });
-    return JSON.parse(response.choices[0].message.content);
+
+    try {
+      const result = JSON.parse(response.choices[0].message.content.trim());
+      return {
+        category: result.category || 'other',
+        priority: result.priority || 'medium',
+        sentiment: result.sentiment || 'neutral'
+      };
+    } catch (parseError) {
+      console.error('Message categorization parse error:', parseError);
+      return {
+        category: 'other',
+        priority: 'medium',
+        sentiment: 'neutral'
+      };
+    }
   } catch (error) {
     console.error('Message categorization failed:', error);
-    throw error;
+    return {
+      category: 'other',
+      priority: 'medium',
+      sentiment: 'neutral'
+    };
   }
 };
 
-// Válasz generálás
+// Válasz javaslat generálás
 export const generateResponseSuggestion = async (message) => {
   try {
     const response = await callDeepSeekAPI({
       messages: [
         {
           role: "system",
-          content: "You are a professional customer service representative."
+          content: "You are a professional customer service representative. Provide clear, helpful responses."
         },
         {
           role: "user",
@@ -171,41 +230,42 @@ export const generateResponseSuggestion = async (message) => {
           
           Customer message: ${message}
           
-          Make the response:
+          The response should be:
           1. Professional and polite
           2. Solution-focused
           3. Clear and concise`
         }
       ]
     });
+
     return response.choices[0].message.content;
   } catch (error) {
     console.error('Response suggestion failed:', error);
-    throw error;
+    return 'We have received your message and will respond shortly.';
   }
 };
 
-// Összefoglaló generálás
+// Üzenet összefoglaló generálás
 export const generateSummary = async (message) => {
   try {
     const response = await callDeepSeekAPI({
       messages: [
         {
           role: "system",
-          content: "Create brief summaries of customer messages."
+          content: "Create brief, clear summaries of customer messages."
         },
         {
           role: "user",
-          content: `Summarize this message in 2-3 sentences:
+          content: `Summarize this message in 2-3 clear sentences:
           
           ${message}`
         }
       ]
     });
+
     return response.choices[0].message.content;
   } catch (error) {
     console.error('Summary generation failed:', error);
-    throw error;
+    return 'Message summary not available.';
   }
 };
-
