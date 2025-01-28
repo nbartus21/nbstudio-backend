@@ -1,6 +1,5 @@
-
 const DEEPSEEK_API_KEY = 'sk-a781f0251b034cf6b91f970b43d9caa5';
-const DEEPSEEK_API_URL = 'https://api.deepseek.com/chat/completions'; // Módosított URL
+const DEEPSEEK_API_URL = 'https://api.deepseek.com/chat/completions';
 
 const callDeepSeekAPI = async (payload) => {
   try {
@@ -11,16 +10,14 @@ const callDeepSeekAPI = async (payload) => {
         'Authorization': `Bearer ${DEEPSEEK_API_KEY}`
       },
       body: JSON.stringify({
-        model: "deepseek-chat", // A dokumentáció szerint ezt kell használni
+        model: "deepseek-chat",
         messages: payload.messages,
         stream: false
       })
     });
-
     if (!response.ok) {
       throw new Error(`DeepSeek API error: ${response.statusText}`);
     }
-
     return await response.json();
   } catch (error) {
     console.error('DeepSeek API call failed:', error);
@@ -49,7 +46,6 @@ export const generateSEOSuggestions = async (content, language) => {
         ` }
       ]
     });
-
     return response.choices[0].message.content;
   } catch (error) {
     console.error('SEO suggestion generation failed:', error);
@@ -72,7 +68,6 @@ export const translateContent = async (content, sourceLanguage, targetLanguage) 
         ` }
       ]
     });
-
     return response.choices[0].message.content;
   } catch (error) {
     console.error('Translation failed:', error);
@@ -101,7 +96,6 @@ export const generateMetaContent = async (content, language) => {
         ` }
       ]
     });
-
     return JSON.parse(response.choices[0].message.content);
   } catch (error) {
     console.error('Meta content generation failed:', error);
@@ -126,10 +120,102 @@ export const suggestTags = async (content, language) => {
         ` }
       ]
     });
-
     return JSON.parse(response.choices[0].message.content);
   } catch (error) {
     console.error('Tag suggestion failed:', error);
     throw error;
   }
+};
+
+// Contact elemzés
+export const categorizeMessage = async (message) => {
+  try {
+    const response = await callDeepSeekAPI({
+      messages: [
+        {
+          role: "system",
+          content: "You are an AI assistant that analyzes customer messages."
+        },
+        {
+          role: "user",
+          content: `Analyze this message and provide JSON with category, priority, and sentiment:
+          {
+            "category": "support/inquiry/feedback/complaint",
+            "priority": "high/medium/low",
+            "sentiment": "positive/neutral/negative"
+          }
+          
+          Message: ${message}`
+        }
+      ]
+    });
+    return JSON.parse(response.choices[0].message.content);
+  } catch (error) {
+    console.error('Message categorization failed:', error);
+    throw error;
+  }
+};
+
+// Válasz generálás
+export const generateResponseSuggestion = async (message) => {
+  try {
+    const response = await callDeepSeekAPI({
+      messages: [
+        {
+          role: "system",
+          content: "You are a professional customer service representative."
+        },
+        {
+          role: "user",
+          content: `Generate a professional response to this message:
+          
+          Customer message: ${message}
+          
+          Make the response:
+          1. Professional and polite
+          2. Solution-focused
+          3. Clear and concise`
+        }
+      ]
+    });
+    return response.choices[0].message.content;
+  } catch (error) {
+    console.error('Response suggestion failed:', error);
+    throw error;
+  }
+};
+
+// Összefoglaló generálás
+export const generateSummary = async (message) => {
+  try {
+    const response = await callDeepSeekAPI({
+      messages: [
+        {
+          role: "system",
+          content: "Create brief summaries of customer messages."
+        },
+        {
+          role: "user",
+          content: `Summarize this message in 2-3 sentences:
+          
+          ${message}`
+        }
+      ]
+    });
+    return response.choices[0].message.content;
+  } catch (error) {
+    console.error('Summary generation failed:', error);
+    throw error;
+  }
+};
+
+// Export every function
+export {
+  categorizeMessage,
+  generateResponseSuggestion,
+  generateSummary,
+  suggestTags,
+  generateSEOSuggestions,
+  translateContent,
+  generateMetaContent
 };
