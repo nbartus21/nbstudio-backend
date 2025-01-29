@@ -46,14 +46,36 @@ router.put('/projects/:id', async (req, res) => {
 
 // Számla hozzáadása projekthez
 router.post('/projects/:id/invoices', async (req, res) => {
-  try {
-    const project = await Project.findById(req.params.id);
-    project.invoices.push(req.body);
-    const updatedProject = await project.save();
-    res.status(201).json(updatedProject);
-  } catch (error) {
-    res.status(400).json({ message: error.message });
-  }
-});
+    try {
+      const project = await Project.findById(req.params.id);
+      if (!project) {
+        return res.status(404).json({ message: 'Projekt nem található' });
+      }
+  
+      if (!project.invoices) {
+        project.invoices = [];
+      }
+  
+      project.invoices.push(req.body);
+      
+      // Számoljuk újra a teljes számlázott összeget
+      project.financial.totalBilled = project.invoices.reduce(
+        (sum, invoice) => sum + (invoice.totalAmount || 0), 
+        0
+      );
+  
+      const updatedProject = await project.save();
+      
+      console.log('Számla hozzáadva:', updatedProject.invoices[updatedProject.invoices.length - 1]);
+      
+      res.status(201).json(updatedProject);
+    } catch (error) {
+      console.error('Hiba a számla létrehozásakor:', error);
+      res.status(400).json({ 
+        message: 'Hiba a számla létrehozásakor', 
+        error: error.message 
+      });
+    }
+  });
 
 export default router;

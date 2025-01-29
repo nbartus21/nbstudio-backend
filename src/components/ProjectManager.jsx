@@ -16,9 +16,24 @@ const ProjectManager = () => {
 
   const fetchProjects = async () => {
     try {
+      console.log('Projektek lekérése...'); // Debug log
       const response = await fetch('https://nbstudio-backend.onrender.com/api/projects');
+      
+      if (!response.ok) {
+        throw new Error('Nem sikerült lekérni a projekteket');
+      }
+      
       const data = await response.json();
+      console.log('Lekért projektek:', data); // Debug log
       setProjects(data);
+      
+      // Ha van kiválasztott projekt, frissítsük azt is
+      if (selectedProject) {
+        const updatedProject = data.find(p => p._id === selectedProject._id);
+        if (updatedProject) {
+          setSelectedProject(updatedProject);
+        }
+      }
     } catch (error) {
       console.error('Hiba a projektek betöltésekor:', error);
     } finally {
@@ -82,16 +97,31 @@ const ProjectManager = () => {
 
   const handleCreateInvoice = async () => {
     if (!selectedProject) return;
-
+  
+    // Számítsuk ki az egyes tételek total értékét
+    const itemsWithTotal = newInvoice.items.map(item => ({
+      ...item,
+      total: item.quantity * item.unitPrice
+    }));
+  
     const totalAmount = calculateInvoiceTotal(newInvoice.items);
+    const invoiceNumber = `INV-${Date.now()}`; // Generált számlaszám
+  
     const invoiceData = {
-      ...newInvoice,
-      totalAmount,
+      number: invoiceNumber,
       date: new Date(),
-      status: 'kiállított'
+      amount: totalAmount,
+      status: 'kiállított',
+      dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 napos fizetési határidő
+      items: itemsWithTotal,
+      totalAmount: totalAmount,
+      paidAmount: 0,
+      notes: ''
     };
-
+  
     try {
+      console.log('Számla létrehozása:', invoiceData); // Debug log
+  
       const response = await fetch(`https://nbstudio-backend.onrender.com/api/projects/${selectedProject._id}/invoices`, {
         method: 'POST',
         headers: {
@@ -99,14 +129,27 @@ const ProjectManager = () => {
         },
         body: JSON.stringify(invoiceData)
       });
-
-      if (!response.ok) throw new Error('Hiba a számla létrehozásakor');
+  
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Hiba a számla létrehozásakor');
+      }
+  
+      // Frissítsük a projektet és az állapotot
+      const updatedProject = await response.json();
+      setSelectedProject(updatedProject);
+      setProjects(prevProjects => 
+        prevProjects.map(p => 
+          p._id === updatedProject._id ? updatedProject : p
+        )
+      );
       
       setShowNewInvoiceForm(false);
       setNewInvoice({ items: [{ description: '', quantity: 1, unitPrice: 0 }] });
-      fetchProjects();
+  
     } catch (error) {
       console.error('Hiba:', error);
+      alert('Nem sikerült létrehozni a számlát: ' + error.message);
     }
   };
 
@@ -380,54 +423,60 @@ const ProjectManager = () => {
 
             {/* Számlák listája */}
             {selectedProject._id && (
-              <div className="mt-8">
-                <h3 className="font-medium text-lg mb-4">Számlák</h3>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Számla szám
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Dátum
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Összeg
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Állapot
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {selectedProject.invoices?.map((invoice, index) => (
-                        <tr key={index}>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            {invoice.number}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            {new Date(invoice.date).toLocaleDateString()}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            {invoice.totalAmount?.toLocaleString()} {selectedProject.financial?.currency || 'EUR'}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`px-2 py-1 text-xs rounded-full ${
-                              invoice.status === 'fizetett' ? 'bg-green-100 text-green-800' :
-                              invoice.status === 'késedelmes' ? 'bg-red-100 text-red-800' :
-                              'bg-yellow-100 text-yellow-800'
-                            }`}>
-                              {invoice.status}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
+  <div className="mt-8">
+    <h3 className="font-medium text-lg mb-4">Számlák</h3>
+    <div className="overflow-x-auto">
+      <table className="min-w-full divide-y divide-gray-200">
+        <thead className="bg-gray-50">
+          <tr>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Számla szám
+            </th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Dátum
+            </th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Összeg
+            </th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Fizetve
+            </th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Állapot
+            </th>
+          </tr>
+        </thead>
+        <tbody className="bg-white divide-y divide-gray-200">
+          {selectedProject.invoices?.map((invoice, index) => (
+            <tr key={index}>
+              <td className="px-6 py-4 whitespace-nowrap">
+                {invoice.number}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap">
+                {new Date(invoice.date).toLocaleDateString()}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap">
+                {invoice.totalAmount?.toLocaleString()} {selectedProject.financial?.currency || 'EUR'}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap">
+                {invoice.paidAmount?.toLocaleString()} {selectedProject.financial?.currency || 'EUR'}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap">
+                <span className={`px-2 py-1 text-xs rounded-full ${
+                  invoice.status === 'fizetett' ? 'bg-green-100 text-green-800' :
+                  invoice.status === 'késedelmes' ? 'bg-red-100 text-red-800' :
+                  'bg-yellow-100 text-yellow-800'
+                }`}>
+                  {invoice.status}
+                </span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </div>
+)}
 
             {/* Mentés/Mégse gombok */}
             <div className="flex justify-end gap-4 mt-6">
