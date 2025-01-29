@@ -6,8 +6,6 @@ import ProjectFilters from './ProjectFilters';
 const ProjectManager = () => {
 const [projects, setProjects] = useState([]);
   const [allProjects, setAllProjects] = useState([]);
-  const [selectedInvoice, setSelectedInvoice] = useState(null);
-  const [showInvoiceDetails, setShowInvoiceDetails] = useState(false);
   const [loading, setLoading] = useState(true);
   const [selectedProject, setSelectedProject] = useState(null);
   const [showNewInvoiceForm, setShowNewInvoiceForm] = useState(false);
@@ -483,8 +481,8 @@ const [projects, setProjects] = useState([]);
               </div>
             </div>
 
-{/* Számlák listája */}
-{selectedProject._id && (
+            {/* Számlák listája */}
+            {selectedProject._id && (
   <div className="mt-8">
     <h3 className="font-medium text-lg mb-4">Számlák</h3>
     <div className="overflow-x-auto">
@@ -506,9 +504,6 @@ const [projects, setProjects] = useState([]);
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Állapot
             </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Műveletek
-            </th>
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
@@ -521,10 +516,10 @@ const [projects, setProjects] = useState([]);
                 {new Date(invoice.date).toLocaleDateString()}
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
-                {invoice.totalAmount?.toLocaleString()} EUR
+                {invoice.totalAmount?.toLocaleString()} {selectedProject.financial?.currency || 'EUR'}
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
-                {invoice.paidAmount?.toLocaleString()} EUR
+                {invoice.paidAmount?.toLocaleString()} {selectedProject.financial?.currency || 'EUR'}
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
                 <span className={`px-2 py-1 text-xs rounded-full ${
@@ -535,158 +530,11 @@ const [projects, setProjects] = useState([]);
                   {invoice.status}
                 </span>
               </td>
-              <td className="px-6 py-4 whitespace-nowrap">
-                <button
-                  onClick={() => {
-                    setSelectedInvoice(invoice);
-                    setShowInvoiceDetails(true);
-                  }}
-                  className="text-indigo-600 hover:text-indigo-900"
-                >
-                  Részletek
-                </button>
-              </td>
             </tr>
           ))}
         </tbody>
       </table>
     </div>
-
-    {/* Számla részletek modal */}
-{/* Számla részletek modal */}
-{showInvoiceDetails && selectedInvoice && (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div className="bg-white rounded-lg max-w-4xl w-full p-6 max-h-[90vh] overflow-y-auto">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-semibold">Számla részletei</h2>
-            <button
-              onClick={() => {
-                setShowInvoiceDetails(false);
-                setSelectedInvoice(null);
-              }}
-              className="text-gray-400 hover:text-gray-500"
-            >
-              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm text-gray-600">Számla száma:</p>
-                <p className="font-medium">{selectedInvoice.number}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Kiállítás dátuma:</p>
-                <p className="font-medium">{new Date(selectedInvoice.date).toLocaleDateString()}</p>
-              </div>
-            </div>
-
-            <div>
-              <p className="text-sm text-gray-600">Tételek:</p>
-              <div className="mt-2 space-y-2">
-                {selectedInvoice.items.map((item, index) => (
-                  <div key={index} className="flex justify-between border-b pb-2">
-                    <div>
-                      <p className="font-medium">{item.description}</p>
-                      <p className="text-sm text-gray-600">
-                        {item.quantity} x {item.unitPrice} EUR
-                      </p>
-                    </div>
-                    <p className="font-medium">{(item.quantity * item.unitPrice).toFixed(2)} EUR</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex justify-between pt-4 border-t">
-              <p className="font-semibold">Végösszeg:</p>
-              <p className="font-semibold">{selectedInvoice.totalAmount.toFixed(2)} EUR</p>
-            </div>
-
-            <div className="flex flex-col space-y-4 pt-4">
-              <div className="flex justify-between items-center">
-                <div>
-                  <p className="text-sm text-gray-600">Állapot:</p>
-                  <span className={`px-2 py-1 rounded-full text-sm ${
-                    selectedInvoice.status === 'fizetett' ? 'bg-green-100 text-green-800' :
-                    selectedInvoice.status === 'késedelmes' ? 'bg-red-100 text-red-800' :
-                    'bg-yellow-100 text-yellow-800'
-                  }`}>
-                    {selectedInvoice.status}
-                  </span>
-                </div>
-              </div>
-              
-              {selectedInvoice.status !== 'fizetett' && (
-                <div className="flex flex-col space-y-2">
-                  <button
-                    onClick={async () => {
-                      try {
-                        const response = await fetch('https://nbstudio-backend.onrender.com/api/create-payment-link', {
-                          method: 'POST',
-                          headers: {
-                            'Content-Type': 'application/json',
-                          },
-                          body: JSON.stringify({
-                            amount: selectedInvoice.totalAmount * 100,
-                            currency: 'eur',
-                            invoice_id: selectedInvoice._id,
-                            email: selectedProject.client.email
-                          })
-                        });
-
-                        if (!response.ok) {
-                          throw new Error('Fizetési link generálása sikertelen');
-                        }
-
-                        const data = await response.json();
-                        setPaymentLink(data.url); // Új state a linknek
-                      } catch (error) {
-                        console.error('Hiba:', error);
-                        alert('Hiba történt a fizetési link generálása során: ' + error.message);
-                      }
-                    }}
-                    className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
-                  >
-                    Fizetési link generálása
-                  </button>
-
-                  {paymentLink && (
-                    <div className="flex items-center space-x-2 p-4 bg-gray-50 rounded-lg">
-                      <input
-                        type="text"
-                        value={paymentLink}
-                        readOnly
-                        className="flex-1 p-2 border rounded bg-white"
-                      />
-                      <button
-                        onClick={() => {
-                          navigator.clipboard.writeText(paymentLink)
-                            .then(() => alert('Link másolva!'))
-                            .catch(err => console.error('Másolási hiba:', err));
-                        }}
-                        className="px-3 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
-                      >
-                        Másolás
-                      </button>
-                      <button
-                        onClick={() => window.open(paymentLink, '_blank')}
-                        className="px-3 py-2 bg-green-500 text-white rounded hover:bg-green-600"
-                      >
-                        Megnyitás
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-    )}
   </div>
 )}
 
