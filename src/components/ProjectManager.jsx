@@ -447,7 +447,7 @@ const handleCreateInvoice = async () => {
           </div>
 
 
-          {selectedProject._id && (
+          {selectedProject?._id && (
   <div className="mt-8">
     <h3 className="font-medium text-lg mb-4">Számlák</h3>
     <div className="overflow-x-auto">
@@ -475,7 +475,7 @@ const handleCreateInvoice = async () => {
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
-          {selectedProject.invoices?.map((invoice, index) => (
+          {(selectedProject?.invoices || []).map((invoice, index) => (
             <tr key={index}>
               <td className="px-6 py-4 whitespace-nowrap">
                 {invoice.number}
