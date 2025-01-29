@@ -446,6 +446,93 @@ const handleCreateInvoice = async () => {
             </div>
           </div>
 
+
+          {selectedProject._id && (
+  <div className="mt-8">
+    <h3 className="font-medium text-lg mb-4">Számlák</h3>
+    <div className="overflow-x-auto">
+      <table className="min-w-full divide-y divide-gray-200">
+        <thead className="bg-gray-50">
+          <tr>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Számla szám
+            </th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Dátum
+            </th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Összeg
+            </th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Fizetve
+            </th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Állapot
+            </th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Műveletek
+            </th>
+          </tr>
+        </thead>
+        <tbody className="bg-white divide-y divide-gray-200">
+          {selectedProject.invoices?.map((invoice, index) => (
+            <tr key={index}>
+              <td className="px-6 py-4 whitespace-nowrap">
+                {invoice.number}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap">
+                {new Date(invoice.date).toLocaleDateString()}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap">
+                {invoice.totalAmount?.toLocaleString()} {selectedProject.financial?.currency || 'EUR'}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap">
+                {invoice.paidAmount?.toLocaleString()} {selectedProject.financial?.currency || 'EUR'}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap">
+                <span className={`px-2 py-1 text-xs rounded-full ${
+                  invoice.status === 'fizetett' ? 'bg-green-100 text-green-800' :
+                  invoice.status === 'késedelmes' ? 'bg-red-100 text-red-800' :
+                  'bg-yellow-100 text-yellow-800'
+                }`}>
+                  {invoice.status}
+                </span>
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap">
+                <div className="flex space-x-2">
+                  <button
+                    onClick={() => handleViewInvoice(invoice)}
+                    className="text-blue-600 hover:text-blue-900"
+                    title="Megtekintés"
+                  >
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                            d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                  </button>
+                  
+                  <button
+                    onClick={() => handleDownloadInvoice(invoice)}
+                    className="text-green-600 hover:text-green-900"
+                    title="PDF letöltése"
+                  >
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                            d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </div>
+)}
+
           {/* Save/Cancel Buttons */}
           <div className="flex justify-end gap-4">
             <button
