@@ -553,10 +553,12 @@ const [projects, setProjects] = useState([]);
     </div>
 
     {/* Számla részletek modal */}
-    {showInvoiceDetails && selectedInvoice && (
+{/* Számla részletek modal */}
+{showInvoiceDetails && selectedInvoice && (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
         <div className="bg-white rounded-lg max-w-4xl w-full p-6 max-h-[90vh] overflow-y-auto">
-          <div className="flex justify-end">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-semibold">Számla részletei</h2>
             <button
               onClick={() => {
                 setShowInvoiceDetails(false);
@@ -569,11 +571,65 @@ const [projects, setProjects] = useState([]);
               </svg>
             </button>
           </div>
-          
-          <InvoiceGenerator 
-            invoice={selectedInvoice} 
-            projectEmail={selectedProject.client.email}
-          />
+
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm text-gray-600">Számla száma:</p>
+                <p className="font-medium">{selectedInvoice.number}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Kiállítás dátuma:</p>
+                <p className="font-medium">{new Date(selectedInvoice.date).toLocaleDateString()}</p>
+              </div>
+            </div>
+
+            <div>
+              <p className="text-sm text-gray-600">Tételek:</p>
+              <div className="mt-2 space-y-2">
+                {selectedInvoice.items.map((item, index) => (
+                  <div key={index} className="flex justify-between border-b pb-2">
+                    <div>
+                      <p className="font-medium">{item.description}</p>
+                      <p className="text-sm text-gray-600">
+                        {item.quantity} x {item.unitPrice} EUR
+                      </p>
+                    </div>
+                    <p className="font-medium">{(item.quantity * item.unitPrice).toFixed(2)} EUR</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex justify-between pt-4 border-t">
+              <p className="font-semibold">Végösszeg:</p>
+              <p className="font-semibold">{selectedInvoice.totalAmount.toFixed(2)} EUR</p>
+            </div>
+
+            <div className="flex justify-between items-center pt-4">
+              <div>
+                <p className="text-sm text-gray-600">Állapot:</p>
+                <span className={`px-2 py-1 rounded-full text-sm ${
+                  selectedInvoice.status === 'fizetett' ? 'bg-green-100 text-green-800' :
+                  selectedInvoice.status === 'késedelmes' ? 'bg-red-100 text-red-800' :
+                  'bg-yellow-100 text-yellow-800'
+                }`}>
+                  {selectedInvoice.status}
+                </span>
+              </div>
+              {selectedInvoice.status !== 'fizetett' && (
+                <button
+                  onClick={() => {
+                    // Itt implementálhatjuk a fizetési funkciót
+                    console.log('Fizetés kezdeményezése');
+                  }}
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+                >
+                  Fizetés kezdeményezése
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     )}
