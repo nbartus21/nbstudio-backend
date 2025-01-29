@@ -89,9 +89,19 @@ const ProjectManager = () => {
   // Handle invoice download
   const handleDownloadInvoice = async (invoice) => {
     try {
-      const pdfBlob = await downloadInvoice(invoice, selectedProject);
-      
-      const url = window.URL.createObjectURL(pdfBlob);
+      const response = await fetch(`https://nbstudio-backend.onrender.com/api/projects/${selectedProject._id}/invoices/${invoice._id}/download`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+  
+      if (!response.ok) {
+        throw new Error('Hiba a PDF letöltése során');
+      }
+  
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = `szamla-${invoice.number}.pdf`;
@@ -99,6 +109,7 @@ const ProjectManager = () => {
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
+  
     } catch (error) {
       console.error('Hiba a számla letöltése során:', error);
       alert('A számla letöltése sikertelen: ' + error.message);
@@ -109,38 +120,37 @@ const ProjectManager = () => {
 const handleCreateInvoice = async () => {
     if (!selectedProject) return;
   
-    // Ellenőrizzük a kötelező mezőket
-    const hasEmptyFields = newInvoice.items.some(
-      item => !item.description || item.quantity <= 0 || item.unitPrice <= 0
-    );
-  
-    if (hasEmptyFields) {
-      alert('Kérjük, töltse ki az összes kötelező mezőt a számlán!');
-      return;
-    }
-  
-    const itemsWithTotal = newInvoice.items.map(item => ({
-      ...item,
-      total: item.quantity * item.unitPrice
-    }));
-  
-    const totalAmount = calculateInvoiceTotal(newInvoice.items);
-    const invoiceNumber = `INV-${Date.now()}`;
-  
-    const invoiceData = {
-      number: invoiceNumber,
-      date: new Date(),
-      dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 napos fizetési határidő
-      items: itemsWithTotal,
-      totalAmount: totalAmount,
-      paidAmount: 0,
-      status: 'kiállított',
-      notes: '',
-      project: selectedProject._id // projekt azonosító hozzáadása
-    };
-  
     try {
-      console.log('Számla létrehozása:', invoiceData);
+      // Ellenőrizzük a kötelező mezőket
+      const hasEmptyFields = newInvoice.items.some(
+        item => !item.description || item.quantity <= 0 || item.unitPrice <= 0
+      );
+  
+      if (hasEmptyFields) {
+        alert('Kérjük, töltse ki az összes kötelező mezőt a számlán!');
+        return;
+      }
+  
+      const itemsWithTotal = newInvoice.items.map(item => ({
+        ...item,
+        total: item.quantity * item.unitPrice
+      }));
+  
+      const totalAmount = calculateInvoiceTotal(newInvoice.items);
+      const invoiceNumber = `INV-${Date.now()}`;
+  
+      const invoiceData = {
+        number: invoiceNumber,
+        date: new Date(),
+        dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+        items: itemsWithTotal,
+        totalAmount: totalAmount,
+        paidAmount: 0,
+        status: 'kiállított',
+        notes: '',
+        projectId: selectedProject._id,
+        clientData: selectedProject.client
+      };
   
       const response = await fetch(`https://nbstudio-backend.onrender.com/api/projects/${selectedProject._id}/invoices`, {
         method: 'POST',
@@ -165,8 +175,8 @@ const handleCreateInvoice = async () => {
       
       setShowNewInvoiceForm(false);
       setNewInvoice({ items: [{ description: '', quantity: 1, unitPrice: 0 }] });
-      
       alert('A számla sikeresen létrehozva!');
+  
     } catch (error) {
       console.error('Hiba:', error);
       alert('Nem sikerült létrehozni a számlát: ' + error.message);

@@ -1,7 +1,6 @@
 import express from 'express';
 import mongoose from 'mongoose';
 import PDFDocument from 'pdfkit';
-import fs from 'fs';
 import Project from '../models/Project.js';
 
 const router = express.Router();
@@ -24,12 +23,13 @@ const invoiceSchema = new mongoose.Schema({
     enum: ['kiállított', 'fizetett', 'késedelmes', 'törölt'],
     default: 'kiállított'
   },
-  notes: String
+  notes: String,
+  projectId: { type: mongoose.Schema.Types.ObjectId, ref: 'Project', required: true }
 });
 
 const Invoice = mongoose.model('Invoice', invoiceSchema);
 
-// Új számla létrehozása egy projekthez
+// Új számla létrehozása projekthez
 router.post('/projects/:projectId/invoices', async (req, res) => {
   try {
     const project = await Project.findById(req.params.projectId);
@@ -37,7 +37,14 @@ router.post('/projects/:projectId/invoices', async (req, res) => {
       return res.status(404).json({ message: 'Projekt nem található' });
     }
 
-    const invoice = new Invoice(req.body);
+    // Számla adatok előkészítése
+    const invoiceData = {
+      ...req.body,
+      projectId: project._id
+    };
+
+    // Számla létrehozása
+    const invoice = new Invoice(invoiceData);
     await invoice.save();
 
     // Számla hozzáadása a projekthez
@@ -52,83 +59,162 @@ router.post('/projects/:projectId/invoices', async (req, res) => {
   }
 });
 
-// Számla megtekintése
-router.get('/projects/invoice/:invoiceId', async (req, res) => {
-  try {
-    const invoice = await Invoice.findById(req.params.invoiceId);
-    if (!invoice) {
-      return res.status(404).json({ message: 'Számla nem található' });
-    }
-    res.json(invoice);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
-
 // PDF generálás és letöltés
-router.get('/projects/invoice/:invoiceId/pdf', async (req, res) => {
+router.get('/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => {
   try {
-    const invoice = await Invoice.findById(req.params.invoiceId);
+    const project = await Project.findById(req.params.projectId);
+    if (!project) {
+      return res.status(404).json({ message: 'Projekt nem található' });
+    }
+
+    const invoice = project.invoices.id(req.params.invoiceId);
     if (!invoice) {
       return res.status(404).json({ message: 'Számla nem található' });
     }
 
     // PDF létrehozása
-    const doc = new PDFDocument();
-    const filename = `szamla-${invoice.number}.pdf`;
+    const doc = new PDFDocument({
+      size: 'A4',
+      margin: 50,
+      info: {
+        Title: `Számla-${invoice.number}`,
+        Author: 'NB Studio'
+      }
+    });
 
+    // Response headerek beállítása
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Disposition', `attachment; filename="szamla-${invoice.number}.pdf"`);
 
+    // PDF streamelése a response-ba
     doc.pipe(res);
 
-    // PDF tartalom generálása
-    doc.fontSize(25).text('SZÁMLA', { align: 'center' });
-    doc.moveDown();
-    
-    // Számla adatok
+    // Fejléc
+    doc.image('logo.png', 50, 50, { width: 100 })
+      .fontSize(25)
+      .text('SZÁMLA', { align: 'center' })
+      .moveDown();
+
+    // Kiállító adatok
     doc.fontSize(12)
-      .text(`Számlaszám: ${invoice.number}`)
-      .text(`Dátum: ${new Date(invoice.date).toLocaleDateString('hu-HU')}`)
+      .text('Kiállító:', { underline: true })
+      .text('NB Studio')
+      .text('Adószám: 12345678-1-42')
+      .text('Cím: 1234 Budapest, Példa utca 1.')
+      .moveDown();
+
+    // Vevő adatok
+    if (project.client) {
+      doc.text('Vevő:', { underline: true })
+        .text(project.client.name)
+        .text(`Email: ${project.client.email}`)
+        .text(`Adószám: ${project.client.taxNumber || 'N/A'}`)
+        .moveDown();
+    }
+
+    // Számla adatok
+    doc.text(`Számlaszám: ${invoice.number}`)
+      .text(`Kiállítás dátuma: ${new Date(invoice.date).toLocaleDateString('hu-HU')}`)
       .text(`Fizetési határidő: ${new Date(invoice.dueDate).toLocaleDateString('hu-HU')}`)
       .moveDown();
 
     // Tételek táblázat
-    doc.fontSize(12).text('Tételek:', { underline: true });
-    doc.moveDown();
+    const tableTop = doc.y;
+    const itemsTable = {
+      headers: ['Tétel', 'Mennyiség', 'Egységár', 'Összesen'],
+      rows: invoice.items.map(item => [
+        item.description,
+        item.quantity.toString(),
+        `${item.unitPrice} EUR`,
+        `${item.total} EUR`
+      ])
+    };
 
-    invoice.items.forEach(item => {
-      doc.text(`${item.description}`)
-         .text(`Mennyiség: ${item.quantity} × ${item.unitPrice} = ${item.total} Ft`, { indent: 20 })
-         .moveDown();
+    let currentY = tableTop;
+    let currentPage = 1;
+
+    // Táblázat fejléc
+    doc.font('Helvetica-Bold')
+      .text(itemsTable.headers[0], 50, currentY, { width: 200 })
+      .text(itemsTable.headers[1], 250, currentY, { width: 100 })
+      .text(itemsTable.headers[2], 350, currentY, { width: 100 })
+      .text(itemsTable.headers[3], 450, currentY, { width: 100 });
+
+    // Táblázat sorok
+    doc.font('Helvetica');
+    currentY += 20;
+
+    itemsTable.rows.forEach(row => {
+      if (currentY > 700) {
+        doc.addPage();
+        currentPage++;
+        currentY = 50;
+        
+        // Fejléc az új oldalon
+        doc.font('Helvetica-Bold')
+          .text(itemsTable.headers[0], 50, currentY, { width: 200 })
+          .text(itemsTable.headers[1], 250, currentY, { width: 100 })
+          .text(itemsTable.headers[2], 350, currentY, { width: 100 })
+          .text(itemsTable.headers[3], 450, currentY, { width: 100 });
+        
+        doc.font('Helvetica');
+        currentY += 20;
+      }
+
+      doc.text(row[0], 50, currentY, { width: 200 })
+        .text(row[1], 250, currentY, { width: 100 })
+        .text(row[2], 350, currentY, { width: 100 })
+        .text(row[3], 450, currentY, { width: 100 });
+
+      currentY += 20;
     });
 
-    // Összegzés
+    // Összesítés
     doc.moveDown()
-      .text(`Végösszeg: ${invoice.totalAmount} Ft`, { bold: true })
-      .text(`Fizetve: ${invoice.paidAmount} Ft`)
-      .text(`Fennmaradó összeg: ${invoice.totalAmount - invoice.paidAmount} Ft`);
+      .font('Helvetica-Bold')
+      .text('Összesítés:', { underline: true })
+      .moveDown()
+      .text(`Végösszeg: ${invoice.totalAmount} EUR`, { align: 'right' })
+      .text(`Fizetve: ${invoice.paidAmount} EUR`, { align: 'right' })
+      .text(`Fennmaradó összeg: ${invoice.totalAmount - invoice.paidAmount} EUR`, { align: 'right' });
 
+    // Lábléc
+    doc.fontSize(10)
+      .text('Köszönjük, hogy minket választott!', { align: 'center' })
+      .text(`Oldalszám: ${currentPage}`, 50, doc.page.height - 50, { align: 'center' });
+
+    // PDF lezárása
     doc.end();
+
   } catch (error) {
     console.error('Hiba a PDF generálásnál:', error);
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ 
+      message: 'Hiba a PDF generálása során',
+      error: error.message 
+    });
   }
 });
 
 // Számla állapot frissítése
-router.patch('/projects/invoice/:invoiceId', async (req, res) => {
+router.patch('/projects/:projectId/invoices/:invoiceId', async (req, res) => {
   try {
-    const invoice = await Invoice.findByIdAndUpdate(
-      req.params.invoiceId,
-      { $set: req.body },
-      { new: true }
-    );
+    const project = await Project.findById(req.params.projectId);
+    if (!project) {
+      return res.status(404).json({ message: 'Projekt nem található' });
+    }
+
+    const invoice = project.invoices.id(req.params.invoiceId);
     if (!invoice) {
       return res.status(404).json({ message: 'Számla nem található' });
     }
-    res.json(invoice);
+
+    // Frissítjük a számla mezőit
+    Object.assign(invoice, req.body);
+    await project.save();
+
+    res.json(project);
   } catch (error) {
+    console.error('Hiba a számla frissítésénél:', error);
     res.status(500).json({ message: error.message });
   }
 });
