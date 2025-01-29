@@ -1,16 +1,13 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { IntlProvider } from 'react-intl';
-import { BrowserRouter } from 'react-router-dom';
-import App from './components/App';
+import Login from './components/Login';
 import './index.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <BrowserRouter>
-      <IntlProvider messages={{}} locale="en">
-        <App />
-      </IntlProvider>
-    </BrowserRouter>
+    <IntlProvider messages={{}} locale="hu">
+      <Login />
+    </IntlProvider>
   </React.StrictMode>
 );
