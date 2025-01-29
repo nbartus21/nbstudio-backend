@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import postRoutes from './routes/posts.js';
 import contactRoutes from './routes/contacts.js';
 import calculatorRoutes from './routes/calculators.js';
+import projectRoutes from './routes/projects.js';
 
 
 
@@ -36,6 +37,8 @@ app.use((req, res, next) => {
 app.use('/api', postRoutes);
 app.use('/api', contactRoutes);  // <-- Ide kell betenni az új route-ot
 app.use('/api', calculatorRoutes); // masik uj
+app.use('/api', projectRoutes); //uj projekt kezelo
+
 
 
 // Alap route teszteléshez
