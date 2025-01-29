@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
 import BlogAdmin from './BlogAdmin';
 import ContactAdmin from './ContactAdmin';
@@ -8,16 +8,30 @@ import Login from './Login';
 const App = () => {
   const location = useLocation();
   
-  // Védett route komponens
+  // Védett route komponens debuggolással
   const PrivateRoute = ({ children }) => {
     const isAuthenticated = sessionStorage.getItem('isAuthenticated') === 'true';
-    return isAuthenticated ? (
+    
+    // Debug log
+    console.log('PrivateRoute check:', {
+      isAuthenticated,
+      sessionStorageValue: sessionStorage.getItem('isAuthenticated')
+    });
+
+    useEffect(() => {
+      console.log('PrivateRoute mounted, auth state:', isAuthenticated);
+    }, [isAuthenticated]);
+
+    if (!isAuthenticated) {
+      console.log('Redirecting to login...');
+      return <Navigate to="/login" />;
+    }
+
+    return (
       <>
         <Navigation />
         {children}
       </>
-    ) : (
-      <Navigate to="/login" />
     );
   };
 
@@ -66,6 +80,7 @@ const App = () => {
           <div>
             <button
               onClick={() => {
+                console.log('Logout clicked');
                 sessionStorage.removeItem('isAuthenticated');
                 window.location.href = '/login';
               }}
@@ -79,9 +94,29 @@ const App = () => {
     </nav>
   );
 
+  // Ellenőrizzük a publikus route-okat
+  const PublicRoute = ({ children }) => {
+    const isAuthenticated = sessionStorage.getItem('isAuthenticated') === 'true';
+    
+    // Ha már be van jelentkezve, irányítsuk át a /blog-ra
+    if (isAuthenticated) {
+      console.log('Already authenticated, redirecting to blog...');
+      return <Navigate to="/blog" />;
+    }
+    
+    return children;
+  };
+
   return (
     <Routes>
-      <Route path="/login" element={<Login />} />
+      <Route 
+        path="/login" 
+        element={
+          <PublicRoute>
+            <Login />
+          </PublicRoute>
+        } 
+      />
       <Route
         path="/"
         element={

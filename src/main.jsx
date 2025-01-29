@@ -8,7 +8,7 @@ import './index.css';
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <BrowserRouter>
-      <IntlProvider messages={{}} locale="en">
+      <IntlProvider messages={{}} locale="hu">
         <App />
       </IntlProvider>
     </BrowserRouter>

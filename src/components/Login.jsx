@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 const Login = () => {
@@ -7,16 +7,35 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     
+    // Debug log
+    console.log('Login attempt:', { email, password });
+    
     if (email === 'nbartus21@gmail.com' && password === 'Atom.1993*') {
+      // Debug log
+      console.log('Login successful');
+      
+      // Először állítsuk be a sessionStorage-t
       sessionStorage.setItem('isAuthenticated', 'true');
-      navigate('/admin');
+      
+      // Debug log
+      console.log('SessionStorage set:', sessionStorage.getItem('isAuthenticated'));
+      
+      // Kis késleltetés után navigáljunk
+      setTimeout(() => {
+        navigate('/blog');
+      }, 100);
     } else {
       setError('Hibás email vagy jelszó!');
     }
   };
+
+  // Mount-kor ellenőrizzük a sessionStorage állapotát
+  useEffect(() => {
+    console.log('Current session state:', sessionStorage.getItem('isAuthenticated'));
+  }, []);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
