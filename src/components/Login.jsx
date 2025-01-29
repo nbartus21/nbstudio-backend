@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import BlogAdmin from './BlogAdmin';
+import { useNavigate } from 'react-router-dom';
 
 const Login = () => {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -11,16 +11,12 @@ const Login = () => {
     e.preventDefault();
     
     if (email === 'nbartus21@gmail.com' && password === 'Atom.1993*') {
-      setIsLoggedIn(true);
-      setError('');
+      sessionStorage.setItem('isAuthenticated', 'true');
+      navigate('/admin');
     } else {
       setError('Hibás email vagy jelszó!');
     }
   };
-
-  if (isLoggedIn) {
-    return <BlogAdmin />;
-  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
