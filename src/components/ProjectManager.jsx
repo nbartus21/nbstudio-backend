@@ -619,9 +619,37 @@ const [projects, setProjects] = useState([]);
               </div>
               {selectedInvoice.status !== 'fizetett' && (
                 <button
-                  onClick={() => {
-                    // Itt implementálhatjuk a fizetési funkciót
-                    console.log('Fizetés kezdeményezése');
+                  onClick={async () => {
+                    try {
+                      const response = await fetch('https://nbstudio-backend.onrender.com/api/create-payment-link', {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                          amount: selectedInvoice.totalAmount * 100, // Stripe cents-ben várja az összeget
+                          currency: 'eur',
+                          invoice_id: selectedInvoice._id,
+                          email: selectedProject.client.email
+                        })
+                      });
+
+                      if (!response.ok) {
+                        throw new Error('Fizetési link generálása sikertelen');
+                      }
+
+                      const data = await response.json();
+                      
+                      // Link másolása a vágólapra
+                      await navigator.clipboard.writeText(data.url);
+                      alert('Fizetési link másolva a vágólapra!');
+                      
+                      // Link megnyitása új ablakban
+                      window.open(data.url, '_blank');
+                    } catch (error) {
+                      console.error('Hiba:', error);
+                      alert('Hiba történt a fizetési link generálása során: ' + error.message);
+                    }
                   }}
                   className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
                 >
