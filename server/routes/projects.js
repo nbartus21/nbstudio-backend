@@ -1,7 +1,11 @@
 import express from 'express';
 import Project from '../models/Project.js';
+import Stripe from 'stripe';
 
 const router = express.Router();
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+
 
 // Összes projekt lekérése
 router.get('/projects', async (req, res) => {
