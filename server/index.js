@@ -19,7 +19,8 @@ app.use(cors({
   origin: [
     'https://nbstudio-backend.onrender.com',
     'https://nbstudio-backend-1.onrender.com',
-    'https://nb-studio.net' // Új domain hozzáadva
+    '*',                   // Minden origin engedélyezése
+    'https://nb-studio.net'
   ],
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true
