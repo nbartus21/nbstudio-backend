@@ -78,4 +78,52 @@ router.post('/projects/:id/invoices', async (req, res) => {
     }
   });
 
+
+// Fizetési link létrehozása email ellenőrzéssel
+router.post('/create-payment-link', async (req, res) => {
+  try {
+    const { amount, currency, invoice_id, email } = req.body;
+    
+    // Projekt és számla ellenőrzése
+    const project = await Project.findOne({
+      'invoices._id': invoice_id,
+      'client.email': email.toLowerCase()
+    });
+
+    if (!project) {
+      return res.status(403).json({ 
+        error: 'Nem megfelelő hozzáférés vagy érvénytelen számla.' 
+      });
+    }
+
+    // Ha az email stimmel, létrehozzuk a Stripe fizetési linket
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [{
+        price_data: {
+          currency: currency,
+          product_data: {
+            name: `Számla #${invoice_id}`,
+          },
+          unit_amount: amount,
+        },
+        quantity: 1,
+      }],
+      mode: 'payment',
+      success_url: `${process.env.FRONTEND_URL}/payment/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.FRONTEND_URL}/payment/cancel`,
+      customer_email: email, // Email előre kitöltése
+      metadata: {
+        invoice_id: invoice_id
+      }
+    });
+
+    res.json({ url: session.url });
+  } catch (error) {
+    console.error('Payment link error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+
 export default router;

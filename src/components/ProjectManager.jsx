@@ -6,6 +6,8 @@ import ProjectFilters from './ProjectFilters';
 const ProjectManager = () => {
 const [projects, setProjects] = useState([]);
   const [allProjects, setAllProjects] = useState([]);
+  const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const [showInvoiceDetails, setShowInvoiceDetails] = useState(false);
   const [loading, setLoading] = useState(true);
   const [selectedProject, setSelectedProject] = useState(null);
   const [showNewInvoiceForm, setShowNewInvoiceForm] = useState(false);
@@ -481,8 +483,8 @@ const [projects, setProjects] = useState([]);
               </div>
             </div>
 
-            {/* Számlák listája */}
-            {selectedProject._id && (
+{/* Számlák listája */}
+{selectedProject._id && (
   <div className="mt-8">
     <h3 className="font-medium text-lg mb-4">Számlák</h3>
     <div className="overflow-x-auto">
@@ -504,6 +506,9 @@ const [projects, setProjects] = useState([]);
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Állapot
             </th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Műveletek
+            </th>
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
@@ -516,10 +521,10 @@ const [projects, setProjects] = useState([]);
                 {new Date(invoice.date).toLocaleDateString()}
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
-                {invoice.totalAmount?.toLocaleString()} {selectedProject.financial?.currency || 'EUR'}
+                {invoice.totalAmount?.toLocaleString()} EUR
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
-                {invoice.paidAmount?.toLocaleString()} {selectedProject.financial?.currency || 'EUR'}
+                {invoice.paidAmount?.toLocaleString()} EUR
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
                 <span className={`px-2 py-1 text-xs rounded-full ${
@@ -530,11 +535,48 @@ const [projects, setProjects] = useState([]);
                   {invoice.status}
                 </span>
               </td>
+              <td className="px-6 py-4 whitespace-nowrap">
+                <button
+                  onClick={() => {
+                    setSelectedInvoice(invoice);
+                    setShowInvoiceDetails(true);
+                  }}
+                  className="text-indigo-600 hover:text-indigo-900"
+                >
+                  Részletek
+                </button>
+              </td>
             </tr>
           ))}
         </tbody>
       </table>
     </div>
+
+    {/* Számla részletek modal */}
+    {showInvoiceDetails && selectedInvoice && (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="bg-white rounded-lg max-w-4xl w-full p-6 max-h-[90vh] overflow-y-auto">
+          <div className="flex justify-end">
+            <button
+              onClick={() => {
+                setShowInvoiceDetails(false);
+                setSelectedInvoice(null);
+              }}
+              className="text-gray-400 hover:text-gray-500"
+            >
+              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          
+          <InvoiceGenerator 
+            invoice={selectedInvoice} 
+            projectEmail={selectedProject.client.email}
+          />
+        </div>
+      </div>
+    )}
   </div>
 )}
 
