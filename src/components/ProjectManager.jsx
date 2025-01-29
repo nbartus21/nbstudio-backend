@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { generateResponseSuggestion, generateSummary } from '../services/deepseekService';
+import ProjectFilters from './ProjectFilters';
+
 
 const ProjectManager = () => {
   const [projects, setProjects] = useState([]);
@@ -164,6 +166,63 @@ const ProjectManager = () => {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="flex justify-between items-center mb-6">
+      <ProjectFilters 
+  projects={projects}
+  onFilterChange={(filters) => {
+    const filteredProjects = projects.filter(project => {
+      // Keresés szövegben
+      if (filters.search && !project.name.toLowerCase().includes(filters.search.toLowerCase()) &&
+          !project.description?.toLowerCase().includes(filters.search.toLowerCase())) {
+        return false;
+      }
+
+      // Státusz szűrés
+      if (filters.status && project.status !== filters.status) {
+        return false;
+      }
+
+      // Prioritás szűrés
+      if (filters.priority && project.priority !== filters.priority) {
+        return false;
+      }
+
+      // Dátum szűrés
+      if (filters.dateRange !== 'all') {
+        const projectDate = new Date(project.createdAt);
+        const now = new Date();
+        const daysDiff = (now - projectDate) / (1000 * 60 * 60 * 24);
+
+        if (filters.dateRange === 'today' && daysDiff > 1) return false;
+        if (filters.dateRange === 'week' && daysDiff > 7) return false;
+        if (filters.dateRange === 'month' && daysDiff > 30) return false;
+        if (filters.dateRange === 'quarter' && daysDiff > 90) return false;
+        if (filters.dateRange === 'year' && daysDiff > 365) return false;
+      }
+
+      // Ügyfél szűrés
+      if (filters.client && project.client?.name !== filters.client) {
+        return false;
+      }
+
+      // Költségvetés szűrés
+      if (filters.minBudget && project.financial?.budget?.min < Number(filters.minBudget)) {
+        return false;
+      }
+      if (filters.maxBudget && project.financial?.budget?.max > Number(filters.maxBudget)) {
+        return false;
+      }
+
+      // Számla szűrés
+      if (filters.hasInvoices && (!project.invoices || project.invoices.length === 0)) {
+        return false;
+      }
+
+      return true;
+    });
+
+    setProjects(filteredProjects);
+  }}
+/>
         <h1 className="text-2xl font-bold text-gray-900">Projekt Kezelő</h1>
         <button
           onClick={() => setSelectedProject({})}
