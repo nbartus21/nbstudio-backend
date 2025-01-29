@@ -6,7 +6,8 @@ import BlogCreator from './BlogCreator';
 import ContactAdmin from './ContactAdmin';
 import CalculatorAdmin from './CalculatorAdmin';
 import Login from './Login';
-import ProjectManager from './components/ProjectManager';
+import ProjectManager from './ProjectManager';
+
 
 const App = () => {
   // Védett route komponens
