@@ -45,6 +45,12 @@ const ProjectManager = () => {
     }
   };
 
+  const handleOpenProject = (project) => {
+    setSelectedProject(project || {});
+    setShowProjectModal(true);
+    console.log('Opening project:', project); // Adj hozzá debug logot
+  };
+
   const handleCreateFromCalculator = async (calculatorEntry) => {
     try {
       const aiSummary = await generateSummary(calculatorEntry.projectDescription);
