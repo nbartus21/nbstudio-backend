@@ -1,5 +1,4 @@
 import mongoose from 'mongoose';
-import Project from './models/Project.js';
 
 const projectSchema = new mongoose.Schema({
   // Projekt alapadatok
