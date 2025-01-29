@@ -166,6 +166,15 @@ const ProjectManager = () => {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="flex justify-between items-center mb-6">
+        
+        <h1 className="text-2xl font-bold text-gray-900">Projekt Kezelő</h1>
+        <button
+          onClick={() => setSelectedProject({})}
+          className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700"
+        >
+          Új Projekt
+        </button>
+      </div>
       <ProjectFilters 
   projects={projects}
   onFilterChange={(filters) => {
@@ -223,15 +232,6 @@ const ProjectManager = () => {
     setProjects(filteredProjects);
   }}
 />
-        <h1 className="text-2xl font-bold text-gray-900">Projekt Kezelő</h1>
-        <button
-          onClick={() => setSelectedProject({})}
-          className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700"
-        >
-          Új Projekt
-        </button>
-      </div>
-
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {projects.map(project => (
           <div
