@@ -4,7 +4,8 @@ import ProjectFilters from './ProjectFilters';
 
 
 const ProjectManager = () => {
-  const [projects, setProjects] = useState([]);
+const [projects, setProjects] = useState([]);
+  const [allProjects, setAllProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedProject, setSelectedProject] = useState(null);
   const [showNewInvoiceForm, setShowNewInvoiceForm] = useState(false);
