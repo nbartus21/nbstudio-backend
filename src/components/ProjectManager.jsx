@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { generateResponseSuggestion, generateSummary } from '../services/deepseekService';
 import ProjectFilters from './ProjectFilters';
-import { downloadInvoice } from '../services/invoiceService';
 
 // Modal Component
 const Modal = ({ isOpen, onClose, children }) => {
@@ -89,18 +88,22 @@ const ProjectManager = () => {
   // Handle invoice download
   const handleDownloadInvoice = async (invoice) => {
     try {
-      const response = await fetch(`https://nbstudio-backend.onrender.com/api/projects/${selectedProject._id}/invoices/${invoice._id}/download`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+      // URL módosítása az új backend végpontnak megfelelően
+      const response = await fetch(
+        `https://nbstudio-backend.onrender.com/api/projects/${selectedProject._id}/invoices/${invoice._id}/pdf`,
+        {
+          method: 'GET',
+        }
+      );
   
       if (!response.ok) {
         throw new Error('Hiba a PDF letöltése során');
       }
   
+      // Blob létrehozása a válaszból
       const blob = await response.blob();
+      
+      // Letöltés indítása
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -111,10 +114,11 @@ const ProjectManager = () => {
       document.body.removeChild(a);
   
     } catch (error) {
-      console.error('Hiba a számla letöltése során:', error);
-      alert('A számla letöltése sikertelen: ' + error.message);
+      console.error('Hiba:', error);
+      alert('Nem sikerült letölteni a számlát: ' + error.message);
     }
   };
+  
 
 // Handle create invoice
 const handleCreateInvoice = async () => {
@@ -147,18 +151,19 @@ const handleCreateInvoice = async () => {
         totalAmount: totalAmount,
         paidAmount: 0,
         status: 'kiállított',
-        notes: '',
-        projectId: selectedProject._id,
-        clientData: selectedProject.client
+        notes: ''
       };
   
-      const response = await fetch(`https://nbstudio-backend.onrender.com/api/projects/${selectedProject._id}/invoices`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(invoiceData)
-      });
+      const response = await fetch(
+        `https://nbstudio-backend.onrender.com/api/projects/${selectedProject._id}/invoices`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(invoiceData)
+        }
+      );
   
       if (!response.ok) {
         const errorData = await response.json();
@@ -175,6 +180,7 @@ const handleCreateInvoice = async () => {
       
       setShowNewInvoiceForm(false);
       setNewInvoice({ items: [{ description: '', quantity: 1, unitPrice: 0 }] });
+      
       alert('A számla sikeresen létrehozva!');
   
     } catch (error) {
