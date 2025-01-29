@@ -47,6 +47,16 @@ const App = () => {
             <div className="hidden md:block">
               <div className="ml-10 flex items-baseline space-x-4">
                 <Link
+                  to="/blog/new"
+                  className={`px-3 py-2 rounded-md text-sm font-medium ${
+                    location.pathname === '/blog/new'
+                      ? 'bg-gray-900 text-white'
+                      : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                  }`}
+                >
+                  Új blog bejegyzés
+                </Link>
+                <Link
                   to="/blog"
                   className={`px-3 py-2 rounded-md text-sm font-medium ${
                     location.pathname === '/blog'
