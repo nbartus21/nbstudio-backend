@@ -8,6 +8,8 @@ const ProjectManager = () => {
   const [loading, setLoading] = useState(true);
   const [selectedProject, setSelectedProject] = useState(null);
   const [showNewInvoiceForm, setShowNewInvoiceForm] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [newInvoice, setNewInvoice] = useState({
     items: [{ description: '', quantity: 1, unitPrice: 0 }]
   });
@@ -95,6 +97,37 @@ const ProjectManager = () => {
       ...prev,
       items: [...prev.items, { description: '', quantity: 1, unitPrice: 0 }]
     }));
+  };
+
+  const handleViewInvoice = (invoice) => {
+    setSelectedInvoice(invoice);
+    setShowInvoiceModal(true);
+  };
+
+  const handleDownloadInvoice = async (invoice) => {
+    try {
+      const response = await fetch(`https://nbstudio-backend.onrender.com/api/projects/invoice/${invoice._id}/pdf`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+  
+      if (!response.ok) throw new Error('Hiba a PDF generálása során');
+  
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `szamla-${invoice.number}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Hiba:', error);
+      alert('Nem sikerült letölteni a számlát: ' + error.message);
+    }
   };
 
   const handleCreateInvoice = async () => {
@@ -347,9 +380,9 @@ const ProjectManager = () => {
       )}
 
       {/* Projekt részletek modal */}
-      {selectedProject && !showNewInvoiceForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg max-w-4xl w-full p-6 max-h-[90vh] overflow-y-auto">
+      {showInvoiceModal && selectedInvoice && (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="bg-white rounded-lg max-w-4xl w-full p-6">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-semibold">
                 {selectedProject._id ? 'Projekt Részletek' : 'Új Projekt Létrehozása'}
@@ -503,6 +536,9 @@ const ProjectManager = () => {
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Állapot
             </th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Műveletek
+            </th>
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
@@ -528,6 +564,35 @@ const ProjectManager = () => {
                 }`}>
                   {invoice.status}
                 </span>
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap">
+                <div className="flex space-x-2">
+                  {/* Megtekintés gomb */}
+                  <button
+                    onClick={() => handleViewInvoice(invoice)}
+                    className="text-blue-600 hover:text-blue-900"
+                    title="Megtekintés"
+                  >
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                            d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                  </button>
+                  
+                  {/* PDF letöltés gomb */}
+                  <button
+                    onClick={() => handleDownloadInvoice(invoice)}
+                    className="text-green-600 hover:text-green-900"
+                    title="PDF letöltése"
+                  >
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                            d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                  </button>
+                </div>
               </td>
             </tr>
           ))}
