@@ -606,55 +606,81 @@ const [projects, setProjects] = useState([]);
               <p className="font-semibold">{selectedInvoice.totalAmount.toFixed(2)} EUR</p>
             </div>
 
-            <div className="flex justify-between items-center pt-4">
-              <div>
-                <p className="text-sm text-gray-600">Állapot:</p>
-                <span className={`px-2 py-1 rounded-full text-sm ${
-                  selectedInvoice.status === 'fizetett' ? 'bg-green-100 text-green-800' :
-                  selectedInvoice.status === 'késedelmes' ? 'bg-red-100 text-red-800' :
-                  'bg-yellow-100 text-yellow-800'
-                }`}>
-                  {selectedInvoice.status}
-                </span>
+            <div className="flex flex-col space-y-4 pt-4">
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="text-sm text-gray-600">Állapot:</p>
+                  <span className={`px-2 py-1 rounded-full text-sm ${
+                    selectedInvoice.status === 'fizetett' ? 'bg-green-100 text-green-800' :
+                    selectedInvoice.status === 'késedelmes' ? 'bg-red-100 text-red-800' :
+                    'bg-yellow-100 text-yellow-800'
+                  }`}>
+                    {selectedInvoice.status}
+                  </span>
+                </div>
               </div>
+              
               {selectedInvoice.status !== 'fizetett' && (
-                <button
-                  onClick={async () => {
-                    try {
-                      const response = await fetch('https://nbstudio-backend.onrender.com/api/create-payment-link', {
-                        method: 'POST',
-                        headers: {
-                          'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                          amount: selectedInvoice.totalAmount * 100, // Stripe cents-ben várja az összeget
-                          currency: 'eur',
-                          invoice_id: selectedInvoice._id,
-                          email: selectedProject.client.email
-                        })
-                      });
+                <div className="flex flex-col space-y-2">
+                  <button
+                    onClick={async () => {
+                      try {
+                        const response = await fetch('https://nbstudio-backend.onrender.com/api/create-payment-link', {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json',
+                          },
+                          body: JSON.stringify({
+                            amount: selectedInvoice.totalAmount * 100,
+                            currency: 'eur',
+                            invoice_id: selectedInvoice._id,
+                            email: selectedProject.client.email
+                          })
+                        });
 
-                      if (!response.ok) {
-                        throw new Error('Fizetési link generálása sikertelen');
+                        if (!response.ok) {
+                          throw new Error('Fizetési link generálása sikertelen');
+                        }
+
+                        const data = await response.json();
+                        setPaymentLink(data.url); // Új state a linknek
+                      } catch (error) {
+                        console.error('Hiba:', error);
+                        alert('Hiba történt a fizetési link generálása során: ' + error.message);
                       }
+                    }}
+                    className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+                  >
+                    Fizetési link generálása
+                  </button>
 
-                      const data = await response.json();
-                      
-                      // Link másolása a vágólapra
-                      await navigator.clipboard.writeText(data.url);
-                      alert('Fizetési link másolva a vágólapra!');
-                      
-                      // Link megnyitása új ablakban
-                      window.open(data.url, '_blank');
-                    } catch (error) {
-                      console.error('Hiba:', error);
-                      alert('Hiba történt a fizetési link generálása során: ' + error.message);
-                    }
-                  }}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
-                >
-                  Fizetés kezdeményezése
-                </button>
+                  {paymentLink && (
+                    <div className="flex items-center space-x-2 p-4 bg-gray-50 rounded-lg">
+                      <input
+                        type="text"
+                        value={paymentLink}
+                        readOnly
+                        className="flex-1 p-2 border rounded bg-white"
+                      />
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(paymentLink)
+                            .then(() => alert('Link másolva!'))
+                            .catch(err => console.error('Másolási hiba:', err));
+                        }}
+                        className="px-3 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+                      >
+                        Másolás
+                      </button>
+                      <button
+                        onClick={() => window.open(paymentLink, '_blank')}
+                        className="px-3 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+                      >
+                        Megnyitás
+                      </button>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           </div>
