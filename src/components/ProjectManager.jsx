@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { generateResponseSuggestion, generateSummary } from '../services/deepseekService';
 import ProjectFilters from './ProjectFilters';
+import { downloadInvoice } from '../services/invoiceService';
 
 // Modal Component
 const Modal = ({ isOpen, onClose, children }) => {
@@ -88,17 +89,9 @@ const ProjectManager = () => {
   // Handle invoice download
   const handleDownloadInvoice = async (invoice) => {
     try {
-      const response = await fetch(`https://nbstudio-backend.onrender.com/api/projects/invoice/${invoice._id}/pdf`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-  
-      if (!response.ok) throw new Error('Hiba a PDF generálása során');
-  
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
+      const pdfBlob = await downloadInvoice(invoice, selectedProject);
+      
+      const url = window.URL.createObjectURL(pdfBlob);
       const a = document.createElement('a');
       a.href = url;
       a.download = `szamla-${invoice.number}.pdf`;
@@ -107,14 +100,24 @@ const ProjectManager = () => {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
     } catch (error) {
-      console.error('Hiba:', error);
-      alert('Nem sikerült letölteni a számlát: ' + error.message);
+      console.error('Hiba a számla letöltése során:', error);
+      alert('A számla letöltése sikertelen: ' + error.message);
     }
   };
 
 // Handle create invoice
 const handleCreateInvoice = async () => {
     if (!selectedProject) return;
+  
+    // Ellenőrizzük a kötelező mezőket
+    const hasEmptyFields = newInvoice.items.some(
+      item => !item.description || item.quantity <= 0 || item.unitPrice <= 0
+    );
+  
+    if (hasEmptyFields) {
+      alert('Kérjük, töltse ki az összes kötelező mezőt a számlán!');
+      return;
+    }
   
     const itemsWithTotal = newInvoice.items.map(item => ({
       ...item,
@@ -127,13 +130,13 @@ const handleCreateInvoice = async () => {
     const invoiceData = {
       number: invoiceNumber,
       date: new Date(),
-      amount: totalAmount,
-      status: 'kiállított',
-      dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+      dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 napos fizetési határidő
       items: itemsWithTotal,
       totalAmount: totalAmount,
       paidAmount: 0,
-      notes: ''
+      status: 'kiállított',
+      notes: '',
+      project: selectedProject._id // projekt azonosító hozzáadása
     };
   
     try {
@@ -162,7 +165,8 @@ const handleCreateInvoice = async () => {
       
       setShowNewInvoiceForm(false);
       setNewInvoice({ items: [{ description: '', quantity: 1, unitPrice: 0 }] });
-  
+      
+      alert('A számla sikeresen létrehozva!');
     } catch (error) {
       console.error('Hiba:', error);
       alert('Nem sikerült létrehozni a számlát: ' + error.message);
