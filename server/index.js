@@ -6,7 +6,6 @@ import postRoutes from './routes/posts.js';
 import contactRoutes from './routes/contacts.js';
 import calculatorRoutes from './routes/calculators.js';
 import projectRoutes from './routes/projects.js';
-import invoiceRoutes from './routes/invoices.js';
 
 
 
@@ -19,8 +18,7 @@ app.use(cors({
   origin: [
     'https://nbstudio-backend.onrender.com',
     'https://nbstudio-backend-1.onrender.com',
-    '*',                   // Minden origin engedélyezése
-    'https://nb-studio.net'
+    'https://nb-studio.net' // Új domain hozzáadva
   ],
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true
@@ -40,7 +38,7 @@ app.use('/api', postRoutes);
 app.use('/api', contactRoutes);  // <-- Ide kell betenni az új route-ot
 app.use('/api', calculatorRoutes); // masik uj
 app.use('/api', projectRoutes); //uj projekt kezelo
-app.use('/api', invoiceRoutes); //pdf generator
+
 
 
 // Alap route teszteléshez
