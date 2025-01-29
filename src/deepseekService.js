@@ -269,3 +269,30 @@ export const generateSummary = async (message) => {
     return 'Message summary not available.';
   }
 };
+
+// projekt kezelo
+export const analyzeProject = async (projectData) => {
+  try {
+    const response = await callDeepSeekAPI({
+      messages: [
+        {
+          role: "system",
+          content: "You are a project management AI assistant."
+        },
+        {
+          role: "user",
+          content: `Analyze this project and provide recommendations:
+            Project: ${projectData.description}
+            Type: ${projectData.projectType}
+            Budget: ${projectData.budget}
+          `
+        }
+      ]
+    });
+
+    return response.choices[0].message.content;
+  } catch (error) {
+    console.error('Project analysis failed:', error);
+    return null;
+  }
+};

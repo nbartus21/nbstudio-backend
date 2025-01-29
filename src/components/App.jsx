@@ -6,6 +6,7 @@ import BlogCreator from './BlogCreator';
 import ContactAdmin from './ContactAdmin';
 import CalculatorAdmin from './CalculatorAdmin';
 import Login from './Login';
+import ProjectManager from './components/ProjectManager';
 
 const App = () => {
   // Védett route komponens
@@ -67,6 +68,14 @@ const App = () => {
           </PrivateRoute>
         }
       />
+<Route
+  path="/projects"
+  element={
+    <PrivateRoute>
+      <ProjectManager />
+    </PrivateRoute>
+  }
+/>
       <Route path="*" element={<Navigate to="/login" />} />
     </Routes>
   );

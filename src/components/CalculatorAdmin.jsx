@@ -78,6 +78,51 @@ const CalculatorAdmin = () => {
     }
   };
 
+// IDE jön az új függvény:
+const handleCreateProject = async (entry) => {
+  try {
+    const response = await fetch('https://nbstudio-backend.onrender.com/api/projects', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        name: `${entry.projectType} Projekt`,
+        description: entry.projectDescription,
+        client: {
+          email: entry.email,
+        },
+        financial: {
+          budget: {
+            min: entry.estimatedCost.minCost,
+            max: entry.estimatedCost.maxCost
+          }
+        },
+        calculatorEntry: entry._id,
+        aiAnalysis: {
+          riskLevel: entry.complexity === 'complex' ? 'magas' : 
+                     entry.complexity === 'medium' ? 'közepes' : 'alacsony',
+          nextSteps: [
+            'Ügyfél kapcsolatfelvétel',
+            'Részletes követelmények egyeztetése',
+            'Szerződés előkészítése'
+          ]
+        }
+      })
+    });
+
+    if (response.ok) {
+      await handleStatusUpdate(entry._id, 'in-progress');
+      alert('Projekt sikeresen létrehozva!');
+    } else {
+      throw new Error('Hiba a projekt létrehozása során');
+    }
+  } catch (error) {
+    console.error('Hiba:', error);
+    alert('Nem sikerült létrehozni a projektet: ' + error.message);
+  }
+};
+
   const handleDelete = async (id) => {
     if (!window.confirm('Biztosan törölni szeretné ezt a bejegyzést?')) return;
     try {
@@ -105,6 +150,8 @@ const CalculatorAdmin = () => {
     return <div className="text-red-500 p-4">Hiba: {error}</div>;
   }
 
+
+  
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -146,23 +193,33 @@ const CalculatorAdmin = () => {
                     </select>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <button
-                      onClick={() => {
-                        setSelectedEntry(entry);
-                        setIsModalOpen(true);
-                        handleAnalyze(entry);
-                      }}
-                      className="text-blue-600 hover:text-blue-800 mr-3"
-                    >
-                      Részletek
-                    </button>
-                    <button
-                      onClick={() => handleDelete(entry._id)}
-                      className="text-red-600 hover:text-red-800"
-                    >
-                      Törlés
-                    </button>
-                  </td>
+  <button
+    onClick={() => {
+      setSelectedEntry(entry);
+      setIsModalOpen(true);
+      handleAnalyze(entry);
+    }}
+    className="text-blue-600 hover:text-blue-800 mr-3"
+  >
+    Részletek
+  </button>
+  {/* IDE jön az új gomb */}
+  <button
+    onClick={() => handleCreateProject(entry)}
+    className="text-green-600 hover:text-green-800 mr-3"
+  >
+    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" 
+            d="M12 2L2 7L12 12L22 7L12 2Z M2 17L12 22L22 17 M2 12L12 17L22 12" />
+    </svg>
+  </button>
+  <button
+    onClick={() => handleDelete(entry._id)}
+    className="text-red-600 hover:text-red-800"
+  >
+    Törlés
+  </button>
+</td>
                 </tr>
               ))}
             </tbody>

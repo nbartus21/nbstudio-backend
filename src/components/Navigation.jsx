@@ -19,6 +19,12 @@ const Navigation = () => {
         { path: "/contacts", label: "Kapcsolatfelvételek" },
         { path: "/calculator", label: "Kalkulátor jelentkezések" }
       ]
+    },
+    {
+        category: "Projektek",
+        items: [
+          { path: "/projects", label: "Projekt kezelő" }
+        ]
     }
   ];
 
