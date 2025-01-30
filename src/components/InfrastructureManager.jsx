@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Edit, Trash2, Server, HardDrive, AlertTriangle, Key } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardContent } from './ui/Card';
+import Card, { CardHeader, CardTitle, CardContent } from './ui/Card';
 
 const ServerManager = () => {
   const [servers, setServers] = useState([]);
