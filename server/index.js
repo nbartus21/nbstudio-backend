@@ -7,7 +7,8 @@ import contactRoutes from './routes/contacts.js';
 import calculatorRoutes from './routes/calculators.js';
 import projectRoutes from './routes/projects.js';
 import domainRoutes from './routes/domains.js';
-
+import serverRoutes from './routes/servers.js';
+import licenseRoutes from './routes/licenses.js';
 
 
 dotenv.config();
@@ -41,7 +42,8 @@ app.use('/api', contactRoutes);  // <-- Ide kell betenni az új route-ot
 app.use('/api', calculatorRoutes); // masik uj
 app.use('/api', projectRoutes); //uj projekt kezelo
 app.use('/api', domainRoutes); //domain kezelo 
-
+app.use('/api', serverRoutes); //server kezelo
+app.use('/api', licenseRoutes); //license kezelo
 
 
 

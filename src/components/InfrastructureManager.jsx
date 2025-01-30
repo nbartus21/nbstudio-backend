@@ -7,36 +7,64 @@ import LicenseModal from './LicenseModal';
 const API_URL = 'http://38.242.208.190:5001/api';
 
 
+
+
 const InfrastructureManager = () => {
-  const [servers, setServers] = useState([]);
-  const [licenses, setLicenses] = useState([]);
   const [selectedServer, setSelectedServer] = useState(null);
   const [selectedLicense, setSelectedLicense] = useState(null);
   const [showServerModal, setShowServerModal] = useState(false);
   const [showLicenseModal, setShowLicenseModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState('servers'); // 'servers' vagy 'licenses'
+  const [servers, setServers] = useState([]);
+  const [licenses, setLicenses] = useState([]);
 
   useEffect(() => {
     fetchData();
   }, []);
 
-  const fetchData = async () => {
+  // IDE jönnek az új kezelő függvények:
+  const handleAddServer = async (serverData) => {
     try {
-      const [serversResponse, licensesResponse] = await Promise.all([
-        fetch(`${API_URL}/servers`),
-        fetch(`${API_URL}/licenses`)
-      ]);
-      
-      const serversData = await serversResponse.json();
-      const licensesData = await licensesResponse.json();
-      
-      setServers(serversData);
-      setLicenses(licensesData);
+      const response = await fetch('http://38.242.208.190:5001/api/servers', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(serverData)
+      });
+
+      if (!response.ok) {
+        throw new Error('Hiba a szerver létrehozásakor');
+      }
+
+      await fetchData(); // Frissítjük az adatokat
+      setShowServerModal(false);
     } catch (error) {
-      console.error('Hiba az adatok lekérésekor:', error);
-    } finally {
-      setLoading(false);
+      console.error('Hiba:', error);
+      alert('Nem sikerült létrehozni a szervert: ' + error.message);
+    }
+  };
+
+  const handleAddLicense = async (licenseData) => {
+    try {
+      const response = await fetch('http://38.242.208.190:5001/api/licenses', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(licenseData)
+      });
+
+      if (!response.ok) {
+        throw new Error('Hiba a licensz létrehozásakor');
+      }
+
+      await fetchData(); // Frissítjük az adatokat
+      setShowLicenseModal(false);
+    } catch (error) {
+      console.error('Hiba:', error);
+      alert('Nem sikerült létrehozni a licenszt: ' + error.message);
     }
   };
 
