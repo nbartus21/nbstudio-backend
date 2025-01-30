@@ -1,6 +1,5 @@
 import express from 'express';
 import Domain from '../models/Domain.js';
-
 const router = express.Router();
 
 // Összes domain lekérése
@@ -31,13 +30,11 @@ router.put('/domains/:id', async (req, res) => {
     if (!domain) {
       return res.status(404).json({ message: 'Domain nem található' });
     }
-    
     Object.assign(domain, req.body);
     domain.history.push({
       action: 'update',
       details: 'Domain adatok frissítve'
     });
-    
     const updatedDomain = await domain.save();
     res.json(updatedDomain);
   } catch (error) {
@@ -52,8 +49,7 @@ router.delete('/domains/:id', async (req, res) => {
     if (!domain) {
       return res.status(404).json({ message: 'Domain nem található' });
     }
-    
-    await domain.remove();
+    await Domain.deleteOne({ _id: domain._id }); // remove() helyett deleteOne()
     res.json({ message: 'Domain sikeresen törölve' });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -69,7 +65,6 @@ router.get('/domains/check-expiry', async (req, res) => {
         $lte: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 nap
       }
     });
-    
     res.json(domains);
   } catch (error) {
     res.status(500).json({ message: error.message });
