@@ -24,14 +24,12 @@ app.use(cors({
     'https://nb-studio.net',
     'https://www.nb-studio.net',
     // Development
-    'https://nb-studio.net/de/blog',
-    'https://nb-studio.net/hu/blog',
-    'https://nb-studio.net/en/blog',
-    '*'
+    'http://localhost:5173',
+    'http://localhost:3000'
   ],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: false,
+  credentials: true,
   optionsSuccessStatus: 200
 }));
 
