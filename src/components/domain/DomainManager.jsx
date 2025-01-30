@@ -20,7 +20,7 @@ const DomainManager = () => {
 
   const fetchDomains = async () => {
     try {
-      const response = await fetch('/api/domains');
+      const response = await fetch('/domains');
       if (!response.ok) throw new Error('Hiba a domainek lekérésénél');
       const data = await response.json();
       setDomains(data);
@@ -45,7 +45,7 @@ const DomainManager = () => {
     if (!window.confirm('Biztosan törli ezt a domaint?')) return;
 
     try {
-      const response = await fetch(`/api/domains/${id}`, {
+      const response = await fetch(`/domains/${id}`, {
         method: 'DELETE'
       });
       if (!response.ok) throw new Error('Hiba a domain törlésekor');
@@ -128,17 +128,6 @@ const DomainManager = () => {
   </div>
 </Card>
 
-        <Card className="p-4">
-          <div className="flex justify-between items-center">
-            <div>
-              <p className="text-sm text-gray-500">Összes Költség / Év</p>
-              <p className="text-2xl font-bold">
-                {domains.reduce((sum, domain) => sum + (domain.cost || 0), 0).toLocaleString()} Ft
-              </p>
-            </div>
-            <DollarSign className="h-8 w-8 text-green-500" />
-          </div>
-        </Card>
 
         <Card className="p-4">
           <div className="flex justify-between items-center">
