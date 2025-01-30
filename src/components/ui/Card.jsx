@@ -1,4 +1,4 @@
-export const Card = ({ children, className = "" }) => {
+const Card = ({ children, className = "" }) => {
     return (
       <div className={`bg-white rounded-lg shadow-md ${className}`}>
         {children}
@@ -6,7 +6,7 @@ export const Card = ({ children, className = "" }) => {
     );
   };
   
-  export const CardHeader = ({ children, className = "" }) => {
+  const CardHeader = ({ children, className = "" }) => {
     return (
       <div className={`p-4 border-b ${className}`}>
         {children}
@@ -14,7 +14,7 @@ export const Card = ({ children, className = "" }) => {
     );
   };
   
-  export const CardTitle = ({ children, className = "" }) => {
+  const CardTitle = ({ children, className = "" }) => {
     return (
       <h3 className={`text-lg font-semibold ${className}`}>
         {children}
@@ -22,7 +22,7 @@ export const Card = ({ children, className = "" }) => {
     );
   };
   
-  export const CardContent = ({ children, className = "" }) => {
+  const CardContent = ({ children, className = "" }) => {
     return (
       <div className={`p-4 ${className}`}>
         {children}
@@ -30,5 +30,10 @@ export const Card = ({ children, className = "" }) => {
     );
   };
   
-  // Exportáljuk az összes komponenst
-  export { Card as default, CardHeader, CardTitle, CardContent };
+  // Csak egy export statement a fájl végén
+  export { 
+    Card as default,
+    CardHeader,
+    CardTitle,
+    CardContent 
+  };
