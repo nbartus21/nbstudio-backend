@@ -68,6 +68,75 @@ const InfrastructureManager = () => {
     }
 };
 
+const handleAddLicense = async (licenseData) => {
+    try {
+      const response = await fetch(`${API_URL}/licenses`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(licenseData)
+      });
+
+      if (!response.ok) {
+        throw new Error('Hiba a licensz létrehozásakor');
+      }
+
+      await fetchData(); // Frissítjük az adatokat
+      setShowLicenseModal(false);
+    } catch (error) {
+      console.error('Hiba:', error);
+      alert('Nem sikerült létrehozni a licenszt: ' + error.message);
+    }
+};
+
+
+// Szerver törlés funkció
+const handleDeleteServer = async (serverId) => {
+    if (window.confirm('Biztosan törli ezt a szervert?')) {
+      try {
+        const response = await fetch(`${API_URL}/servers/${serverId}`, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        });
+  
+        if (!response.ok) {
+          throw new Error('Hiba a szerver törlésekor');
+        }
+  
+        await fetchData(); // Frissítjük az adatokat
+      } catch (error) {
+        console.error('Hiba:', error);
+        alert('Nem sikerült törölni a szervert: ' + error.message);
+      }
+    }
+  };
+  
+  // Licensz törlés funkció
+  const handleDeleteLicense = async (licenseId) => {
+    if (window.confirm('Biztosan törli ezt a licenszt?')) {
+      try {
+        const response = await fetch(`${API_URL}/licenses/${licenseId}`, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        });
+  
+        if (!response.ok) {
+          throw new Error('Hiba a licensz törlésekor');
+        }
+  
+        await fetchData(); // Frissítjük az adatokat
+      } catch (error) {
+        console.error('Hiba:', error);
+        alert('Nem sikerült törölni a licenszt: ' + error.message);
+      }
+    }
+  };
+
   const formatStorageSize = (gb) => {
     if (gb >= 1000) {
       return `${(gb / 1000).toFixed(1)} TB`;
@@ -268,15 +337,11 @@ const InfrastructureManager = () => {
                         <Edit className="h-5 w-5" />
                       </button>
                       <button
-                        onClick={() => {
-                          if (window.confirm('Biztosan törli ezt a szervert?')) {
-                            // Törlés logika
-                          }
-                        }}
-                        className="text-red-600 hover:text-red-900"
-                      >
-                        <Trash2 className="h-5 w-5" />
-                      </button>
+  onClick={() => handleDeleteServer(server._id)}
+  className="text-red-600 hover:text-red-900"
+>
+  <Trash2 className="h-5 w-5" />
+</button>
                     </td>
                   </tr>
                 ))}
@@ -351,15 +416,11 @@ const InfrastructureManager = () => {
                         <Edit className="h-5 w-5" />
                       </button>
                       <button
-                        onClick={() => {
-                          if (window.confirm('Biztosan törli ezt a licenszt?')) {
-                            // Törlés logika
-                          }
-                        }}
-                        className="text-red-600 hover:text-red-900"
-                      >
-                        <Trash2 className="h-5 w-5" />
-                      </button>
+  onClick={() => handleDeleteLicense(license._id)}
+  className="text-red-600 hover:text-red-900"
+>
+  <Trash2 className="h-5 w-5" />
+</button>
                     </td>
                   </tr>
                 ))}
