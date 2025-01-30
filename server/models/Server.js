@@ -94,3 +94,13 @@ const serverSchema = new mongoose.Schema({
     default: Date.now 
   }
 });
+
+// Add middleware to update timestamps
+serverSchema.pre('save', function(next) {
+  this.updatedAt = new Date();
+  next();
+});
+
+const Server = mongoose.model('Server', serverSchema);
+
+export default Server;

@@ -1,3 +1,5 @@
+import mongoose from 'mongoose';
+
 const licenseSchema = new mongoose.Schema({
     name: { 
       type: String, 
@@ -54,18 +56,14 @@ const licenseSchema = new mongoose.Schema({
       type: Date, 
       default: Date.now 
     }
-  });
-  
-  // Add middleware to update timestamps
-  serverSchema.pre('save', function(next) {
-    this.updatedAt = new Date();
-    next();
-  });
-  
-  licenseSchema.pre('save', function(next) {
-    this.updatedAt = new Date();
-    next();
-  });
-  
-  export const Server = mongoose.model('Server', serverSchema);
-  export const License = mongoose.model('License', licenseSchema);
+});
+
+// Add middleware to update timestamps
+licenseSchema.pre('save', function(next) {
+  this.updatedAt = new Date();
+  next();
+});
+
+const License = mongoose.model('License', licenseSchema);
+
+export default License;

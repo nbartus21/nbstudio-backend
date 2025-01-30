@@ -1,5 +1,5 @@
 import express from 'express';
-import { Server } from '../models/Server.js';
+import Server from '../models/Server.js';
 
 const router = express.Router();
 
@@ -21,6 +21,50 @@ router.post('/servers', async (req, res) => {
     res.status(201).json(savedServer);
   } catch (error) {
     res.status(400).json({ message: error.message });
+  }
+});
+
+// Get single server
+router.get('/servers/:id', async (req, res) => {
+  try {
+    const server = await Server.findById(req.params.id);
+    if (!server) {
+      return res.status(404).json({ message: 'Server not found' });
+    }
+    res.json(server);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Update server
+router.put('/servers/:id', async (req, res) => {
+  try {
+    const updatedServer = await Server.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true }
+    );
+    if (!updatedServer) {
+      return res.status(404).json({ message: 'Server not found' });
+    }
+    res.json(updatedServer);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+});
+
+// Delete server
+router.delete('/servers/:id', async (req, res) => {
+  try {
+    const server = await Server.findById(req.params.id);
+    if (!server) {
+      return res.status(404).json({ message: 'Server not found' });
+    }
+    await Server.deleteOne({ _id: req.params.id });
+    res.json({ message: 'Server deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
 });
 
