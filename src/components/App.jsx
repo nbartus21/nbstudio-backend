@@ -7,7 +7,7 @@ import ContactAdmin from './ContactAdmin';
 import CalculatorAdmin from './CalculatorAdmin';
 import Login from './Login';
 import ProjectManager from './ProjectManager';
-import DomainManager from '../components/domain/DomainManager';
+import DomainManager from './domain/DomainManager';
 
 const App = () => {
   // Védett route komponens
