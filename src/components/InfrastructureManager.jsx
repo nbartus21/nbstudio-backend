@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Edit, Trash2, Server, HardDrive, AlertTriangle, Key } from 'lucide-react';
 import Card, { CardHeader, CardTitle, CardContent } from './ui/Card';
 
-const ServerManager = () => {
+const InfrastructureManager = () => {
   const [servers, setServers] = useState([]);
   const [licenses, setLicenses] = useState([]);
   const [selectedServer, setSelectedServer] = useState(null);
