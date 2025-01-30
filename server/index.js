@@ -27,11 +27,11 @@ app.use(cors({
     'https://nb-studio.net/de/blog',
     'https://nb-studio.net/hu/blog',
     'https://nb-studio.net/en/blog',
-    'http://localhost:3000'
+    '*'
   ],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true,
+  credentials: false,
   optionsSuccessStatus: 200
 }));
 
