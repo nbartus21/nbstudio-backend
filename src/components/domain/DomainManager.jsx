@@ -20,7 +20,7 @@ const DomainManager = () => {
 
   const fetchDomains = async () => {
     try {
-      const response = await fetch('/domains');
+      const response = await fetch('/api/domains');
       if (!response.ok) throw new Error('Hiba a domainek lekérésénél');
       const data = await response.json();
       setDomains(data);
@@ -45,7 +45,7 @@ const DomainManager = () => {
     if (!window.confirm('Biztosan törli ezt a domaint?')) return;
 
     try {
-      const response = await fetch(`/domains/${id}`, {
+      const response = await fetch(`/api/domains/${id}`, {
         method: 'DELETE'
       });
       if (!response.ok) throw new Error('Hiba a domain törlésekor');
@@ -127,6 +127,7 @@ const DomainManager = () => {
     <DollarSign className="h-8 w-8 text-green-500" />
   </div>
 </Card>
+
 
 
         <Card className="p-4">
