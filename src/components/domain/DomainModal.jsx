@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Dialog } from '@/components/ui/dialog';
+import { Dialog } from '../../components/ui/dialog';
 
 const DomainModal = ({ isOpen, onClose, onSave, domain }) => {
   const [formData, setFormData] = useState({
