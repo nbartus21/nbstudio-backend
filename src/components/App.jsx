@@ -7,7 +7,7 @@ import ContactAdmin from './ContactAdmin';
 import CalculatorAdmin from './CalculatorAdmin';
 import Login from './Login';
 import ProjectManager from './ProjectManager';
-
+import DomainManager from './components/domain/DomainManager'; // Új import
 
 const App = () => {
   // Védett route komponens
@@ -69,22 +69,22 @@ const App = () => {
           </PrivateRoute>
         }
       />
-<Route
-  path="/projects"
-  element={
-    <PrivateRoute>
-      <ProjectManager />
-    </PrivateRoute>
-  }
-/>
-<Route
-  path="/domains"
-  element={
-    <PrivateRoute>
-      <DomainManager />
-    </PrivateRoute>
-  }
-/>
+      <Route
+        path="/projects"
+        element={
+          <PrivateRoute>
+            <ProjectManager />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/domains"
+        element={
+          <PrivateRoute>
+            <DomainManager />
+          </PrivateRoute>
+        }
+      />
       <Route path="*" element={<Navigate to="/login" />} />
     </Routes>
   );

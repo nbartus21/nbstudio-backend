@@ -26,12 +26,13 @@ const Navigation = () => {
           { path: "/projects", label: "Projekt kezelő" }
         ]
     },
-{
-  category: "Domain kezelés",
-  items: [
-    { path: "/domains", label: "Domain Menedzser" }
-  ]
-}
+    {
+      category: "Eszközök",
+      items: [
+        { path: "/domains", label: "Domain Kezelő" }
+        // ... egyéb eszközök ...
+      ]
+    }
   ];
 
   const isActive = (path) => location.pathname === path;
