@@ -8,6 +8,8 @@ import CalculatorAdmin from './CalculatorAdmin';
 import Login from './Login';
 import ProjectManager from './ProjectManager';
 import DomainManager from './domain/DomainManager';
+import InfrastructureManager from './InfrastructureManager';
+
 
 const App = () => {
   // Védett route komponens
@@ -85,6 +87,14 @@ const App = () => {
           </PrivateRoute>
         }
       />
+      <Route
+  path="/infrastructure"
+  element={
+    <PrivateRoute>
+      <InfrastructureManager />
+    </PrivateRoute>
+  }
+/>
       <Route path="*" element={<Navigate to="/login" />} />
     </Routes>
   );

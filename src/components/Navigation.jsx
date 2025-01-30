@@ -29,8 +29,8 @@ const Navigation = () => {
     {
       category: "Eszközök",
       items: [
-        { path: "/domains", label: "Domain Kezelő" }
-        // ... egyéb eszközök ...
+        { path: "/domains", label: "Domain Kezelő" },
+        { path: "/infrastructure", label: "Infrastruktúra Kezelő" }
       ]
     }
   ];
