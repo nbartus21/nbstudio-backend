@@ -24,7 +24,9 @@ app.use(cors({
     'https://nb-studio.net',
     'https://www.nb-studio.net',
     // Development
-    '178.254.20.129',
+    'https://nb-studio.net/de/blog',
+    'https://nb-studio.net/hu/blog',
+    'https://nb-studio.net/en/blog',
     'http://localhost:3000'
   ],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
