@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { categorizeMessage, generateResponseSuggestion } from '../services/deepseekService';
 
-const API_URL = 'https://nbstudio-backend.onrender.com/api';
+const API_URL = 'http://38.242.208.190:5001/api/posts';
 
 const Modal = ({ isOpen, onClose, children }) => {
   if (!isOpen) return null;
@@ -81,7 +81,7 @@ const CalculatorAdmin = () => {
 // IDE jön az új függvény:
 const handleCreateProject = async (entry) => {
   try {
-    const response = await fetch('https://nbstudio-backend.onrender.com/api/projects', {
+    const response = await fetch('http://38.242.208.190:5001/api/projects', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

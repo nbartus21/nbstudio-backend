@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { categorizeMessage, generateResponseSuggestion, generateSummary, suggestTags } from '../services/deepseekService';
 
-const API_URL = 'https://nbstudio-backend.onrender.com/api';
+const API_URL = 'http://38.242.208.190:5001/api';
 
 // Modal komponens
 const Modal = ({ isOpen, onClose, children }) => {
