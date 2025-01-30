@@ -1,7 +1,7 @@
 import React from 'react';
 import Card, { CardHeader, CardTitle, CardContent } from '../ui/Card';
 
-const BudgetSummary = ({ domains }) => {
+const BudgetSummary = ({ domains, formatCurrency }) => {
   const currentYear = new Date().getFullYear();
   const nextYear = currentYear + 1;
 
@@ -25,20 +25,20 @@ const BudgetSummary = ({ domains }) => {
         <CardTitle>Költségvetési Összesítő</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div>
-            <p className="text-sm text-gray-500">Éves Összes Költség</p>
-            <p className="text-2xl font-bold">{formatCurrency(yearlyTotal)}</p>
-          </div>
-          <div>
-            <p className="text-sm text-gray-500">Havi Átlagos Költség</p>
-            <p className="text-2xl font-bold">{formatCurrency(monthlyAverage)}</p>
-          </div>
-          <div>
-            <p className="text-sm text-gray-500">Következő Évi Várható Költség</p>
-            <p className="text-2xl font-bold">{formatCurrency(nextYearTotal)}</p>
-          </div>
-        </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+  <div>
+    <p className="text-sm text-gray-500">Éves Összes Költség</p>
+    <p className="text-2xl font-bold">{formatCurrency(yearlyTotal)}</p>
+  </div>
+  <div>
+    <p className="text-sm text-gray-500">Havi Átlagos Költség</p>
+    <p className="text-2xl font-bold">{formatCurrency(monthlyAverage)}</p>
+  </div>
+  <div>
+    <p className="text-sm text-gray-500">Következő Évi Várható Költség</p>
+    <p className="text-2xl font-bold">{formatCurrency(nextYearTotal)}</p>
+  </div>
+</div>
 
         <div className="mt-6">
           <h3 className="font-medium mb-3">Következő Évi Megújítások</h3>

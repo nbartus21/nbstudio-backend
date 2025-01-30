@@ -119,14 +119,14 @@ const DomainManager = () => {
     <div className="flex justify-between items-center">
       <div>
         <p className="text-sm text-gray-500">Összes Költség / Év</p>
-        {/* IDE kell betenni ezt a sort: */}
-        <p className="text-2xl font-bold">
-          {formatCurrency(domains.reduce((sum, domain) => sum + (domain.cost || 0), 0))}
-        </p>
-      </div>
-      <DollarSign className="h-8 w-8 text-green-500" />
+{/* Ezt a sort cseréld ki: */}
+<p className="text-2xl font-bold">
+        {formatCurrency(domains.reduce((sum, domain) => sum + (domain.cost || 0), 0))}
+      </p>
     </div>
-  </Card>
+    <DollarSign className="h-8 w-8 text-green-500" />
+  </div>
+</Card>
 
         <Card className="p-4">
           <div className="flex justify-between items-center">
@@ -161,12 +161,12 @@ const DomainManager = () => {
   domains={domains}
   onEdit={handleEdit}
   onDelete={handleDelete}
-  formatCurrency={formatCurrency}
+  formatCurrency={formatCurrency}  // Add hozzá ezt a sort
 />
 
 <BudgetSummary 
   domains={domains} 
-  formatCurrency={formatCurrency}
+  formatCurrency={formatCurrency}  // Add hozzá ezt a sort
 />
 
       <DomainModal

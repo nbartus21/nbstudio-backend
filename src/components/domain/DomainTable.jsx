@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Edit, Trash2 } from 'lucide-react';
 
-const DomainTable = ({ domains, onEdit, onDelete }) => {
+const DomainTable = ({ domains, onEdit, onDelete, formatCurrency }) => {
   const [sortBy, setSortBy] = useState('expiryDate');
   const [sortDirection, setSortDirection] = useState('asc');
   const [filter, setFilter] = useState('');
@@ -118,8 +118,8 @@ const DomainTable = ({ domains, onEdit, onDelete }) => {
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {domain.cost.toLocaleString()} Ft
-                  </td>
+  {formatCurrency(domain.cost)}
+</td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-2 py-1 text-xs rounded-full ${statusColor}`}>
                       {daysUntil < 0 ? 'Lejárt' :
