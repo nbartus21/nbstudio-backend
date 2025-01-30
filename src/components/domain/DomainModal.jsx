@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { Dialog } from '../components/ui/dialog';
 
 const DomainModal = ({ isOpen, onClose, onSave, domain }) => {
   const [formData, setFormData] = useState({
@@ -29,7 +28,10 @@ const DomainModal = ({ isOpen, onClose, onSave, domain }) => {
     }
   }, [domain]);
 
-  const handleSubmit = (e) => {e.preventDefault();
+  if (!isOpen) return null;
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
     if (!formData.name || !formData.expiryDate) {
       alert('A domain név és a lejárati dátum kötelező!');
       return;
@@ -42,9 +44,8 @@ const DomainModal = ({ isOpen, onClose, onSave, domain }) => {
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <div className="fixed inset-0 bg-black/30 z-50">
-        <div className="fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-white p-6 shadow-lg duration-200 rounded-lg">
+    <div className="fixed inset-0 bg-black/30 z-50">
+      <div className="fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-white p-6 shadow-lg duration-200 rounded-lg">
           <h2 className="text-lg font-semibold">
             {domain ? 'Domain Szerkesztése' : 'Új Domain Hozzáadása'}
           </h2>
@@ -143,9 +144,8 @@ const DomainModal = ({ isOpen, onClose, onSave, domain }) => {
               </button>
             </div>
           </form>
-        </div>
       </div>
-    </Dialog>
+    </div>
   );
 };
 
