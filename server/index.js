@@ -17,8 +17,9 @@ const PORT = process.env.PORT || 5001;
 
 app.use(cors({
   origin: [
-    'https://nbstudio-backend.onrender.com',
-    'https://nbstudio-backend-1.onrender.com',
+    'http://38.242.208.190:5001',
+    'http://38.242.208.190',
+    'http://38.242.208.190:5173',
     'https://nb-studio.net' // Új domain hozzáadva
   ],
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
