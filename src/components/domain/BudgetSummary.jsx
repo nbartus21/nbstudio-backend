@@ -28,15 +28,15 @@ const BudgetSummary = ({ domains }) => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div>
             <p className="text-sm text-gray-500">Éves Összes Költség</p>
-            <p className="text-2xl font-bold">{yearlyTotal.toLocaleString()} Ft</p>
+            <p className="text-2xl font-bold">{formatCurrency(yearlyTotal)}</p>
           </div>
           <div>
             <p className="text-sm text-gray-500">Havi Átlagos Költség</p>
-            <p className="text-2xl font-bold">{monthlyAverage.toLocaleString()} Ft</p>
+            <p className="text-2xl font-bold">{formatCurrency(monthlyAverage)}</p>
           </div>
           <div>
             <p className="text-sm text-gray-500">Következő Évi Várható Költség</p>
-            <p className="text-2xl font-bold">{nextYearTotal.toLocaleString()} Ft</p>
+            <p className="text-2xl font-bold">{formatCurrency(nextYearTotal)}</p>
           </div>
         </div>
 
@@ -51,7 +51,7 @@ const BudgetSummary = ({ domains }) => {
                     Lejárat: {new Date(domain.expiryDate).toLocaleDateString()}
                   </p>
                 </div>
-                <p className="font-medium">{domain.cost.toLocaleString()} Ft</p>
+                <p className="font-medium">{formatCurrency(domain.cost)}</p>
               </div>
             ))}
           </div>
