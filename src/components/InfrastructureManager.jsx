@@ -1,6 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Edit, Trash2, Server, HardDrive, AlertTriangle, Key } from 'lucide-react';
 import Card, { CardHeader, CardTitle, CardContent } from './ui/Card';
+import ServerModal from './ServerModal';
+import LicenseModal from './LicenseModal';
+
+const API_URL = 'http://38.242.208.190:5001/api';
+
 
 const InfrastructureManager = () => {
   const [servers, setServers] = useState([]);
@@ -19,8 +24,8 @@ const InfrastructureManager = () => {
   const fetchData = async () => {
     try {
       const [serversResponse, licensesResponse] = await Promise.all([
-        fetch('/api/servers'),
-        fetch('/api/licenses')
+        fetch(`${API_URL}/servers`),
+        fetch(`${API_URL}/licenses`)
       ]);
       
       const serversData = await serversResponse.json();
@@ -161,14 +166,14 @@ const InfrastructureManager = () => {
           <div className="p-4 flex justify-between items-center">
             <h2 className="text-lg font-semibold">Szerverek</h2>
             <button
-              onClick={() => {
-                setSelectedServer(null);
-                setShowServerModal(true);
-              }}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-            >
-              + Új Szerver
-            </button>
+  onClick={() => {
+    setSelectedServer(null);
+    setShowServerModal(true);
+  }}
+  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+>
+  + Új Szerver
+</button>
           </div>
           <div className="overflow-x-auto">
             <table className="min-w-full">
@@ -256,14 +261,14 @@ const InfrastructureManager = () => {
           <div className="p-4 flex justify-between items-center">
             <h2 className="text-lg font-semibold">Licenszek</h2>
             <button
-              onClick={() => {
-                setSelectedLicense(null);
-                setShowLicenseModal(true);
-              }}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-            >
-              + Új Licensz
-            </button>
+  onClick={() => {
+    setSelectedLicense(null);
+    setShowLicenseModal(true);
+  }}
+  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+>
+  + Új Licensz
+</button>
           </div>
           <div className="overflow-x-auto">
             <table className="min-w-full">
@@ -335,6 +340,23 @@ const InfrastructureManager = () => {
           </div>
         </div>
       )}
+      {showServerModal && (
+  <ServerModal
+    isOpen={showServerModal}
+    onClose={() => setShowServerModal(false)}
+    onSave={handleAddServer}
+    server={selectedServer}
+  />
+)}
+
+{showLicenseModal && (
+  <LicenseModal
+    isOpen={showLicenseModal}
+    onClose={() => setShowLicenseModal(false)}
+    onSave={handleAddLicense}
+    license={selectedLicense}
+  />
+)}
     </div>
 );
 };
