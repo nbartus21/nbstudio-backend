@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { categorizeMessage, generateResponseSuggestion } from '../services/deepseekService';
 
-const API_URL = 'http://38.242.208.190:5001/api/posts';
+const API_URL = 'http://38.242.208.190:5001/api/';
 
 const Modal = ({ isOpen, onClose, children }) => {
   if (!isOpen) return null;
