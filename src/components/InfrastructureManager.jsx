@@ -3,11 +3,7 @@ import { Edit, Trash2, Server, HardDrive, AlertTriangle, Key } from 'lucide-reac
 import Card, { CardHeader, CardTitle, CardContent } from './ui/Card';
 import ServerModal from './ServerModal';
 import LicenseModal from './LicenseModal';
-
-const API_URL = 'http://38.242.208.190:5001/api';
-
-
-
+import { contaboService } from '../services/contaboService';
 
 const InfrastructureManager = () => {
   const [selectedServer, setSelectedServer] = useState(null);
@@ -15,24 +11,17 @@ const InfrastructureManager = () => {
   const [showServerModal, setShowServerModal] = useState(false);
   const [showLicenseModal, setShowLicenseModal] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState('servers'); // 'servers' vagy 'licenses'
+  const [view, setView] = useState('servers');
   const [servers, setServers] = useState([]);
   const [licenses, setLicenses] = useState([]);
-
-  useEffect(() => {
-    fetchData();
-  }, []);
 
   const fetchData = async () => {
     try {
       setLoading(true);
       const [serversResponse, licensesResponse] = await Promise.all([
-        fetch(`${API_URL}/servers`),
-        fetch(`${API_URL}/licenses`)
+        fetch('http://38.242.208.190:5001/api/servers'),
+        fetch('http://38.242.208.190:5001/api/licenses')
       ]);
-
-      if (!serversResponse.ok) throw new Error('Failed to fetch servers');
-      if (!licensesResponse.ok) throw new Error('Failed to fetch licenses');
 
       const serversData = await serversResponse.json();
       const licensesData = await licensesResponse.json();
@@ -46,9 +35,41 @@ const InfrastructureManager = () => {
     }
   };
 
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const handleContaboSync = async () => {
+    try {
+      const instances = await contaboService.getInstances();
+      
+      // Minden Contabo instance-hoz létrehozunk vagy frissítünk egy szervert
+      for (const instance of instances) {
+        const response = await fetch('http://38.242.208.190:5001/api/servers', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(instance)
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to sync server: ${instance.name}`);
+        }
+      }
+
+      // Frissítjük a szerverek listáját
+      fetchData();
+      alert('Contabo szerverek sikeresen szinkronizálva!');
+    } catch (error) {
+      console.error('Contabo sync error:', error);
+      alert('Hiba történt a Contabo szerverek szinkronizálása során: ' + error.message);
+    }
+  };
+
   const handleAddServer = async (serverData) => {
     try {
-      const response = await fetch(`${API_URL}/servers`, {
+      const response = await fetch('http://38.242.208.190:5001/api/servers', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -60,17 +81,17 @@ const InfrastructureManager = () => {
         throw new Error('Hiba a szerver létrehozásakor');
       }
 
-      await fetchData(); // Frissítjük az adatokat
+      await fetchData();
       setShowServerModal(false);
     } catch (error) {
       console.error('Hiba:', error);
       alert('Nem sikerült létrehozni a szervert: ' + error.message);
     }
-};
+  };
 
-const handleAddLicense = async (licenseData) => {
+  const handleAddLicense = async (licenseData) => {
     try {
-      const response = await fetch(`${API_URL}/licenses`, {
+      const response = await fetch('http://38.242.208.190:5001/api/licenses', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -82,58 +103,45 @@ const handleAddLicense = async (licenseData) => {
         throw new Error('Hiba a licensz létrehozásakor');
       }
 
-      await fetchData(); // Frissítjük az adatokat
+      await fetchData();
       setShowLicenseModal(false);
     } catch (error) {
       console.error('Hiba:', error);
       alert('Nem sikerült létrehozni a licenszt: ' + error.message);
     }
-};
+  };
 
+  const handleDeleteServer = async (serverId) => {
+    try {
+      const response = await fetch(`http://38.242.208.190:5001/api/servers/${serverId}`, {
+        method: 'DELETE',
+      });
 
-// Szerver törlés funkció
-const handleDeleteServer = async (serverId) => {
-    if (window.confirm('Biztosan törli ezt a szervert?')) {
-      try {
-        const response = await fetch(`${API_URL}/servers/${serverId}`, {
-          method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json',
-          }
-        });
-  
-        if (!response.ok) {
-          throw new Error('Hiba a szerver törlésekor');
-        }
-  
-        await fetchData(); // Frissítjük az adatokat
-      } catch (error) {
-        console.error('Hiba:', error);
-        alert('Nem sikerült törölni a szervert: ' + error.message);
+      if (!response.ok) {
+        throw new Error('Hiba a szerver törlésekor');
       }
+
+      await fetchData();
+    } catch (error) {
+      console.error('Hiba:', error);
+      alert('Nem sikerült törölni a szervert: ' + error.message);
     }
   };
-  
-  // Licensz törlés funkció
+
   const handleDeleteLicense = async (licenseId) => {
-    if (window.confirm('Biztosan törli ezt a licenszt?')) {
-      try {
-        const response = await fetch(`${API_URL}/licenses/${licenseId}`, {
-          method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json',
-          }
-        });
-  
-        if (!response.ok) {
-          throw new Error('Hiba a licensz törlésekor');
-        }
-  
-        await fetchData(); // Frissítjük az adatokat
-      } catch (error) {
-        console.error('Hiba:', error);
-        alert('Nem sikerült törölni a licenszt: ' + error.message);
+    try {
+      const response = await fetch(`http://38.242.208.190:5001/api/licenses/${licenseId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Hiba a licensz törlésekor');
       }
+
+      await fetchData();
+    } catch (error) {
+      console.error('Hiba:', error);
+      alert('Nem sikerült törölni a licenszt: ' + error.message);
     }
   };
 
@@ -190,6 +198,14 @@ const handleDeleteServer = async (serverId) => {
           >
             <Key className="w-5 h-5 inline-block mr-2" />
             Licenszek
+          </button>
+          
+          <button
+            onClick={handleContaboSync}
+            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+          >
+            <Server className="w-5 h-5 inline-block mr-2" />
+            Contabo Szinkronizálás
           </button>
         </div>
       </div>
@@ -263,14 +279,14 @@ const handleDeleteServer = async (serverId) => {
           <div className="p-4 flex justify-between items-center">
             <h2 className="text-lg font-semibold">Szerverek</h2>
             <button
-  onClick={() => {
-    setSelectedServer(null);
-    setShowServerModal(true);
-  }}
-  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
->
-  + Új Szerver
-</button>
+              onClick={() => {
+                setSelectedServer(null);
+                setShowServerModal(true);
+              }}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              + Új Szerver
+            </button>
           </div>
           <div className="overflow-x-auto">
             <table className="min-w-full">
@@ -297,7 +313,10 @@ const handleDeleteServer = async (serverId) => {
                     <td className="px-6 py-4">{server.provider?.name}</td>
                     <td className="px-6 py-4">
                       <div className="flex flex-col">
-                        <span>{formatStorageSize(server.specifications?.storage?.used)} / {formatStorageSize(server.specifications?.storage?.total)}</span>
+                        <span>
+                          {formatStorageSize(server.specifications?.storage?.used)} / 
+                          {formatStorageSize(server.specifications?.storage?.total)}
+                        </span>
                         <div className="w-32 bg-gray-200 rounded-full h-2 mt-1">
                           <div
                             className={`h-2 rounded-full ${
@@ -319,9 +338,9 @@ const handleDeleteServer = async (serverId) => {
                       <span className={`px-2 py-1 text-xs rounded-full ${
                         server.status === 'active'
                           ? 'bg-green-100 text-green-800'
-                          : server.status === 'maintenance'
-                          ? 'bg-yellow-100 text-yellow-800'
-                          : 'bg-red-100 text-red-800'
+                          : server.status === 'expired'
+                          ? 'bg-red-100 text-red-800'
+                          : 'bg-yellow-100 text-yellow-800'
                       }`}>
                         {server.status}
                       </span>
@@ -337,11 +356,15 @@ const handleDeleteServer = async (serverId) => {
                         <Edit className="h-5 w-5" />
                       </button>
                       <button
-  onClick={() => handleDeleteServer(server._id)}
-  className="text-red-600 hover:text-red-900"
->
-  <Trash2 className="h-5 w-5" />
-</button>
+                        onClick={() => {
+                          if (window.confirm('Biztosan törli ezt a szervert?')) {
+                            handleDeleteServer(server._id);
+                          }
+                        }}
+                        className="text-red-600 hover:text-red-900"
+                      >
+                        <Trash2 className="h-5 w-5" />
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -350,18 +373,19 @@ const handleDeleteServer = async (serverId) => {
           </div>
         </div>
       ) : (
+        // Licensz nézet
         <div className="bg-white rounded-lg shadow overflow-hidden">
           <div className="p-4 flex justify-between items-center">
             <h2 className="text-lg font-semibold">Licenszek</h2>
             <button
-  onClick={() => {
-    setSelectedLicense(null);
-    setShowLicenseModal(true);
-  }}
-  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
->
-  + Új Licensz
-</button>
+              onClick={() => {
+                setSelectedLicense(null);
+                setShowLicenseModal(true);
+              }}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              + Új Licensz
+            </button>
           </div>
           <div className="overflow-x-auto">
             <table className="min-w-full">
@@ -398,9 +422,9 @@ const handleDeleteServer = async (serverId) => {
                       <span className={`px-2 py-1 text-xs rounded-full ${
                         license.status === 'active'
                           ? 'bg-green-100 text-green-800'
-                          : license.status === 'expired'
-                          ? 'bg-red-100 text-red-800'
-                          : 'bg-yellow-100 text-yellow-800'
+                          : license.status === 'maintenance'
+                          ? 'bg-yellow-100 text-yellow-800'
+                          : 'bg-red-100 text-red-800'
                       }`}>
                         {license.status}
                       </span>
@@ -416,11 +440,15 @@ const handleDeleteServer = async (serverId) => {
                         <Edit className="h-5 w-5" />
                       </button>
                       <button
-  onClick={() => handleDeleteLicense(license._id)}
-  className="text-red-600 hover:text-red-900"
->
-  <Trash2 className="h-5 w-5" />
-</button>
+                        onClick={() => {
+                          if (window.confirm('Biztosan törli ezt a licenszt?')) {
+                            handleDeleteLicense(license._id);
+                          }
+                        }}
+                        className="text-red-600 hover:text-red-900"
+                      >
+                        <Trash2 className="h-5 w-5" />
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -429,25 +457,27 @@ const handleDeleteServer = async (serverId) => {
           </div>
         </div>
       )}
-      {showServerModal && (
-  <ServerModal
-    isOpen={showServerModal}
-    onClose={() => setShowServerModal(false)}
-    onSave={handleAddServer}
-    server={selectedServer}
-  />
-)}
 
-{showLicenseModal && (
-  <LicenseModal
-    isOpen={showLicenseModal}
-    onClose={() => setShowLicenseModal(false)}
-    onSave={handleAddLicense}
-    license={selectedLicense}
-  />
-)}
+      {/* Modals */}
+      {showServerModal && (
+        <ServerModal
+          isOpen={showServerModal}
+          onClose={() => setShowServerModal(false)}
+          onSave={handleAddServer}
+          server={selectedServer}
+        />
+      )}
+
+      {showLicenseModal && (
+        <LicenseModal
+          isOpen={showLicenseModal}
+          onClose={() => setShowLicenseModal(false)}
+          onSave={handleAddLicense}
+          license={selectedLicense}
+        />
+      )}
     </div>
-);
+  );
 };
 
 export default InfrastructureManager;
