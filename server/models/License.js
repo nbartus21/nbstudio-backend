@@ -1,4 +1,3 @@
-// models/License.js
 const licenseSchema = new mongoose.Schema({
     name: { 
       type: String, 
