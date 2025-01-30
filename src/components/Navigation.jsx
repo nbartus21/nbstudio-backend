@@ -25,7 +25,13 @@ const Navigation = () => {
         items: [
           { path: "/projects", label: "Projekt kezelő" }
         ]
-    }
+    },
+{
+  category: "Domain kezelés",
+  items: [
+    { path: "/domains", label: "Domain Menedzser" }
+  ]
+}
   ];
 
   const isActive = (path) => location.pathname === path;

@@ -77,6 +77,14 @@ const App = () => {
     </PrivateRoute>
   }
 />
+<Route
+  path="/domains"
+  element={
+    <PrivateRoute>
+      <DomainManager />
+    </PrivateRoute>
+  }
+/>
       <Route path="*" element={<Navigate to="/login" />} />
     </Routes>
   );
