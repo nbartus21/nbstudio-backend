@@ -14,6 +14,7 @@ import serverRoutes from './routes/servers.js';
 import licenseRoutes from './routes/licenses.js';
 import authMiddleware from './middleware/auth.js';
 import authRoutes from './routes/auth.js';
+import notificationRoutes from './routes/notifications.js';
 
 dotenv.config();
 
@@ -121,14 +122,15 @@ app.use('/api/public', publicContactRouter);
 app.use('/api/auth', authRoutes);
 
 // Védett végpontok
-app.use('/api', authMiddleware); // Az auth middleware csak ezután jön
 app.use('/api', postRoutes);
+app.use('/api', authMiddleware); // Az auth middleware csak ezután jön
 app.use('/api', contactRoutes);
 app.use('/api', calculatorRoutes);
 app.use('/api', projectRoutes);
 app.use('/api', domainRoutes);
 app.use('/api', serverRoutes);
 app.use('/api', licenseRoutes);
+app.use('/api', notificationRoutes);  // <- Ez az új sor
 
 // Alap route teszteléshez
 app.get('/', (req, res) => {
