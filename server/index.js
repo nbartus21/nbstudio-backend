@@ -17,7 +17,6 @@ import authRoutes from './routes/auth.js';
 import notificationRoutes from './routes/notifications.js';
 import Calculator from './models/Calculator.js';  // Ezt add hozzá
 
-
 dotenv.config();
 
 const app = express();
@@ -138,6 +137,11 @@ publicCalculatorRouter.post('/calculators', validateApiKey, async (req, res) => 
   }
 });
 app.use('/api/public', publicCalculatorRouter);
+
+// CORS és egyéb middleware-k után, de az auth middleware ELŐTT
+const publicProjectRouter = express.Router();
+publicProjectRouter.use(validateApiKey);
+app.use('/api/public/projects', projectRoutes);  // Publikus végpontok
 
 // Auth routes
 app.use('/api/auth', authRoutes);

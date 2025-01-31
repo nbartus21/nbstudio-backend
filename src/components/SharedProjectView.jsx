@@ -16,10 +16,7 @@ const SharedProjectView = () => {
     const verifyPin = async (e) => {
         e.preventDefault();
         setLoading(true);
-        
         console.log('PIN ellenőrzés kezdődik...');
-        console.log('Token:', token);
-        console.log('PIN:', pin);
         
         try {
           const response = await fetch(`${API_URL}/public/projects/verify-pin`, {
@@ -28,26 +25,26 @@ const SharedProjectView = () => {
               'Content-Type': 'application/json',
               'X-API-Key': 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0'
             },
-            body: JSON.stringify({ token, pin })
+            body: JSON.stringify({ 
+              token: token,
+              pin: pin 
+            })
           });
           
           console.log('API válasz státusz:', response.status);
-          
           const data = await response.json();
-          console.log('API válasz data:', data);
+          console.log('API válasz:', data);
       
           if (response.ok) {
-            console.log('Sikeres PIN ellenőrzés');
             setProject(data.project);
             setIsVerified(true);
             setError(null);
           } else {
-            console.error('Sikertelen PIN ellenőrzés:', data.message);
             setError(data.message || 'Érvénytelen PIN kód');
           }
         } catch (error) {
-          console.error('Hiba történt:', error);
-          setError('Hiba történt az ellenőrzés során: ' + error.message);
+          console.error('Hiba:', error);
+          setError('Hiba történt az ellenőrzés során');
         } finally {
           setLoading(false);
         }
