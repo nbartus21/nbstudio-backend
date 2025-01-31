@@ -12,6 +12,7 @@ const ProjectManager = () => {
   const [selectedProject, setSelectedProject] = useState(null);
   const [showNewInvoiceForm, setShowNewInvoiceForm] = useState(false);
   const [shareLink, setShareLink] = useState('');
+  const [sharePin, setSharePin] = useState('');
   const [newInvoice, setNewInvoice] = useState({
     items: [{ description: '', quantity: 1, unitPrice: 0 }]
   });
@@ -34,6 +35,7 @@ const ProjectManager = () => {
   
       const data = await response.json();
       setShareLink(data.shareLink);
+      setSharePin(data.pin); // Itt mentjük el a PIN kódot
       setError(null);
     } catch (error) {
       console.error('Hiba a megosztási link generálásakor:', error);
@@ -243,20 +245,35 @@ const ProjectManager = () => {
         </div>
       )}
 
-      {shareLink && (
-        <div className="mb-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded">
-          <p>Megosztási link: {shareLink}</p>
-          <button 
-            onClick={() => {
-              navigator.clipboard.writeText(shareLink);
-              alert('Link másolva!');
-            }}
-            className="mt-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-          >
-            Link másolása
-          </button>
-        </div>
-      )}
+{shareLink && (
+  <div className="mb-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded">
+    <div className="flex flex-col space-y-2">
+      <p className="font-semibold">Megosztási adatok:</p>
+      <p>Link: {shareLink}</p>
+      <p className="font-bold">PIN kód: {sharePin}</p> {/* Új sor */}
+      <div className="flex space-x-2">
+        <button 
+          onClick={() => {
+            navigator.clipboard.writeText(shareLink);
+            alert('Link másolva!');
+          }}
+          className="mt-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+        >
+          Link másolása
+        </button>
+        <button 
+          onClick={() => {
+            navigator.clipboard.writeText(sharePin);
+            alert('PIN kód másolva!');
+          }}
+          className="mt-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+        >
+          PIN másolása
+        </button>
+      </div>
+    </div>
+  </div>
+)}
 
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Projekt Kezelő</h1>
