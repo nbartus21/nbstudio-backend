@@ -139,7 +139,7 @@ const DomainManager = () => {
       <DomainTable 
   domains={domains}
   onEdit={handleEdit}
-  onDelete={handleDeleteDomain} 
+  onDelete={handleDelete} 
   formatCurrency={formatCurrency}
 />
 

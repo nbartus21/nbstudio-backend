@@ -28,8 +28,8 @@ const InfrastructureManager = () => {
     try {
       setLoading(true);
       const [serversData, licensesData] = await Promise.all([
-        api.get(`${API_URL}/servers`).then(res => res.json()),
-        api.get(`${API_URL}/licenses`).then(res => res.json())
+        api.get(`${API_URL}/api/servers`).then(res => res.json()),
+        api.get(`${API_URL}/api/licenses`).then(res => res.json())
       ]);
   
       setServers(serversData);
