@@ -1,57 +1,62 @@
 import express from 'express';
 import Calculator from '../models/Calculator.js';
 import dotenv from 'dotenv';
+import authMiddleware from '../middleware/auth.js';
 dotenv.config();
 
 const router = express.Router();
 
 // API kulcs validáció middleware
 const validateApiKey = (req, res, next) => {
-  console.log('======= API Key Validation =======');
-  console.log('Headers received:', req.headers);
-  console.log('Received API Key:', req.headers['x-api-key']);
-  console.log('Expected API Key:', process.env.PUBLIC_API_KEY);
-  console.log('================================');
-  
   const apiKey = req.headers['x-api-key'];
   
   if (!process.env.PUBLIC_API_KEY) {
-    console.error('PUBLIC_API_KEY is not set in environment!');
-    return res.status(500).json({ message: 'Server configuration error' });
+    console.error('PUBLIC_API_KEY nincs beállítva a környezeti változókban');
+    return res.status(500).json({ message: 'Szerver konfigurációs hiba' });
   }
   
   if (!apiKey) {
-    console.error('No API key provided in request');
-    return res.status(401).json({ message: 'API key is required' });
+    return res.status(401).json({ message: 'API kulcs szükséges' });
   }
 
   if (apiKey === process.env.PUBLIC_API_KEY) {
-    console.log('API Key validation successful');
     next();
   } else {
-    console.error('API Key validation failed');
-    res.status(401).json({ message: 'Invalid API key' });
+    res.status(401).json({ message: 'Érvénytelen API kulcs' });
   }
 };
 
 // Publikus kalkulátor végpont API kulcs védelemmel
-router.post('/public/calculators', validateApiKey, async (req, res) => {
+router.post('/calculators/public', validateApiKey, async (req, res) => {
   try {
     const calculator = new Calculator(req.body);
-    const savedCalculator = await calculator.save();
+    await calculator.save();
     res.status(201).json({
       success: true,
-      message: 'Kalkuláció sikeresen elmentve'
+      message: 'Kalkuláció sikeresen mentve'
     });
   } catch (error) {
-    console.error('Calculator form error:', error);
+    console.error('Kalkulátor űrlap hiba:', error);
     res.status(500).json({
       message: 'Hiba történt a kalkuláció mentése során'
     });
   }
 });
 
-// Create new calculator entry
+// Védett útvonalak JWT autentikációval
+router.use(authMiddleware);
+
+// Összes kalkulátor bejegyzés lekérése
+router.get('/calculators', async (req, res) => {
+  try {
+    const entries = await Calculator.find().sort({ createdAt: -1 });
+    res.json(entries);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Új kalkulátor bejegyzés létrehozása (védett)
 router.post('/calculators', async (req, res) => {
   try {
     const calculator = new Calculator(req.body);
@@ -62,7 +67,7 @@ router.post('/calculators', async (req, res) => {
   }
 });
 
-// Update calculator entry
+// Kalkulátor bejegyzés frissítése (védett)
 router.put('/calculators/:id', async (req, res) => {
   try {
     const updatedCalculator = await Calculator.findByIdAndUpdate(
@@ -76,11 +81,11 @@ router.put('/calculators/:id', async (req, res) => {
   }
 });
 
-// Delete calculator entry
+// Kalkulátor bejegyzés törlése (védett)
 router.delete('/calculators/:id', async (req, res) => {
   try {
     await Calculator.findByIdAndDelete(req.params.id);
-    res.json({ message: 'Calculator entry deleted successfully' });
+    res.json({ message: 'Kalkulátor bejegyzés sikeresen törölve' });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
