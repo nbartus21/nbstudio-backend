@@ -45,8 +45,8 @@ router.put('/licenses/:id', async (req, res) => {
   try {
     const updatedLicense = await License.findByIdAndUpdate(
       req.params.id,
-      req.body,
-      { new: true }
+      { $set: req.body }, // Hozzáadva $set operátor
+      { new: true, runValidators: true } // Hozzáadva runValidators
     ).populate('usage.server');
     
     if (!updatedLicense) {
