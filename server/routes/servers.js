@@ -39,20 +39,20 @@ router.get('/servers/:id', async (req, res) => {
 
 // Update server
 router.put('/servers/:id', async (req, res) => {
-  try {
-    const updatedServer = await Server.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true }
-    );
-    if (!updatedServer) {
-      return res.status(404).json({ message: 'Server not found' });
+    try {
+      const updatedServer = await Server.findByIdAndUpdate(
+        req.params.id,
+        { $set: req.body },  // Hozzáadva $set operátor
+        { new: true, runValidators: true }  // Hozzáadva runValidators
+      );
+      if (!updatedServer) {
+        return res.status(404).json({ message: 'Server not found' });
+      }
+      res.json(updatedServer);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
     }
-    res.json(updatedServer);
-  } catch (error) {
-    res.status(400).json({ message: error.message });
-  }
-});
+  });
 
 // Delete server
 router.delete('/servers/:id', async (req, res) => {
