@@ -1,5 +1,6 @@
 import express from 'express';
 import Contact from '../models/Contact.js';
+import Notification from '../models/Notification.js';
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -86,7 +87,6 @@ router.delete('/contacts/:id', async (req, res) => {
 // Publikus üzenetküldő végpont API kulcs védelemmel
 router.post('/public/contact', validateApiKey, async (req, res) => {
   try {
-    // Alapvető validáció
     const { name, email, subject, message } = req.body;
     if (!name || !email || !subject || !message) {
       return res.status(400).json({
@@ -94,7 +94,6 @@ router.post('/public/contact', validateApiKey, async (req, res) => {
       });
     }
 
-    // Spam védelem - rate limiting implementálható itt
     const contact = new Contact({
       name,
       email,
@@ -104,8 +103,18 @@ router.post('/public/contact', validateApiKey, async (req, res) => {
       priority: 'medium',
       category: 'inquiry'
     });
-
     const savedContact = await contact.save();
+
+    // Értesítés létrehozása
+    const notification = new Notification({
+      userId: "nbartus21@gmail.com",
+      type: "custom",
+      title: "Új kontakt üzenet érkezett",
+      message: `Feladó: ${name} (${email})\nTárgy: ${subject}\nÜzenet: ${message}`,
+      severity: "info"
+    });
+    await notification.save();
+
     res.status(201).json({
       success: true,
       message: 'Üzenet sikeresen elküldve'
@@ -117,7 +126,6 @@ router.post('/public/contact', validateApiKey, async (req, res) => {
     });
   }
 });
-
 
 
 export default router;
