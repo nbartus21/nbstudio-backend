@@ -249,28 +249,75 @@ const ProjectManager = () => {
   <div className="mb-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded">
     <div className="flex flex-col space-y-2">
       <p className="font-semibold">Megosztási adatok:</p>
-      <p>Link: {shareLink}</p>
-      <p className="font-bold">PIN kód: {sharePin}</p> {/* Új sor */}
-      <div className="flex space-x-2">
+      <div className="flex items-center space-x-2">
+        <span className="text-sm">Link:</span>
+        <input 
+          type="text" 
+          value={shareLink} 
+          readOnly 
+          className="flex-1 p-1 border rounded bg-white"
+        />
+      </div>
+      <div className="flex items-center space-x-2">
+        <span className="text-sm">PIN kód:</span>
+        <input 
+          type="text" 
+          value={sharePin} 
+          readOnly 
+          className="w-24 p-1 border rounded bg-white"
+        />
+      </div>
+      <div className="flex space-x-2 mt-2">
         <button 
-          onClick={() => {
-            navigator.clipboard.writeText(shareLink);
-            alert('Link másolva!');
+          onClick={async () => {
+            try {
+              await navigator.clipboard.writeText(shareLink);
+              setError(null);
+              // Opcionális: visszajelzés a felhasználónak
+              const originalText = 'Link másolása';
+              const button = document.querySelector('#copyLinkBtn');
+              if (button) {
+                button.textContent = 'Másolva!';
+                setTimeout(() => {
+                  button.textContent = originalText;
+                }, 2000);
+              }
+            } catch (err) {
+              setError('Nem sikerült másolni a linket');
+            }
           }}
-          className="mt-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+          id="copyLinkBtn"
+          className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors duration-200"
         >
           Link másolása
         </button>
         <button 
-          onClick={() => {
-            navigator.clipboard.writeText(sharePin);
-            alert('PIN kód másolva!');
+          onClick={async () => {
+            try {
+              await navigator.clipboard.writeText(sharePin);
+              setError(null);
+              // Opcionális: visszajelzés a felhasználónak
+              const originalText = 'PIN másolása';
+              const button = document.querySelector('#copyPinBtn');
+              if (button) {
+                button.textContent = 'Másolva!';
+                setTimeout(() => {
+                  button.textContent = originalText;
+                }, 2000);
+              }
+            } catch (err) {
+              setError('Nem sikerült másolni a PIN kódot');
+            }
           }}
-          className="mt-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          id="copyPinBtn"
+          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors duration-200"
         >
           PIN másolása
         </button>
       </div>
+      {error && (
+        <p className="text-red-600 text-sm mt-2">{error}</p>
+      )}
     </div>
   </div>
 )}
