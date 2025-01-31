@@ -15,6 +15,7 @@ import authMiddleware from './middleware/auth.js';
 import authRoutes from './routes/auth.js';
 
 dotenv.config();
+
 const app = express();
 const host = process.env.HOST || '0.0.0.0';
 const port = process.env.PORT || 5001;
@@ -28,19 +29,17 @@ const options = {
 // CORS beállítások
 app.use(cors({
   origin: [
-      'https://admin.nb-studio.net',
-      'https://nb-studio.net',
-      'https://www.nb-studio.net',
-      'http://38.242.208.190:5173',
-      'http://38.242.208.190',
-      'https://www.nb-studio.net',
-
-      // Fejlesztési környezet
-      'http://localhost:5173',
-      'http://localhost:3000'
+    'https://admin.nb-studio.net',
+    'https://nb-studio.net',
+    'https://www.nb-studio.net',
+    'http://38.242.208.190:5173',
+    'http://38.242.208.190',
+    'https://www.nb-studio.net',
+    'http://localhost:5173',
+    'http://localhost:3000'
   ],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key'], 
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key'],
   credentials: true,
   optionsSuccessStatus: 200
 }));
@@ -50,12 +49,17 @@ app.use(express.json());
 
 // Debug middleware
 app.use((req, res, next) => {
-   console.log(`${req.method} ${req.url}`);
-   next();
+  console.log(`${req.method} ${req.url}`);
+  next();
 });
 
 // Routes
 app.use('/api/auth', authRoutes);
+
+// Publikus végpontok
+app.use('/api/public', contactRoutes);  // Új sor
+
+// Védett végpontok
 app.use('/api', authMiddleware);
 app.use('/api', postRoutes);
 app.use('/api', contactRoutes);
@@ -65,28 +69,25 @@ app.use('/api', domainRoutes);
 app.use('/api', serverRoutes);
 app.use('/api', licenseRoutes);
 
-
-
 // Alap route teszteléshez
 app.get('/', (req, res) => {
-   res.json({ message: 'Blog API is running' });
+  res.json({ message: 'Blog API is running' });
 });
 
 // Error handling
 app.use((err, req, res, next) => {
-   console.error(err.stack);
-   res.status(500).json({ message: 'Something went wrong!' });
+  console.error(err.stack);
+  res.status(500).json({ message: 'Something went wrong!' });
 });
 
 // MongoDB kapcsolódás és HTTPS szerver indítás
 mongoose.connect(process.env.MONGO_URI)
-   .then(() => {
-       console.log('Connected to MongoDB');
-       // HTTPS szerver indítása
-       https.createServer(options, app).listen(port, host, () => {
-           console.log(`Server running on https://${host}:${port}`);
-       });
-   })
-   .catch((error) => {
-       console.error('MongoDB connection error:', error);
-   });
+  .then(() => {
+    console.log('Connected to MongoDB');
+    https.createServer(options, app).listen(port, host, () => {
+      console.log(`Server running on https://${host}:${port}`);
+    });
+  })
+  .catch((error) => {
+    console.error('MongoDB connection error:', error);
+  });
