@@ -7,10 +7,8 @@ const router = express.Router();
 router.get('/posts', async (req, res) => {
   try {
     const posts = await Post.find().sort({ createdAt: -1 });
-    console.log('Fetched posts:', posts);
     res.json(posts);
   } catch (error) {
-    console.error('Error fetching posts:', error);
     res.status(500).json({ message: error.message });
   }
 });
