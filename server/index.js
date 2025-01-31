@@ -7,6 +7,7 @@ import fs from 'fs';
 import Contact from './models/Contact.js';
 import postRoutes from './routes/posts.js';
 import contactRoutes from './routes/contacts.js';
+import Calculator from './models/Calculator.js';  // Új import
 import calculatorRoutes from './routes/calculators.js';
 import projectRoutes from './routes/projects.js';
 import domainRoutes from './routes/domains.js';
