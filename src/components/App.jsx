@@ -9,7 +9,7 @@ import Login from './Login';
 import ProjectManager from './ProjectManager';
 import DomainManager from './domain/DomainManager';
 import InfrastructureManager from './InfrastructureManager';
-import SharedProjectView from './components/SharedProjectView';
+import SharedProjectView from './SharedProjectView';
 
 
 const App = () => {
