@@ -63,7 +63,7 @@ export function BlogCreator() {
       setPreview(postData);
 
       // API hívás a bejegyzés létrehozásához
-      const response = await fetch('https://38.242.208.190:5001/api/posts', {
+      const response = await fetch('https://admin.nb-studio.net:5001/api/posts', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

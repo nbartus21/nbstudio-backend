@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Editor } from '@tinymce/tinymce-react';
 import SEOAssistant from './SEOAssistant'; // Új komponens importálása
 
-const API_URL = 'https://38.242.208.190:5001/api';
+const API_URL = 'https://admin.nb-studio.net:5001/api';
 
 // Icon Components
 const EditIcon = () => (

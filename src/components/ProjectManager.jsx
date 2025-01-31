@@ -20,7 +20,7 @@ const [projects, setProjects] = useState([]);
   const fetchProjects = async () => {
     try {
       console.log('Projektek lekérése...'); // Debug log
-      const response = await fetch('https://38.242.208.190:5001/api/projects');
+      const response = await fetch('https://admin.nb-studio.net:5001/api/projects');
       
       if (!response.ok) {
         throw new Error('Nem sikerült lekérni a projekteket');
@@ -71,7 +71,7 @@ const [projects, setProjects] = useState([]);
         }
       };
 
-      const response = await fetch('https://38.242.208.190:5001/api/projects', {
+      const response = await fetch('https://admin.nb-studio.net:5001/api/projects', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -125,7 +125,7 @@ const [projects, setProjects] = useState([]);
     try {
       console.log('Számla létrehozása:', invoiceData); // Debug log
   
-      const response = await fetch(`https://38.242.208.190:5001/api/projects/${selectedProject._id}/invoices`, {
+      const response = await fetch(`https://admin.nb-studio.net:5001/api/projects/${selectedProject._id}/invoices`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -550,8 +550,8 @@ const [projects, setProjects] = useState([]);
                 onClick={async () => {
                   try {
                     const url = selectedProject._id
-                      ? `https://38.242.208.190:5001/api/projects/${selectedProject._id}`
-                      : 'https://38.242.208.190:5001/api/projects';
+                      ? `https://admin.nb-studio.net:5001/api/projects/${selectedProject._id}`
+                      : 'https://admin.nb-studio.net:5001/api/projects';
                     
                     const response = await fetch(url, {
                       method: selectedProject._id ? 'PUT' : 'POST',

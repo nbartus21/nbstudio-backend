@@ -6,7 +6,7 @@ import BudgetSummary from './BudgetSummary';
 import { AlertTriangle, DollarSign, Clock } from 'lucide-react';
 
 const formatCurrency = (amount) => `€${Math.round(amount).toLocaleString()}`;
-const API_URL = 'https://38.242.208.190:5001';
+const API_URL = 'https://admin.nb-studio.net:5001';
 
 
 const DomainManager = () => {

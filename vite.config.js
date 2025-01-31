@@ -6,7 +6,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'https://38.242.208.190:5001',
+        target: 'https://admin.nb-studio.net:5001',
         changeOrigin: true
       }
     }
