@@ -27,19 +27,13 @@ const InfrastructureManager = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      console.log('Fetching data...'); 
-  
-      const [serversResponse, licensesResponse] = await Promise.all([
-        api.get(`${API_URL}/api/servers`), // Itt hozzáadjuk az /api-t
-        api.get(`${API_URL}/api/licenses`) // Itt hozzáadjuk az /api-t
+      const [serversData, licensesData] = await Promise.all([
+        api.get(`${API_URL}/servers`).then(res => res.json()),
+        api.get(`${API_URL}/licenses`).then(res => res.json())
       ]);
   
-      console.log('Servers response:', serversResponse);
-      console.log('Licenses response:', licensesResponse);
-  
-      setServers(Array.isArray(serversResponse) ? serversResponse : []);
-      setLicenses(Array.isArray(licensesResponse) ? licensesResponse : []);
-  
+      setServers(serversData);
+      setLicenses(licensesData);
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -50,7 +44,7 @@ const InfrastructureManager = () => {
   // Módosítsd a többi API hívást is:
   const handleAddServer = async (serverData) => {
     try {
-      await api.post(`${API_URL}/api/servers`, serverData); // Itt is /api/servers
+      await api.post(`${API_URL}/servers`, serverData);
       await fetchData();
       setShowServerModal(false);
     } catch (error) {
@@ -59,9 +53,10 @@ const InfrastructureManager = () => {
     }
   };
   
+  
   const handleAddLicense = async (licenseData) => {
     try {
-      await api.post(`${API_URL}/api/licenses`, licenseData); // Itt is /api/licenses
+      await api.post(`${API_URL}/licenses`, licenseData);
       await fetchData();
       setShowLicenseModal(false);
     } catch (error) {
@@ -73,7 +68,7 @@ const InfrastructureManager = () => {
   const handleDeleteServer = async (serverId) => {
     if (window.confirm('Biztosan törli ezt a szervert?')) {
       try {
-        await api.delete(`${API_URL}/api/servers/${serverId}`); // Itt is /api/servers
+        await api.delete(`${API_URL}/servers/${serverId}`);
         await fetchData();
       } catch (error) {
         console.error('Hiba:', error);
@@ -85,7 +80,7 @@ const InfrastructureManager = () => {
   const handleDeleteLicense = async (licenseId) => {
     if (window.confirm('Biztosan törli ezt a licenszt?')) {
       try {
-        await api.delete(`${API_URL}/api/licenses/${licenseId}`); // Itt is /api/licenses
+        await api.delete(`${API_URL}/licenses/${licenseId}`);
         await fetchData();
       } catch (error) {
         console.error('Hiba:', error);

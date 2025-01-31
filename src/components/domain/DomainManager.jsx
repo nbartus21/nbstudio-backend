@@ -19,15 +19,10 @@ const DomainManager = () => {
     try {
       setLoading(true);
       const response = await api.get(`${API_URL}/api/domains`);
-      console.log('API response:', response); // Ellenőrizzük a választ
-      
-      // Ha a response egy objektum és van data property-je
-      const domains = response.data || response;
-      console.log('Domains to set:', domains); // Ellenőrizzük a feldolgozott adatokat
-      
-      setDomains(Array.isArray(domains) ? domains : []);
+      const data = await response.json();
+      setDomains(data);
     } catch (error) {
-      console.error('Hiba a lekérésnél:', error);
+      console.error('Hiba:', error);
     } finally {
       setLoading(false);
     }
@@ -45,35 +40,27 @@ const DomainManager = () => {
     setShowModal(true);
   };
 
-  const handleDelete = async (id) => {
+  const handleDeleteDomain = async (id) => {
     if (!window.confirm('Biztosan törli ezt a domaint?')) return;
-
     try {
       await api.delete(`${API_URL}/api/domains/${id}`);
       await fetchDomains();
     } catch (error) {
       console.error('Hiba:', error);
-      alert('Nem sikerült törölni a domaint: ' + error.message);
     }
   };
 
   const handleSave = async (domainData) => {
     try {
-      const url = domainData._id ? 
-        `${API_URL}/api/domains/${domainData._id}` : 
-        `${API_URL}/api/domains`;
-      
       if (domainData._id) {
-        await api.put(url, domainData);
+        await api.put(`${API_URL}/api/domains/${domainData._id}`, domainData);
       } else {
-        await api.post(url, domainData);
+        await api.post(`${API_URL}/api/domains`, domainData);
       }
-
       await fetchDomains();
       setShowModal(false);
     } catch (error) {
       console.error('Hiba:', error);
-      alert('Nem sikerült menteni a domain-t: ' + error.message);
     }
   };
 
