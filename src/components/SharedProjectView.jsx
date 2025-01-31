@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../services/auth';
 
+const API_URL = 'https://admin.nb-studio.net:5001/api';
+
+
 const SharedProjectView = () => {
     const { token } = useParams();
     const [project, setProject] = useState(null);
