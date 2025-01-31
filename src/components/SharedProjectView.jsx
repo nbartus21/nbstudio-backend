@@ -53,30 +53,37 @@ const SharedProjectView = () => {
 
   // Számla adatok előkészítése SEPA QR kódhoz
   const generateSepaQrData = (invoice) => {
-    const clientName = project?.client?.name || 'Unknown Client';
-    const amount = invoice?.totalAmount || 0;
-    const currency = project?.financial?.currency || 'EUR';
-    const invoiceNumber = invoice?.number || 'Unknown';
-
     const data = {
-      name: clientName,
-      iban: "HU123456789", // Add meg a valódi IBAN-t
-      amount: amount.toFixed(2), // Formázott összeg 2 tizedesjeggyel
-      currency: currency,
-      reference: invoiceNumber,
-      info: `Invoice: ${invoiceNumber}`
+      name: "Norbert Bartus",
+      address: "Saffnerstraße 25",
+      city: "Bruchsal 76646",
+      country: "Deutschland",
+      taxNumber: "St.-Nr.: 68 044/74729",
+      vatNumber: "USt-IdNr.: DE354616301",
+      iban: "DE47 6634 0014 0743 4638 00",
+      bankName: "BANK: Commerzbank AG",
+      bic: "SWIFT/BIC: COBADEFFXXX",
+      amount: invoice.totalAmount,
+      currency: project?.financial?.currency || 'EUR',
+      reference: invoice.number,
+      info: `Invoice: ${invoice.number}`
     };
-
+  
+    // SEPA QR kód formátum
     return `BCD
 002
 1
 SCT
-${data.iban}
+${data.bic}
 ${data.name}
-${data.currency}${data.amount}
+${data.iban}
+EUR${data.amount}
 
 ${data.reference}
-${data.info}`;
+${data.info}
+${data.address}
+${data.city}
+${data.country}`;
   };
 
   // Számla PDF generálása
@@ -116,6 +123,44 @@ ${data.info}`;
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
+        </div>
+
+        <div className="grid grid-cols-2 gap-8 mb-6">
+          {/* Számlázó adatai */}
+          <div>
+            <h3 className="font-semibold mb-2">Számlázó:</h3>
+            <p className="text-sm">Norbert Bartus</p>
+            <p className="text-sm">Saffnerstraße 25</p>
+            <p className="text-sm">Bruchsal 76646</p>
+            <p className="text-sm">Deutschland</p>
+            <p className="text-sm mt-2">St.-Nr.: 68 044/74729</p>
+            <p className="text-sm">USt-IdNr.: DE354616301</p>
+            <p className="text-sm mt-2">IBAN: DE47 6634 0014 0743 4638 00</p>
+            <p className="text-sm">BANK: Commerzbank AG</p>
+            <p className="text-sm">SWIFT/BIC: COBADEFFXXX</p>
+          </div>
+
+          {/* Vevő adatai */}
+          <div>
+            <h3 className="font-semibold mb-2">Vevő:</h3>
+            {project.client && (
+              <>
+                <p className="text-sm">{project.client.name}</p>
+                <p className="text-sm">{project.client.email}</p>
+                {project.client.address && (
+                  <>
+                    <p className="text-sm">{project.client.address.street}</p>
+                    <p className="text-sm">{project.client.address.city}</p>
+                    <p className="text-sm">{project.client.address.postalCode}</p>
+                    <p className="text-sm">{project.client.address.country}</p>
+                  </>
+                )}
+                {project.client.taxNumber && (
+                  <p className="text-sm mt-2">Adószám: {project.client.taxNumber}</p>
+                )}
+              </>
+            )}
+          </div>
         </div>
 
         <div className="space-y-6">
