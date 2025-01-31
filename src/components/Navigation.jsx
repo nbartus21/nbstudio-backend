@@ -77,18 +77,19 @@ const Navigation = () => {
             </div>
           </div>
 
-          {/* Logout Button */}
-          <div className="flex items-center">
-            <button
-              onClick={() => {
-                sessionStorage.removeItem('isAuthenticated');
-                window.location.href = '/login';
-              }}
-              className="text-gray-300 hover:bg-gray-700 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
-            >
-              Kijelentkezés
-            </button>
-          </div>
+{/* Notifications and Logout */}
+<div className="flex items-center gap-4">
+  <NotificationsManager />
+  <button
+    onClick={() => {
+      sessionStorage.removeItem('isAuthenticated');
+      window.location.href = '/login';
+    }}
+    className="text-gray-300 hover:bg-gray-700 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
+  >
+    Kijelentkezés
+  </button>
+</div>
 
           {/* Mobile menu button */}
           <div className="md:hidden">
