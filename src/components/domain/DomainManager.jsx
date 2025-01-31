@@ -4,6 +4,8 @@ import DomainTable from './DomainTable';
 import DomainModal from './DomainModal';
 import BudgetSummary from './BudgetSummary';
 import { AlertTriangle, DollarSign, Clock } from 'lucide-react';
+import { api } from '../services/auth';  // Ezt add hozzá az importokhoz
+
 
 const formatCurrency = (amount) => `€${Math.round(amount).toLocaleString()}`;
 const API_URL = 'https://admin.nb-studio.net:5001';
@@ -21,62 +23,52 @@ const DomainManager = () => {
 
   const fetchDomains = async () => {
     try {
-        const response = await api.get(`${API_URL}/api/domains`);
-        if (!response.ok) throw new Error('Hiba a domainek lekérésénél');
-      const data = await response.json();
-      setDomains(data);
+      setLoading(true);
+      const response = await api.get(`${API_URL}/api/domains`);
+      // Ellenőrizzük, hogy a response egy tömb-e
+      setDomains(Array.isArray(response) ? response : []);
     } catch (error) {
       console.error('Hiba:', error);
     } finally {
       setLoading(false);
     }
-};
+  };
 
-const handleDelete = async (id) => {
+  const handleDelete = async (id) => {
     if (!window.confirm('Biztosan törli ezt a domaint?')) return;
 
     try {
-        const response = await api.delete(`${API_URL}/api/domains/${id}`);
-
-      if (!response.ok) throw new Error('Hiba a domain törlésekor');
-      fetchDomains();
+      await api.delete(`${API_URL}/api/domains/${id}`);
+      await fetchDomains(); // Frissítjük a listát
     } catch (error) {
       console.error('Hiba:', error);
+      alert('Nem sikerült törölni a szervert: ' + error.message);
     }
-};
+  };
 
-const handleAddNew = () => {
-    setSelectedDomain(null);
-    setShowModal(true);
-};
-
-const handleEdit = (domain) => {
-    setSelectedDomain(domain);
-    setShowModal(true);
-};
-
-const handleSave = async (domainData) => {
+  const handleSave = async (domainData) => {
     try {
       const url = domainData._id ? 
         `${API_URL}/api/domains/${domainData._id}` : 
         `${API_URL}/api/domains`;
       
-      const response = await fetch(url, {
-        method: domainData._id ? 'PUT' : 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(domainData)
-      });
+      if (domainData._id) {
+        await api.put(url, domainData);
+      } else {
+        await api.post(url, domainData);
+      }
 
-      if (!response.ok) throw new Error('Hiba a mentés során');
-      
-      fetchDomains();
+      await fetchDomains(); // Frissítjük a listát
       setShowModal(false);
     } catch (error) {
       console.error('Hiba:', error);
+      alert('Nem sikerült menteni a domain-t: ' + error.message);
     }
-};
+  };
+
+  useEffect(() => {
+    fetchDomains();
+  }, []);
 
   if (loading) {
     return <div className="flex justify-center items-center min-h-screen">

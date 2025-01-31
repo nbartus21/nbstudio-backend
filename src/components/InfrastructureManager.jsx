@@ -28,18 +28,12 @@ const InfrastructureManager = () => {
     try {
       setLoading(true);
       const [serversResponse, licensesResponse] = await Promise.all([
-        fetch(`${API_URL}/servers`),
-        fetch(`${API_URL}/licenses`)
+        api.get(`${API_URL}/servers`),
+        api.get(`${API_URL}/licenses`)
       ]);
 
-      if (!serversResponse.ok) throw new Error('Failed to fetch servers');
-      if (!licensesResponse.ok) throw new Error('Failed to fetch licenses');
-
-      const serversData = await serversResponse.json();
-      const licensesData = await licensesResponse.json();
-
-      setServers(serversData);
-      setLicenses(licensesData);
+      setServers(Array.isArray(serversResponse) ? serversResponse : []);
+      setLicenses(Array.isArray(licensesResponse) ? licensesResponse : []);
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -49,59 +43,30 @@ const InfrastructureManager = () => {
 
   const handleAddServer = async (serverData) => {
     try {
-        const response = await api.post(`${API_URL}/servers`, serverData);
-
-
-      if (!response.ok) {
-        throw new Error('Hiba a szerver létrehozásakor');
-      }
-
+      await api.post(`${API_URL}/servers`, serverData);
       await fetchData(); // Frissítjük az adatokat
       setShowServerModal(false);
     } catch (error) {
       console.error('Hiba:', error);
       alert('Nem sikerült létrehozni a szervert: ' + error.message);
     }
-};
+  };
 
-const handleAddLicense = async (licenseData) => {
+  const handleAddLicense = async (licenseData) => {
     try {
-      const response = await fetch(`${API_URL}/licenses`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(licenseData)
-      });
-
-      if (!response.ok) {
-        throw new Error('Hiba a licensz létrehozásakor');
-      }
-
+      await api.post(`${API_URL}/licenses`, licenseData);
       await fetchData(); // Frissítjük az adatokat
       setShowLicenseModal(false);
     } catch (error) {
       console.error('Hiba:', error);
       alert('Nem sikerült létrehozni a licenszt: ' + error.message);
     }
-};
+  };
 
-
-// Szerver törlés funkció
-const handleDeleteServer = async (serverId) => {
+  const handleDeleteServer = async (serverId) => {
     if (window.confirm('Biztosan törli ezt a szervert?')) {
       try {
-        const response = await fetch(`${API_URL}/servers/${serverId}`, {
-          method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json',
-          }
-        });
-  
-        if (!response.ok) {
-          throw new Error('Hiba a szerver törlésekor');
-        }
-  
+        await api.delete(`${API_URL}/servers/${serverId}`);
         await fetchData(); // Frissítjük az adatokat
       } catch (error) {
         console.error('Hiba:', error);
@@ -109,22 +74,11 @@ const handleDeleteServer = async (serverId) => {
       }
     }
   };
-  
-  // Licensz törlés funkció
+
   const handleDeleteLicense = async (licenseId) => {
     if (window.confirm('Biztosan törli ezt a licenszt?')) {
       try {
-        const response = await fetch(`${API_URL}/licenses/${licenseId}`, {
-          method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json',
-          }
-        });
-  
-        if (!response.ok) {
-          throw new Error('Hiba a licensz törlésekor');
-        }
-  
+        await api.delete(`${API_URL}/licenses/${licenseId}`);
         await fetchData(); // Frissítjük az adatokat
       } catch (error) {
         console.error('Hiba:', error);
@@ -132,6 +86,10 @@ const handleDeleteServer = async (serverId) => {
       }
     }
   };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
 
   const formatStorageSize = (gb) => {
     if (gb >= 1000) {
