@@ -29,10 +29,9 @@ const CalculatorAdmin = () => {
   const fetchEntries = async () => {
     try {
       setLoading(true);
-      const response = await api.get(`${API_URL}calculators`); // Perjel eltávolítva a végéről
-      const data = response.data || []; // API válasz adatainak kinyerése
-      setEntries(Array.isArray(data) ? data : []);
-      console.log('Fetched entries:', data);
+      const response = await api.get('calculators');
+      console.log('API Response:', response);
+      setEntries(response.data || []);
     } catch (error) {
       console.error('Error:', error);
       setError(error.message);
