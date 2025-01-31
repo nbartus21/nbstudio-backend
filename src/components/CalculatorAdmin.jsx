@@ -29,10 +29,12 @@ const CalculatorAdmin = () => {
   const fetchEntries = async () => {
     try {
       setLoading(true);
-      const response = await api.get(`${API_URL}/calculators`);
+      const response = await api.get('/calculators');
+      console.log('API válasz:', response);
+      console.log('Adatok:', response.data);
       setEntries(response.data || []);
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Hiba:', error);
       setError(error.message);
     } finally {
       setLoading(false);

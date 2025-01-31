@@ -43,12 +43,14 @@ router.post('/public/calculators', validateApiKey, async (req, res) => {
 
 // Védett végpontok
 router.get('/calculators', authMiddleware, async (req, res) => {
- try {
-   const entries = await Calculator.find().sort({ createdAt: -1 });
-   res.json(entries);
- } catch (error) {
-   res.status(500).json({ message: error.message });
- }
+  try {
+    const entries = await Calculator.find().sort({ createdAt: -1 });
+    console.log('Talált kalkulációk:', entries);
+    res.json(entries);
+  } catch (error) {
+    console.error('Lekérési hiba:', error);
+    res.status(500).json({ message: error.message });
+  }
 });
 
 router.post('/calculators', authMiddleware, async (req, res) => {
