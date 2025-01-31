@@ -29,17 +29,10 @@ const CalculatorAdmin = () => {
   const fetchEntries = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${API_URL}/calculators`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message);
-      setEntries(data);
+      const response = await api.get(`${API_URL}/calculators`);
+      setEntries(response.data || []);
     } catch (error) {
+      console.error('Error:', error);
       setError(error.message);
     } finally {
       setLoading(false);
@@ -70,17 +63,8 @@ const CalculatorAdmin = () => {
   };
 
   const handleStatusUpdate = async (id, status) => {
-    const token = localStorage.getItem('token');
     try {
-      const response = await fetch(`${API_URL}/calculators/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ status })
-      });
-      if (!response.ok) throw new Error('Frissítési hiba');
+      await api.put(`${API_URL}/calculators/${id}`, { status });
       await fetchEntries();
     } catch (error) {
       setError(error.message);
