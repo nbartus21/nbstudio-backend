@@ -152,16 +152,32 @@ router.post('/projects/:id/share', async (req, res) => {
 
 // PIN kód ellenőrzése
 router.post('/public/projects/verify-pin', async (req, res) => {
+  console.log('PIN ellenőrzési kérés érkezett');
+  console.log('Request body:', req.body);
+  
   try {
     const { token, pin } = req.body;
+    console.log('Token:', token);
+    console.log('PIN:', pin);
     
+    if (!token || !pin) {
+      console.error('Hiányzó token vagy PIN');
+      return res.status(400).json({ message: 'Hiányzó adatok' });
+    }
+
     const project = await Project.findOne({ shareToken: token });
+    console.log('Projekt találat:', project ? 'Igen' : 'Nem');
+    
     if (!project) {
+      console.error('Projekt nem található ezzel a tokennel:', token);
       return res.status(404).json({ message: 'A projekt nem található' });
     }
 
-    // PIN kód ellenőrzése
+    console.log('Tárolt PIN:', project.sharePin);
+    console.log('Beküldött PIN:', pin);
+    
     if (project.sharePin !== pin) {
+      console.error('PIN nem egyezik');
       return res.status(403).json({ message: 'Érvénytelen PIN kód' });
     }
 
@@ -176,9 +192,15 @@ router.post('/public/projects/verify-pin', async (req, res) => {
       }
     };
 
+    console.log('Sikeres PIN ellenőrzés, adatok küldése');
     res.json({ project: sanitizedProject });
+    
   } catch (error) {
-    res.status(500).json({ message: 'Szerver hiba történt', error: error.message });
+    console.error('Szerver hiba:', error);
+    res.status(500).json({ 
+      message: 'Szerver hiba történt', 
+      error: error.message 
+    });
   }
 });
 
