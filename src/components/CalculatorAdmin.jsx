@@ -29,31 +29,69 @@ const CalculatorAdmin = () => {
   const fetchEntries = async () => {
     try {
       setLoading(true);
-      const response = await api.get(`${API_URL}/calculators`);
-      setEntries(response);
+      const response = await fetch(`${API_URL}/calculators`);
+      if (!response.ok) throw new Error('Nem sikerült lekérni a kalkulátor bejegyzéseket');
+      const data = await response.json();
+      setEntries(data);
     } catch (error) {
       setError(error.message);
     } finally {
       setLoading(false);
     }
   };
-  
+
+  useEffect(() => {
+    fetchEntries();
+  }, []);
+
+  const handleAnalyze = async (entry) => {
+    setAnalyzing(true);
+    try {
+      const [categoryData, suggestedResponse] = await Promise.all([
+        categorizeMessage(entry.projectDescription),
+        generateResponseSuggestion(entry.projectDescription)
+      ]);
+
+      setAiAnalysis({
+        ...categoryData,
+        suggestedResponse
+      });
+    } catch (error) {
+      console.error('AI elemzés sikertelen:', error);
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
   const handleStatusUpdate = async (id, status) => {
     try {
-      await api.put(`${API_URL}/calculators/${id}`, { status });
+      const response = await fetch(`${API_URL}/calculators/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status })
+      });
+      if (!response.ok) throw new Error('Nem sikerült frissíteni az állapotot');
       await fetchEntries();
     } catch (error) {
       setError(error.message);
     }
   };
-  
-  const handleCreateProject = async (entry) => {
-    try {
-      await api.post(`${API_URL}/projects`, {
+
+// IDE jön az új függvény:
+const handleCreateProject = async (entry) => {
+  try {
+    const response = await fetch('https://admin.nb-studio.net:5001/api/projects', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
         name: `${entry.projectType} Projekt`,
         description: entry.projectDescription,
         client: {
-          name: "Kitöltendő",
+          name: "Kitöltendő",  // Kötelező mező a sémában
           email: entry.email,
           taxNumber: ""
         },
@@ -77,20 +115,29 @@ const CalculatorAdmin = () => {
           ],
           lastUpdated: new Date()
         }
-      });
-  
-      await handleStatusUpdate(entry._id, 'in-progress');
-      alert('Projekt sikeresen létrehozva!');
-    } catch (error) {
-      console.error('Hiba:', error);
-      alert('Nem sikerült létrehozni a projektet: ' + error.message);
+      })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Hiba a projekt létrehozása során');
     }
-  };
-  
+
+    await handleStatusUpdate(entry._id, 'in-progress');
+    alert('Projekt sikeresen létrehozva!');
+  } catch (error) {
+    console.error('Hiba:', error);
+    alert('Nem sikerült létrehozni a projektet: ' + error.message);
+  }
+};
+
   const handleDelete = async (id) => {
     if (!window.confirm('Biztosan törölni szeretné ezt a bejegyzést?')) return;
     try {
-      await api.delete(`${API_URL}/calculators/${id}`);
+      const response = await fetch(`${API_URL}/calculators/${id}`, {
+        method: 'DELETE'
+      });
+      if (!response.ok) throw new Error('Nem sikerült törölni a bejegyzést');
       await fetchEntries();
     } catch (error) {
       setError(error.message);
@@ -349,12 +396,19 @@ const CalculatorAdmin = () => {
                       onKeyPress={async (e) => {
                         if (e.key === 'Enter' && e.target.value.trim()) {
                           try {
-                            await api.put(`${API_URL}/calculators/${selectedEntry._id}`, {
-                              notes: [
-                                ...(selectedEntry.notes || []),
-                                { content: e.target.value.trim(), createdAt: new Date() }
-                              ]
+                            const response = await fetch(`${API_URL}/calculators/${selectedEntry._id}`, {
+                              method: 'PUT',
+                              headers: {
+                                'Content-Type': 'application/json',
+                              },
+                              body: JSON.stringify({
+                                notes: [
+                                  ...(selectedEntry.notes || []),
+                                  { content: e.target.value.trim(), createdAt: new Date() }
+                                ]
+                              })
                             });
+                            if (!response.ok) throw new Error('Nem sikerült hozzáadni a megjegyzést');
                             await fetchEntries();
                             e.target.value = '';
                           } catch (error) {

@@ -3,6 +3,7 @@ import { Edit, Trash2, Server, HardDrive, AlertTriangle, Key } from 'lucide-reac
 import Card, { CardHeader, CardTitle, CardContent } from './ui/Card';
 import ServerModal from './ServerModal';
 import LicenseModal from './LicenseModal';
+import { api } from '../services/auth';
 
 const API_URL = 'https://admin.nb-studio.net:5001/api';
 
@@ -48,13 +49,8 @@ const InfrastructureManager = () => {
 
   const handleAddServer = async (serverData) => {
     try {
-      const response = await fetch(`${API_URL}/servers`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(serverData)
-      });
+        const response = await api.post(`${API_URL}/servers`, serverData);
+
 
       if (!response.ok) {
         throw new Error('Hiba a szerver létrehozásakor');

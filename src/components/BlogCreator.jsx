@@ -1,16 +1,45 @@
 import React, { useState } from 'react';
 import { Editor } from '@tinymce/tinymce-react';
 import { generateSEOSuggestions, translateContent, generateMetaContent } from '../services/deepseekService';
-import { api } from '../services/auth';  // Importáljuk az api service-t
+import { api } from '../services/auth';
+
 
 export function BlogCreator() {
-  // ... (többi state és generateSlug függvény marad ugyanaz)
+  const [loading, setLoading] = useState(false);
+  const [title, setTitle] = useState('');
+  const [content, setContent] = useState('');
+  const [preview, setPreview] = useState(null);
+
+  const generateSlug = (text) => {
+    return text
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+  };
 
   const handleCreate = async () => {
     try {
       setLoading(true);
 
-      // ... (SEO és fordítási logika marad ugyanaz)
+      // Először generáljuk a magyar verzió SEO javaslatait
+      const seoSuggestions = await generateSEOSuggestions(content, 'hu');
+      
+      // Generáljuk a meta tartalmakat
+      const metaContent = await generateMetaContent(content, 'hu');
+
+      // Fordítás németré és angolra
+      const [deContent, enContent] = await Promise.all([
+        translateContent(content, 'hu', 'de'),
+        translateContent(content, 'hu', 'en')
+      ]);
+
+      // Német és angol SEO optimalizáció
+      const [deMeta, enMeta] = await Promise.all([
+        generateMetaContent(deContent, 'de'),
+        generateMetaContent(enContent, 'en')
+      ]);
 
       // Előnézet létrehozása
       const postData = {
@@ -35,8 +64,9 @@ export function BlogCreator() {
 
       setPreview(postData);
 
-      // API hívás a bejegyzés létrehozásához - módosított rész
-      await api.post('https://admin.nb-studio.net:5001/api/posts', postData);
+      // API hívás a bejegyzés létrehozásához
+      const response = await api.post('https://admin.nb-studio.net:5001/api/posts', postData);
+
 
       // Siker esetén töröljük az űrlapot
       setTitle('');

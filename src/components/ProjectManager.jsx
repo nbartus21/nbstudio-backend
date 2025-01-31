@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { generateResponseSuggestion, generateSummary } from '../services/deepseekService';
 import ProjectFilters from './ProjectFilters';
-
+import { api } from '../services/auth';
 
 const ProjectManager = () => {
 const [projects, setProjects] = useState([]);
@@ -20,7 +20,7 @@ const [projects, setProjects] = useState([]);
   const fetchProjects = async () => {
     try {
       console.log('Projektek lekérése...'); // Debug log
-      const response = await fetch('https://admin.nb-studio.net:5001/api/projects');
+      const response = await api.get('https://admin.nb-studio.net:5001/api/projects');
       
       if (!response.ok) {
         throw new Error('Nem sikerült lekérni a projekteket');
@@ -71,13 +71,8 @@ const [projects, setProjects] = useState([]);
         }
       };
 
-      const response = await fetch('https://admin.nb-studio.net:5001/api/projects', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(newProject)
-      });
+      const response = await api.post('https://admin.nb-studio.net:5001/api/projects', newProject);
+
 
       if (!response.ok) throw new Error('Hiba a projekt létrehozásakor');
       

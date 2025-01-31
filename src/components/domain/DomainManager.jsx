@@ -21,8 +21,8 @@ const DomainManager = () => {
 
   const fetchDomains = async () => {
     try {
-      const response = await fetch(`${API_URL}/api/domains`);
-      if (!response.ok) throw new Error('Hiba a domainek lekérésénél');
+        const response = await api.get(`${API_URL}/api/domains`);
+        if (!response.ok) throw new Error('Hiba a domainek lekérésénél');
       const data = await response.json();
       setDomains(data);
     } catch (error) {
@@ -36,9 +36,8 @@ const handleDelete = async (id) => {
     if (!window.confirm('Biztosan törli ezt a domaint?')) return;
 
     try {
-      const response = await fetch(`${API_URL}/api/domains/${id}`, {
-        method: 'DELETE'
-      });
+        const response = await api.delete(`${API_URL}/api/domains/${id}`);
+
       if (!response.ok) throw new Error('Hiba a domain törlésekor');
       fetchDomains();
     } catch (error) {

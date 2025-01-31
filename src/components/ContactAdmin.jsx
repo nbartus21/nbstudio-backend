@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { categorizeMessage, generateResponseSuggestion, generateSummary, suggestTags } from '../services/deepseekService';
+import { api } from '../services/auth';
 
 const API_URL = 'https://admin.nb-studio.net:5001/api';
 
@@ -95,7 +96,7 @@ const ContactAdmin = () => {
   const fetchContacts = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_URL}/contacts`);
+      const response = await api.get(`${API_URL}/contacts`);
       if (!response.ok) throw new Error('A kapcsolatok lekérése sikertelen');
       const data = await response.json();
       setContacts(data);
