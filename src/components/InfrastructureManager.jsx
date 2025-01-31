@@ -4,7 +4,7 @@ import Card, { CardHeader, CardTitle, CardContent } from './ui/Card';
 import ServerModal from './ServerModal';
 import LicenseModal from './LicenseModal';
 
-const API_URL = 'http://38.242.208.190:5001/api';
+const API_URL = 'https://38.242.208.190:5001/api';
 
 
 
