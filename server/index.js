@@ -92,30 +92,23 @@ app.use((req, res, next) => {
 });
 
 // FONTOS: Publikus végpontok az auth middleware ELŐTT
-const publicContactRouter = express.Router();
-publicContactRouter.post('/contact', validateApiKey, async (req, res) => {
+publicCalculatorRouter.post('/calculators', validateApiKey, async (req, res) => {
   try {
-    const { name, email, message } = req.body;
-    const contact = new Contact({
-      name,
-      email,
-      subject: 'Contact Form Submission',
-      message,
-      status: 'new'
-    });
-    const savedContact = await contact.save();
+    const calculator = new Calculator(req.body);
+    const savedCalculator = await calculator.save();
     res.status(201).json({
       success: true,
-      message: 'Üzenet sikeresen elküldve'
+      message: 'Kalkuláció sikeresen elmentve'
     });
   } catch (error) {
-    console.error('Contact form error:', error);
+    console.error('Calculator form error:', error);
     res.status(500).json({
-      message: 'Hiba történt az üzenet küldése során'
+      message: 'Hiba történt a kalkuláció mentése során'
     });
   }
 });
 app.use('/api/public', publicContactRouter);
+app.use('/api/public', publicCalculatorRouter);  // Új sor
 
 // Auth routes
 app.use('/api/auth', authRoutes);
