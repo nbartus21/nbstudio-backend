@@ -29,8 +29,7 @@ const CalculatorAdmin = () => {
   const fetchEntries = async () => {
     try {
       setLoading(true);
-      const response = await api.get('calculators');
-      console.log('API Response:', response);
+      const response = await api.get(`/calculators`); 
       setEntries(response.data || []);
     } catch (error) {
       console.error('Error:', error);
