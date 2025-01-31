@@ -4,10 +4,9 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import https from 'https';
 import fs from 'fs';
-import Contact from './models/Contact.js';
+import Contact from './models/Contact.js'; 
 import postRoutes from './routes/posts.js';
 import contactRoutes from './routes/contacts.js';
-import Calculator from './models/Calculator.js';  // Új import
 import calculatorRoutes from './routes/calculators.js';
 import projectRoutes from './routes/projects.js';
 import domainRoutes from './routes/domains.js';
@@ -93,23 +92,30 @@ app.use((req, res, next) => {
 });
 
 // FONTOS: Publikus végpontok az auth middleware ELŐTT
-publicCalculatorRouter.post('/calculators', validateApiKey, async (req, res) => {
+const publicContactRouter = express.Router();
+publicContactRouter.post('/contact', validateApiKey, async (req, res) => {
   try {
-    const calculator = new Calculator(req.body);
-    const savedCalculator = await calculator.save();
+    const { name, email, message } = req.body;
+    const contact = new Contact({
+      name,
+      email,
+      subject: 'Contact Form Submission',
+      message,
+      status: 'new'
+    });
+    const savedContact = await contact.save();
     res.status(201).json({
       success: true,
-      message: 'Kalkuláció sikeresen elmentve'
+      message: 'Üzenet sikeresen elküldve'
     });
   } catch (error) {
-    console.error('Calculator form error:', error);
+    console.error('Contact form error:', error);
     res.status(500).json({
-      message: 'Hiba történt a kalkuláció mentése során'
+      message: 'Hiba történt az üzenet küldése során'
     });
   }
 });
 app.use('/api/public', publicContactRouter);
-app.use('/api/public', publicCalculatorRouter);  // Új sor
 
 // Auth routes
 app.use('/api/auth', authRoutes);
