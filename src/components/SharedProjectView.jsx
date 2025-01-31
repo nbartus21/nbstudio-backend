@@ -53,7 +53,12 @@ const SharedProjectView = () => {
 
   // Számla adatok előkészítése SEPA QR kódhoz
   const generateSepaQrData = (invoice) => {
-    // A standard SEPA QR kód formátum
+    // Hibakezelés az összeghez
+    const amount = typeof invoice.totalAmount === 'number' 
+      ? invoice.totalAmount.toFixed(2) 
+      : '0.00';
+  
+    // A standard német SEPA QR kód formátum
     return [
       'BCD',                              // Service Tag (állandó)
       '002',                              // Verzió (állandó)
@@ -62,10 +67,10 @@ const SharedProjectView = () => {
       'COBADEFFXXX',                      // BIC
       'Norbert Bartus',                   // Kedvezményezett neve
       'DE47663400140743463800',          // IBAN szóközök nélkül
-      `EUR${invoice.totalAmount}`,        // Összeg EUR-ban
-      '',                                 // Célpont referencia (opcionális)
-      invoice.number,                     // Számlaszám mint referencia
-      ''                                  // Megjegyzés (opcionális)
+      `EUR${amount}`,                     // Összeg EUR-ban
+      '',                                 // Célpont referencia
+      invoice.number || '',               // Számlaszám
+      'Rechnung'                          // Megjegyzés - német nyelvű számla szó
     ].join('\n');
   };
 
