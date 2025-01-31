@@ -40,7 +40,7 @@ const DomainManager = () => {
     setShowModal(true);
   };
 
-  const handleDeleteDomain = async (id) => {
+  const handleDelete = async (id) => {
     if (!window.confirm('Biztosan törli ezt a domaint?')) return;
     try {
       await api.delete(`${API_URL}/api/domains/${id}`);
@@ -137,11 +137,11 @@ const DomainManager = () => {
       </div>
 
       <DomainTable 
-        domains={domains}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-        formatCurrency={formatCurrency}
-      />
+  domains={domains}
+  onEdit={handleEdit}
+  onDelete={handleDeleteDomain} 
+  formatCurrency={formatCurrency}
+/>
 
       <BudgetSummary 
         domains={domains} 

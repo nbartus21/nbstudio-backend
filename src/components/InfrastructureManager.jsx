@@ -44,7 +44,7 @@ const InfrastructureManager = () => {
   // Módosítsd a többi API hívást is:
   const handleAddServer = async (serverData) => {
     try {
-      await api.post(`${API_URL}/servers`, serverData);
+      await api.post(`${API_URL}/api/servers`, serverData);
       await fetchData();
       setShowServerModal(false);
     } catch (error) {
@@ -53,10 +53,9 @@ const InfrastructureManager = () => {
     }
   };
   
-  
   const handleAddLicense = async (licenseData) => {
     try {
-      await api.post(`${API_URL}/licenses`, licenseData);
+      await api.post(`${API_URL}/api/licenses`, licenseData);
       await fetchData();
       setShowLicenseModal(false);
     } catch (error) {
@@ -68,7 +67,7 @@ const InfrastructureManager = () => {
   const handleDeleteServer = async (serverId) => {
     if (window.confirm('Biztosan törli ezt a szervert?')) {
       try {
-        await api.delete(`${API_URL}/servers/${serverId}`);
+        await api.delete(`${API_URL}/api/servers/${serverId}`);
         await fetchData();
       } catch (error) {
         console.error('Hiba:', error);
@@ -80,7 +79,7 @@ const InfrastructureManager = () => {
   const handleDeleteLicense = async (licenseId) => {
     if (window.confirm('Biztosan törli ezt a licenszt?')) {
       try {
-        await api.delete(`${API_URL}/licenses/${licenseId}`);
+        await api.delete(`${API_URL}/api/licenses/${licenseId}`);
         await fetchData();
       } catch (error) {
         console.error('Hiba:', error);
