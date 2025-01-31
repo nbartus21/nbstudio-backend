@@ -25,11 +25,22 @@ const options = {
 
 // CORS beállítások
 app.use(cors({
-   origin: '*',
-   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-   allowedHeaders: ['Content-Type', 'Authorization'],
-   credentials: true,
-   optionsSuccessStatus: 200
+  origin: [
+      'https://38.242.208.190:5001',
+      'https://38.242.208.190:5173',
+      'https://nb-studio.net',
+      'https://www.nb-studio.net',
+      'http://nb-studio.net',
+      'http://www.nb-studio.net',
+      // Fejlesztési környezethez
+      'http://localhost:5173',
+      'http://localhost:3000',
+      'http://localhost:5001'
+  ],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
+  optionsSuccessStatus: 200
 }));
 
 // Middleware-ek
