@@ -29,7 +29,7 @@ const CalculatorAdmin = () => {
   const fetchEntries = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('token'); // JWT token beszerzése
+      const token = localStorage.getItem('token');
       const response = await fetch(`${API_URL}/calculators`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -70,8 +70,17 @@ const CalculatorAdmin = () => {
   };
 
   const handleStatusUpdate = async (id, status) => {
+    const token = localStorage.getItem('token');
     try {
-      await api.put(`${API_URL}/calculators/${id}`, { status });
+      const response = await fetch(`${API_URL}/calculators/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ status })
+      });
+      if (!response.ok) throw new Error('Frissítési hiba');
       await fetchEntries();
     } catch (error) {
       setError(error.message);
