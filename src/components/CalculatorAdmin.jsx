@@ -29,10 +29,8 @@ const CalculatorAdmin = () => {
   const fetchEntries = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_URL}/calculators`);
-      if (!response.ok) throw new Error('Nem sikerült lekérni a kalkulátor bejegyzéseket');
-      const data = await response.json();
-      setEntries(data);
+      const response = await api.get(`${API_URL}/calculators`);
+      setEntries(response);
     } catch (error) {
       setError(error.message);
     } finally {
@@ -65,14 +63,7 @@ const CalculatorAdmin = () => {
 
   const handleStatusUpdate = async (id, status) => {
     try {
-      const response = await fetch(`${API_URL}/calculators/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ status })
-      });
-      if (!response.ok) throw new Error('Nem sikerült frissíteni az állapotot');
+      await api.put(`${API_URL}/calculators/${id}`, { status });
       await fetchEntries();
     } catch (error) {
       setError(error.message);
@@ -82,46 +73,35 @@ const CalculatorAdmin = () => {
 // IDE jön az új függvény:
 const handleCreateProject = async (entry) => {
   try {
-    const response = await fetch('https://admin.nb-studio.net:5001/api/projects', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
+    await api.post(`${API_URL}/projects`, {
+      name: `${entry.projectType} Projekt`,
+      description: entry.projectDescription,
+      client: {
+        name: "Kitöltendő",
+        email: entry.email,
+        taxNumber: ""
       },
-      body: JSON.stringify({
-        name: `${entry.projectType} Projekt`,
-        description: entry.projectDescription,
-        client: {
-          name: "Kitöltendő",  // Kötelező mező a sémában
-          email: entry.email,
-          taxNumber: ""
-        },
-        financial: {
-          budget: {
-            min: entry.estimatedCost.minCost,
-            max: entry.estimatedCost.maxCost
-          }
-        },
-        status: 'aktív',
-        priority: entry.complexity === 'complex' ? 'magas' : 
-                 entry.complexity === 'medium' ? 'közepes' : 'alacsony',
-        calculatorEntry: entry._id,
-        aiAnalysis: {
-          riskLevel: entry.complexity === 'complex' ? 'magas' : 
-                    entry.complexity === 'medium' ? 'közepes' : 'alacsony',
-          nextSteps: [
-            'Ügyfél kapcsolatfelvétel',
-            'Részletes követelmények egyeztetése',
-            'Szerződés előkészítése'
-          ],
-          lastUpdated: new Date()
+      financial: {
+        budget: {
+          min: entry.estimatedCost.minCost,
+          max: entry.estimatedCost.maxCost
         }
-      })
+      },
+      status: 'aktív',
+      priority: entry.complexity === 'complex' ? 'magas' : 
+               entry.complexity === 'medium' ? 'közepes' : 'alacsony',
+      calculatorEntry: entry._id,
+      aiAnalysis: {
+        riskLevel: entry.complexity === 'complex' ? 'magas' : 
+                  entry.complexity === 'medium' ? 'közepes' : 'alacsony',
+        nextSteps: [
+          'Ügyfél kapcsolatfelvétel',
+          'Részletes követelmények egyeztetése',
+          'Szerződés előkészítése'
+        ],
+        lastUpdated: new Date()
+      }
     });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || 'Hiba a projekt létrehozása során');
-    }
 
     await handleStatusUpdate(entry._id, 'in-progress');
     alert('Projekt sikeresen létrehozva!');
@@ -131,18 +111,15 @@ const handleCreateProject = async (entry) => {
   }
 };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Biztosan törölni szeretné ezt a bejegyzést?')) return;
-    try {
-      const response = await fetch(`${API_URL}/calculators/${id}`, {
-        method: 'DELETE'
-      });
-      if (!response.ok) throw new Error('Nem sikerült törölni a bejegyzést');
-      await fetchEntries();
-    } catch (error) {
-      setError(error.message);
-    }
-  };
+const handleDelete = async (id) => {
+  if (!window.confirm('Biztosan törölni szeretné ezt a bejegyzést?')) return;
+  try {
+    await api.delete(`${API_URL}/calculators/${id}`);
+    await fetchEntries();
+  } catch (error) {
+    setError(error.message);
+  }
+};
 
   const formatCurrency = (amount) => `€${Math.round(amount).toLocaleString()}`;
 
