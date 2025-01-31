@@ -55,6 +55,8 @@ app.use((req, res, next) => {
 });
 
 // Routes
+app.use('/api/auth', authRoutes);
+app.use('/api', authMiddleware);
 app.use('/api', postRoutes);
 app.use('/api', contactRoutes);
 app.use('/api', calculatorRoutes);
@@ -62,8 +64,7 @@ app.use('/api', projectRoutes);
 app.use('/api', domainRoutes);
 app.use('/api', serverRoutes);
 app.use('/api', licenseRoutes);
-app.use('/api/auth', authRoutes);
-app.use('/api', authMiddleware);
+
 
 
 // Alap route teszteléshez
