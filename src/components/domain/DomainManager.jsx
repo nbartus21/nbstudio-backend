@@ -51,6 +51,11 @@ const handleAddNew = () => {
     setShowModal(true);
 };
 
+const handleEdit = (domain) => {
+    setSelectedDomain(domain);
+    setShowModal(true);
+};
+
 const handleSave = async (domainData) => {
     try {
       const url = domainData._id ? 
