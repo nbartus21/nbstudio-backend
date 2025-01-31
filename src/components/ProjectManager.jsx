@@ -11,15 +11,27 @@ const ProjectManager = () => {
   const [error, setError] = useState(null);
   const [selectedProject, setSelectedProject] = useState(null);
   const [showNewInvoiceForm, setShowNewInvoiceForm] = useState(false);
+  const [shareLink, setShareLink] = useState('');
   const [newInvoice, setNewInvoice] = useState({
     items: [{ description: '', quantity: 1, unitPrice: 0 }]
   });
 
-  const handleAddInvoiceItem = () => {
-    setNewInvoice(prev => ({
-      ...prev,
-      items: [...prev.items, { description: '', quantity: 1, unitPrice: 0 }]
-    }));
+  const truncateDescription = (description, maxLength = 140) => {
+    if (!description) return '';
+    return description.length > maxLength 
+      ? `${description.substring(0, maxLength)}...` 
+      : description;
+  };
+
+  const generateShareLink = async (projectId) => {
+    try {
+      const response = await api.post(`${API_URL}/projects/${projectId}/share`);
+      const data = await response.json();
+      setShareLink(data.shareLink);
+    } catch (error) {
+      console.error('Error generating share link:', error);
+      setError('Failed to generate share link');
+    }
   };
 
   const fetchProjects = async () => {
@@ -144,10 +156,20 @@ const ProjectManager = () => {
 
   const handleDelete = async (id) => {
     if (!window.confirm('Biztosan törli ezt a projektet?')) return;
+    
     try {
-      const response = await api.delete(`${API_URL}/projects/${id}`);
-      if (!response.ok) throw new Error('Failed to delete project');
-      await fetchProjects();
+      const response = await api.delete(`${API_URL}/projects/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Hiba történt a projekt törlésekor');
+      }
+
+      setProjects(projects.filter(project => project._id !== id));
     } catch (error) {
       console.error('Error:', error);
       setError(error.message);
@@ -169,7 +191,22 @@ const ProjectManager = () => {
           {error}
         </div>
       )}
-      
+
+      {shareLink && (
+        <div className="mb-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded">
+          <p>Megosztási link: {shareLink}</p>
+          <button 
+            onClick={() => {
+              navigator.clipboard.writeText(shareLink);
+              alert('Link másolva!');
+            }}
+            className="mt-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+          >
+            Link másolása
+          </button>
+        </div>
+      )}
+
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Projekt Kezelő</h1>
         <button
@@ -262,7 +299,9 @@ const ProjectManager = () => {
             className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow"
           >
             <h3 className="text-lg font-semibold mb-2">{project.name}</h3>
-            <p className="text-gray-600 mb-4">{project.description}</p>
+            <p className="text-gray-600 mb-4 h-20 overflow-hidden">
+              {truncateDescription(project.description)}
+            </p>
             
             <div className="flex justify-between items-center mb-4">
               <span className={`px-2 py-1 rounded-full text-sm ${
@@ -278,6 +317,12 @@ const ProjectManager = () => {
             </div>
 
             <div className="space-y-2">
+              <button
+                onClick={() => generateShareLink(project._id)}
+                className="w-full bg-white border border-green-600 text-green-600 px-4 py-2 rounded hover:bg-green-50"
+              >
+                Megosztási Link
+              </button>
               <button
                 onClick={() => {
                   setSelectedProject(project);
