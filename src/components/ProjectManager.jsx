@@ -18,23 +18,7 @@ const ProjectManager = () => {
   const fetchProjects = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_URL}/projects`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${sessionStorage.getItem('token')}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          sessionStorage.removeItem('token');
-          window.location.href = '/login';
-          throw new Error('Hitelesítés szükséges');
-        }
-        throw new Error('Nem sikerült lekérni a projekteket');
-      }
-
+      const response = await api.get(`${API_URL}/projects`);
       const data = await response.json();
       setProjects(data);
     } catch (error) {
@@ -56,14 +40,7 @@ const ProjectManager = () => {
         : `${API_URL}/projects`;
 
       const method = selectedProject._id ? 'PUT' : 'POST';
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Authorization': `Bearer ${sessionStorage.getItem('token')}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(selectedProject)
-      });
+      const response = await api[method.toLowerCase()](url, selectedProject);
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -100,14 +77,10 @@ const ProjectManager = () => {
         dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
       };
 
-      const response = await fetch(`${API_URL}/projects/${selectedProject._id}/invoices`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${sessionStorage.getItem('token')}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(invoiceData)
-      });
+      const response = await api.post(
+        `${API_URL}/projects/${selectedProject._id}/invoices`,
+        invoiceData
+      );
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -130,6 +103,18 @@ const ProjectManager = () => {
     }
   };
 
+  const handleDelete = async (id) => {
+    if (!window.confirm('Biztosan törli ezt a projektet?')) return;
+    try {
+      const response = await api.delete(`${API_URL}/projects/${id}`);
+      if (!response.ok) throw new Error('Failed to delete project');
+      await fetchProjects();
+    } catch (error) {
+      console.error('Error:', error);
+      setError(error.message);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -140,8 +125,13 @@ const ProjectManager = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {error && (
+        <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
+          {error}
+        </div>
+      )}
+      
       <div className="flex justify-between items-center mb-6">
-        
         <h1 className="text-2xl font-bold text-gray-900">Projekt Kezelő</h1>
         <button
           onClick={() => setSelectedProject({})}
@@ -150,63 +140,65 @@ const ProjectManager = () => {
           Új Projekt
         </button>
       </div>
+
       <ProjectFilters 
-  projects={projects}
-  onFilterChange={(filters) => {
-    const filteredProjects = projects.filter(project => {
-      // Keresés szövegben
-      if (filters.search && !project.name.toLowerCase().includes(filters.search.toLowerCase()) &&
-          !project.description?.toLowerCase().includes(filters.search.toLowerCase())) {
-        return false;
-      }
+        projects={projects}
+        onFilterChange={(filters) => {
+          const filteredProjects = projects.filter(project => {
+            // Keresés szövegben
+            if (filters.search && !project.name.toLowerCase().includes(filters.search.toLowerCase()) &&
+                !project.description?.toLowerCase().includes(filters.search.toLowerCase())) {
+              return false;
+            }
 
-      // Státusz szűrés
-      if (filters.status && project.status !== filters.status) {
-        return false;
-      }
+            // Státusz szűrés
+            if (filters.status && project.status !== filters.status) {
+              return false;
+            }
 
-      // Prioritás szűrés
-      if (filters.priority && project.priority !== filters.priority) {
-        return false;
-      }
+            // Prioritás szűrés
+            if (filters.priority && project.priority !== filters.priority) {
+              return false;
+            }
 
-      // Dátum szűrés
-      if (filters.dateRange !== 'all') {
-        const projectDate = new Date(project.createdAt);
-        const now = new Date();
-        const daysDiff = (now - projectDate) / (1000 * 60 * 60 * 24);
+            // Dátum szűrés
+            if (filters.dateRange !== 'all') {
+              const projectDate = new Date(project.createdAt);
+              const now = new Date();
+              const daysDiff = (now - projectDate) / (1000 * 60 * 60 * 24);
 
-        if (filters.dateRange === 'today' && daysDiff > 1) return false;
-        if (filters.dateRange === 'week' && daysDiff > 7) return false;
-        if (filters.dateRange === 'month' && daysDiff > 30) return false;
-        if (filters.dateRange === 'quarter' && daysDiff > 90) return false;
-        if (filters.dateRange === 'year' && daysDiff > 365) return false;
-      }
+              if (filters.dateRange === 'today' && daysDiff > 1) return false;
+              if (filters.dateRange === 'week' && daysDiff > 7) return false;
+              if (filters.dateRange === 'month' && daysDiff > 30) return false;
+              if (filters.dateRange === 'quarter' && daysDiff > 90) return false;
+              if (filters.dateRange === 'year' && daysDiff > 365) return false;
+            }
 
-      // Ügyfél szűrés
-      if (filters.client && project.client?.name !== filters.client) {
-        return false;
-      }
+            // Ügyfél szűrés
+            if (filters.client && project.client?.name !== filters.client) {
+              return false;
+            }
 
-      // Költségvetés szűrés
-      if (filters.minBudget && project.financial?.budget?.min < Number(filters.minBudget)) {
-        return false;
-      }
-      if (filters.maxBudget && project.financial?.budget?.max > Number(filters.maxBudget)) {
-        return false;
-      }
+            // Költségvetés szűrés
+            if (filters.minBudget && project.financial?.budget?.min < Number(filters.minBudget)) {
+              return false;
+            }
+            if (filters.maxBudget && project.financial?.budget?.max > Number(filters.maxBudget)) {
+              return false;
+            }
 
-      // Számla szűrés
-      if (filters.hasInvoices && (!project.invoices || project.invoices.length === 0)) {
-        return false;
-      }
+            // Számla szűrés
+            if (filters.hasInvoices && (!project.invoices || project.invoices.length === 0)) {
+              return false;
+            }
 
-      return true;
-    });
+            return true;
+          });
 
-    setProjects(filteredProjects);
-  }}
-/>
+          setProjects(filteredProjects);
+        }}
+      />
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {projects.map(project => (
           <div
@@ -244,6 +236,12 @@ const ProjectManager = () => {
                 className="w-full bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700"
               >
                 Részletek
+              </button>
+              <button
+                onClick={() => handleDelete(project._id)}
+                className="w-full bg-red-50 text-red-600 px-4 py-2 rounded hover:bg-red-100"
+              >
+                Törlés
               </button>
             </div>
           </div>
@@ -457,60 +455,60 @@ const ProjectManager = () => {
 
             {/* Számlák listája */}
             {selectedProject._id && (
-  <div className="mt-8">
-    <h3 className="font-medium text-lg mb-4">Számlák</h3>
-    <div className="overflow-x-auto">
-      <table className="min-w-full divide-y divide-gray-200">
-        <thead className="bg-gray-50">
-          <tr>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Számla szám
-            </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Dátum
-            </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Összeg
-            </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Fizetve
-            </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Állapot
-            </th>
-          </tr>
-        </thead>
-        <tbody className="bg-white divide-y divide-gray-200">
-          {selectedProject.invoices?.map((invoice, index) => (
-            <tr key={index}>
-              <td className="px-6 py-4 whitespace-nowrap">
-                {invoice.number}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap">
-                {new Date(invoice.date).toLocaleDateString()}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap">
-                {invoice.totalAmount?.toLocaleString()} {selectedProject.financial?.currency || 'EUR'}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap">
-                {invoice.paidAmount?.toLocaleString()} {selectedProject.financial?.currency || 'EUR'}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap">
-                <span className={`px-2 py-1 text-xs rounded-full ${
-                  invoice.status === 'fizetett' ? 'bg-green-100 text-green-800' :
-                  invoice.status === 'késedelmes' ? 'bg-red-100 text-red-800' :
-                  'bg-yellow-100 text-yellow-800'
-                }`}>
-                  {invoice.status}
-                </span>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  </div>
-)}
+              <div className="mt-8">
+                <h3 className="font-medium text-lg mb-4">Számlák</h3>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Számla szám
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Dátum
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Összeg
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Fizetve
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Állapot
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {selectedProject.invoices?.map((invoice, index) => (
+                        <tr key={index}>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            {invoice.number}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            {new Date(invoice.date).toLocaleDateString()}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            {invoice.totalAmount?.toLocaleString()} {selectedProject.financial?.currency || 'EUR'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            {invoice.paidAmount?.toLocaleString()} {selectedProject.financial?.currency || 'EUR'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`px-2 py-1 text-xs rounded-full ${
+                              invoice.status === 'fizetett' ? 'bg-green-100 text-green-800' :
+                              invoice.status === 'késedelmes' ? 'bg-red-100 text-red-800' :
+                              'bg-yellow-100 text-yellow-800'
+                            }`}>
+                              {invoice.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
 
             {/* Mentés/Mégse gombok */}
             <div className="flex justify-end gap-4 mt-6">
@@ -521,29 +519,7 @@ const ProjectManager = () => {
                 Mégse
               </button>
               <button
-                onClick={async () => {
-                  try {
-                    const url = selectedProject._id
-                      ? `https://admin.nb-studio.net:5001/api/projects/${selectedProject._id}`
-                      : 'https://admin.nb-studio.net:5001/api/projects';
-                    
-                    const response = await fetch(url, {
-                      method: selectedProject._id ? 'PUT' : 'POST',
-                      headers: {
-                        'Content-Type': 'application/json',
-                      },
-                      body: JSON.stringify(selectedProject)
-                    });
-
-                    if (!response.ok) throw new Error('Hiba a mentés során');
-                    
-                    setSelectedProject(null);
-                    fetchProjects();
-                  } catch (error) {
-                    console.error('Hiba:', error);
-                    alert('Nem sikerült menteni a projektet: ' + error.message);
-                  }
-                }}
+                onClick={handleSaveProject}
                 className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
               >
                 {selectedProject._id ? 'Mentés' : 'Létrehozás'}
