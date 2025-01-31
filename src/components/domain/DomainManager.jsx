@@ -6,6 +6,7 @@ import BudgetSummary from './BudgetSummary';
 import { AlertTriangle, DollarSign, Clock } from 'lucide-react';
 
 const formatCurrency = (amount) => `€${Math.round(amount).toLocaleString()}`;
+const API_URL = 'https://38.242.208.190:5001';
 
 
 const DomainManager = () => {
@@ -20,7 +21,7 @@ const DomainManager = () => {
 
   const fetchDomains = async () => {
     try {
-      const response = await fetch('/api/domains');
+      const response = await fetch(`${API_URL}/api/domains`);
       if (!response.ok) throw new Error('Hiba a domainek lekérésénél');
       const data = await response.json();
       setDomains(data);
@@ -29,23 +30,13 @@ const DomainManager = () => {
     } finally {
       setLoading(false);
     }
-  };
+};
 
-  const handleAddNew = () => {
-    setSelectedDomain(null);
-    setShowModal(true);
-  };
-
-  const handleEdit = (domain) => {
-    setSelectedDomain(domain);
-    setShowModal(true);
-  };
-
-  const handleDelete = async (id) => {
+const handleDelete = async (id) => {
     if (!window.confirm('Biztosan törli ezt a domaint?')) return;
 
     try {
-      const response = await fetch(`/api/domains/${id}`, {
+      const response = await fetch(`${API_URL}/api/domains/${id}`, {
         method: 'DELETE'
       });
       if (!response.ok) throw new Error('Hiba a domain törlésekor');
@@ -53,13 +44,18 @@ const DomainManager = () => {
     } catch (error) {
       console.error('Hiba:', error);
     }
-  };
+};
 
-  const handleSave = async (domainData) => {
+const handleAddNew = () => {
+    setSelectedDomain(null);
+    setShowModal(true);
+};
+
+const handleSave = async (domainData) => {
     try {
       const url = domainData._id ? 
-        `/api/domains/${domainData._id}` : 
-        '/api/domains';
+        `${API_URL}/api/domains/${domainData._id}` : 
+        `${API_URL}/api/domains`;
       
       const response = await fetch(url, {
         method: domainData._id ? 'PUT' : 'POST',
@@ -76,7 +72,7 @@ const DomainManager = () => {
     } catch (error) {
       console.error('Hiba:', error);
     }
-  };
+};
 
   if (loading) {
     return <div className="flex justify-center items-center min-h-screen">
