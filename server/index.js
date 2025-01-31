@@ -19,23 +19,19 @@ const port = process.env.PORT || 5001;
 
 // SSL beállítások
 const options = {
-   key: fs.readFileSync('/root/ssl/private.key'),
-   cert: fs.readFileSync('/root/ssl/certificate.crt')
+  key: fs.readFileSync('/etc/letsencrypt/live/admin.nb-studio.net/privkey.pem'),
+  cert: fs.readFileSync('/etc/letsencrypt/live/admin.nb-studio.net/fullchain.pem')
 };
 
 // CORS beállítások
 app.use(cors({
   origin: [
-      'http://38.242.208.190:5001',
-      'http://38.242.208.190:5173',
+      'https://admin.nb-studio.net',
       'https://nb-studio.net',
       'https://www.nb-studio.net',
-      'http://nb-studio.net',
-      'http://www.nb-studio.net',
-      // Fejlesztési környezethez
+      // Fejlesztési környezet
       'http://localhost:5173',
-      'http://localhost:3000',
-      'http://localhost:5001'
+      'http://localhost:3000'
   ],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
