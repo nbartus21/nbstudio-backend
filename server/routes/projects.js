@@ -2,53 +2,7 @@ import express from 'express';
 import Project from '../models/Project.js';
 import { v4 as uuidv4 } from 'uuid';
 
-// Két külön router létrehozása
 const router = express.Router();
-const publicRouter = express.Router();
-
-// Publikus végpont a PIN ellenőrzéshez
-publicRouter.post('/verify-pin', async (req, res) => {
-  console.log('PIN ellenőrzési kérés érkezett');
-  console.log('Request body:', req.body);
-  
-  try {
-    const { token, pin } = req.body;
-    console.log('Beérkezett token:', token);
-    console.log('Beérkezett PIN:', pin);
-    
-    const project = await Project.findOne({ shareToken: token });
-    console.log('Talált projekt:', project ? 'igen' : 'nem');
-    
-    if (!project) {
-      return res.status(404).json({ message: 'A projekt nem található' });
-    }
-
-    if (project.sharePin !== pin) {
-      return res.status(403).json({ message: 'Érvénytelen PIN kód' });
-    }
-
-    const sanitizedProject = {
-      name: project.name,
-      status: project.status,
-      description: project.description,
-      client: {
-        name: project.client?.name || 'Unknown Client',
-        email: project.client?.email
-      },
-      financial: {
-        currency: project.financial?.currency || 'EUR'
-      },
-      invoices: project.invoices || []
-    };
-
-    console.log('Küldendő projekt adatok:', sanitizedProject);
-    res.json({ project: sanitizedProject });
-    
-  } catch (error) {
-    console.error('Szerver hiba:', error);
-    res.status(500).json({ message: 'Szerver hiba történt' });
-  }
-});
 
 // Összes projekt lekérése
 router.get('/projects', async (req, res) => {
@@ -197,7 +151,7 @@ router.post('/projects/:id/share', async (req, res) => {
 });
 
 // Publikus végpont a PIN ellenőrzéshez (nem kell auth middleware)
-router.post('/public/projects/verify-pin', async (req, res) => {
+router.post('/verify-pin', async (req, res) => {
   console.log('PIN ellenőrzési kérés érkezett');
   console.log('Request body:', req.body);
   
@@ -217,22 +171,16 @@ router.post('/public/projects/verify-pin', async (req, res) => {
       return res.status(403).json({ message: 'Érvénytelen PIN kód' });
     }
 
-    // Minden szükséges adatot küldjünk vissza
     const sanitizedProject = {
       name: project.name,
       status: project.status,
       description: project.description,
-      client: {
-        name: project.client?.name || 'Unknown Client',
-        email: project.client?.email
-      },
+      invoices: project.invoices,
       financial: {
-        currency: project.financial?.currency || 'EUR'
-      },
-      invoices: project.invoices || []
+        currency: project.financial?.currency
+      }
     };
 
-    console.log('Küldendő projekt adatok:', sanitizedProject); // Debug log
     res.json({ project: sanitizedProject });
     
   } catch (error) {
