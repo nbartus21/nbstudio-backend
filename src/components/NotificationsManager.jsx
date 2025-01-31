@@ -15,6 +15,11 @@ const NotificationsManager = () => {
       setUnreadCount(data.length);
     } catch (error) {
       console.error('Error fetching notifications:', error);
+      // Ha 401-es hiba jön, akkor a token lejárt vagy érvénytelen
+      if (error.response?.status === 401) {
+        sessionStorage.removeItem('token');
+        window.location.href = '/login';
+      }
     }
   };
 
