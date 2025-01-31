@@ -53,37 +53,20 @@ const SharedProjectView = () => {
 
   // Számla adatok előkészítése SEPA QR kódhoz
   const generateSepaQrData = (invoice) => {
-    const data = {
-      name: "Norbert Bartus",
-      address: "Saffnerstraße 25",
-      city: "Bruchsal 76646",
-      country: "Deutschland",
-      taxNumber: "St.-Nr.: 68 044/74729",
-      vatNumber: "USt-IdNr.: DE354616301",
-      iban: "DE47 6634 0014 0743 4638 00",
-      bankName: "BANK: Commerzbank AG",
-      bic: "SWIFT/BIC: COBADEFFXXX",
-      amount: invoice.totalAmount,
-      currency: project?.financial?.currency || 'EUR',
-      reference: invoice.number,
-      info: `Invoice: ${invoice.number}`
-    };
-  
-    // SEPA QR kód formátum
-    return `BCD
-002
-1
-SCT
-${data.bic}
-${data.name}
-${data.iban}
-EUR${data.amount}
-
-${data.reference}
-${data.info}
-${data.address}
-${data.city}
-${data.country}`;
+    // A standard SEPA QR kód formátum
+    return [
+      'BCD',                              // Service Tag (állandó)
+      '002',                              // Verzió (állandó)
+      '1',                                // Karakterkódolás (állandó)
+      'SCT',                              // Átutalás azonosító (állandó)
+      'COBADEFFXXX',                      // BIC
+      'Norbert Bartus',                   // Kedvezményezett neve
+      'DE47663400140743463800',          // IBAN szóközök nélkül
+      `EUR${invoice.totalAmount}`,        // Összeg EUR-ban
+      '',                                 // Célpont referencia (opcionális)
+      invoice.number,                     // Számlaszám mint referencia
+      ''                                  // Megjegyzés (opcionális)
+    ].join('\n');
   };
 
   // Számla PDF generálása
