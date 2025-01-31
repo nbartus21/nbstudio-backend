@@ -26,8 +26,8 @@ const options = {
 // CORS beállítások
 app.use(cors({
   origin: [
-      'https://38.242.208.190:5001',
-      'https://38.242.208.190:5173',
+      'http://38.242.208.190:5001',
+      'http://38.242.208.190:5173',
       'https://nb-studio.net',
       'https://www.nb-studio.net',
       'http://nb-studio.net',
