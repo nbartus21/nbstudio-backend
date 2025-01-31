@@ -118,6 +118,25 @@ publicContactRouter.post('/contact', validateApiKey, async (req, res) => {
 });
 app.use('/api/public', publicContactRouter);
 
+// Új publikus végpont a kalkulátorhoz
+const publicCalculatorRouter = express.Router();
+publicCalculatorRouter.post('/calculators', validateApiKey, async (req, res) => {
+  try {
+    const calculator = new Calculator(req.body);
+    await calculator.save();
+    res.status(201).json({
+      success: true,
+      message: 'Kalkuláció sikeresen mentve'
+    });
+  } catch (error) {
+    console.error('Calculator form error:', error);
+    res.status(500).json({
+      message: 'Hiba történt a kalkuláció mentése során'
+    });
+  }
+});
+app.use('/api/public', publicCalculatorRouter);
+
 // Auth routes
 app.use('/api/auth', authRoutes);
 
@@ -125,7 +144,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api', postRoutes);
 app.use('/api', authMiddleware); // Az auth middleware csak ezután jön
 app.use('/api', contactRoutes);
-app.use('/api', calculatorRoutes);
+app.use('/api', calculatorRoutes);  // Áthelyezve az auth middleware után
 app.use('/api', projectRoutes);
 app.use('/api', domainRoutes);
 app.use('/api', serverRoutes);
