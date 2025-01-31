@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Editor } from '@tinymce/tinymce-react';
 import SEOAssistant from './SEOAssistant'; // Új komponens importálása
+import { api } from '../services/auth';  // Importáljuk az api service-t
 
 const API_URL = 'https://admin.nb-studio.net:5001/api';
 
@@ -65,21 +66,11 @@ const BlogAdmin = () => {
   const [scheduledDate, setScheduledDate] = useState('');
   const editorRef = useRef(null);
 
-  // Fetch posts
+  // Fetch posts - módosított verzió
   const fetchPosts = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_URL}/posts`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
+      const response = await api.get(`${API_URL}/posts`);
       const data = await response.json();
       setPosts(data);
     } catch (error) {
@@ -94,7 +85,7 @@ const BlogAdmin = () => {
     fetchPosts();
   }, []);
 
-  // Add new post
+  // Add new post - módosított verzió
   const handleAddPost = async () => {
     try {
       const newPost = {
@@ -119,18 +110,7 @@ const BlogAdmin = () => {
         scheduledDate: scheduledDate || null
       };
 
-      const response = await fetch(`${API_URL}/posts`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(newPost),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to create post');
-      }
-
+      const response = await api.post(`${API_URL}/posts`, newPost);
       await fetchPosts();
     } catch (error) {
       console.error('Error:', error);
@@ -144,22 +124,11 @@ const BlogAdmin = () => {
     setIsEditModalOpen(true);
   };
 
-  // Update post
+  // Update post - módosított verzió
   const handleUpdatePost = async (e, updatedPost) => {
     e.preventDefault();
     try {
-      const response = await fetch(`${API_URL}/posts/${updatedPost._id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(updatedPost),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to update post');
-      }
-
+      await api.put(`${API_URL}/posts/${updatedPost._id}`, updatedPost);
       await fetchPosts();
       setIsEditModalOpen(false);
       setEditingPost(null);
@@ -169,21 +138,11 @@ const BlogAdmin = () => {
     }
   };
 
-  // Delete post
+  // Delete post - módosított verzió
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this post?')) {
       try {
-        const response = await fetch(`${API_URL}/posts/${id}`, {
-          method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json',
-          }
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to delete post');
-        }
-
+        await api.delete(`${API_URL}/posts/${id}`);
         await fetchPosts();
       } catch (error) {
         console.error('Error:', error);

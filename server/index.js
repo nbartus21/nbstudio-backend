@@ -11,6 +11,8 @@ import projectRoutes from './routes/projects.js';
 import domainRoutes from './routes/domains.js';
 import serverRoutes from './routes/servers.js';
 import licenseRoutes from './routes/licenses.js';
+import authMiddleware from './middleware/auth.js';
+import authRoutes from './routes/auth.js';
 
 dotenv.config();
 const app = express();
@@ -60,6 +62,9 @@ app.use('/api', projectRoutes);
 app.use('/api', domainRoutes);
 app.use('/api', serverRoutes);
 app.use('/api', licenseRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api', authMiddleware);
+
 
 // Alap route teszteléshez
 app.get('/', (req, res) => {
