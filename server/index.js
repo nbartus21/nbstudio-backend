@@ -49,18 +49,46 @@ app.use(express.json());
 
 // Debug middleware
 app.use((req, res, next) => {
-  console.log(`${req.method} ${req.url}`);
+  console.log('========= Request Debug =========');
+  console.log('Method:', req.method);
+  console.log('URL:', req.url);
+  console.log('Headers:', req.headers);
+  console.log('Environment PUBLIC_API_KEY:', process.env.PUBLIC_API_KEY ? 'Set' : 'Not set');
+  console.log('===============================');
   next();
 });
 
-// Routes
+// FONTOS: Publikus végpontok az auth middleware ELŐTT
+const publicContactRouter = express.Router();
+publicContactRouter.post('/contact', validateApiKey, async (req, res) => {
+  try {
+    const { name, email, message } = req.body;
+    const contact = new Contact({
+      name,
+      email,
+      subject: 'Contact Form Submission',
+      message,
+      status: 'new'
+    });
+    const savedContact = await contact.save();
+    res.status(201).json({
+      success: true,
+      message: 'Üzenet sikeresen elküldve'
+    });
+  } catch (error) {
+    console.error('Contact form error:', error);
+    res.status(500).json({
+      message: 'Hiba történt az üzenet küldése során'
+    });
+  }
+});
+app.use('/api/public', publicContactRouter);
+
+// Auth routes
 app.use('/api/auth', authRoutes);
 
-// Publikus végpontok
-app.use('/api/public', contactRoutes);  // Új sor
-
 // Védett végpontok
-app.use('/api', authMiddleware);
+app.use('/api', authMiddleware); // Az auth middleware csak ezután jön
 app.use('/api', postRoutes);
 app.use('/api', contactRoutes);
 app.use('/api', calculatorRoutes);
