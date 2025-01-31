@@ -151,7 +151,7 @@ router.post('/projects/:id/share', async (req, res) => {
 });
 
 // Publikus végpont a PIN ellenőrzéshez (nem kell auth middleware)
-router.post('/verify-pin', async (req, res) => {
+router.post('/public/projects/verify-pin', async (req, res) => {
   console.log('PIN ellenőrzési kérés érkezett');
   console.log('Request body:', req.body);
   
@@ -171,16 +171,22 @@ router.post('/verify-pin', async (req, res) => {
       return res.status(403).json({ message: 'Érvénytelen PIN kód' });
     }
 
+    // Minden szükséges adatot küldjünk vissza
     const sanitizedProject = {
       name: project.name,
       status: project.status,
       description: project.description,
-      invoices: project.invoices,
+      client: {
+        name: project.client?.name || 'Unknown Client',
+        email: project.client?.email
+      },
       financial: {
-        currency: project.financial?.currency
-      }
+        currency: project.financial?.currency || 'EUR'
+      },
+      invoices: project.invoices || []
     };
 
+    console.log('Küldendő projekt adatok:', sanitizedProject); // Debug log
     res.json({ project: sanitizedProject });
     
   } catch (error) {

@@ -18,7 +18,6 @@ const SharedProjectView = () => {
   const verifyPin = async (e) => {
     e.preventDefault();
     setLoading(true);
-    console.log('PIN ellenőrzés kezdődik...');
     
     try {
       const response = await fetch(`${API_URL}/public/projects/verify-pin`, {
@@ -27,26 +26,26 @@ const SharedProjectView = () => {
           'Content-Type': 'application/json',
           'X-API-Key': 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0'
         },
-        body: JSON.stringify({ 
-          token: token,
-          pin: pin 
-        })
+        body: JSON.stringify({ token, pin })
       });
       
       console.log('API válasz státusz:', response.status);
+      
       const data = await response.json();
-      console.log('API válasz:', data);
+      console.log('Projekt adatok:', data.project); // Debug log
   
       if (response.ok) {
+        console.log('Sikeres PIN ellenőrzés');
         setProject(data.project);
         setIsVerified(true);
         setError(null);
       } else {
+        console.error('Sikertelen PIN ellenőrzés:', data.message);
         setError(data.message || 'Érvénytelen PIN kód');
       }
     } catch (error) {
-      console.error('Hiba:', error);
-      setError('Hiba történt az ellenőrzés során');
+      console.error('Hiba történt:', error);
+      setError('Hiba történt az ellenőrzés során: ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -54,13 +53,18 @@ const SharedProjectView = () => {
 
   // Számla adatok előkészítése SEPA QR kódhoz
   const generateSepaQrData = (invoice) => {
+    const clientName = project?.client?.name || 'Unknown Client';
+    const amount = invoice?.totalAmount || 0;
+    const currency = project?.financial?.currency || 'EUR';
+    const invoiceNumber = invoice?.number || 'Unknown';
+
     const data = {
-      name: project.client.name,
+      name: clientName,
       iban: "HU123456789", // Add meg a valódi IBAN-t
-      amount: invoice.totalAmount,
-      currency: project.financial?.currency || 'EUR',
-      reference: invoice.number,
-      info: `Számla: ${invoice.number}`
+      amount: amount.toFixed(2), // Formázott összeg 2 tizedesjeggyel
+      currency: currency,
+      reference: invoiceNumber,
+      info: `Invoice: ${invoiceNumber}`
     };
 
     return `BCD
@@ -69,7 +73,7 @@ const SharedProjectView = () => {
 SCT
 ${data.iban}
 ${data.name}
-EUR${data.amount}
+${data.currency}${data.amount}
 
 ${data.reference}
 ${data.info}`;
@@ -189,10 +193,19 @@ ${data.info}`;
             </div>
             <div className="flex flex-col items-center">
               <h3 className="font-semibold mb-2">SEPA QR kód</h3>
-              <QRCode value={generateSepaQrData(invoice)} size={200} />
-              <p className="text-sm text-gray-600 mt-2">
-                Szkennelje be a QR kódot a banki alkalmazásával a gyors fizetéshez
-              </p>
+              {invoice.totalAmount > 0 && (
+                <>
+                  <QRCode 
+                    value={generateSepaQrData(invoice)} 
+                    size={200}
+                    level="M"
+                    renderAs="svg"
+                  />
+                  <p className="text-sm text-gray-600 mt-2">
+                    Szkennelje be a QR kódot a banki alkalmazásával a gyors fizetéshez
+                  </p>
+                </>
+              )}
             </div>
           </div>
         </div>
