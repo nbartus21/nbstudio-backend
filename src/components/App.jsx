@@ -9,6 +9,7 @@ import Login from './Login';
 import ProjectManager from './ProjectManager';
 import DomainManager from './domain/DomainManager';
 import InfrastructureManager from './InfrastructureManager';
+import SharedProjectView from './components/SharedProjectView';
 
 
 const App = () => {
@@ -96,6 +97,8 @@ const App = () => {
   }
 />
       <Route path="*" element={<Navigate to="/login" />} />
+      <Route path="/shared-project/:token" element={<SharedProjectView />} />
+
     </Routes>
   );
 };

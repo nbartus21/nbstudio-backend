@@ -104,7 +104,16 @@ const projectSchema = new mongoose.Schema({
   expectedEndDate: Date,
   actualEndDate: Date,
   createdAt: { type: Date, default: Date.now },
-  updatedAt: { type: Date, default: Date.now }
+  updatedAt: { type: Date, default: Date.now },
+
+  // Megosztási token
+  shareToken: {
+    type: String,
+    unique: true,
+    sparse: true  // Ez lehetővé teszi, hogy ne minden projektnek legyen shareToken
+  }
+}, {
+  timestamps: true
 });
 
 // Update timestamp middleware

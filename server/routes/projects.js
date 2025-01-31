@@ -92,7 +92,7 @@ router.delete('/projects/:id', async (req, res) => {
   }
 });
 
-// Megosztási link generálása
+// Megosztási link generálása - frissített verzió
 router.post('/projects/:id/share', async (req, res) => {
   try {
     const project = await Project.findById(req.params.id);
@@ -107,25 +107,67 @@ router.post('/projects/:id/share', async (req, res) => {
     project.shareToken = shareToken;
     await project.save();
 
-    // Megosztási link generálása
-    const shareLink = `${process.env.FRONTEND_URL}/shared-project/${shareToken}`;
+    // Megosztási link generálása - használjuk a frontend URL-t
+    const shareLink = `http://38.242.208.190:5173/shared-project/${shareToken}`;
     
     res.status(200).json({ shareLink });
   } catch (error) {
+    console.error('Hiba a megosztási link generálásakor:', error);
     res.status(500).json({ message: 'Szerver hiba történt', error: error.message });
   }
 });
 
-// Megosztott projekt lekérése token alapján
+// Új végpont: Megosztott projekt hozzáférés ellenőrzése
+router.post('/projects/verify-access', async (req, res) => {
+  try {
+    const { token, email } = req.body;
+    
+    const project = await Project.findOne({ shareToken: token });
+    if (!project) {
+      return res.status(404).json({ message: 'A projekt nem található' });
+    }
+
+    // Ellenőrizzük, hogy az email cím egyezik-e a projekt ügyfél email címével
+    if (project.client.email.toLowerCase() !== email.toLowerCase()) {
+      return res.status(403).json({ message: 'Érvénytelen email cím' });
+    }
+
+    // Csak a szükséges adatokat küldjük vissza
+    const sanitizedProject = {
+      name: project.name,
+      status: project.status,
+      description: project.description,
+      invoices: project.invoices,
+      financial: {
+        currency: project.financial?.currency
+      }
+    };
+
+    res.json({ project: sanitizedProject });
+  } catch (error) {
+    console.error('Hiba a hozzáférés ellenőrzésekor:', error);
+    res.status(500).json({ message: 'Szerver hiba történt', error: error.message });
+  }
+});
+
+// Módosított megosztott projekt lekérés
 router.get('/shared-project/:token', async (req, res) => {
   try {
     const project = await Project.findOne({ shareToken: req.params.token });
     if (!project) {
       return res.status(404).json({ message: 'Projekt nem található' });
     }
+
+    // Csak a nyilvános adatokat küldjük vissza
+    const publicProject = {
+      name: project.name,
+      status: project.status,
+      description: project.description
+    };
     
-    res.status(200).json(project);
+    res.status(200).json(publicProject);
   } catch (error) {
+    console.error('Hiba a megosztott projekt lekérésekor:', error);
     res.status(500).json({ message: 'Szerver hiba történt', error: error.message });
   }
 });
