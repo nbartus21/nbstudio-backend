@@ -27,13 +27,23 @@ const InfrastructureManager = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [serversResponse, licensesResponse] = await Promise.all([
-        api.get(`${API_URL}/servers`),
-        api.get(`${API_URL}/licenses`)
-      ]);
-
-      setServers(Array.isArray(serversResponse) ? serversResponse : []);
-      setLicenses(Array.isArray(licensesResponse) ? licensesResponse : []);
+      console.log('Fetching data...'); // Debug log
+  
+      const serversResponse = await api.get(`${API_URL}/servers`);
+      const licensesResponse = await api.get(`${API_URL}/licenses`);
+      
+      console.log('Servers response:', serversResponse); // Debug log
+      console.log('Licenses response:', licensesResponse); // Debug log
+  
+      // Ha a response objektum és van data property-je, azt használjuk
+      const serversData = serversResponse?.data || serversResponse;
+      const licensesData = licensesResponse?.data || licensesResponse;
+  
+      setServers(Array.isArray(serversData) ? serversData : []);
+      setLicenses(Array.isArray(licensesData) ? licensesData : []);
+  
+      console.log('Processed servers:', serversData); // Debug log
+      console.log('Processed licenses:', licensesData); // Debug log
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -43,19 +53,21 @@ const InfrastructureManager = () => {
 
   const handleAddServer = async (serverData) => {
     try {
-      await api.post(`${API_URL}/servers`, serverData);
-      await fetchData(); // Frissítjük az adatokat
+      const response = await api.post(`${API_URL}/servers`, serverData);
+      console.log('Server created:', response); // Debug log
+      await fetchData();
       setShowServerModal(false);
     } catch (error) {
       console.error('Hiba:', error);
       alert('Nem sikerült létrehozni a szervert: ' + error.message);
     }
   };
-
+  
   const handleAddLicense = async (licenseData) => {
     try {
-      await api.post(`${API_URL}/licenses`, licenseData);
-      await fetchData(); // Frissítjük az adatokat
+      const response = await api.post(`${API_URL}/licenses`, licenseData);
+      console.log('License created:', response); // Debug log
+      await fetchData();
       setShowLicenseModal(false);
     } catch (error) {
       console.error('Hiba:', error);
