@@ -30,9 +30,13 @@ const CalculatorAdmin = () => {
     try {
       setLoading(true);
       const response = await api.get(`${API_URL}/calculators`);
-      setEntries(response);
+      // Ellenőrizzük, hogy a response egy tömb-e és inicializáljuk üres tömbbel, ha nem
+      setEntries(Array.isArray(response) ? response : []);
+      console.log('Fetched entries:', response); // Debug log
     } catch (error) {
+      console.error('Error fetching entries:', error);
       setError(error.message);
+      setEntries([]); // Hiba esetén üres tömb
     } finally {
       setLoading(false);
     }
