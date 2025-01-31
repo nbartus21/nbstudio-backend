@@ -4,12 +4,10 @@ import DomainTable from './DomainTable';
 import DomainModal from './DomainModal';
 import BudgetSummary from './BudgetSummary';
 import { AlertTriangle, DollarSign, Clock } from 'lucide-react';
-import { api } from '../services/auth';  // Ezt add hozzá az importokhoz
-
+import { api } from '../../services/auth';  // Javított útvonal
 
 const formatCurrency = (amount) => `€${Math.round(amount).toLocaleString()}`;
 const API_URL = 'https://admin.nb-studio.net:5001';
-
 
 const DomainManager = () => {
   const [domains, setDomains] = useState([]);
@@ -17,15 +15,10 @@ const DomainManager = () => {
   const [selectedDomain, setSelectedDomain] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchDomains();
-  }, []);
-
   const fetchDomains = async () => {
     try {
       setLoading(true);
       const response = await api.get(`${API_URL}/api/domains`);
-      // Ellenőrizzük, hogy a response egy tömb-e
       setDomains(Array.isArray(response) ? response : []);
     } catch (error) {
       console.error('Hiba:', error);
@@ -34,15 +27,27 @@ const DomainManager = () => {
     }
   };
 
+  // Új domain hozzáadása
+  const handleAddNew = () => {
+    setSelectedDomain(null);
+    setShowModal(true);
+  };
+
+  // Domain szerkesztése
+  const handleEdit = (domain) => {
+    setSelectedDomain(domain);
+    setShowModal(true);
+  };
+
   const handleDelete = async (id) => {
     if (!window.confirm('Biztosan törli ezt a domaint?')) return;
 
     try {
       await api.delete(`${API_URL}/api/domains/${id}`);
-      await fetchDomains(); // Frissítjük a listát
+      await fetchDomains();
     } catch (error) {
       console.error('Hiba:', error);
-      alert('Nem sikerült törölni a szervert: ' + error.message);
+      alert('Nem sikerült törölni a domaint: ' + error.message);
     }
   };
 
@@ -58,7 +63,7 @@ const DomainManager = () => {
         await api.post(url, domainData);
       }
 
-      await fetchDomains(); // Frissítjük a listát
+      await fetchDomains();
       setShowModal(false);
     } catch (error) {
       console.error('Hiba:', error);
@@ -71,9 +76,11 @@ const DomainManager = () => {
   }, []);
 
   if (loading) {
-    return <div className="flex justify-center items-center min-h-screen">
-      <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
-    </div>;
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
+      </div>
+    );
   }
 
   return (
@@ -88,39 +95,36 @@ const DomainManager = () => {
         </button>
       </div>
 
-{/* Statisztikai kártyák */}
-<div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-  <Card className="p-4">
-    <div className="flex justify-between items-center">
-      <div>
-        <p className="text-sm text-gray-500">Lejáró Domainek</p>
-        <p className="text-2xl font-bold">
-          {domains.filter(d => {
-            const daysUntil = Math.ceil(
-              (new Date(d.expiryDate) - new Date()) / (1000 * 60 * 60 * 24)
-            );
-            return daysUntil <= 30 && daysUntil > 0;
-          }).length}
-        </p>
-      </div>
-      <AlertTriangle className="h-8 w-8 text-yellow-500" />
-    </div>
-  </Card>
+      {/* Statisztikai kártyák */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <Card className="p-4">
+          <div className="flex justify-between items-center">
+            <div>
+              <p className="text-sm text-gray-500">Lejáró Domainek</p>
+              <p className="text-2xl font-bold">
+                {domains.filter(d => {
+                  const daysUntil = Math.ceil(
+                    (new Date(d.expiryDate) - new Date()) / (1000 * 60 * 60 * 24)
+                  );
+                  return daysUntil <= 30 && daysUntil > 0;
+                }).length}
+              </p>
+            </div>
+            <AlertTriangle className="h-8 w-8 text-yellow-500" />
+          </div>
+        </Card>
 
-  <Card className="p-4">
-    <div className="flex justify-between items-center">
-      <div>
-        <p className="text-sm text-gray-500">Összes Költség / Év</p>
-{/* Ezt a sort cseréld ki: */}
-<p className="text-2xl font-bold">
-        {formatCurrency(domains.reduce((sum, domain) => sum + (domain.cost || 0), 0))}
-      </p>
-    </div>
-    <DollarSign className="h-8 w-8 text-green-500" />
-  </div>
-</Card>
-
-
+        <Card className="p-4">
+          <div className="flex justify-between items-center">
+            <div>
+              <p className="text-sm text-gray-500">Összes Költség / Év</p>
+              <p className="text-2xl font-bold">
+                {formatCurrency(domains.reduce((sum, domain) => sum + (domain.cost || 0), 0))}
+              </p>
+            </div>
+            <DollarSign className="h-8 w-8 text-green-500" />
+          </div>
+        </Card>
 
         <Card className="p-4">
           <div className="flex justify-between items-center">
@@ -140,16 +144,16 @@ const DomainManager = () => {
       </div>
 
       <DomainTable 
-  domains={domains}
-  onEdit={handleEdit}
-  onDelete={handleDelete}
-  formatCurrency={formatCurrency}  // Add hozzá ezt a sort
-/>
+        domains={domains}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+        formatCurrency={formatCurrency}
+      />
 
-<BudgetSummary 
-  domains={domains} 
-  formatCurrency={formatCurrency}  // Add hozzá ezt a sort
-/>
+      <BudgetSummary 
+        domains={domains} 
+        formatCurrency={formatCurrency}
+      />
 
       <DomainModal
         isOpen={showModal}
