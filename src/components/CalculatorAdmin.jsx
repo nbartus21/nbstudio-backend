@@ -30,7 +30,7 @@ const CalculatorAdmin = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token'); // JWT token beszerzése
-      const response = await fetch(`${API_URL}calculators`, {
+      const response = await fetch(`${API_URL}/calculators`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
