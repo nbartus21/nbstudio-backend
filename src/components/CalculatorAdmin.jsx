@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { categorizeMessage, generateResponseSuggestion } from '../services/deepseekService';
 import { api } from '../services/auth';
 
-const API_URL = 'https://admin.nb-studio.net:5001/api/';
+const API_URL = 'https://admin.nb-studio.net:5001/api';
 
 const Modal = ({ isOpen, onClose, children }) => {
   if (!isOpen) return null;
@@ -29,14 +29,14 @@ const CalculatorAdmin = () => {
   const fetchEntries = async () => {
     try {
       setLoading(true);
-      const response = await api.get(`${API_URL}/calculators`);
-      // Ellenőrizzük, hogy a response egy tömb-e és inicializáljuk üres tömbbel, ha nem
-      setEntries(Array.isArray(response) ? response : []);
-      console.log('Fetched entries:', response); // Debug log
+      const response = await api.get(`${API_URL}calculators`); // Perjel eltávolítva a végéről
+      const data = response.data || []; // API válasz adatainak kinyerése
+      setEntries(Array.isArray(data) ? data : []);
+      console.log('Fetched entries:', data);
     } catch (error) {
-      console.error('Error fetching entries:', error);
+      console.error('Error:', error);
       setError(error.message);
-      setEntries([]); // Hiba esetén üres tömb
+      setEntries([]);
     } finally {
       setLoading(false);
     }
