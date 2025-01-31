@@ -3,151 +3,130 @@ import { generateResponseSuggestion, generateSummary } from '../services/deepsee
 import ProjectFilters from './ProjectFilters';
 import { api } from '../services/auth';
 
+const API_URL = 'https://admin.nb-studio.net:5001/api';
+
 const ProjectManager = () => {
-const [projects, setProjects] = useState([]);
-  const [allProjects, setAllProjects] = useState([]);
+  const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [selectedProject, setSelectedProject] = useState(null);
   const [showNewInvoiceForm, setShowNewInvoiceForm] = useState(false);
   const [newInvoice, setNewInvoice] = useState({
     items: [{ description: '', quantity: 1, unitPrice: 0 }]
   });
 
-  useEffect(() => {
-    fetchProjects();
-  }, []);
-
   const fetchProjects = async () => {
     try {
-      console.log('Projektek lekérése...'); // Debug log
-      const response = await api.get('https://admin.nb-studio.net:5001/api/projects');
-      
+      setLoading(true);
+      const response = await fetch(`${API_URL}/projects`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${sessionStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
       if (!response.ok) {
+        if (response.status === 401) {
+          sessionStorage.removeItem('token');
+          window.location.href = '/login';
+          throw new Error('Hitelesítés szükséges');
+        }
         throw new Error('Nem sikerült lekérni a projekteket');
       }
-      
+
       const data = await response.json();
-      console.log('Lekért projektek:', data); // Debug log
       setProjects(data);
-      
-      // Ha van kiválasztott projekt, frissítsük azt is
-      if (selectedProject) {
-        const updatedProject = data.find(p => p._id === selectedProject._id);
-        if (updatedProject) {
-          setSelectedProject(updatedProject);
-        }
-      }
     } catch (error) {
-      console.error('Hiba a projektek betöltésekor:', error);
+      console.error('Hiba a projektek lekérésekor:', error);
+      setError(error.message);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCreateFromCalculator = async (calculatorEntry) => {
+  useEffect(() => {
+    fetchProjects();
+  }, []);
+
+  const handleSaveProject = async () => {
     try {
-      const aiSummary = await generateSummary(calculatorEntry.projectDescription);
-      const nextSteps = await generateResponseSuggestion(
-        `Javasolj következő lépéseket ehhez a projekthez: ${calculatorEntry.projectDescription}`
-      );
+      const url = selectedProject._id
+        ? `${API_URL}/projects/${selectedProject._id}`
+        : `${API_URL}/projects`;
 
-      const newProject = {
-        name: `${calculatorEntry.projectType} Projekt - ${new Date().toLocaleDateString()}`,
-        description: calculatorEntry.projectDescription,
-        calculatorEntry: calculatorEntry._id,
-        client: {
-          email: calculatorEntry.email
+      const method = selectedProject._id ? 'PUT' : 'POST';
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Authorization': `Bearer ${sessionStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
         },
-        financial: {
-          budget: {
-            min: calculatorEntry.estimatedCost.minCost,
-            max: calculatorEntry.estimatedCost.maxCost
-          }
-        },
-        aiAnalysis: {
-          summary: aiSummary,
-          nextSteps: nextSteps.split('\n'),
-          lastUpdated: new Date()
-        }
-      };
+        body: JSON.stringify(selectedProject)
+      });
 
-      const response = await api.post('https://admin.nb-studio.net:5001/api/projects', newProject);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Nem sikerült menteni a projektet');
+      }
 
-
-      if (!response.ok) throw new Error('Hiba a projekt létrehozásakor');
-      
+      setSelectedProject(null);
       fetchProjects();
     } catch (error) {
-      console.error('Hiba:', error);
+      console.error('Hiba a projekt mentésekor:', error);
+      setError(`Nem sikerült menteni a projektet: ${error.message}`);
     }
-  };
-
-  const calculateInvoiceTotal = (items) => {
-    return items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
-  };
-
-  const handleAddInvoiceItem = () => {
-    setNewInvoice(prev => ({
-      ...prev,
-      items: [...prev.items, { description: '', quantity: 1, unitPrice: 0 }]
-    }));
   };
 
   const handleCreateInvoice = async () => {
     if (!selectedProject) return;
-  
-    // Számítsuk ki az egyes tételek total értékét
-    const itemsWithTotal = newInvoice.items.map(item => ({
-      ...item,
-      total: item.quantity * item.unitPrice
-    }));
-  
-    const totalAmount = calculateInvoiceTotal(newInvoice.items);
-    const invoiceNumber = `INV-${Date.now()}`; // Generált számlaszám
-  
-    const invoiceData = {
-      number: invoiceNumber,
-      date: new Date(),
-      amount: totalAmount,
-      status: 'kiállított',
-      dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 napos fizetési határidő
-      items: itemsWithTotal,
-      totalAmount: totalAmount,
-      paidAmount: 0,
-      notes: ''
-    };
-  
+
     try {
-      console.log('Számla létrehozása:', invoiceData); // Debug log
-  
-      const response = await fetch(`https://admin.nb-studio.net:5001/api/projects/${selectedProject._id}/invoices`, {
+      const itemsWithTotal = newInvoice.items.map(item => ({
+        ...item,
+        total: item.quantity * item.unitPrice
+      }));
+
+      const totalAmount = itemsWithTotal.reduce((sum, item) => sum + item.total, 0);
+      const invoiceNumber = `INV-${Date.now()}`;
+
+      const invoiceData = {
+        number: invoiceNumber,
+        date: new Date(),
+        items: itemsWithTotal,
+        totalAmount,
+        paidAmount: 0,
+        status: 'kiállított',
+        dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
+      };
+
+      const response = await fetch(`${API_URL}/projects/${selectedProject._id}/invoices`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${sessionStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(invoiceData)
       });
-  
+
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Hiba a számla létrehozásakor');
+        throw new Error(errorData.message || 'Nem sikerült létrehozni a számlát');
       }
-  
-      // Frissítsük a projektet és az állapotot
+
       const updatedProject = await response.json();
       setSelectedProject(updatedProject);
-      setProjects(prevProjects => 
-        prevProjects.map(p => 
+      setProjects(prevProjects =>
+        prevProjects.map(p =>
           p._id === updatedProject._id ? updatedProject : p
         )
       );
-      
+
       setShowNewInvoiceForm(false);
       setNewInvoice({ items: [{ description: '', quantity: 1, unitPrice: 0 }] });
-  
     } catch (error) {
-      console.error('Hiba:', error);
-      alert('Nem sikerült létrehozni a számlát: ' + error.message);
+      console.error('Hiba a számla létrehozásakor:', error);
+      setError(`Nem sikerült létrehozni a számlát: ${error.message}`);
     }
   };
 
