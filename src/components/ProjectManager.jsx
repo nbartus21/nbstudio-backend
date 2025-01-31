@@ -161,6 +161,7 @@ const ProjectManager = () => {
     }
   };
 
+
   const handleDelete = async (id) => {
     if (!window.confirm('Biztosan törli ezt a projektet?')) return;
     

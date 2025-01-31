@@ -1,4 +1,3 @@
-// SharedProjectView.jsx
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../services/auth';
@@ -11,34 +10,47 @@ const SharedProjectView = () => {
   const [email, setEmail] = useState('');
   const [isVerified, setIsVerified] = useState(false);
   const [error, setError] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   const verifyEmail = async (e) => {
     e.preventDefault();
+    setLoading(true);
     try {
-      const response = await api.post(`${API_URL}/projects/verify-access`, {
-        token,
-        email
+      console.log('Küldés:', { token, email });  // Debug log
+      
+      const response = await fetch(`${API_URL}/projects/verify-access`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ token, email })
       });
 
+      console.log('Válasz státusz:', response.status);  // Debug log
+      
+      const data = await response.json();
+      console.log('Válasz data:', data);  // Debug log
+
       if (response.ok) {
-        const data = await response.json();
         setProject(data.project);
         setIsVerified(true);
         setError(null);
       } else {
-        const errorData = await response.json();
-        setError(errorData.message || 'Hozzáférés megtagadva');
+        setError(data.message || 'Hozzáférés megtagadva');
       }
     } catch (error) {
+      console.error('Hiba:', error);  // Debug log
       setError('Hiba történt az ellenőrzés során');
+    } finally {
+      setLoading(false);
     }
   };
 
+  // Loading indikátor
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-blue-500"></div>
       </div>
     );
   }
@@ -79,13 +91,22 @@ const SharedProjectView = () => {
             <div>
               <button
                 type="submit"
+                disabled={loading}
                 className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
               >
-                Ellenőrzés
+                {loading ? 'Ellenőrzés...' : 'Ellenőrzés'}
               </button>
             </div>
           </form>
         </div>
+      </div>
+    );
+  }
+
+  if (!project) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="text-xl text-gray-600">Projekt nem található</div>
       </div>
     );
   }
@@ -116,54 +137,55 @@ const SharedProjectView = () => {
               </dd>
             </div>
             
-            {/* Számlák listája */}
-            <div className="bg-gray-50 px-4 py-5 sm:px-6">
-              <h4 className="text-lg font-medium text-gray-900 mb-4">Számlák</h4>
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead>
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Számla szám
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Dátum
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Összeg
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Állapot
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {project.invoices?.map((invoice) => (
-                      <tr key={invoice._id}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {invoice.number}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {new Date(invoice.date).toLocaleDateString()}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {invoice.totalAmount} {project.financial?.currency || 'EUR'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-2 py-1 text-xs rounded-full ${
-                            invoice.status === 'fizetett' ? 'bg-green-100 text-green-800' :
-                            invoice.status === 'késedelmes' ? 'bg-red-100 text-red-800' :
-                            'bg-yellow-100 text-yellow-800'
-                          }`}>
-                            {invoice.status}
-                          </span>
-                        </td>
+            {project.invoices && project.invoices.length > 0 && (
+              <div className="bg-gray-50 px-4 py-5 sm:px-6">
+                <h4 className="text-lg font-medium text-gray-900 mb-4">Számlák</h4>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead>
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Számla szám
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Dátum
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Összeg
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Állapot
+                        </th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {project.invoices.map((invoice, index) => (
+                        <tr key={index}>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {invoice.number}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {new Date(invoice.date).toLocaleDateString()}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {invoice.totalAmount} {project.financial?.currency || 'EUR'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`px-2 py-1 text-xs rounded-full ${
+                              invoice.status === 'fizetett' ? 'bg-green-100 text-green-800' :
+                              invoice.status === 'késedelmes' ? 'bg-red-100 text-red-800' :
+                              'bg-yellow-100 text-yellow-800'
+                            }`}>
+                              {invoice.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </div>
+            )}
           </dl>
         </div>
       </div>
