@@ -27,30 +27,64 @@ const InfrastructureManager = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      console.log('Fetching data...'); // Debug log
+      console.log('Fetching data from:', `${API_URL}/servers`); // URL ellenőrzése
   
-      const serversResponse = await api.get(`${API_URL}/servers`);
-      const licensesResponse = await api.get(`${API_URL}/licenses`);
+      // A /api már szerepel az API_URL-ben, ne dulikáljuk
+      const API_BASE = 'https://admin.nb-studio.net:5001';
       
-      console.log('Servers response:', serversResponse); // Debug log
-      console.log('Licenses response:', licensesResponse); // Debug log
+      const [serversResponse, licensesResponse] = await Promise.all([
+        api.get(`${API_BASE}/servers`),
+        api.get(`${API_BASE}/licenses`)
+      ]);
   
-      // Ha a response objektum és van data property-je, azt használjuk
-      const serversData = serversResponse?.data || serversResponse;
-      const licensesData = licensesResponse?.data || licensesResponse;
+      // Részletes logging a válaszokról
+      console.log('Raw servers response:', serversResponse);
+      console.log('Raw licenses response:', licensesResponse);
   
-      setServers(Array.isArray(serversData) ? serversData : []);
-      setLicenses(Array.isArray(licensesData) ? licensesData : []);
+      // Válasz struktúra ellenőrzése és feldolgozása
+      let serversData = [];
+      let licensesData = [];
   
-      console.log('Processed servers:', serversData); // Debug log
-      console.log('Processed licenses:', licensesData); // Debug log
+      if (serversResponse) {
+        // Ha a válasz egy objektum data property-vel
+        if (serversResponse.data) {
+          serversData = serversResponse.data;
+        } 
+        // Ha a válasz közvetlenül egy tömb
+        else if (Array.isArray(serversResponse)) {
+          serversData = serversResponse;
+        }
+        // Ha a válasz egy objektum, de nincs data property
+        else if (typeof serversResponse === 'object') {
+          serversData = [serversResponse];
+        }
+      }
+  
+      if (licensesResponse) {
+        if (licensesResponse.data) {
+          licensesData = licensesResponse.data;
+        } else if (Array.isArray(licensesResponse)) {
+          licensesData = licensesResponse;
+        } else if (typeof licensesResponse === 'object') {
+          licensesData = [licensesResponse];
+        }
+      }
+  
+      console.log('Processed servers data:', serversData);
+      console.log('Processed licenses data:', licensesData);
+  
+      setServers(serversData);
+      setLicenses(licensesData);
+  
     } catch (error) {
-      console.error('Error fetching data:', error);
+      console.error('Error details:', {
+        message: error.message,
+        error: error
+      });
     } finally {
       setLoading(false);
     }
   };
-
   const handleAddServer = async (serverData) => {
     try {
       const response = await api.post(`${API_URL}/servers`, serverData);
