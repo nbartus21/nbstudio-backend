@@ -29,12 +29,26 @@ const CalculatorAdmin = () => {
   const fetchEntries = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/calculators');
+      const response = await api.get(`${API_URL}/calculators`);
+      
+      // Ellenőrizzük, hogy a válasz megfelelő formátumú-e
+      if (!response.ok) {
+        throw new Error('Nem sikerült betölteni az adatokat');
+      }
+      
+      const data = await response.json();
       console.log('API válasz:', response);
-      console.log('Adatok:', response.data);
-      setEntries(response.data || []);
+      console.log('Adatok:', data);
+      
+      // Ellenőrizzük, hogy data egy tömb-e
+      if (Array.isArray(data)) {
+        setEntries(data);
+      } else {
+        console.error('Az API nem tömb formátumban küldte az adatokat:', data);
+        setEntries([]);
+      }
     } catch (error) {
-      console.error('Hiba:', error);
+      console.error('Hiba a lekérésnél:', error);
       setError(error.message);
     } finally {
       setLoading(false);
