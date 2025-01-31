@@ -26,11 +26,18 @@ const ProjectManager = () => {
   const generateShareLink = async (projectId) => {
     try {
       const response = await api.post(`${API_URL}/projects/${projectId}/share`);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Hiba történt a link generálása során');
+      }
+  
       const data = await response.json();
       setShareLink(data.shareLink);
+      setError(null);
     } catch (error) {
-      console.error('Error generating share link:', error);
-      setError('Failed to generate share link');
+      console.error('Hiba a megosztási link generálásakor:', error);
+      setError('Nem sikerült létrehozni a megosztási linket');
     }
   };
 
@@ -158,20 +165,17 @@ const ProjectManager = () => {
     if (!window.confirm('Biztosan törli ezt a projektet?')) return;
     
     try {
-      const response = await api.delete(`${API_URL}/projects/${id}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-
+      const response = await api.delete(`${API_URL}/projects/${id}`);
+      
       if (!response.ok) {
-        throw new Error('Hiba történt a projekt törlésekor');
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Hiba történt a törlés során');
       }
-
-      setProjects(projects.filter(project => project._id !== id));
+  
+      setProjects(prevProjects => prevProjects.filter(project => project._id !== id));
+      setError(null);
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Hiba:', error);
       setError(error.message);
     }
   };

@@ -1,5 +1,6 @@
 import express from 'express';
 import Project from '../models/Project.js';
+import { v4 as uuidv4 } from 'uuid';
 
 const router = express.Router();
 
@@ -77,5 +78,56 @@ router.post('/projects/:id/invoices', async (req, res) => {
       });
     }
   });
+
+// Projekt törlése
+router.delete('/projects/:id', async (req, res) => {
+  try {
+    const project = await Project.findByIdAndDelete(req.params.id);
+    if (!project) {
+      return res.status(404).json({ message: 'Projekt nem található' });
+    }
+    res.status(200).json({ message: 'Projekt sikeresen törölve' });
+  } catch (error) {
+    res.status(500).json({ message: 'Szerver hiba történt', error: error.message });
+  }
+});
+
+// Megosztási link generálása
+router.post('/projects/:id/share', async (req, res) => {
+  try {
+    const project = await Project.findById(req.params.id);
+    if (!project) {
+      return res.status(404).json({ message: 'Projekt nem található' });
+    }
+
+    // Egyedi token generálása
+    const shareToken = uuidv4();
+    
+    // Token mentése a projekthez
+    project.shareToken = shareToken;
+    await project.save();
+
+    // Megosztási link generálása
+    const shareLink = `${process.env.FRONTEND_URL}/shared-project/${shareToken}`;
+    
+    res.status(200).json({ shareLink });
+  } catch (error) {
+    res.status(500).json({ message: 'Szerver hiba történt', error: error.message });
+  }
+});
+
+// Megosztott projekt lekérése token alapján
+router.get('/shared-project/:token', async (req, res) => {
+  try {
+    const project = await Project.findOne({ shareToken: req.params.token });
+    if (!project) {
+      return res.status(404).json({ message: 'Projekt nem található' });
+    }
+    
+    res.status(200).json(project);
+  } catch (error) {
+    res.status(500).json({ message: 'Szerver hiba történt', error: error.message });
+  }
+});
 
 export default router;
