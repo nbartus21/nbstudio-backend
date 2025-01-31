@@ -15,6 +15,13 @@ const ProjectManager = () => {
     items: [{ description: '', quantity: 1, unitPrice: 0 }]
   });
 
+  const handleAddInvoiceItem = () => {
+    setNewInvoice(prev => ({
+      ...prev,
+      items: [...prev.items, { description: '', quantity: 1, unitPrice: 0 }]
+    }));
+  };
+
   const fetchProjects = async () => {
     try {
       setLoading(true);
@@ -22,7 +29,7 @@ const ProjectManager = () => {
       const data = await response.json();
       setProjects(data);
     } catch (error) {
-      console.error('Hiba a projektek lekérésekor:', error);
+      console.error('Error fetching projects:', error);
       setError(error.message);
     } finally {
       setLoading(false);
@@ -35,23 +42,55 @@ const ProjectManager = () => {
 
   const handleSaveProject = async () => {
     try {
-      const url = selectedProject._id
-        ? `${API_URL}/projects/${selectedProject._id}`
-        : `${API_URL}/projects`;
+      if (!selectedProject.name) {
+        setError('A projekt neve kötelező!');
+        return;
+      }
 
-      const method = selectedProject._id ? 'PUT' : 'POST';
-      const response = await api[method.toLowerCase()](url, selectedProject);
+      if (!selectedProject.client?.name || !selectedProject.client?.email) {
+        setError('Az ügyfél neve és email címe kötelező!');
+        return;
+      }
 
+      const projectData = {
+        ...selectedProject,
+        status: selectedProject.status || 'aktív',
+        priority: selectedProject.priority || 'közepes',
+        client: {
+          name: selectedProject.client.name,
+          email: selectedProject.client.email,
+          taxNumber: selectedProject.client.taxNumber || '',
+        },
+        financial: {
+          budget: {
+            min: selectedProject.financial?.budget?.min || 0,
+            max: selectedProject.financial?.budget?.max || 0
+          },
+          currency: selectedProject.financial?.currency || 'EUR'
+        }
+      };
+
+      let response;
+      if (selectedProject._id) {
+        response = await api.put(`${API_URL}/projects/${selectedProject._id}`, projectData);
+      } else {
+        response = await api.post(`${API_URL}/projects`, projectData);
+      }
+
+      const data = await response.json();
+      
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Nem sikerült menteni a projektet');
+        if (response.status === 404) {
+          throw new Error('A projekt nem található');
+        }
+        throw new Error(data.message || 'Nem sikerült menteni a projektet');
       }
 
       setSelectedProject(null);
-      fetchProjects();
+      await fetchProjects();
     } catch (error) {
       console.error('Hiba a projekt mentésekor:', error);
-      setError(`Nem sikerült menteni a projektet: ${error.message}`);
+      setError(`Hiba történt: ${error.message}`);
     }
   };
 
@@ -84,7 +123,7 @@ const ProjectManager = () => {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Nem sikerült létrehozni a számlát');
+        throw new Error(errorData.message || 'Failed to create invoice');
       }
 
       const updatedProject = await response.json();
@@ -98,8 +137,8 @@ const ProjectManager = () => {
       setShowNewInvoiceForm(false);
       setNewInvoice({ items: [{ description: '', quantity: 1, unitPrice: 0 }] });
     } catch (error) {
-      console.error('Hiba a számla létrehozásakor:', error);
-      setError(`Nem sikerült létrehozni a számlát: ${error.message}`);
+      console.error('Error creating invoice:', error);
+      setError(`Failed to create invoice: ${error.message}`);
     }
   };
 
@@ -118,7 +157,7 @@ const ProjectManager = () => {
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-indigo-500 border-t-transparent"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
       </div>
     );
   }
@@ -134,7 +173,24 @@ const ProjectManager = () => {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Projekt Kezelő</h1>
         <button
-          onClick={() => setSelectedProject({})}
+          onClick={() => setSelectedProject({
+            name: '',
+            status: 'aktív',
+            priority: 'közepes',
+            description: '',
+            client: {
+              name: '',
+              email: '',
+              taxNumber: ''
+            },
+            financial: {
+              budget: {
+                min: 0,
+                max: 0
+              },
+              currency: 'EUR'
+            }
+          })}
           className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700"
         >
           Új Projekt
