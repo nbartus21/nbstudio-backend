@@ -15,21 +15,13 @@ const app = express();
 const host = process.env.HOST || '0.0.0.0';
 const port = process.env.PORT || 5001;
 
+// Próbáljuk meg ideiglenesen minden origint engedélyezni:
 app.use(cors({
-    origin: [
-        'http://38.242.208.190:5001',
-        'http://38.242.208.190',
-        'http://38.242.208.190:5173',
-        'https://nb-studio.net',
-        'https://www.nb-studio.net',
-        // Development
-        'http://localhost:5173',
-        'http://localhost:3000'
-    ],
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-    credentials: true,
-    optionsSuccessStatus: 200
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
+  optionsSuccessStatus: 200
 }));
 
 // Middleware-ek
