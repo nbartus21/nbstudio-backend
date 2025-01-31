@@ -133,40 +133,30 @@ const ContactAdmin = () => {
     }
   };
 
-  // Kapcsolat frissítése
-  const handleUpdate = async (id, updateData) => {
-    try {
-      const response = await fetch(`${API_URL}/contacts/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(updateData),
-      });
-      if (!response.ok) throw new Error('A kapcsolat frissítése sikertelen');
-      fetchContacts();
-    } catch (error) {
-      setError(error.message);
-    }
-  };
+// Kapcsolat frissítése
+const handleUpdate = async (id, updateData) => {
+  try {
+    await api.put(`${API_URL}/contacts/${id}`, updateData);
+    fetchContacts();
+  } catch (error) {
+    setError(error.message);
+  }
+};
 
-  // Kapcsolat törlése
-  const handleDelete = async (id) => {
-    if (!window.confirm('Biztosan törölni szeretnéd ezt a kapcsolatot?')) return;
-    
-    try {
-      const response = await fetch(`${API_URL}/contacts/${id}`, {
-        method: 'DELETE',
-      });
-      if (!response.ok) throw new Error('A kapcsolat törlése sikertelen');
-      fetchContacts();
-      if (selectedContact?._id === id) {
-        setIsModalOpen(false);
-      }
-    } catch (error) {
-      setError(error.message);
+// Kapcsolat törlése
+const handleDelete = async (id) => {
+  if (!window.confirm('Biztosan törölni szeretnéd ezt a kapcsolatot?')) return;
+  
+  try {
+    await api.delete(`${API_URL}/contacts/${id}`);
+    fetchContacts();
+    if (selectedContact?._id === id) {
+      setIsModalOpen(false);
     }
-  };
+  } catch (error) {
+    setError(error.message);
+  }
+};
 
   const priorityColors = {
     high: 'bg-red-100 text-red-800',
