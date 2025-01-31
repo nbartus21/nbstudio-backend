@@ -1,41 +1,59 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { login } from '../services/auth';  // Importáljuk az auth service-t
 
 const Login = () => {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    
-    // Debug log
-    console.log('Login attempt:', { email, password });
-    
-    if (email === 'nbartus21@gmail.com' && password === 'Atom.1993*') {
-      // Debug log
-      console.log('Login successful');
-      
-      // Először állítsuk be a sessionStorage-t
+    setLoading(true);
+    setError('');
+
+    try {
+      // Használjuk az API-t a bejelentkezéshez
+      const response = await fetch('https://admin.nb-studio.net:5001/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Bejelentkezési hiba');
+      }
+
+      // Mentjük a tokent
+      sessionStorage.setItem('token', data.token);
       sessionStorage.setItem('isAuthenticated', 'true');
+
+      console.log('Login successful, token received');
       
-      // Debug log
-      console.log('SessionStorage set:', sessionStorage.getItem('isAuthenticated'));
-      
-      // Kis késleltetés után navigáljunk
-      setTimeout(() => {
-        navigate('/blog');
-      }, 100);
-    } else {
+      navigate('/blog');
+    } catch (err) {
+      console.error('Login error:', err);
       setError('Hibás email vagy jelszó!');
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Mount-kor ellenőrizzük a sessionStorage állapotát
+  // Ellenőrizzük, hogy van-e már aktív session
   useEffect(() => {
-    console.log('Current session state:', sessionStorage.getItem('isAuthenticated'));
-  }, []);
+    const isAuth = sessionStorage.getItem('isAuthenticated');
+    const token = sessionStorage.getItem('token');
+    
+    if (isAuth && token) {
+      navigate('/blog');
+    }
+  }, [navigate]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
@@ -58,6 +76,7 @@ const Login = () => {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                disabled={loading}
                 className="appearance-none rounded relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
                 placeholder="Email cím"
               />
@@ -73,6 +92,7 @@ const Login = () => {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                disabled={loading}
                 className="appearance-none rounded relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
                 placeholder="Jelszó"
               />
@@ -88,9 +108,14 @@ const Login = () => {
           <div>
             <button
               type="submit"
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              disabled={loading}
+              className={`group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white ${
+                loading 
+                  ? 'bg-indigo-400 cursor-not-allowed' 
+                  : 'bg-indigo-600 hover:bg-indigo-700'
+              } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500`}
             >
-              Bejelentkezés
+              {loading ? 'Bejelentkezés...' : 'Bejelentkezés'}
             </button>
           </div>
         </form>
