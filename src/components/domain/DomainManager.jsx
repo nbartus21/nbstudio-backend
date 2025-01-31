@@ -19,9 +19,15 @@ const DomainManager = () => {
     try {
       setLoading(true);
       const response = await api.get(`${API_URL}/api/domains`);
-      setDomains(Array.isArray(response) ? response : []);
+      console.log('API response:', response); // Ellenőrizzük a választ
+      
+      // Ha a response egy objektum és van data property-je
+      const domains = response.data || response;
+      console.log('Domains to set:', domains); // Ellenőrizzük a feldolgozott adatokat
+      
+      setDomains(Array.isArray(domains) ? domains : []);
     } catch (error) {
-      console.error('Hiba:', error);
+      console.error('Hiba a lekérésnél:', error);
     } finally {
       setLoading(false);
     }
