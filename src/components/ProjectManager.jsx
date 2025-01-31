@@ -267,57 +267,7 @@ const ProjectManager = () => {
           className="w-24 p-1 border rounded bg-white"
         />
       </div>
-      <div className="flex space-x-2 mt-2">
-        <button 
-          onClick={async () => {
-            try {
-              await navigator.clipboard.writeText(shareLink);
-              setError(null);
-              // Opcionális: visszajelzés a felhasználónak
-              const originalText = 'Link másolása';
-              const button = document.querySelector('#copyLinkBtn');
-              if (button) {
-                button.textContent = 'Másolva!';
-                setTimeout(() => {
-                  button.textContent = originalText;
-                }, 2000);
-              }
-            } catch (err) {
-              setError('Nem sikerült másolni a linket');
-            }
-          }}
-          id="copyLinkBtn"
-          className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors duration-200"
-        >
-          Link másolása
-        </button>
-        <button 
-          onClick={async () => {
-            try {
-              await navigator.clipboard.writeText(sharePin);
-              setError(null);
-              // Opcionális: visszajelzés a felhasználónak
-              const originalText = 'PIN másolása';
-              const button = document.querySelector('#copyPinBtn');
-              if (button) {
-                button.textContent = 'Másolva!';
-                setTimeout(() => {
-                  button.textContent = originalText;
-                }, 2000);
-              }
-            } catch (err) {
-              setError('Nem sikerült másolni a PIN kódot');
-            }
-          }}
-          id="copyPinBtn"
-          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors duration-200"
-        >
-          PIN másolása
-        </button>
-      </div>
-      {error && (
-        <p className="text-red-600 text-sm mt-2">{error}</p>
-      )}
+      
     </div>
   </div>
 )}
