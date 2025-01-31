@@ -15,6 +15,8 @@ import licenseRoutes from './routes/licenses.js';
 import authMiddleware from './middleware/auth.js';
 import authRoutes from './routes/auth.js';
 import notificationRoutes from './routes/notifications.js';
+import Calculator from './models/Calculator.js';  // Ezt add hozzá
+
 
 dotenv.config();
 
