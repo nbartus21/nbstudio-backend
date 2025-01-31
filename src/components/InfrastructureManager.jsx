@@ -5,7 +5,7 @@ import ServerModal from './ServerModal';
 import LicenseModal from './LicenseModal';
 import { api } from '../services/auth';
 
-const API_URL = 'https://admin.nb-studio.net:5001/api';
+const API_URL = 'https://admin.nb-studio.net:5001'; // Az /api részt töröljük
 
 
 
@@ -27,68 +27,30 @@ const InfrastructureManager = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      console.log('Fetching data from:', `${API_URL}/servers`); // URL ellenőrzése
+      console.log('Fetching data...'); 
   
-      // A /api már szerepel az API_URL-ben, ne dulikáljuk
-      const API_BASE = 'https://admin.nb-studio.net:5001';
-      
       const [serversResponse, licensesResponse] = await Promise.all([
-        api.get(`${API_BASE}/servers`),
-        api.get(`${API_BASE}/licenses`)
+        api.get(`${API_URL}/api/servers`), // Itt hozzáadjuk az /api-t
+        api.get(`${API_URL}/api/licenses`) // Itt hozzáadjuk az /api-t
       ]);
   
-      // Részletes logging a válaszokról
-      console.log('Raw servers response:', serversResponse);
-      console.log('Raw licenses response:', licensesResponse);
+      console.log('Servers response:', serversResponse);
+      console.log('Licenses response:', licensesResponse);
   
-      // Válasz struktúra ellenőrzése és feldolgozása
-      let serversData = [];
-      let licensesData = [];
-  
-      if (serversResponse) {
-        // Ha a válasz egy objektum data property-vel
-        if (serversResponse.data) {
-          serversData = serversResponse.data;
-        } 
-        // Ha a válasz közvetlenül egy tömb
-        else if (Array.isArray(serversResponse)) {
-          serversData = serversResponse;
-        }
-        // Ha a válasz egy objektum, de nincs data property
-        else if (typeof serversResponse === 'object') {
-          serversData = [serversResponse];
-        }
-      }
-  
-      if (licensesResponse) {
-        if (licensesResponse.data) {
-          licensesData = licensesResponse.data;
-        } else if (Array.isArray(licensesResponse)) {
-          licensesData = licensesResponse;
-        } else if (typeof licensesResponse === 'object') {
-          licensesData = [licensesResponse];
-        }
-      }
-  
-      console.log('Processed servers data:', serversData);
-      console.log('Processed licenses data:', licensesData);
-  
-      setServers(serversData);
-      setLicenses(licensesData);
+      setServers(Array.isArray(serversResponse) ? serversResponse : []);
+      setLicenses(Array.isArray(licensesResponse) ? licensesResponse : []);
   
     } catch (error) {
-      console.error('Error details:', {
-        message: error.message,
-        error: error
-      });
+      console.error('Error fetching data:', error);
     } finally {
       setLoading(false);
     }
   };
+  
+  // Módosítsd a többi API hívást is:
   const handleAddServer = async (serverData) => {
     try {
-      const response = await api.post(`${API_URL}/servers`, serverData);
-      console.log('Server created:', response); // Debug log
+      await api.post(`${API_URL}/api/servers`, serverData); // Itt is /api/servers
       await fetchData();
       setShowServerModal(false);
     } catch (error) {
@@ -99,8 +61,7 @@ const InfrastructureManager = () => {
   
   const handleAddLicense = async (licenseData) => {
     try {
-      const response = await api.post(`${API_URL}/licenses`, licenseData);
-      console.log('License created:', response); // Debug log
+      await api.post(`${API_URL}/api/licenses`, licenseData); // Itt is /api/licenses
       await fetchData();
       setShowLicenseModal(false);
     } catch (error) {
@@ -108,24 +69,24 @@ const InfrastructureManager = () => {
       alert('Nem sikerült létrehozni a licenszt: ' + error.message);
     }
   };
-
+  
   const handleDeleteServer = async (serverId) => {
     if (window.confirm('Biztosan törli ezt a szervert?')) {
       try {
-        await api.delete(`${API_URL}/servers/${serverId}`);
-        await fetchData(); // Frissítjük az adatokat
+        await api.delete(`${API_URL}/api/servers/${serverId}`); // Itt is /api/servers
+        await fetchData();
       } catch (error) {
         console.error('Hiba:', error);
         alert('Nem sikerült törölni a szervert: ' + error.message);
       }
     }
   };
-
+  
   const handleDeleteLicense = async (licenseId) => {
     if (window.confirm('Biztosan törli ezt a licenszt?')) {
       try {
-        await api.delete(`${API_URL}/licenses/${licenseId}`);
-        await fetchData(); // Frissítjük az adatokat
+        await api.delete(`${API_URL}/api/licenses/${licenseId}`); // Itt is /api/licenses
+        await fetchData();
       } catch (error) {
         console.error('Hiba:', error);
         alert('Nem sikerült törölni a licenszt: ' + error.message);
