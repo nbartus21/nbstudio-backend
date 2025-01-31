@@ -1,7 +1,24 @@
 import express from 'express';
 import Contact from '../models/Contact.js';
+import dotenv from 'dotenv';
+dotenv.config();
 
 const router = express.Router();
+
+// API kulcs middleware - ezt előre hozzuk és kiegészítjük debug logokkal
+const validateApiKey = (req, res, next) => {
+  console.log('Received API Key:', req.headers['x-api-key']); // Debug log
+  console.log('Expected API Key:', process.env.PUBLIC_API_KEY); // Debug log
+  
+  const apiKey = req.headers['x-api-key'];
+  
+  if (apiKey === process.env.PUBLIC_API_KEY) {
+    next();
+  } else {
+    console.log('API Key validation failed'); // Debug log
+    res.status(401).json({ message: 'Érvénytelen API kulcs' });
+  }
+};
 
 // Get all contacts
 router.get('/contacts', async (req, res) => {
@@ -48,32 +65,18 @@ router.delete('/contacts/:id', async (req, res) => {
   }
 });
 
-// API kulcs middleware
-const validateApiKey = (req, res, next) => {
-  const apiKey = req.headers['x-api-key'];
-  
-  // Az API kulcsot az .env fájlban tároljuk
-  if (apiKey === process.env.PUBLIC_API_KEY) {
-    next();
-  } else {
-    res.status(401).json({ message: 'Érvénytelen API kulcs' });
-  }
-};
-
 // Publikus üzenetküldő végpont API kulcs védelemmel
 router.post('/public/contact', validateApiKey, async (req, res) => {
   try {
     // Alapvető validáció
     const { name, email, subject, message } = req.body;
-    
     if (!name || !email || !subject || !message) {
-      return res.status(400).json({ 
-        message: 'Minden mező kitöltése kötelező' 
+      return res.status(400).json({
+        message: 'Minden mező kitöltése kötelező'
       });
     }
 
     // Spam védelem - rate limiting implementálható itt
-    
     const contact = new Contact({
       name,
       email,
@@ -85,15 +88,14 @@ router.post('/public/contact', validateApiKey, async (req, res) => {
     });
 
     const savedContact = await contact.save();
-    res.status(201).json({ 
+    res.status(201).json({
       success: true,
       message: 'Üzenet sikeresen elküldve'
     });
-    
   } catch (error) {
     console.error('Kontakt űrlap hiba:', error);
-    res.status(500).json({ 
-      message: 'Hiba történt az üzenet küldése során' 
+    res.status(500).json({
+      message: 'Hiba történt az üzenet küldése során'
     });
   }
 });
