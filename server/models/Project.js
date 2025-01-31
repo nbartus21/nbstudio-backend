@@ -14,13 +14,11 @@ const projectSchema = new mongoose.Schema({
     enum: ['alacsony', 'közepes', 'magas'],
     default: 'közepes'
   },
-  
   // Kalkulátor kapcsolat
   calculatorEntry: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Calculator'
   },
-
   // Ügyfél adatok
   client: {
     name: { type: String, required: true },
@@ -33,7 +31,6 @@ const projectSchema = new mongoose.Schema({
     },
     taxNumber: String,
   },
-
   // Pénzügyi adatok
   financial: {
     budget: {
@@ -43,7 +40,6 @@ const projectSchema = new mongoose.Schema({
     totalBilled: { type: Number, default: 0 },
     currency: { type: String, default: 'EUR' }
   },
-
   // Számlák
   invoices: [{
     number: String,
@@ -65,7 +61,6 @@ const projectSchema = new mongoose.Schema({
     paidAmount: { type: Number, default: 0 },
     notes: String
   }],
-
   // AI elemzések és javaslatok
   aiAnalysis: {
     riskLevel: String,
@@ -73,7 +68,6 @@ const projectSchema = new mongoose.Schema({
     recommendations: String,
     lastUpdated: Date
   },
-
   // Projekt mérföldkövek
   milestones: [{
     title: String,
@@ -86,7 +80,6 @@ const projectSchema = new mongoose.Schema({
       default: 'tervezett'
     }
   }],
-
   // Jegyzetek
   notes: [{
     content: String,
@@ -98,19 +91,21 @@ const projectSchema = new mongoose.Schema({
       default: 'általános'
     }
   }],
-
   // Időbélyegek
   startDate: { type: Date, default: Date.now },
   expectedEndDate: Date,
   actualEndDate: Date,
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
-
-  // Megosztási token
+  // Megosztási adatok
   shareToken: {
     type: String,
     unique: true,
-    sparse: true  // Ez lehetővé teszi, hogy ne minden projektnek legyen shareToken
+    sparse: true // Ez lehetővé teszi, hogy ne minden projektnek legyen shareToken
+  },
+  sharePin: {
+    type: String,
+    sparse: true // Ez is opcionális mező
   }
 }, {
   timestamps: true

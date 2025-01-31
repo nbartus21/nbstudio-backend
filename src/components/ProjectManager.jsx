@@ -114,17 +114,37 @@ const ProjectManager = () => {
   };
 
   const handleCreateInvoice = async () => {
-    if (!selectedProject) return;
-
+    console.log('Számla létrehozás kezdődik...');
+    console.log('selectedProject:', selectedProject);
+    console.log('newInvoice állapot:', newInvoice);
+  
+    if (!selectedProject) {
+      console.error('Nincs kiválasztott projekt!');
+      return;
+    }
+  
     try {
-      const itemsWithTotal = newInvoice.items.map(item => ({
-        ...item,
-        total: item.quantity * item.unitPrice
-      }));
-
+      console.log('Számla tételek feldolgozása...');
+      const itemsWithTotal = newInvoice.items.map(item => {
+        const total = item.quantity * item.unitPrice;
+        console.log('Tétel számítás:', { 
+          description: item.description, 
+          quantity: item.quantity, 
+          unitPrice: item.unitPrice, 
+          total 
+        });
+        return {
+          ...item,
+          total
+        };
+      });
+  
       const totalAmount = itemsWithTotal.reduce((sum, item) => sum + item.total, 0);
+      console.log('Teljes összeg:', totalAmount);
+  
       const invoiceNumber = `INV-${Date.now()}`;
-
+      console.log('Generált számla szám:', invoiceNumber);
+  
       const invoiceData = {
         number: invoiceNumber,
         date: new Date(),
@@ -134,31 +154,57 @@ const ProjectManager = () => {
         status: 'kiállított',
         dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
       };
-
+  
+      console.log('Elkészített számla adat:', invoiceData);
+      console.log('API URL:', `${API_URL}/projects/${selectedProject._id}/invoices`);
+  
       const response = await api.post(
         `${API_URL}/projects/${selectedProject._id}/invoices`,
         invoiceData
       );
-
+  
+      console.log('API válasz status:', response.status);
+      
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to create invoice');
+        console.error('API hiba válasz:', errorData);
+        throw new Error(errorData.message || 'Nem sikerült létrehozni a számlát');
       }
-
+  
       const updatedProject = await response.json();
+      console.log('Frissített projekt adatok:', updatedProject);
+  
       setSelectedProject(updatedProject);
       setProjects(prevProjects =>
         prevProjects.map(p =>
           p._id === updatedProject._id ? updatedProject : p
         )
       );
-
+  
       setShowNewInvoiceForm(false);
       setNewInvoice({ items: [{ description: '', quantity: 1, unitPrice: 0 }] });
+      setError(null);
+      console.log('Számla létrehozás sikeres!');
+  
     } catch (error) {
-      console.error('Error creating invoice:', error);
-      setError(`Failed to create invoice: ${error.message}`);
+      console.error('Részletes hiba a számla létrehozásakor:', error);
+      console.error('Hiba stack:', error.stack);
+      setError(`Hiba történt a számla létrehozásakor: ${error.message}`);
     }
+  };
+  
+  const handleAddInvoiceItem = () => {
+    console.log('Új számla tétel hozzáadása...');
+    console.log('Jelenlegi tételek:', newInvoice.items);
+    
+    setNewInvoice(prev => {
+      const updated = {
+        ...prev,
+        items: [...prev.items, { description: '', quantity: 1, unitPrice: 0 }]
+      };
+      console.log('Frissített számla állapot:', updated);
+      return updated;
+    });
   };
 
 
