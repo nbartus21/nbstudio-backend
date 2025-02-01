@@ -35,7 +35,7 @@ const InvoiceManager = () => {
       setLoading(true);
       const response = await api.get(`${API_URL}/projects`);
       const projects = await response.json();
-      const allInvoices = projects.flatMap(project =>
+      const allInvoices = projects.flatMap(project => 
         (project.invoices || []).map(invoice => ({
           ...invoice,
           projectName: project.name,
@@ -95,13 +95,15 @@ const InvoiceManager = () => {
   // Számla státusz frissítése
   const updateInvoiceStatus = async (projectId, invoiceId, status) => {
     try {
-      const project = await api.get(`${API_URL}/projects/${projectId}`);
-      const projectData = await project.json();
-      const updatedInvoices = projectData.invoices.map(inv =>
-        inv._id === invoiceId ? { ...inv, status } : inv
+      const response = await api.get(`${API_URL}/projects/${projectId}`);
+      const project = await response.json();
+      
+      const updatedInvoices = project.invoices.map(inv => 
+        inv._id === invoiceId ? {...inv, status} : inv
       );
 
       await api.put(`${API_URL}/projects/${projectId}`, {
+        ...project,
         invoices: updatedInvoices
       });
 
@@ -133,11 +135,12 @@ const InvoiceManager = () => {
   const filteredInvoices = invoices.filter(invoice => {
     if (filters.status !== 'all' && invoice.status !== filters.status) return false;
     if (filters.search && !invoice.projectName.toLowerCase().includes(filters.search.toLowerCase())) return false;
+    
     if (filters.dateRange !== 'all') {
       const invoiceDate = new Date(invoice.date);
       const now = new Date();
       const daysDiff = (now - invoiceDate) / (1000 * 60 * 60 * 24);
-
+      
       switch (filters.dateRange) {
         case 'week': return daysDiff <= 7;
         case 'month': return daysDiff <= 30;
@@ -149,99 +152,192 @@ const InvoiceManager = () => {
   });
 
   if (loading) {
-    return <div className="p-6 text-center">Betöltés...</div>;
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
+      </div>
+    );
   }
 
   return (
     <div className="p-6">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Számla Kezelő</h1>
+      </div>
+
       {/* Statisztikai kártyák */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <Card>
-          <CardHeader>
-            <CardTitle>Összes Számla</CardTitle>
-          </CardHeader>
-          <CardContent>{invoices.length} db</CardContent>
+          <CardContent className="p-4">
+            <div className="flex justify-between items-center">
+              <div>
+                <p className="text-sm text-gray-500">Összes Számla</p>
+                <p className="text-2xl font-bold">{invoices.length} db</p>
+              </div>
+              <div className="text-blue-500">
+                <UnpaidIcon />
+              </div>
+            </div>
+          </CardContent>
         </Card>
+
         <Card>
-          <CardHeader>
-            <CardTitle>Kifizetett Összeg</CardTitle>
-          </CardHeader>
-          <CardContent>{Math.round(statistics.paidAmount).toLocaleString()} €</CardContent>
+          <CardContent className="p-4">
+            <div className="flex justify-between items-center">
+              <div>
+                <p className="text-sm text-gray-500">Kifizetett Összeg</p>
+                <p className="text-2xl font-bold">{Math.round(statistics.paidAmount).toLocaleString()} €</p>
+              </div>
+              <div className="text-green-500">
+                <PaidIcon />
+              </div>
+            </div>
+          </CardContent>
         </Card>
+
         <Card>
-          <CardHeader>
-            <CardTitle>Lejárt Tartozások</CardTitle>
-          </CardHeader>
-          <CardContent>{Math.round(statistics.overdueAmount).toLocaleString()} €</CardContent>
+          <CardContent className="p-4">
+            <div className="flex justify-between items-center">
+              <div>
+                <p className="text-sm text-gray-500">Lejárt Tartozások</p>
+                <p className="text-2xl font-bold">{Math.round(statistics.overdueAmount).toLocaleString()} €</p>
+              </div>
+              <div className="text-red-500">
+                <OverdueIcon />
+              </div>
+            </div>
+          </CardContent>
         </Card>
+
         <Card>
-          <CardHeader>
-            <CardTitle>Átlagos Fizetési Idő</CardTitle>
-          </CardHeader>
-          <CardContent>{statistics.averagePaymentTime} nap</CardContent>
+          <CardContent className="p-4">
+            <div className="flex justify-between items-center">
+              <div>
+                <p className="text-sm text-gray-500">Átlagos Fizetési Idő</p>
+                <p className="text-2xl font-bold">{statistics.averagePaymentTime} nap</p>
+              </div>
+              <div className="text-yellow-500">
+                <PartialIcon />
+              </div>
+            </div>
+          </CardContent>
         </Card>
       </div>
 
       {/* Szűrők */}
-      <div className="mb-6">
-        <input
-          type="text"
-          value={filters.search}
-          onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-          className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-          placeholder="Projekt név..."
-        />
-        <select
-          value={filters.status}
-          onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-          className="mt-4 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-        >
-          <option value="all">Összes</option>
-          <option value="kiállított">Kiállított</option>
-          <option value="fizetett">Fizetett</option>
-          <option value="késedelmes">Késedelmes</option>
-          <option value="részletfizetés">Részletfizetés</option>
-        </select>
-        <select
-          value={filters.dateRange}
-          onChange={(e) => setFilters({ ...filters, dateRange: e.target.value })}
-          className="mt-4 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-        >
-          <option value="all">Összes</option>
-          <option value="week">Elmúlt 7 nap</option>
-          <option value="month">Elmúlt 30 nap</option>
-          <option value="quarter">Elmúlt 90 nap</option>
-        </select>
+      <div className="bg-white p-4 rounded-lg shadow mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Keresés</label>
+            <input
+              type="text"
+              value={filters.search}
+              onChange={(e) => setFilters({...filters, search: e.target.value})}
+              className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+              placeholder="Projekt név..."
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Státusz</label>
+            <select
+              value={filters.status}
+              onChange={(e) => setFilters({...filters, status: e.target.value})}
+              className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            >
+              <option value="all">Összes</option>
+              <option value="kiállított">Kiállított</option>
+              <option value="fizetett">Fizetett</option>
+              <option value="késedelmes">Késedelmes</option>
+              <option value="részletfizetés">Részletfizetés</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Időszak</label>
+            <select
+              value={filters.dateRange}
+              onChange={(e) => setFilters({...filters, dateRange: e.target.value})}
+              className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            >
+              <option value="all">Összes</option>
+              <option value="week">Elmúlt 7 nap</option>
+              <option value="month">Elmúlt 30 nap</option>
+              <option value="quarter">Elmúlt 90 nap</option>
+            </select>
+          </div>
+        </div>
       </div>
 
       {/* Számlák táblázata */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="bg-white rounded-lg shadow overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
-          <thead>
+          <thead className="bg-gray-50">
             <tr>
-              <th className="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Számla szám</th>
-              <th className="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Projekt</th>
-              <th className="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kiállítás dátuma</th>
-              <th className="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fizetési határidő</th>
-              <th className="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Összeg</th>
-              <th className="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Státusz</th>
-              <th className="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Műveletek</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Számla szám
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Projekt
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Kiállítás dátuma
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Fizetési határidő
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Összeg
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Státusz
+              </th>
+              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Műveletek
+              </th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="bg-white divide-y divide-gray-200">
             {filteredInvoices.map((invoice) => {
               const isOverdue = new Date(invoice.dueDate) < new Date() && invoice.status !== 'fizetett';
               return (
-                <tr key={invoice._id}>
-                  <td className="px-6 py-4 whitespace-nowrap">{invoice.number}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{invoice.projectName}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{new Date(invoice.date).toLocaleDateString()}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{new Date(invoice.dueDate).toLocaleDateString()}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{invoice.totalAmount?.toLocaleString()} €</td>
-                  <td className={`px-6 py-4 whitespace-nowrap ${getStatusColor(invoice.status)}`}>
-                    {getStatusIcon(invoice.status)} {invoice.status}
+                <tr key={invoice._id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm font-medium text-gray-900">
+                      {invoice.number}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="text-sm text-gray-900">{invoice.projectName}</div>
+                    <div className="text-sm text-gray-500">{invoice.client?.name}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">
+                      {new Date(invoice.date).toLocaleDateString()}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className={`text-sm ${isOverdue ? 'text-red-600 font-medium' : 'text-gray-900'}`}>
+                      {new Date(invoice.dueDate).toLocaleDateString()}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">
+                      {invoice.totalAmount?.toLocaleString()} €
+                    </div>
+                    {invoice.paidAmount > 0 && invoice.paidAmount < invoice.totalAmount && (
+                      <div className="text-xs text-gray-500">
+                        Fizetve: {invoice.paidAmount?.toLocaleString()} €
+                      </div>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(invoice.status)}`}>
+                      {getStatusIcon(invoice.status)}
+                      <span className="ml-1">{invoice.status}</span>
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <button
                       onClick={() => {
                         setSelectedInvoice(invoice);
@@ -255,7 +351,7 @@ const InvoiceManager = () => {
                       onClick={() => updateInvoiceStatus(invoice.projectId, invoice._id, 'fizetett')}
                       className="text-green-600 hover:text-green-900"
                     >
-                      Fizetettnek jelölés
+                      Fizetettnek jelöl
                     </button>
                   </td>
                 </tr>
@@ -264,6 +360,35 @@ const InvoiceManager = () => {
           </tbody>
         </table>
       </div>
+
+      {/* Fizetési trendek grafikon */}
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle>Fizetési Trendek</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart
+                data={invoices.map(invoice => ({
+                  date: new Date(invoice.date).toLocaleDateString(),
+                  amount: invoice.totalAmount,
+                  paid: invoice.paidAmount || 0
+                }))}
+                margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="date" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Line type="monotone" dataKey="amount" stroke="#6366f1" name="Teljes összeg" />
+                <Line type="monotone" dataKey="paid" stroke="#22c55e" name="Fizetett összeg" />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Számla részletek modal */}
       {showModal && selectedInvoice && (
@@ -280,6 +405,7 @@ const InvoiceManager = () => {
                 </svg>
               </button>
             </div>
+
             <div className="grid grid-cols-2 gap-8 mb-6">
               <div>
                 <h3 className="font-semibold mb-2">Projekt Adatok:</h3>
@@ -289,6 +415,7 @@ const InvoiceManager = () => {
                 <p className="text-sm">Kiállítás dátuma: {new Date(selectedInvoice.date).toLocaleDateString()}</p>
                 <p className="text-sm">Fizetési határidő: {new Date(selectedInvoice.dueDate).toLocaleDateString()}</p>
               </div>
+
               <div>
                 <h3 className="font-semibold mb-2">Fizetési Adatok:</h3>
                 <p className="text-sm">Teljes összeg: {selectedInvoice.totalAmount?.toLocaleString()} €</p>
@@ -297,6 +424,7 @@ const InvoiceManager = () => {
                 <p className="text-sm">Státusz: {selectedInvoice.status}</p>
               </div>
             </div>
+
             <div className="space-y-4">
               <h3 className="font-semibold">Tételek:</h3>
               <table className="min-w-full divide-y divide-gray-200">
@@ -319,6 +447,7 @@ const InvoiceManager = () => {
                   ))}
                 </tbody>
               </table>
+
               <div className="mt-6 flex justify-end gap-4">
                 <button
                   onClick={() => setShowModal(false)}
@@ -340,33 +469,6 @@ const InvoiceManager = () => {
           </div>
         </div>
       )}
-
-      {/* Fizetési trendek grafikon */}
-      <Card className="mt-6">
-        <CardHeader>
-          <CardTitle>Fizetési Trendek</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart
-              data={invoices.map(invoice => ({
-                date: new Date(invoice.date).toLocaleDateString(),
-                amount: invoice.totalAmount,
-                paid: invoice.paidAmount || 0
-              }))}
-              margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="date" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Line type="monotone" dataKey="amount" stroke="#6366f1" name="Teljes összeg" />
-              <Line type="monotone" dataKey="paid" stroke="#22c55e" name="Fizetett összeg" />
-            </LineChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
     </div>
   );
 };
