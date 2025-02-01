@@ -33,7 +33,7 @@ const InvoiceManager = () => {
   const fetchInvoices = async () => {
     try {
       setLoading(true);
-      const response = await api.get(`${API_URL}/api/projects`, {
+      const response = await api.get(`${API_URL}/projects`, {
         headers: {
           'Authorization': `Bearer ${sessionStorage.getItem('token')}`
         }
@@ -105,7 +105,7 @@ const InvoiceManager = () => {
   // Számla státusz frissítése
   const updateInvoiceStatus = async (projectId, invoiceId, status) => {
     try {
-      const response = await api.get(`${API_URL}/api/projects/${projectId}`, {
+      const response = await api.get(`${API_URL}/projects/${projectId}`, {
         headers: {
           'Authorization': `Bearer ${sessionStorage.getItem('token')}`
         }
@@ -128,7 +128,7 @@ const InvoiceManager = () => {
           : inv
       );
   
-      const updateResponse = await api.put(`${API_URL}/api/projects/${projectId}`, {
+      const updateResponse = await api.put(`${API_URL}/projects/${projectId}`, {
         ...project,
         invoices: updatedInvoices
       }, {
@@ -154,7 +154,7 @@ const InvoiceManager = () => {
     if (!window.confirm('Biztosan törölni szeretné ezt a számlát?')) return;
   
     try {
-      const response = await api.get(`${API_URL}/api/projects/${projectId}`, {
+      const response = await api.get(`${API_URL}/projects/${projectId}`, {
         headers: {
           'Authorization': `Bearer ${sessionStorage.getItem('token')}`
         }
@@ -167,7 +167,7 @@ const InvoiceManager = () => {
       const project = await response.json();
       const updatedInvoices = project.invoices.filter(inv => inv._id !== invoiceId);
   
-      const updateResponse = await api.put(`${API_URL}/api/projects/${projectId}`, {
+      const updateResponse = await api.put(`${API_URL}/projects/${projectId}`, {
         ...project,
         invoices: updatedInvoices
       }, {
