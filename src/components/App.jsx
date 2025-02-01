@@ -11,6 +11,7 @@ import DomainManager from './domain/DomainManager';
 import InfrastructureManager from './InfrastructureManager';
 import SharedProjectView from './SharedProjectView';
 import InvoiceManager from './InvoiceManager';
+import accountingRoutes from './routes/accounting.js';
 
 
 const App = () => {
