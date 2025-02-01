@@ -196,6 +196,21 @@ const handleDelete = async (id) => {
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
+                    <select
+                      value={contact.status}
+                      onChange={(e) => handleUpdate(contact._id, { status: e.target.value })}
+                      className="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                    >
+                      <option value="new">Új</option>
+                      <option value="in-progress">Folyamatban</option>
+                      <option value="completed">Befejezett</option>
+                    </select>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {contact.category || '-'}
+                  </td>
+                  {/* A táblázat művelet cellájának módosítása */}
+<td className="px-6 py-4 whitespace-nowrap">
   <div className="flex space-x-3">
     {/* Megtekintés gomb SVG-vel */}
     <button
@@ -246,22 +261,6 @@ const handleDelete = async (id) => {
     </button>
   </div>
 </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {contact.category || '-'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <button
-                      onClick={() => handleViewMessage(contact)}
-                      className="text-blue-600 hover:text-blue-800 mr-3"
-                    >
-                      Megtekintés
-                    </button>
-                    <button onClick={() => handleDelete(contact._id)}
-                      className="text-red-600 hover:text-red-900"
-                    >
-                      Törlés
-                    </button>
-                  </td>
                 </tr>
               ))}
             </tbody>
