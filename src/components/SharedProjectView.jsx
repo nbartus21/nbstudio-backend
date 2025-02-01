@@ -15,6 +15,44 @@ const SharedProjectView = () => {
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
 
+  // Automatikus frissítés beállítása
+  useEffect(() => {
+    let intervalId;
+
+    // Ha be van jelentkezve, indítjuk az automatikus frissítést
+    if (isVerified && token) {
+      const refreshData = async () => {
+        try {
+          const response = await fetch(`${API_URL}/public/projects/verify-pin`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-API-Key': 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0'
+            },
+            body: JSON.stringify({ token, pin })
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            setProject(data.project);
+          }
+        } catch (error) {
+          console.error('Frissítési hiba:', error);
+        }
+      };
+
+      // 30 másodpercenként frissítünk
+      intervalId = setInterval(refreshData, 30000);
+    }
+
+    // Cleanup function
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [isVerified, token, pin]);
+
   const verifyPin = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -128,42 +166,42 @@ const SharedProjectView = () => {
             <p className="text-sm">SWIFT/BIC: COBADEFFXXX</p>
           </div>
 
-{/* Vevő adatai */}
-<div>
-  <h3 className="font-semibold mb-2">Vevő:</h3>
-  {project?.client && (
-    <>
-      <p className="text-sm">{project.client.name}</p>
-      {project.client.companyName && (
-        <p className="text-sm">{project.client.companyName}</p>
-      )}
-      {project.client.address && (
-        <>
-          <p className="text-sm">{project.client.address.street}</p>
-          <p className="text-sm">{project.client.address.postalCode} {project.client.address.city}</p>
-          <p className="text-sm">{project.client.address.country}</p>
-        </>
-      )}
-      <div className="mt-2">
-        {project.client.phone && (
-          <p className="text-sm">Tel.: {project.client.phone}</p>
-        )}
-        <p className="text-sm">Email: {project.client.email}</p>
-      </div>
-      <div className="mt-2">
-        {project.client.taxNumber && (
-          <p className="text-sm">Adószám: {project.client.taxNumber}</p>
-        )}
-        {project.client.euVatNumber && (
-          <p className="text-sm">EU Adószám: {project.client.euVatNumber}</p>
-        )}
-        {project.client.registrationNumber && (
-          <p className="text-sm">Cégjegyzékszám: {project.client.registrationNumber}</p>
-        )}
-      </div>
-    </>
-  )}
-</div>
+          {/* Vevő adatai */}
+          <div>
+            <h3 className="font-semibold mb-2">Vevő:</h3>
+            {project?.client && (
+              <>
+                <p className="text-sm">{project.client.name}</p>
+                {project.client.companyName && (
+                  <p className="text-sm">{project.client.companyName}</p>
+                )}
+                {project.client.address && (
+                  <>
+                    <p className="text-sm">{project.client.address.street}</p>
+                    <p className="text-sm">{project.client.address.postalCode} {project.client.address.city}</p>
+                    <p className="text-sm">{project.client.address.country}</p>
+                  </>
+                )}
+                <div className="mt-2">
+                  {project.client.phone && (
+                    <p className="text-sm">Tel.: {project.client.phone}</p>
+                  )}
+                  <p className="text-sm">Email: {project.client.email}</p>
+                </div>
+                <div className="mt-2">
+                  {project.client.taxNumber && (
+                    <p className="text-sm">Adószám: {project.client.taxNumber}</p>
+                  )}
+                  {project.client.euVatNumber && (
+                    <p className="text-sm">EU Adószám: {project.client.euVatNumber}</p>
+                  )}
+                  {project.client.registrationNumber && (
+                    <p className="text-sm">Cégjegyzékszám: {project.client.registrationNumber}</p>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
         </div>
 
         <div className="space-y-6">
@@ -300,15 +338,6 @@ const SharedProjectView = () => {
       </div>
     </div>
   );
-
-  // Loading indikátor
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-blue-500"></div>
-      </div>
-    );
-  }
 
   if (!isVerified) {
     return (
