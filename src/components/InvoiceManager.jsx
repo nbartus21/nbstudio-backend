@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/auth';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import Card, { CardHeader, CardTitle, CardContent } from './ui/Card';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 const API_URL = 'https://admin.nb-studio.net:5001/api';
