@@ -315,31 +315,55 @@ const ProjectManager = () => {
         </div>
       )}
 
-      {shareLink && (
-        <div className="mb-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded">
-          <div className="flex flex-col space-y-2">
-            <p className="font-semibold">Megosztási adatok:</p>
-            <div className="flex items-center space-x-2">
-              <span className="text-sm">Link:</span>
-              <input 
-                type="text" 
-                value={shareLink} 
-                readOnly 
-                className="flex-1 p-1 border rounded bg-white"
+{shareLink && (
+  <div className="mb-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded">
+    <div className="flex flex-col space-y-2">
+      <p className="font-semibold">Megosztási adatok:</p>
+      <div className="flex items-center space-x-2">
+        <span className="text-sm">Link:</span>
+        <div className="flex-1 flex items-center">
+          <input 
+            type="text" 
+            value={shareLink} 
+            readOnly 
+            className="flex-1 p-1 border rounded-l bg-white"
+          />
+          <a 
+            href={shareLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="p-1 border-t border-r border-b rounded-r bg-white hover:bg-gray-50"
+            title="Megnyitás új ablakban"
+          >
+            <svg 
+              xmlns="http://www.w3.org/2000/svg" 
+              className="h-6 w-6 text-gray-600" 
+              fill="none" 
+              viewBox="0 0 24 24" 
+              stroke="currentColor"
+            >
+              <path 
+                strokeLinecap="round" 
+                strokeLinejoin="round" 
+                strokeWidth={2} 
+                d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" 
               />
-            </div>
-            <div className="flex items-center space-x-2">
-              <span className="text-sm">PIN kód:</span>
-              <input 
-                type="text" 
-                value={sharePin} 
-                readOnly 
-                className="w-24 p-1 border rounded bg-white"
-              />
-            </div>
-          </div>
+            </svg>
+          </a>
         </div>
-      )}
+      </div>
+      <div className="flex items-center space-x-2">
+        <span className="text-sm">PIN kód:</span>
+        <input 
+          type="text" 
+          value={sharePin} 
+          readOnly 
+          className="w-24 p-1 border rounded bg-white"
+        />
+      </div>
+    </div>
+  </div>
+)}
 
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Projekt Kezelő</h1>
