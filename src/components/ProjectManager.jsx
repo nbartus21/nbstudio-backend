@@ -67,12 +67,12 @@ const ProjectManager = () => {
         setError('A projekt neve kötelező!');
         return;
       }
-
+  
       if (!selectedProject.client?.name || !selectedProject.client?.email) {
         setError('Az ügyfél neve és email címe kötelező!');
         return;
       }
-
+  
       const projectData = {
         ...selectedProject,
         status: selectedProject.status || 'aktív',
@@ -80,7 +80,17 @@ const ProjectManager = () => {
         client: {
           name: selectedProject.client.name,
           email: selectedProject.client.email,
-          taxNumber: selectedProject.client.taxNumber || '',
+          phone: selectedProject.client?.phone || '',
+          companyName: selectedProject.client?.companyName || '',
+          taxNumber: selectedProject.client?.taxNumber || '',
+          euVatNumber: selectedProject.client?.euVatNumber || '',
+          registrationNumber: selectedProject.client?.registrationNumber || '',
+          address: {
+            street: selectedProject.client?.address?.street || '',
+            city: selectedProject.client?.address?.city || '',
+            postalCode: selectedProject.client?.address?.postalCode || '',
+            country: selectedProject.client?.address?.country || ''
+          }
         },
         financial: {
           budget: {
@@ -90,14 +100,14 @@ const ProjectManager = () => {
           currency: selectedProject.financial?.currency || 'EUR'
         }
       };
-
+  
       let response;
       if (selectedProject._id) {
         response = await api.put(`${API_URL}/projects/${selectedProject._id}`, projectData);
       } else {
         response = await api.post(`${API_URL}/projects`, projectData);
       }
-
+  
       const data = await response.json();
       
       if (!response.ok) {
@@ -106,7 +116,7 @@ const ProjectManager = () => {
         }
         throw new Error(data.message || 'Nem sikerült menteni a projektet');
       }
-
+  
       setSelectedProject(null);
       await fetchProjects();
     } catch (error) {

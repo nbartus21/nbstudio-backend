@@ -175,9 +175,24 @@ router.post('/verify-pin', async (req, res) => {
       name: project.name,
       status: project.status,
       description: project.description,
-      invoices: project.invoices,
+      client: {
+        name: project.client?.name || '',
+        email: project.client?.email || '',
+        phone: project.client?.phone || '',
+        companyName: project.client?.companyName || '',
+        taxNumber: project.client?.taxNumber || '',
+        euVatNumber: project.client?.euVatNumber || '',
+        registrationNumber: project.client?.registrationNumber || '',
+        address: {
+          street: project.client?.address?.street || '',
+          city: project.client?.address?.city || '',
+          postalCode: project.client?.address?.postalCode || '',
+          country: project.client?.address?.country || ''
+        }
+      },
+      invoices: project.invoices || [],
       financial: {
-        currency: project.financial?.currency
+        currency: project.financial?.currency || 'EUR'
       }
     };
 

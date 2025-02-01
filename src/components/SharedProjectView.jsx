@@ -128,27 +128,42 @@ const SharedProjectView = () => {
             <p className="text-sm">SWIFT/BIC: COBADEFFXXX</p>
           </div>
 
-          {/* Vevő adatai */}
-          <div>
-            <h3 className="font-semibold mb-2">Vevő:</h3>
-            {project.client && (
-              <>
-                <p className="text-sm">{project.client.name}</p>
-                <p className="text-sm">{project.client.email}</p>
-                {project.client.address && (
-                  <>
-                    <p className="text-sm">{project.client.address.street}</p>
-                    <p className="text-sm">{project.client.address.city}</p>
-                    <p className="text-sm">{project.client.address.postalCode}</p>
-                    <p className="text-sm">{project.client.address.country}</p>
-                  </>
-                )}
-                {project.client.taxNumber && (
-                  <p className="text-sm mt-2">Adószám: {project.client.taxNumber}</p>
-                )}
-              </>
-            )}
-          </div>
+{/* Vevő adatai */}
+<div>
+  <h3 className="font-semibold mb-2">Vevő:</h3>
+  {project?.client && (
+    <>
+      <p className="text-sm">{project.client.name}</p>
+      {project.client.companyName && (
+        <p className="text-sm">{project.client.companyName}</p>
+      )}
+      {project.client.address && (
+        <>
+          <p className="text-sm">{project.client.address.street}</p>
+          <p className="text-sm">{project.client.address.postalCode} {project.client.address.city}</p>
+          <p className="text-sm">{project.client.address.country}</p>
+        </>
+      )}
+      <div className="mt-2">
+        {project.client.phone && (
+          <p className="text-sm">Tel.: {project.client.phone}</p>
+        )}
+        <p className="text-sm">Email: {project.client.email}</p>
+      </div>
+      <div className="mt-2">
+        {project.client.taxNumber && (
+          <p className="text-sm">Adószám: {project.client.taxNumber}</p>
+        )}
+        {project.client.euVatNumber && (
+          <p className="text-sm">EU Adószám: {project.client.euVatNumber}</p>
+        )}
+        {project.client.registrationNumber && (
+          <p className="text-sm">Cégjegyzékszám: {project.client.registrationNumber}</p>
+        )}
+      </div>
+    </>
+  )}
+</div>
         </div>
 
         <div className="space-y-6">
