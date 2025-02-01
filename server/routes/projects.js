@@ -109,6 +109,11 @@ router.post('/projects/:id/invoices', async (req, res) => {
 
 // Számla státusz frissítése
 router.put('/projects/:projectId/invoices/:invoiceId', async (req, res) => {
+  const apiKey = req.headers['x-api-key'];
+  if (apiKey !== 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0') {
+    return res.status(401).json({ message: 'Érvénytelen API kulcs' });
+  }
+
   try {
     console.log('Számla státusz frissítése');
     console.log('Projekt ID:', req.params.projectId);
@@ -125,7 +130,6 @@ router.put('/projects/:projectId/invoices/:invoiceId', async (req, res) => {
       return res.status(404).json({ message: 'Számla nem található' });
     }
 
-    // Számla státusz és fizetési adatok frissítése
     project.invoices[invoiceIndex] = {
       ...project.invoices[invoiceIndex],
       status: req.body.status,
@@ -133,7 +137,6 @@ router.put('/projects/:projectId/invoices/:invoiceId', async (req, res) => {
       paidDate: req.body.status === 'fizetett' ? new Date() : project.invoices[invoiceIndex].paidDate
     };
 
-    // Projekt mentése
     const updatedProject = await project.save();
     console.log('Számla státusz sikeresen frissítve');
 
@@ -149,6 +152,11 @@ router.put('/projects/:projectId/invoices/:invoiceId', async (req, res) => {
 
 // Számla törlése
 router.delete('/projects/:projectId/invoices/:invoiceId', async (req, res) => {
+  const apiKey = req.headers['x-api-key'];
+  if (apiKey !== 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0') {
+    return res.status(401).json({ message: 'Érvénytelen API kulcs' });
+  }
+
   try {
     console.log('Számla törlése');
     console.log('Projekt ID:', req.params.projectId);
@@ -159,16 +167,12 @@ router.delete('/projects/:projectId/invoices/:invoiceId', async (req, res) => {
       return res.status(404).json({ message: 'Projekt nem található' });
     }
 
-    // Számla törlése a tömbből
     project.invoices = project.invoices.filter(inv => inv._id.toString() !== req.params.invoiceId);
-
-    // Teljes számlázott összeg újraszámolása
     project.financial.totalBilled = project.invoices.reduce(
       (sum, invoice) => sum + (invoice.totalAmount || 0),
       0
     );
 
-    // Projekt mentése
     await project.save();
     console.log('Számla sikeresen törölve');
 
@@ -184,6 +188,11 @@ router.delete('/projects/:projectId/invoices/:invoiceId', async (req, res) => {
 
 // Számla részleteinek lekérése
 router.get('/projects/:projectId/invoices/:invoiceId', async (req, res) => {
+  const apiKey = req.headers['x-api-key'];
+  if (apiKey !== 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0') {
+    return res.status(401).json({ message: 'Érvénytelen API kulcs' });
+  }
+
   try {
     const project = await Project.findById(req.params.projectId);
     if (!project) {
