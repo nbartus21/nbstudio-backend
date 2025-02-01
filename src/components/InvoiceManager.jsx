@@ -33,17 +33,27 @@ const InvoiceManager = () => {
   const fetchInvoices = async () => {
     try {
       setLoading(true);
-      const response = await api.get(`${API_URL}/projects`, {
+      setError(null); // Töröljük a korábbi hibákat
+  
+      const response = await fetch(`${API_URL}/projects`, {
         headers: {
-          'Authorization': `Bearer ${sessionStorage.getItem('token')}`
+          'Content-Type': 'application/json',
+          'X-API-Key': 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0'
         }
       });
       
       if (!response.ok) {
-        throw new Error('Nem sikerült betölteni a projekteket');
+        throw new Error(`Hiba történt a projektek betöltése közben: ${response.statusText}`);
+      }
+      
+      const projects = await response.json();
+  
+      // Ellenőrizzük, hogy vannak-e projektek
+      if (!Array.isArray(projects)) {
+        throw new Error('A projektek formátuma nem megfelelő.');
       }
   
-      const projects = await response.json();
+      // Számlák kinyerése a projektekből
       const allInvoices = projects.flatMap(project => 
         (project.invoices || []).map(invoice => ({
           ...invoice,
@@ -52,11 +62,17 @@ const InvoiceManager = () => {
           client: project.client
         }))
       );
+  
+      // Ellenőrizzük, hogy vannak-e számlák
+      if (allInvoices.length === 0) {
+        console.warn('Nincsenek számlák a projektekben.');
+      }
+  
       setInvoices(allInvoices);
       calculateStatistics(allInvoices);
     } catch (error) {
-      console.error('Hiba:', error);
-      setError('Nem sikerült betölteni a számlákat');
+      console.error('Hiba a számlák betöltése közben:', error);
+      setError(error.message || 'Nem sikerült betölteni a számlákat');
     } finally {
       setLoading(false);
     }

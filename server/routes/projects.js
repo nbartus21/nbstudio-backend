@@ -4,21 +4,31 @@ import { v4 as uuidv4 } from 'uuid';
 
 const router = express.Router();
 
+// Middleware alkalmazása a route-okon
+router.use((req, res, next) => {
+  // Kivételek a publikus végpontoknál
+  if (req.path === '/verify-pin' || req.path.startsWith('/shared-project')) {
+    return next();
+  }
+  // Minden más esetben alkalmazza az API kulcs ellenőrzést
+  validateApiKey(req, res, next);
+});
+
 // Összes projekt lekérése
 router.get('/projects', async (req, res) => {
-    try {
-      console.log('Fetching projects...');
-      const projects = await Project.find().sort({ createdAt: -1 });
-      console.log('Projects found:', projects.length);
-      res.json(projects);
-    } catch (error) {
-      console.error('Error in GET /projects:', error);
-      res.status(500).json({ 
-        message: 'Error fetching projects',
-        error: error.message 
-      });
-    }
-  });
+  try {
+    console.log('Fetching projects...');
+    const projects = await Project.find().sort({ createdAt: -1 });
+    console.log('Projects found:', projects.length);
+    res.json(projects);
+  } catch (error) {
+    console.error('Error in GET /projects:', error);
+    res.status(500).json({
+      message: 'Error fetching projects',
+      error: error.message
+    });
+  }
+});
 
 // Új projekt létrehozása
 router.post('/projects', async (req, res) => {
@@ -109,11 +119,6 @@ router.post('/projects/:id/invoices', async (req, res) => {
 
 // Számla státusz frissítése
 router.put('/projects/:projectId/invoices/:invoiceId', async (req, res) => {
-  const apiKey = req.headers['x-api-key'];
-  if (apiKey !== 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0') {
-    return res.status(401).json({ message: 'Érvénytelen API kulcs' });
-  }
-
   try {
     console.log('Számla státusz frissítése');
     console.log('Projekt ID:', req.params.projectId);
@@ -152,11 +157,6 @@ router.put('/projects/:projectId/invoices/:invoiceId', async (req, res) => {
 
 // Számla törlése
 router.delete('/projects/:projectId/invoices/:invoiceId', async (req, res) => {
-  const apiKey = req.headers['x-api-key'];
-  if (apiKey !== 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0') {
-    return res.status(401).json({ message: 'Érvénytelen API kulcs' });
-  }
-
   try {
     console.log('Számla törlése');
     console.log('Projekt ID:', req.params.projectId);
@@ -188,11 +188,6 @@ router.delete('/projects/:projectId/invoices/:invoiceId', async (req, res) => {
 
 // Számla részleteinek lekérése
 router.get('/projects/:projectId/invoices/:invoiceId', async (req, res) => {
-  const apiKey = req.headers['x-api-key'];
-  if (apiKey !== 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0') {
-    return res.status(401).json({ message: 'Érvénytelen API kulcs' });
-  }
-
   try {
     const project = await Project.findById(req.params.projectId);
     if (!project) {
@@ -212,7 +207,6 @@ router.get('/projects/:projectId/invoices/:invoiceId', async (req, res) => {
     });
   }
 });
-
 
 // Projekt törlése
 router.delete('/projects/:id', async (req, res) => {
@@ -237,7 +231,7 @@ router.post('/projects/:id/share', async (req, res) => {
 
     // 6 jegyű PIN kód generálása
     const pin = Math.floor(100000 + Math.random() * 900000).toString();
-    
+
     // Token és PIN mentése a projekthez
     const shareToken = uuidv4();
     project.shareToken = shareToken;
@@ -246,9 +240,9 @@ router.post('/projects/:id/share', async (req, res) => {
 
     // Megosztási link generálása
     const shareLink = `http://38.242.208.190:5173/shared-project/${shareToken}`;
-    
+
     // Visszaküldjük a linket és a PIN-t
-    res.status(200).json({ 
+    res.status(200).json({
       shareLink,
       pin  // Ez a PIN kód jelenik meg az admin felületen
     });
@@ -261,15 +255,15 @@ router.post('/projects/:id/share', async (req, res) => {
 router.post('/verify-pin', async (req, res) => {
   console.log('PIN ellenőrzési kérés érkezett');
   console.log('Request body:', req.body);
-  
+
   try {
     const { token, pin } = req.body;
     console.log('Beérkezett token:', token);
     console.log('Beérkezett PIN:', pin);
-    
+
     const project = await Project.findOne({ shareToken: token });
     console.log('Talált projekt:', project ? 'igen' : 'nem');
-    
+
     if (!project) {
       return res.status(404).json({ message: 'A projekt nem található' });
     }
@@ -304,7 +298,7 @@ router.post('/verify-pin', async (req, res) => {
     };
 
     res.json({ project: sanitizedProject });
-    
+
   } catch (error) {
     console.error('Szerver hiba:', error);
     res.status(500).json({ message: 'Szerver hiba történt' });
@@ -325,7 +319,7 @@ router.get('/shared-project/:token', async (req, res) => {
       status: project.status,
       description: project.description
     };
-    
+
     res.status(200).json(publicProject);
   } catch (error) {
     console.error('Hiba a megosztott projekt lekérésekor:', error);
