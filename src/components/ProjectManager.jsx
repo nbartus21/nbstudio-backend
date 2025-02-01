@@ -36,7 +36,7 @@ const ProjectManager = () => {
   
       const data = await response.json();
       setShareLink(data.shareLink);
-      setSharePin(data.pin); // Itt mentjük el a PIN kódot
+      setSharePin(data.pin);
       setError(null);
     } catch (error) {
       console.error('Hiba a megosztási link generálásakor:', error);
@@ -61,6 +61,66 @@ const ProjectManager = () => {
   useEffect(() => {
     fetchProjects();
   }, []);
+
+  // Amikor a projektek betöltődnek, beállítjuk a filteredProjects-et is
+  useEffect(() => {
+    setFilteredProjects(projects);
+  }, [projects]);
+
+  const applyFilters = (filters) => {
+    const filtered = projects.filter(project => {
+      // Keresés szövegben
+      if (filters.search && !project.name.toLowerCase().includes(filters.search.toLowerCase()) &&
+          !project.description?.toLowerCase().includes(filters.search.toLowerCase())) {
+        return false;
+      }
+
+      // Státusz szűrés
+      if (filters.status && project.status !== filters.status) {
+        return false;
+      }
+
+      // Prioritás szűrés
+      if (filters.priority && project.priority !== filters.priority) {
+        return false;
+      }
+
+      // Dátum szűrés
+      if (filters.dateRange !== 'all') {
+        const projectDate = new Date(project.createdAt);
+        const now = new Date();
+        const daysDiff = (now - projectDate) / (1000 * 60 * 60 * 24);
+
+        if (filters.dateRange === 'today' && daysDiff > 1) return false;
+        if (filters.dateRange === 'week' && daysDiff > 7) return false;
+        if (filters.dateRange === 'month' && daysDiff > 30) return false;
+        if (filters.dateRange === 'quarter' && daysDiff > 90) return false;
+        if (filters.dateRange === 'year' && daysDiff > 365) return false;
+      }
+
+      // Ügyfél szűrés
+      if (filters.client && project.client?.name !== filters.client) {
+        return false;
+      }
+
+      // Költségvetés szűrés
+      if (filters.minBudget && project.financial?.budget?.min < Number(filters.minBudget)) {
+        return false;
+      }
+      if (filters.maxBudget && project.financial?.budget?.max > Number(filters.maxBudget)) {
+        return false;
+      }
+
+      // Számla szűrés
+      if (filters.hasInvoices && (!project.invoices || project.invoices.length === 0)) {
+        return false;
+      }
+
+      return true;
+    });
+
+    setFilteredProjects(filtered);
+  };
 
   const handleSaveProject = async () => {
     try {
@@ -220,7 +280,6 @@ const ProjectManager = () => {
     });
   };
 
-
   const handleDelete = async (id) => {
     if (!window.confirm('Biztosan törli ezt a projektet?')) return;
     
@@ -256,32 +315,31 @@ const ProjectManager = () => {
         </div>
       )}
 
-{shareLink && (
-  <div className="mb-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded">
-    <div className="flex flex-col space-y-2">
-      <p className="font-semibold">Megosztási adatok:</p>
-      <div className="flex items-center space-x-2">
-        <span className="text-sm">Link:</span>
-        <input 
-          type="text" 
-          value={shareLink} 
-          readOnly 
-          className="flex-1 p-1 border rounded bg-white"
-        />
-      </div>
-      <div className="flex items-center space-x-2">
-        <span className="text-sm">PIN kód:</span>
-        <input 
-          type="text" 
-          value={sharePin} 
-          readOnly 
-          className="w-24 p-1 border rounded bg-white"
-        />
-      </div>
-      
-    </div>
-  </div>
-)}
+      {shareLink && (
+        <div className="mb-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded">
+          <div className="flex flex-col space-y-2">
+            <p className="font-semibold">Megosztási adatok:</p>
+            <div className="flex items-center space-x-2">
+              <span className="text-sm">Link:</span>
+              <input 
+                type="text" 
+                value={shareLink} 
+                readOnly 
+                className="flex-1 p-1 border rounded bg-white"
+              />
+            </div>
+            <div className="flex items-center space-x-2">
+              <span className="text-sm">PIN kód:</span>
+              <input 
+                type="text" 
+                value={sharePin} 
+                readOnly 
+                className="w-24 p-1 border rounded bg-white"
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Projekt Kezelő</h1>
@@ -312,64 +370,11 @@ const ProjectManager = () => {
 
       <ProjectFilters 
         projects={projects}
-        onFilterChange={(filters) => {
-          const filteredProjects = projects.filter(project => {
-            // Keresés szövegben
-            if (filters.search && !project.name.toLowerCase().includes(filters.search.toLowerCase()) &&
-                !project.description?.toLowerCase().includes(filters.search.toLowerCase())) {
-              return false;
-            }
-
-            // Státusz szűrés
-            if (filters.status && project.status !== filters.status) {
-              return false;
-            }
-
-            // Prioritás szűrés
-            if (filters.priority && project.priority !== filters.priority) {
-              return false;
-            }
-
-            // Dátum szűrés
-            if (filters.dateRange !== 'all') {
-              const projectDate = new Date(project.createdAt);
-              const now = new Date();
-              const daysDiff = (now - projectDate) / (1000 * 60 * 60 * 24);
-
-              if (filters.dateRange === 'today' && daysDiff > 1) return false;
-              if (filters.dateRange === 'week' && daysDiff > 7) return false;
-              if (filters.dateRange === 'month' && daysDiff > 30) return false;
-              if (filters.dateRange === 'quarter' && daysDiff > 90) return false;
-              if (filters.dateRange === 'year' && daysDiff > 365) return false;
-            }
-
-            // Ügyfél szűrés
-            if (filters.client && project.client?.name !== filters.client) {
-              return false;
-            }
-
-            // Költségvetés szűrés
-            if (filters.minBudget && project.financial?.budget?.min < Number(filters.minBudget)) {
-              return false;
-            }
-            if (filters.maxBudget && project.financial?.budget?.max > Number(filters.maxBudget)) {
-              return false;
-            }
-
-            // Számla szűrés
-            if (filters.hasInvoices && (!project.invoices || project.invoices.length === 0)) {
-              return false;
-            }
-
-            return true;
-          });
-
-          setProjects(filteredProjects);
-        }}
+        onFilterChange={applyFilters}
       />
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {projects.map(project => (
+        {filteredProjects.map(project => (
           <div
             key={project._id}
             className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow"
