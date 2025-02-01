@@ -16,7 +16,7 @@ import authMiddleware from './middleware/auth.js';
 import authRoutes from './routes/auth.js';
 import notificationRoutes from './routes/notifications.js';
 import Calculator from './models/Calculator.js';  // Ezt add hozzá
-import accountingRoutes from './routes/accounting.js';
+import accountingRoutes from './routes/accounting.js';  // új import
 
 dotenv.config();
 
