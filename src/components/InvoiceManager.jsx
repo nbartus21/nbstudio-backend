@@ -2,11 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { api } from '../services/auth';
 import Card, { CardHeader, CardTitle, CardContent } from './Card';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Dialog } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Select } from '@/components/ui/select';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const API_URL = 'https://admin.nb-studio.net:5001/api';
 
@@ -15,6 +10,27 @@ const PaidIcon = () => <span className="text-green-500">✓</span>;
 const UnpaidIcon = () => <span className="text-red-500">✘</span>;
 const OverdueIcon = () => <span className="text-yellow-500">⚠</span>;
 const PartialIcon = () => <span className="text-orange-500">~</span>;
+
+// Új Modal komponens
+const Modal = ({ isOpen, onClose, children }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+      <div className="bg-white rounded-lg max-w-lg w-full m-4 p-6">
+        <div className="flex justify-between items-center mb-4">
+          <button
+            onClick={onClose}
+            className="text-gray-500 hover:text-gray-700"
+          >
+            ✕
+          </button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+};
 
 // Új Asset Modal komponens
 const AssetModal = ({ isOpen, onClose, onSave }) => {
@@ -38,52 +54,50 @@ const AssetModal = ({ isOpen, onClose, onSave }) => {
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <div className="p-6">
-        <h2 className="text-2xl font-bold mb-4">Új eszköz hozzáadása</h2>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">Megnevezés</label>
-            <Input
-              value={assetData.name}
-              onChange={(e) => setAssetData({...assetData, name: e.target.value})}
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Típus</label>
-            <Select
-              value={assetData.type}
-              onChange={(e) => setAssetData({...assetData, type: e.target.value})}
-            >
-              <option value="purchase">Vásárlás</option>
-              <option value="rental">Bérlés</option>
-              <option value="subscription">Előfizetés</option>
-              <option value="license">Licensz</option>
-            </Select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Összeg (EUR)</label>
-            <Input
-              type="number"
-              value={assetData.amount}
-              onChange={(e) => setAssetData({...assetData, amount: e.target.value})}
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Dátum</label>
-            <Input
-              type="date"
-              value={assetData.purchaseDate}
-              onChange={(e) => setAssetData({...assetData, purchaseDate: e.target.value})}
-              required
-            />
-          </div>
-          <Button type="submit" className="w-full">Mentés</Button>
-        </form>
-      </div>
-    </Dialog>
+    <Modal isOpen={isOpen} onClose={onClose}>
+      <h2 className="text-2xl font-bold mb-4">Új eszköz hozzáadása</h2>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium mb-1">Megnevezés</label>
+          <input
+            type="text"
+            className="w-full px-3 py-2 border rounded-md"
+            value={assetData.name}
+            onChange={(e) => setAssetData({...assetData, name: e.target.value})}
+            required
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-1">Típus</label>
+          <select
+            className="w-full px-3 py-2 border rounded-md"
+            value={assetData.type}
+            onChange={(e) => setAssetData({...assetData, type: e.target.value})}
+          >
+            <option value="purchase">Vásárlás</option>
+            <option value="rental">Bérlés</option>
+            <option value="subscription">Előfizetés</option>
+            <option value="license">Licensz</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-1">Összeg (EUR)</label>
+          <input
+            type="number"
+            className="w-full px-3 py-2 border rounded-md"
+            value={assetData.amount}
+            onChange={(e) => setAssetData({...assetData, amount: e.target.value})}
+            required
+          />
+        </div>
+        <button
+          type="submit"
+          className="w-full bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600"
+        >
+          Mentés
+        </button>
+      </form>
+    </Modal>
   );
 };
 
@@ -105,45 +119,52 @@ const ExpenseModal = ({ isOpen, onClose, onSave }) => {
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <div className="p-6">
-        <h2 className="text-2xl font-bold mb-4">Új költség hozzáadása</h2>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">Leírás</label>
-            <Input
-              value={expenseData.description}
-              onChange={(e) => setExpenseData({...expenseData, description: e.target.value})}
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Összeg (EUR)</label>
-            <Input
-              type="number"
-              value={expenseData.amount}
-              onChange={(e) => setExpenseData({...expenseData, amount: e.target.value})}
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Kategória</label>
-            <Select
-              value={expenseData.category}
-              onChange={(e) => setExpenseData({...expenseData, category: e.target.value})}
-            >
-              <option value="office">Iroda</option>
-              <option value="travel">Utazás</option>
-              <option value="education">Oktatás</option>
-              <option value="marketing">Marketing</option>
-              <option value="utilities">Rezsi</option>
-              <option value="other">Egyéb</option>
-            </Select>
-          </div>
-          <Button type="submit" className="w-full">Mentés</Button>
-        </form>
-      </div>
-    </Dialog>
+    <Modal isOpen={isOpen} onClose={onClose}>
+      <h2 className="text-2xl font-bold mb-4">Új költség hozzáadása</h2>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium mb-1">Leírás</label>
+          <input
+            type="text"
+            className="w-full px-3 py-2 border rounded-md"
+            value={expenseData.description}
+            onChange={(e) => setExpenseData({...expenseData, description: e.target.value})}
+            required
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-1">Összeg (EUR)</label>
+          <input
+            type="number"
+            className="w-full px-3 py-2 border rounded-md"
+            value={expenseData.amount}
+            onChange={(e) => setExpenseData({...expenseData, amount: e.target.value})}
+            required
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-1">Kategória</label>
+          <select
+            className="w-full px-3 py-2 border rounded-md"
+            value={expenseData.category}
+            onChange={(e) => setExpenseData({...expenseData, category: e.target.value})}
+          >
+            <option value="office">Iroda</option>
+            <option value="travel">Utazás</option>
+            <option value="education">Oktatás</option>
+            <option value="marketing">Marketing</option>
+            <option value="utilities">Rezsi</option>
+            <option value="other">Egyéb</option>
+          </select>
+        </div>
+        <button
+          type="submit"
+          className="w-full bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600"
+        >
+          Mentés
+        </button>
+      </form>
+    </Modal>
   );
 };
 
@@ -334,18 +355,19 @@ const InvoiceManager = () => {
   return (
     <div className="p-6">
       {error && (
-        <Alert variant="destructive" className="mb-6">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+          {error}
+        </div>
       )}
 
+      {/* Fejléc */}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Számla és Könyvelés Kezelő</h1>
         <div className="flex gap-4">
-          <Select
+          <select
             value={selectedYear}
             onChange={(e) => setSelectedYear(e.target.value)}
-            className="w-32"
+            className="px-3 py-2 border rounded-md"
           >
             {[...Array(5)].map((_, i) => {
               const year = new Date().getFullYear() - i;
@@ -355,7 +377,7 @@ const InvoiceManager = () => {
                 </option>
               );
             })}
-          </Select>
+          </select>
         </div>
       </div>
 
@@ -431,12 +453,12 @@ const InvoiceManager = () => {
           <CardHeader>
             <div className="flex justify-between items-center">
               <CardTitle>Eszközök és Licenszek</CardTitle>
-              <Button 
+              <button 
                 onClick={() => setShowAssetModal(true)}
-                size="sm"
+                className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
               >
                 + Új eszköz
-              </Button>
+              </button>
             </div>
           </CardHeader>
           <CardContent>
@@ -470,12 +492,12 @@ const InvoiceManager = () => {
           <CardHeader>
             <div className="flex justify-between items-center">
               <CardTitle>Egyéb Költségek</CardTitle>
-              <Button 
+              <button 
                 onClick={() => setShowExpenseModal(true)}
-                size="sm"
+                className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
               >
                 + Új költség
-              </Button>
+              </button>
             </div>
           </CardHeader>
           <CardContent>
@@ -511,7 +533,9 @@ const InvoiceManager = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Keresés</label>
-              <Input
+              <input
+                type="text"
+                className="w-full px-3 py-2 border rounded-md"
                 value={filters.search}
                 onChange={(e) => setFilters({...filters, search: e.target.value})}
                 placeholder="Projekt vagy ügyfél név..."
@@ -520,7 +544,8 @@ const InvoiceManager = () => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Státusz</label>
-              <Select
+              <select
+                className="w-full px-3 py-2 border rounded-md"
                 value={filters.status}
                 onChange={(e) => setFilters({...filters, status: e.target.value})}
               >
@@ -529,12 +554,13 @@ const InvoiceManager = () => {
                 <option value="fizetett">Fizetett</option>
                 <option value="késedelmes">Késedelmes</option>
                 <option value="részletfizetés">Részletfizetés</option>
-              </Select>
+              </select>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Időszak</label>
-              <Select
+              <select
+                className="w-full px-3 py-2 border rounded-md"
                 value={filters.dateRange}
                 onChange={(e) => setFilters({...filters, dateRange: e.target.value})}
               >
@@ -542,7 +568,7 @@ const InvoiceManager = () => {
                 <option value="week">Elmúlt 7 nap</option>
                 <option value="month">Elmúlt 30 nap</option>
                 <option value="quarter">Elmúlt 90 nap</option>
-              </Select>
+              </select>
             </div>
           </div>
 
@@ -603,25 +629,21 @@ const InvoiceManager = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <Button
-                        variant="ghost"
-                        size="sm"
+                      <button
                         onClick={() => {
                           setSelectedInvoice(invoice);
                           setShowModal(true);
                         }}
-                        className="mr-2"
+                        className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 mr-2"
                       >
                         Részletek
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
+                      </button>
+                      <button
                         onClick={() => deleteInvoice(invoice.projectId, invoice._id)}
-                        className="text-red-600 hover:text-red-900"
+                        className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600"
                       >
                         Törlés
-                      </Button>
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -646,7 +668,7 @@ const InvoiceManager = () => {
 
       {/* Számla részletek modal */}
       {showModal && selectedInvoice && (
-        <Dialog open={showModal} onOpenChange={() => setShowModal(false)}>
+        <Modal isOpen={showModal} onClose={() => setShowModal(false)}>
           <div className="p-6">
             <h2 className="text-2xl font-bold mb-6">Számla Részletek</h2>
             <div className="grid grid-cols-2 gap-8 mb-6">
@@ -663,26 +685,27 @@ const InvoiceManager = () => {
               </div>
             </div>
             <div className="flex justify-end gap-4">
-              <Button
-                variant="destructive"
+              <button
                 onClick={() => {
                   deleteInvoice(selectedInvoice.projectId, selectedInvoice._id);
                   setShowModal(false);
                 }}
+                className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600"
               >
                 Törlés
-              </Button>
-              <Button
+              </button>
+              <button
                 onClick={() => {
                   updateInvoiceStatus(selectedInvoice.projectId, selectedInvoice._id, 'fizetett');
                   setShowModal(false);
                 }}
+                className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
               >
                 Fizetettnek jelölés
-              </Button>
+              </button>
             </div>
           </div>
-        </Dialog>
+        </Modal>
       )}
     </div>
   );
