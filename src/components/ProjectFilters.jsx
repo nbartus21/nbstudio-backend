@@ -12,13 +12,33 @@ const ProjectFilters = ({ projects, onFilterChange }) => {
     hasInvoices: false
   });
 
+  // Amikor változik egy szűrő, hívjuk meg a szülő komponens callback függvényét
+  useEffect(() => {
+    onFilterChange(filters);
+  }, [filters, onFilterChange]);
+
   // Unikális kliensek listájának létrehozása
   const uniqueClients = [...new Set(projects.map(p => p.client?.name))].filter(Boolean);
 
   const handleFilterChange = (key, value) => {
-    const newFilters = { ...filters, [key]: value };
-    setFilters(newFilters);
-    onFilterChange(newFilters);
+    setFilters(prev => ({
+      ...prev,
+      [key]: value
+    }));
+  };
+
+  const resetFilters = () => {
+    const defaultFilters = {
+      search: '',
+      status: '',
+      priority: '',
+      dateRange: 'all',
+      client: '',
+      minBudget: '',
+      maxBudget: '',
+      hasInvoices: false
+    };
+    setFilters(defaultFilters);
   };
 
   return (
@@ -157,20 +177,7 @@ const ProjectFilters = ({ projects, onFilterChange }) => {
       {/* Szűrők törlése gomb */}
       <div className="mt-4 flex justify-end">
         <button
-          onClick={() => {
-            const defaultFilters = {
-              search: '',
-              status: '',
-              priority: '',
-              dateRange: 'all',
-              client: '',
-              minBudget: '',
-              maxBudget: '',
-              hasInvoices: false
-            };
-            setFilters(defaultFilters);
-            onFilterChange(defaultFilters);
-          }}
+          onClick={resetFilters}
           className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
         >
           Szűrők törlése

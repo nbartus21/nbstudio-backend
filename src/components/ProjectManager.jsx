@@ -7,6 +7,7 @@ const API_URL = 'https://admin.nb-studio.net:5001/api';
 
 const ProjectManager = () => {
   const [projects, setProjects] = useState([]);
+  const [filteredProjects, setFilteredProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedProject, setSelectedProject] = useState(null);
