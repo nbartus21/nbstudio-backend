@@ -107,6 +107,104 @@ router.post('/projects/:id/invoices', async (req, res) => {
   }
 });
 
+// Számla státusz frissítése
+router.put('/projects/:projectId/invoices/:invoiceId', async (req, res) => {
+  try {
+    console.log('Számla státusz frissítése');
+    console.log('Projekt ID:', req.params.projectId);
+    console.log('Számla ID:', req.params.invoiceId);
+    console.log('Új státusz:', req.body.status);
+
+    const project = await Project.findById(req.params.projectId);
+    if (!project) {
+      return res.status(404).json({ message: 'Projekt nem található' });
+    }
+
+    const invoiceIndex = project.invoices.findIndex(inv => inv._id.toString() === req.params.invoiceId);
+    if (invoiceIndex === -1) {
+      return res.status(404).json({ message: 'Számla nem található' });
+    }
+
+    // Számla státusz és fizetési adatok frissítése
+    project.invoices[invoiceIndex] = {
+      ...project.invoices[invoiceIndex],
+      status: req.body.status,
+      paidAmount: req.body.status === 'fizetett' ? project.invoices[invoiceIndex].totalAmount : project.invoices[invoiceIndex].paidAmount,
+      paidDate: req.body.status === 'fizetett' ? new Date() : project.invoices[invoiceIndex].paidDate
+    };
+
+    // Projekt mentése
+    const updatedProject = await project.save();
+    console.log('Számla státusz sikeresen frissítve');
+
+    res.json(updatedProject);
+  } catch (error) {
+    console.error('Hiba a számla státusz frissítésekor:', error);
+    res.status(500).json({
+      message: 'Szerver hiba történt a számla státusz frissítésekor',
+      error: error.message
+    });
+  }
+});
+
+// Számla törlése
+router.delete('/projects/:projectId/invoices/:invoiceId', async (req, res) => {
+  try {
+    console.log('Számla törlése');
+    console.log('Projekt ID:', req.params.projectId);
+    console.log('Számla ID:', req.params.invoiceId);
+
+    const project = await Project.findById(req.params.projectId);
+    if (!project) {
+      return res.status(404).json({ message: 'Projekt nem található' });
+    }
+
+    // Számla törlése a tömbből
+    project.invoices = project.invoices.filter(inv => inv._id.toString() !== req.params.invoiceId);
+
+    // Teljes számlázott összeg újraszámolása
+    project.financial.totalBilled = project.invoices.reduce(
+      (sum, invoice) => sum + (invoice.totalAmount || 0),
+      0
+    );
+
+    // Projekt mentése
+    await project.save();
+    console.log('Számla sikeresen törölve');
+
+    res.json({ message: 'Számla sikeresen törölve', project });
+  } catch (error) {
+    console.error('Hiba a számla törlésekor:', error);
+    res.status(500).json({
+      message: 'Szerver hiba történt a számla törlésekor',
+      error: error.message
+    });
+  }
+});
+
+// Számla részleteinek lekérése
+router.get('/projects/:projectId/invoices/:invoiceId', async (req, res) => {
+  try {
+    const project = await Project.findById(req.params.projectId);
+    if (!project) {
+      return res.status(404).json({ message: 'Projekt nem található' });
+    }
+
+    const invoice = project.invoices.find(inv => inv._id.toString() === req.params.invoiceId);
+    if (!invoice) {
+      return res.status(404).json({ message: 'Számla nem található' });
+    }
+
+    res.json(invoice);
+  } catch (error) {
+    res.status(500).json({
+      message: 'Hiba a számla lekérésekor',
+      error: error.message
+    });
+  }
+});
+
+
 // Projekt törlése
 router.delete('/projects/:id', async (req, res) => {
   try {
