@@ -23,13 +23,17 @@ const projectSchema = new mongoose.Schema({
   client: {
     name: { type: String, required: true },
     email: { type: String, required: true },
+    phone: String,
+    companyName: String,
+    taxNumber: String,
+    euVatNumber: String,
+    registrationNumber: String,
     address: {
       street: String,
       city: String,
       postalCode: String,
       country: String
-    },
-    taxNumber: String,
+    }
   },
   // Pénzügyi adatok
   financial: {
