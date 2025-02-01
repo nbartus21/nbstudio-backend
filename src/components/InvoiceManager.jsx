@@ -99,15 +99,47 @@ const InvoiceManager = () => {
       const project = await response.json();
       
       const updatedInvoices = project.invoices.map(inv => 
-        inv._id === invoiceId ? {...inv, status} : inv
+        inv._id === invoiceId 
+          ? {
+              ...inv,
+              status,
+              paidAmount: status === 'fizetett' ? inv.totalAmount : inv.paidAmount,
+              paidDate: status === 'fizetett' ? new Date().toISOString() : inv.paidDate
+            }
+          : inv
       );
-
+  
       await api.put(`${API_URL}/projects/${projectId}`, {
         ...project,
         invoices: updatedInvoices
       });
-
+  
       await fetchInvoices();
+    } catch (error) {
+      setError(error.message);
+    }
+  };
+
+  // Új függvény a számla törléshez
+const deleteInvoice = async (projectId, invoiceId) => {
+    if (!window.confirm('Biztosan törölni szeretné ezt a számlát?')) return;
+  
+    try {
+      const response = await api.get(`${API_URL}/projects/${projectId}`);
+      const project = await response.json();
+      
+      const updatedInvoices = project.invoices.filter(inv => inv._id !== invoiceId);
+  
+      await api.put(`${API_URL}/projects/${projectId}`, {
+        ...project,
+        invoices: updatedInvoices
+      });
+  
+      await fetchInvoices();
+      
+      if (selectedInvoice?._id === invoiceId) {
+        setShowModal(false);
+      }
     } catch (error) {
       setError(error.message);
     }
@@ -338,22 +370,28 @@ const InvoiceManager = () => {
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <button
-                      onClick={() => {
-                        setSelectedInvoice(invoice);
-                        setShowModal(true);
-                      }}
-                      className="text-indigo-600 hover:text-indigo-900 mr-3"
-                    >
-                      Részletek
-                    </button>
-                    <button
-                      onClick={() => updateInvoiceStatus(invoice.projectId, invoice._id, 'fizetett')}
-                      className="text-green-600 hover:text-green-900"
-                    >
-                      Fizetettnek jelöl
-                    </button>
-                  </td>
+  <button
+    onClick={() => {
+      setSelectedInvoice(invoice);
+      setShowModal(true);
+    }}
+    className="text-indigo-600 hover:text-indigo-900 mr-3"
+  >
+    Részletek
+  </button>
+  <button
+    onClick={() => updateInvoiceStatus(invoice.projectId, invoice._id, 'fizetett')}
+    className="text-green-600 hover:text-green-900 mr-3"
+  >
+    Fizetettnek jelöl
+  </button>
+  <button
+    onClick={() => deleteInvoice(invoice.projectId, invoice._id)}
+    className="text-red-600 hover:text-red-900"
+  >
+    Törlés
+  </button>
+</td>
                 </tr>
               );
             })}
@@ -449,22 +487,28 @@ const InvoiceManager = () => {
               </table>
 
               <div className="mt-6 flex justify-end gap-4">
-                <button
-                  onClick={() => setShowModal(false)}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
-                >
-                  Bezárás
-                </button>
-                <button
-                  onClick={() => {
-                    updateInvoiceStatus(selectedInvoice.projectId, selectedInvoice._id, 'fizetett');
-                    setShowModal(false);
-                  }}
-                  className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700"
-                >
-                  Fizetettnek jelölés
-                </button>
-              </div>
+  <button
+    onClick={() => deleteInvoice(selectedInvoice.projectId, selectedInvoice._id)}
+    className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
+  >
+    Számla törlése
+  </button>
+  <button
+    onClick={() => setShowModal(false)}
+    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+  >
+    Bezárás
+  </button>
+  <button
+    onClick={() => {
+      updateInvoiceStatus(selectedInvoice.projectId, selectedInvoice._id, 'fizetett');
+      setShowModal(false);
+    }}
+    className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700"
+  >
+    Fizetettnek jelölés
+  </button>
+</div>
             </div>
           </div>
         </div>
