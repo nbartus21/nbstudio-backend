@@ -16,7 +16,6 @@ import authMiddleware from './middleware/auth.js';
 import authRoutes from './routes/auth.js';
 import notificationRoutes from './routes/notifications.js';
 import Calculator from './models/Calculator.js';  // Ezt add hozzá
-import accountingRoutes from './routes/accounting.js';  // új import
 
 dotenv.config();
 
@@ -157,10 +156,6 @@ app.use('/api', domainRoutes);
 app.use('/api', serverRoutes);
 app.use('/api', licenseRoutes);
 app.use('/api', notificationRoutes);  // <- Ez az új sor
-app.use('/api', accountingRoutes);
-
-
-
 
 // Alap route teszteléshez
 app.get('/', (req, res) => {

@@ -188,6 +188,11 @@ router.delete('/projects/:projectId/invoices/:invoiceId', async (req, res) => {
 
 // Számla részleteinek lekérése
 router.get('/projects/:projectId/invoices/:invoiceId', async (req, res) => {
+  const apiKey = req.headers['x-api-key'];
+  if (apiKey !== 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0') {
+    return res.status(401).json({ message: 'Érvénytelen API kulcs' });
+  }
+
   try {
     const project = await Project.findById(req.params.projectId);
     if (!project) {
