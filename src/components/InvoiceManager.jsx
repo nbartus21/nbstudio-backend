@@ -33,10 +33,9 @@ const InvoiceManager = () => {
   const fetchInvoices = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_URL}/projects`, {
+      const response = await api.get(`${API_URL}/projects`, {
         headers: {
-          'Content-Type': 'application/json',
-          'X-API-Key': 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0'
+          'Authorization': `Bearer ${sessionStorage.getItem('token')}`
         }
       });
       
@@ -106,12 +105,11 @@ const InvoiceManager = () => {
   // Számla státusz frissítése
   const updateInvoiceStatus = async (projectId, invoiceId, status) => {
     try {
-      const response = await api.get(`${API_URL}/projects/${projectId}`, {
+      const response = await api.get(`${API_URL}/api/projects/${projectId}`, {
         headers: {
-            'Content-Type': 'application/json',
-            'X-API-Key': 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0'
-          }
-        });
+          'Authorization': `Bearer ${sessionStorage.getItem('token')}`
+        }
+      });
   
       if (!response.ok) {
         throw new Error('Nem sikerült betölteni a projektet');
@@ -130,15 +128,15 @@ const InvoiceManager = () => {
           : inv
       );
   
-      const updateResponse = await api.put(`${API_URL}/projects/${projectId}`, {
+      const updateResponse = await api.put(`${API_URL}/api/projects/${projectId}`, {
         ...project,
         invoices: updatedInvoices
       }, {
         headers: {
-            'Content-Type': 'application/json',
-            'X-API-Key': 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0'
-          }
-        });
+          'Authorization': `Bearer ${sessionStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
   
       if (!updateResponse.ok) {
         throw new Error('Nem sikerült frissíteni a számlát');
@@ -156,12 +154,11 @@ const InvoiceManager = () => {
     if (!window.confirm('Biztosan törölni szeretné ezt a számlát?')) return;
   
     try {
-      const response = await api.get(`${API_URL}/projects/${projectId}`, {
+      const response = await api.get(`${API_URL}/api/projects/${projectId}`, {
         headers: {
-            'Content-Type': 'application/json',
-            'X-API-Key': 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0'
-          }
-        });
+          'Authorization': `Bearer ${sessionStorage.getItem('token')}`
+        }
+      });
   
       if (!response.ok) {
         throw new Error('Nem sikerült betölteni a projektet');
@@ -170,15 +167,15 @@ const InvoiceManager = () => {
       const project = await response.json();
       const updatedInvoices = project.invoices.filter(inv => inv._id !== invoiceId);
   
-      const updateResponse = await api.put(`${API_URL}/projects/${projectId}`, {
+      const updateResponse = await api.put(`${API_URL}/api/projects/${projectId}`, {
         ...project,
         invoices: updatedInvoices
       }, {
         headers: {
-            'Content-Type': 'application/json',
-            'X-API-Key': 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0'
-          }
-        });
+          'Authorization': `Bearer ${sessionStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
   
       if (!updateResponse.ok) {
         throw new Error('Nem sikerült törölni a számlát');
