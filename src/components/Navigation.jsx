@@ -31,7 +31,8 @@ const Navigation = () => {
       category: "Eszközök",
       items: [
         { path: "/domains", label: "Domain Kezelő" },
-        { path: "/infrastructure", label: "Infrastruktúra Kezelő" }
+        { path: "/infrastructure", label: "Infrastruktúra Kezelő" },
+        { path: "/invoices", label: "Számla Kezelő" }
       ]
     }
   ];

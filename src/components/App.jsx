@@ -10,6 +10,7 @@ import ProjectManager from './ProjectManager';
 import DomainManager from './domain/DomainManager';
 import InfrastructureManager from './InfrastructureManager';
 import SharedProjectView from './SharedProjectView';
+import InvoiceManager from './InvoiceManager';
 
 
 const App = () => {
@@ -93,6 +94,14 @@ const App = () => {
   element={
     <PrivateRoute>
       <InfrastructureManager />
+    </PrivateRoute>
+  }
+/>
+<Route
+  path="/invoices"
+  element={
+    <PrivateRoute>
+      <InvoiceManager />
     </PrivateRoute>
   }
 />
