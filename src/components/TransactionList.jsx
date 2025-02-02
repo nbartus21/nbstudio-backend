@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { format, parseISO } from 'date-fns';
+import { format } from 'date-fns';
 import { hu } from 'date-fns/locale';
 import { Edit, Trash2, FileText, Check, X } from 'lucide-react';
 import TransactionDetailModal from './TransactionDetailModal';
@@ -11,50 +11,19 @@ const TransactionList = ({
   transactions, 
   onEdit, 
   onDelete,
-  onViewDetails,
   selectedYear,
   selectedMonth,
-  fetchTransactions
+  fetchTransactions 
 }) => {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
   const [error, setError] = useState(null);
 
-  // Szűrt tranzakciók számítása
-  const filteredTransactions = useMemo(() => {
-    return transactions.filter(transaction => {
-      try {
-        if (!transaction.date) return false;
-        const date = new Date(transaction.date);
-        if (isNaN(date.getTime())) return false;
-        
-        return (
-          date.getFullYear() === selectedYear &&
-          date.getMonth() + 1 === selectedMonth
-        );
-      } catch (error) {
-        console.error('Date filtering error:', error);
-        return false;
-      }
-    });
-  }, [transactions, selectedYear, selectedMonth]);
-
-  // Helper function for status colors
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'paid':
-        return 'bg-green-100 text-green-800';
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'overdue':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
+  // Bővített kategória lista domain kategóriával
   const categoryNames = {
     project_invoice: 'Projekt számla',
+    invoice_payment: 'Számla befizetés',
+    domain_cost: 'Domain költség',
     server_cost: 'Szerver költség',
     license_cost: 'Licensz költség',
     education: 'Oktatás',
@@ -63,49 +32,37 @@ const TransactionList = ({
     other: 'Egyéb'
   };
 
-  const formatAmount = (amount, type) => {
-    if (!amount || isNaN(amount)) return '0 €';
-    const formattedAmount = Math.abs(Number(amount)).toLocaleString('hu-HU', {
-      style: 'currency',
-      currency: 'EUR'
+  // Szűrt tranzakciók a kiválasztott hónap alapján
+  const filteredTransactions = useMemo(() => {
+    return transactions.filter(transaction => {
+      if (!transaction.date) return false;
+      const transactionDate = new Date(transaction.date);
+      return (
+        transactionDate.getFullYear() === selectedYear &&
+        transactionDate.getMonth() + 1 === selectedMonth
+      );
     });
-    return type === 'income' ? `+${formattedAmount}` : `-${formattedAmount}`;
-  };
+  }, [transactions, selectedYear, selectedMonth]);
 
-  const formatDate = (dateString) => {
+  const handleUpdateStatus = async (transaction) => {
     try {
-      if (!dateString) return '-';
-      const date = typeof dateString === 'string' ? parseISO(dateString) : dateString;
-      if (isNaN(date.getTime())) throw new Error('Invalid date');
-      return format(date, 'yyyy.MM.dd.', { locale: hu });
-    } catch (error) {
-      console.error('Date formatting error:', error);
-      return '-';
-    }
-  };
-
-  // Handle status update
-  const handleUpdateStatus = async (transactionId) => {
-    try {
-      const transaction = transactions.find(t => t._id === transactionId);
-      if (!transaction) {
-        throw new Error('Tranzakció nem található');
+      // Domain tranzakció esetén a domain státuszát is frissítjük
+      if (transaction.category === 'domain_cost' && transaction.domainId) {
+        await api.put(`${API_URL}/domains/${transaction.domainId}`, {
+          paymentStatus: 'paid'
+        });
       }
 
-      const response = await api.put(`${API_URL}/accounting/transactions/${transactionId}`, {
+      // Tranzakció státusz frissítése
+      await api.put(`${API_URL}/accounting/transactions/${transaction._id}`, {
         paymentStatus: 'paid',
         paidAmount: transaction.amount,
         paidDate: new Date().toISOString()
       });
-      
-      if (!response.ok) {
-        throw new Error('Nem sikerült frissíteni a tranzakció státuszát');
-      }
 
       if (fetchTransactions) {
         await fetchTransactions();
       }
-
       setError(null);
     } catch (error) {
       console.error('Hiba a státusz frissítésekor:', error);
@@ -113,30 +70,18 @@ const TransactionList = ({
     }
   };
 
-  const handleSaveDetails = async (formData) => {
+  const handleDelete = async (transaction) => {
     try {
-      const response = await api.put(
-        `${API_URL}/accounting/transactions/${selectedTransaction._id}/details`, 
-        formData,
-        {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        }
-      );
-      
-      if (!response.ok) {
-        throw new Error('Nem sikerült menteni a részleteket');
+      // Ha domain tranzakció, először a domain státuszát állítjuk vissza
+      if (transaction.category === 'domain_cost' && transaction.domainId) {
+        await api.put(`${API_URL}/domains/${transaction.domainId}`, {
+          paymentStatus: 'pending'
+        });
       }
-
-      if (fetchTransactions) {
-        await fetchTransactions();
-      }
-      setShowDetailModal(false);
-      setError(null);
+      await onDelete(transaction._id);
     } catch (error) {
-      console.error('Hiba:', error);
-      setError('Nem sikerült menteni a részleteket');
+      console.error('Hiba a törlés során:', error);
+      setError('Nem sikerült törölni a tételt');
     }
   };
 
@@ -150,32 +95,13 @@ const TransactionList = ({
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
-            <tr>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Dátum
-              </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Kategória
-              </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Leírás
-              </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Összeg
-              </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Státusz
-              </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Műveletek
-              </th>
-            </tr>
+            {/* ... table headers ... */}
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {filteredTransactions.map((transaction) => (
-              <tr key={transaction._id || `${transaction.date}_${transaction.amount}_${Math.random()}`} className="hover:bg-gray-50">
+              <tr key={transaction._id} className="hover:bg-gray-50">
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {formatDate(transaction.date)}
+                  {format(new Date(transaction.date), 'yyyy.MM.dd.', { locale: hu })}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                   {categoryNames[transaction.category] || transaction.category}
@@ -188,18 +114,26 @@ const TransactionList = ({
                         {transaction.invoiceNumber}
                       </span>
                     )}
+                    {transaction.domainId && (
+                      <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                        Domain
+                      </span>
+                    )}
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm">
                   <span className={transaction.type === 'income' ? 'text-green-600' : 'text-red-600'}>
-                    {formatAmount(transaction.amount, transaction.type)}
+                    {transaction.type === 'income' ? '+' : '-'}
+                    {transaction.amount?.toLocaleString()} €
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm">
-                  <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(transaction.paymentStatus)}`}>
+                  <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full 
+                    ${transaction.paymentStatus === 'paid' ? 'bg-green-100 text-green-800' : 
+                      transaction.paymentStatus === 'pending' ? 'bg-yellow-100 text-yellow-800' : 
+                      'bg-red-100 text-red-800'}`}>
                     {transaction.paymentStatus === 'paid' ? 'Fizetve' :
-                     transaction.paymentStatus === 'pending' ? 'Függőben' :
-                     transaction.paymentStatus === 'overdue' ? 'Késedelmes' : 'Törölt'}
+                     transaction.paymentStatus === 'pending' ? 'Függőben' : 'Késedelmes'}
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -214,17 +148,17 @@ const TransactionList = ({
                     Részletek
                   </button>
                   <button
-                    onClick={() => handleUpdateStatus(transaction._id)}
+                    onClick={() => handleUpdateStatus(transaction)}
                     className="text-green-600 hover:text-green-900 mr-3"
                     disabled={transaction.paymentStatus === 'paid'}
                   >
                     <Check className="h-5 w-5 inline-block mr-1" />
-                    Rendezve
+                    {transaction.category === 'domain_cost' ? 'Megújítva' : 'Rendezve'}
                   </button>
                   <button
                     onClick={() => {
                       if (window.confirm('Biztosan törölni szeretnéd ezt a tételt?')) {
-                        onDelete(transaction._id);
+                        handleDelete(transaction);
                       }
                     }}
                     className="text-red-600 hover:text-red-900"
