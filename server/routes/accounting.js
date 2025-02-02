@@ -1,222 +1,119 @@
 import express from 'express';
 import Accounting from '../models/Accounting.js';
-import Project from '../models/Project.js';
+import authMiddleware from '../middleware/auth.js';
 
 const router = express.Router();
 
-// Könyvelési adatok lekérése év alapján
-router.get('/accounting/:year', async (req, res) => {
+// Minden route védelme az authMiddleware-rel
+router.use(authMiddleware);
+
+// Eszközök lekérése
+router.get('/assets', async (req, res) => {
   try {
-    let accounting = await Accounting.findOne({ year: req.params.year });
-    
-    if (!accounting) {
-      // Ha nincs még könyvelés az adott évre, létrehozunk egyet
-      accounting = new Accounting({ year: req.params.year });
-      
-      // Számoljuk ki a bevételeket a projektekből
-      const projects = await Project.find({
-        'invoices.date': {
-          $gte: new Date(req.params.year, 0, 1),
-          $lt: new Date(parseInt(req.params.year) + 1, 0, 1)
-        }
-      });
-
-      // Összesítjük a bevételeket
-      const totalIncome = projects.reduce((sum, project) => {
-        return sum + project.invoices
-          .filter(inv => new Date(inv.date).getFullYear() === parseInt(req.params.year))
-          .reduce((invSum, inv) => invSum + (inv.totalAmount || 0), 0);
-      }, 0);
-
-      accounting.summary.totalIncome = totalIncome;
-      await accounting.save();
-    }
-
-    res.json(accounting);
+    const assets = await Accounting.find({
+      type: { $in: ['equipment', 'software', 'furniture'] }
+    }).sort({ purchaseDate: -1 });
+    res.json(assets);
   } catch (error) {
-    console.error('Hiba a könyvelési adatok lekérésekor:', error);
-    res.status(500).json({ 
-      message: 'Szerver hiba történt',
-      error: error.message 
-    });
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Költségek lekérése
+router.get('/expenses', async (req, res) => {
+  try {
+    const expenses = await Accounting.find({
+      type: { $nin: ['equipment', 'software', 'furniture'] }
+    }).sort({ date: -1 });
+    res.json(expenses);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
 });
 
 // Új eszköz hozzáadása
-router.post('/accounting/assets', async (req, res) => {
+router.post('/assets', async (req, res) => {
   try {
-    const { year, ...assetData } = req.body;
-    let accounting = await Accounting.findOne({ year });
-
-    if (!accounting) {
-      accounting = new Accounting({ year });
-    }
-
-    accounting.assets.push(assetData);
-    await accounting.save();
-
-    res.status(201).json(accounting);
+    const asset = new Accounting({
+      ...req.body,
+      type: req.body.type || 'equipment'
+    });
+    const savedAsset = await asset.save();
+    res.status(201).json(savedAsset);
   } catch (error) {
-    console.error('Hiba az eszköz hozzáadásakor:', error);
-    res.status(400).json({ message: error.message });
-  }
-});
-
-// Eszköz módosítása
-router.put('/accounting/assets/:id', async (req, res) => {
-  try {
-    const { year } = req.body;
-    const accounting = await Accounting.findOne({ year });
-
-    if (!accounting) {
-      return res.status(404).json({ message: 'Könyvelési év nem található' });
-    }
-
-    const assetIndex = accounting.assets.findIndex(
-      asset => asset._id.toString() === req.params.id
-    );
-
-    if (assetIndex === -1) {
-      return res.status(404).json({ message: 'Eszköz nem található' });
-    }
-
-    accounting.assets[assetIndex] = {
-      ...accounting.assets[assetIndex].toObject(),
-      ...req.body
-    };
-
-    await accounting.save();
-    res.json(accounting);
-  } catch (error) {
-    console.error('Hiba az eszköz módosításakor:', error);
-    res.status(400).json({ message: error.message });
-  }
-});
-
-// Eszköz törlése
-router.delete('/accounting/assets/:id', async (req, res) => {
-  try {
-    const { year } = req.query;
-    const accounting = await Accounting.findOne({ year });
-
-    if (!accounting) {
-      return res.status(404).json({ message: 'Könyvelési év nem található' });
-    }
-
-    accounting.assets = accounting.assets.filter(
-      asset => asset._id.toString() !== req.params.id
-    );
-
-    await accounting.save();
-    res.json({ message: 'Eszköz sikeresen törölve' });
-  } catch (error) {
-    console.error('Hiba az eszköz törlésekor:', error);
     res.status(400).json({ message: error.message });
   }
 });
 
 // Új költség hozzáadása
-router.post('/accounting/expenses', async (req, res) => {
+router.post('/expenses', async (req, res) => {
   try {
-    const { year, ...expenseData } = req.body;
-    let accounting = await Accounting.findOne({ year });
-
-    if (!accounting) {
-      accounting = new Accounting({ year });
-    }
-
-    accounting.expenses.push(expenseData);
-    await accounting.save();
-
-    res.status(201).json(accounting);
+    const expense = new Accounting(req.body);
+    const savedExpense = await expense.save();
+    res.status(201).json(savedExpense);
   } catch (error) {
-    console.error('Hiba a költség hozzáadásakor:', error);
+    res.status(400).json({ message: error.message });
+  }
+});
+
+// Eszköz módosítása
+router.put('/assets/:id', async (req, res) => {
+  try {
+    const updatedAsset = await Accounting.findByIdAndUpdate(
+      req.params.id,
+      { $set: req.body },
+      { new: true, runValidators: true }
+    );
+    if (!updatedAsset) {
+      return res.status(404).json({ message: 'Eszköz nem található' });
+    }
+    res.json(updatedAsset);
+  } catch (error) {
     res.status(400).json({ message: error.message });
   }
 });
 
 // Költség módosítása
-router.put('/accounting/expenses/:id', async (req, res) => {
+router.put('/expenses/:id', async (req, res) => {
   try {
-    const { year } = req.body;
-    const accounting = await Accounting.findOne({ year });
-
-    if (!accounting) {
-      return res.status(404).json({ message: 'Könyvelési év nem található' });
-    }
-
-    const expenseIndex = accounting.expenses.findIndex(
-      exp => exp._id.toString() === req.params.id
+    const updatedExpense = await Accounting.findByIdAndUpdate(
+      req.params.id,
+      { $set: req.body },
+      { new: true, runValidators: true }
     );
-
-    if (expenseIndex === -1) {
+    if (!updatedExpense) {
       return res.status(404).json({ message: 'Költség nem található' });
     }
-
-    accounting.expenses[expenseIndex] = {
-      ...accounting.expenses[expenseIndex].toObject(),
-      ...req.body
-    };
-
-    await accounting.save();
-    res.json(accounting);
+    res.json(updatedExpense);
   } catch (error) {
-    console.error('Hiba a költség módosításakor:', error);
     res.status(400).json({ message: error.message });
+  }
+});
+
+// Eszköz törlése
+router.delete('/assets/:id', async (req, res) => {
+  try {
+    const asset = await Accounting.findById(req.params.id);
+    if (!asset) {
+      return res.status(404).json({ message: 'Eszköz nem található' });
+    }
+    await Accounting.deleteOne({ _id: req.params.id });
+    res.json({ message: 'Eszköz sikeresen törölve' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
 });
 
 // Költség törlése
-router.delete('/accounting/expenses/:id', async (req, res) => {
+router.delete('/expenses/:id', async (req, res) => {
   try {
-    const { year } = req.query;
-    const accounting = await Accounting.findOne({ year });
-
-    if (!accounting) {
-      return res.status(404).json({ message: 'Könyvelési év nem található' });
+    const expense = await Accounting.findById(req.params.id);
+    if (!expense) {
+      return res.status(404).json({ message: 'Költség nem található' });
     }
-
-    accounting.expenses = accounting.expenses.filter(
-      exp => exp._id.toString() !== req.params.id
-    );
-
-    await accounting.save();
+    await Accounting.deleteOne({ _id: req.params.id });
     res.json({ message: 'Költség sikeresen törölve' });
   } catch (error) {
-    console.error('Hiba a költség törlésekor:', error);
-    res.status(400).json({ message: error.message });
-  }
-});
-
-// Éves összesítés újraszámolása
-router.post('/accounting/:year/recalculate', async (req, res) => {
-  try {
-    const accounting = await Accounting.findOne({ year: req.params.year });
-    
-    if (!accounting) {
-      return res.status(404).json({ message: 'Könyvelési év nem található' });
-    }
-
-    // Bevételek újraszámolása a projektekből
-    const projects = await Project.find({
-      'invoices.date': {
-        $gte: new Date(req.params.year, 0, 1),
-        $lt: new Date(parseInt(req.params.year) + 1, 0, 1)
-      }
-    });
-
-    const totalIncome = projects.reduce((sum, project) => {
-      return sum + project.invoices
-        .filter(inv => new Date(inv.date).getFullYear() === parseInt(req.params.year))
-        .reduce((invSum, inv) => invSum + (inv.totalAmount || 0), 0);
-    }, 0);
-
-    accounting.summary.totalIncome = totalIncome;
-    await accounting.save();
-
-    res.json(accounting);
-  } catch (error) {
-    console.error('Hiba az újraszámoláskor:', error);
     res.status(500).json({ message: error.message });
   }
 });
