@@ -108,81 +108,49 @@ router.post('/projects/:id/invoices', async (req, res) => {
 });
 
 // Számla státusz frissítése
+// Számla státusz frissítése
 router.put('/projects/:projectId/invoices/:invoiceId', async (req, res) => {
-  const apiKey = req.headers['x-api-key'];
-  if (apiKey !== 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0') {
-    return res.status(401).json({ message: 'Érvénytelen API kulcs' });
-  }
-
   try {
-    console.log('Számla státusz frissítése');
-    console.log('Projekt ID:', req.params.projectId);
-    console.log('Számla ID:', req.params.invoiceId);
-    console.log('Új státusz:', req.body.status);
-
     const project = await Project.findById(req.params.projectId);
     if (!project) {
       return res.status(404).json({ message: 'Projekt nem található' });
     }
 
-    const invoiceIndex = project.invoices.findIndex(inv => inv._id.toString() === req.params.invoiceId);
-    if (invoiceIndex === -1) {
+    const invoice = project.invoices.id(req.params.invoiceId);
+    if (!invoice) {
       return res.status(404).json({ message: 'Számla nem található' });
     }
 
-    project.invoices[invoiceIndex] = {
-      ...project.invoices[invoiceIndex],
-      status: req.body.status,
-      paidAmount: req.body.status === 'fizetett' ? project.invoices[invoiceIndex].totalAmount : project.invoices[invoiceIndex].paidAmount,
-      paidDate: req.body.status === 'fizetett' ? new Date() : project.invoices[invoiceIndex].paidDate
-    };
+    // Státusz frissítése
+    invoice.status = req.body.status;
+    if (req.body.status === 'fizetett') {
+      invoice.paidAmount = invoice.totalAmount;
+      invoice.paidDate = new Date();
+    }
 
-    const updatedProject = await project.save();
-    console.log('Számla státusz sikeresen frissítve');
-
-    res.json(updatedProject);
+    await project.save();
+    res.json(project);
   } catch (error) {
-    console.error('Hiba a számla státusz frissítésekor:', error);
-    res.status(500).json({
-      message: 'Szerver hiba történt a számla státusz frissítésekor',
-      error: error.message
-    });
+    res.status(500).json({ message: error.message });
   }
 });
 
 // Számla törlése
 router.delete('/projects/:projectId/invoices/:invoiceId', async (req, res) => {
-  const apiKey = req.headers['x-api-key'];
-  if (apiKey !== 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0') {
-    return res.status(401).json({ message: 'Érvénytelen API kulcs' });
-  }
-
   try {
-    console.log('Számla törlése');
-    console.log('Projekt ID:', req.params.projectId);
-    console.log('Számla ID:', req.params.invoiceId);
-
     const project = await Project.findById(req.params.projectId);
     if (!project) {
       return res.status(404).json({ message: 'Projekt nem található' });
     }
 
-    project.invoices = project.invoices.filter(inv => inv._id.toString() !== req.params.invoiceId);
-    project.financial.totalBilled = project.invoices.reduce(
-      (sum, invoice) => sum + (invoice.totalAmount || 0),
-      0
+    project.invoices = project.invoices.filter(
+      inv => inv._id.toString() !== req.params.invoiceId
     );
 
     await project.save();
-    console.log('Számla sikeresen törölve');
-
     res.json({ message: 'Számla sikeresen törölve', project });
   } catch (error) {
-    console.error('Hiba a számla törlésekor:', error);
-    res.status(500).json({
-      message: 'Szerver hiba történt a számla törlésekor',
-      error: error.message
-    });
+    res.status(500).json({ message: error.message });
   }
 });
 
