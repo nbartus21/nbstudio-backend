@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { format } from 'date-fns';
 import { hu } from 'date-fns/locale';
-import { Edit, Trash2, FileText } from 'lucide-react';
+import { Edit, Trash2, FileText, Check, X } from 'lucide-react';
+import TransactionDetailModal from './TransactionDetailModal';
 
 const TransactionList = ({ 
   transactions, 
@@ -11,6 +12,10 @@ const TransactionList = ({
   selectedYear,
   selectedMonth 
 }) => {
+  // Új state-ek hozzáadása
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [selectedTransaction, setSelectedTransaction] = useState(null);
+
   // Státusz badge színek
   const getStatusColor = (status) => {
     switch (status) {
@@ -56,6 +61,25 @@ const TransactionList = ({
     } catch (error) {
       console.error('Invalid date format:', date, error);
       return 'Érvénytelen dátum';
+    }
+  };
+
+  // Új kezelő függvények hozzáadása
+  const handleUpdateStatus = async (transactionId, status) => {
+    try {
+      const response = await api.put(`${API_URL}/accounting/transactions/${transactionId}`, {
+        status,
+        completedAt: status === 'completed' ? new Date().toISOString() : null
+      });
+      
+      if (response.ok) {
+        await fetchTransactions();
+        setError(null);
+      } else {
+        throw new Error('Nem sikerült frissíteni a tranzakció státuszát');
+      }
+    } catch (error) {
+      setError(error.message);
     }
   };
 
@@ -116,34 +140,35 @@ const TransactionList = ({
                      transaction.paymentStatus === 'overdue' ? 'Késedelmes' : 'Törölt'}
                   </span>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  <div className="flex items-center space-x-3">
-                    <button
-                      onClick={() => onViewDetails(transaction)}
-                      className="text-blue-600 hover:text-blue-900"
-                      title="Részletek"
-                    >
-                      <FileText className="h-5 w-5" />
-                    </button>
-                    <button
-                      onClick={() => onEdit(transaction)}
-                      className="text-indigo-600 hover:text-indigo-900"
-                      title="Szerkesztés"
-                    >
-                      <Edit className="h-5 w-5" />
-                    </button>
-                    <button
-                      onClick={() => {
-                        if (window.confirm('Biztosan törölni szeretnéd ezt a tételt?')) {
-                          onDelete(transaction._id);
-                        }
-                      }}
-                      className="text-red-600 hover:text-red-900"
-                      title="Törlés"
-                    >
-                      <Trash2 className="h-5 w-5" />
-                    </button>
-                  </div>
+                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                  <button
+                    onClick={() => {
+                      setSelectedTransaction(transaction);
+                      setShowDetailModal(true);
+                    }}
+                    className="text-indigo-600 hover:text-indigo-900 mr-3"
+                  >
+                    <FileText className="h-5 w-5 inline-block mr-1" />
+                    Részletek
+                  </button>
+                  <button
+                    onClick={() => handleUpdateStatus(transaction._id, 'completed')}
+                    className="text-green-600 hover:text-green-900 mr-3"
+                  >
+                    <Check className="h-5 w-5 inline-block mr-1" />
+                    Rendezve
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (window.confirm('Biztosan törölni szeretnéd ezt a tételt?')) {
+                        onDelete(transaction._id);
+                      }
+                    }}
+                    className="text-red-600 hover:text-red-900"
+                  >
+                    <X className="h-5 w-5 inline-block mr-1" />
+                    Törlés
+                  </button>
                 </td>
               </tr>
             ))}
@@ -155,6 +180,16 @@ const TransactionList = ({
         <div className="text-center py-8 text-gray-500">
           Nincs megjeleníthető tranzakció a kiválasztott időszakban.
         </div>
+      )}
+
+      {/* Modális ablak hozzáadása */}
+      {showDetailModal && selectedTransaction && (
+        <TransactionDetailModal
+          isOpen={showDetailModal}
+          onClose={() => setShowDetailModal(false)}
+          transaction={selectedTransaction}
+          onSave={handleSaveDetails}
+        />
       )}
     </div>
   );
