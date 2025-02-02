@@ -421,6 +421,92 @@ const InvoiceManager = () => {
           </tbody>
         </table>
       </div>
+
+      {/* Számla részletek modal */}
+      {showModal && selectedInvoice && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg max-w-4xl w-full p-6 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-semibold">Számla Részletek</h2>
+              <button
+                onClick={() => setShowModal(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-8 mb-6">
+              <div>
+                <h3 className="font-semibold mb-2">Projekt Adatok:</h3>
+                <p className="text-sm">Projekt: {selectedInvoice.projectName}</p>
+                <p className="text-sm">Ügyfél: {selectedInvoice.client?.name}</p>
+                <p className="text-sm">Számla szám: {selectedInvoice.number}</p>
+                <p className="text-sm">Kiállítás dátuma: {new Date(selectedInvoice.date).toLocaleDateString()}</p>
+                <p className="text-sm">Fizetési határidő: {new Date(selectedInvoice.dueDate).toLocaleDateString()}</p>
+              </div>
+
+              <div>
+                <h3 className="font-semibold mb-2">Fizetési Adatok:</h3>
+                <p className="text-sm">Teljes összeg: {selectedInvoice.totalAmount?.toLocaleString()} €</p>
+                <p className="text-sm">Fizetett összeg: {selectedInvoice.paidAmount?.toLocaleString()} €</p>
+                <p className="text-sm">Fennmaradó összeg: {(selectedInvoice.totalAmount - (selectedInvoice.paidAmount || 0)).toLocaleString()} €</p>
+                <p className="text-sm">Státusz: {selectedInvoice.status}</p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <h3 className="font-semibold">Tételek:</h3>
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Megnevezés</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Mennyiség</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Egységár</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Összesen</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {selectedInvoice.items.map((item, index) => (
+                    <tr key={index}>
+                      <td className="px-4 py-2 text-sm">{item.description}</td>
+                      <td className="px-4 py-2 text-sm">{item.quantity}</td>
+                      <td className="px-4 py-2 text-sm">{item.unitPrice?.toLocaleString()} €</td>
+                      <td className="px-4 py-2 text-sm">{item.total?.toLocaleString()} €</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              <div className="mt-6 flex justify-end gap-4">
+                <button
+                  onClick={() => deleteInvoice(selectedInvoice.projectId, selectedInvoice._id)}
+                  className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
+                >
+                  Számla törlése
+                </button>
+                <button
+                  onClick={() => setShowModal(false)}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+                >
+                  Bezárás
+                </button>
+                <button
+                  onClick={() => {
+                    updateInvoiceStatus(selectedInvoice.projectId, selectedInvoice._id, 'fizetett');
+                    setShowModal(false);
+                  }}
+                  className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700"
+                >
+                  Fizetettnek jelölés
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
