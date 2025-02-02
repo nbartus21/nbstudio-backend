@@ -2,6 +2,34 @@ import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import NotificationsManager from './NotificationsManager';
 
+// Újrafelhasználható MenuItem komponens
+const MenuItem = ({ item, isActive }) => (
+  <Link
+    to={item.path}
+    className={`block px-4 py-2 text-sm ${
+      isActive ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-100'
+    }`}
+  >
+    {item.label}
+  </Link>
+);
+
+// Újrafelhasználható MenuCategory komponens
+const MenuCategory = ({ category, items, isActive }) => (
+  <div className="relative group">
+    <button className="px-3 py-2 text-gray-300 hover:text-white">
+      {category}
+    </button>
+    <div className="absolute left-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
+      <div className="py-1">
+        {items.map((item, itemIdx) => (
+          <MenuItem key={itemIdx} item={item} isActive={isActive(item.path)} />
+        ))}
+      </div>
+    </div>
+  </div>
+);
+
 const Navigation = () => {
   const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -22,12 +50,11 @@ const Navigation = () => {
       ]
     },
     {
-        category: "Projektek",
-        items: [
-          { path: "/projects", label: "Projekt kezelő" },
-          { path: "/invoices", label: "Számla Kezelő" }
-
-        ]
+      category: "Projektek",
+      items: [
+        { path: "/projects", label: "Projekt kezelő" },
+        { path: "/invoices", label: "Számla Kezelő" }
+      ]
     },
     {
       category: "Eszközök",
@@ -35,7 +62,6 @@ const Navigation = () => {
         { path: "/domains", label: "Domain Kezelő" },
         { path: "/infrastructure", label: "Infrastruktúra Kezelő" },
         { path: "/accounting", label: "Könyvelés" }
-        
       ]
     }
   ];
@@ -55,46 +81,30 @@ const Navigation = () => {
             <div className="hidden md:block">
               <div className="ml-10 flex items-baseline space-x-8">
                 {menuItems.map((category, idx) => (
-                  <div key={idx} className="relative group">
-                    <button className="px-3 py-2 text-gray-300 hover:text-white">
-                      {category.category}
-                    </button>
-                    <div className="absolute left-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
-                      <div className="py-1">
-                        {category.items.map((item, itemIdx) => (
-                          <Link
-                            key={itemIdx}
-                            to={item.path}
-                            className={`block px-4 py-2 text-sm ${
-                              isActive(item.path)
-                                ? 'bg-gray-100 text-gray-900'
-                                : 'text-gray-700 hover:bg-gray-100'
-                            }`}
-                          >
-                            {item.label}
-                          </Link>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
+                  <MenuCategory
+                    key={idx}
+                    category={category.category}
+                    items={category.items}
+                    isActive={isActive}
+                  />
                 ))}
               </div>
             </div>
           </div>
 
-{/* Notifications and Logout */}
-<div className="flex items-center gap-4">
-  <NotificationsManager />
-  <button
-    onClick={() => {
-      sessionStorage.removeItem('isAuthenticated');
-      window.location.href = '/login';
-    }}
-    className="text-gray-300 hover:bg-gray-700 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
-  >
-    Kijelentkezés
-  </button>
-</div>
+          {/* Notifications and Logout */}
+          <div className="flex items-center gap-4">
+            <NotificationsManager />
+            <button
+              onClick={() => {
+                sessionStorage.removeItem('isAuthenticated');
+                window.location.href = '/login';
+              }}
+              className="text-gray-300 hover:bg-gray-700 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
+            >
+              Kijelentkezés
+            </button>
+          </div>
 
           {/* Mobile menu button */}
           <div className="md:hidden">
@@ -127,17 +137,7 @@ const Navigation = () => {
                   {category.category}
                 </div>
                 {category.items.map((item, itemIdx) => (
-                  <Link
-                    key={itemIdx}
-                    to={item.path}
-                    className={`block px-3 py-2 rounded-md text-base font-medium ${
-                      isActive(item.path)
-                        ? 'bg-gray-900 text-white'
-                        : 'text-gray-300 hover:bg-gray-700 hover:text-white'
-                    }`}
-                  >
-                    {item.label}
-                  </Link>
+                  <MenuItem key={itemIdx} item={item} isActive={isActive(item.path)} />
                 ))}
               </div>
             ))}
@@ -149,5 +149,3 @@ const Navigation = () => {
 };
 
 export default Navigation;
-
-
