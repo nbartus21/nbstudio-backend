@@ -191,7 +191,7 @@ const AccountingManager = () => {
       }, 0);
       stats.invoiceStats.averagePaymentTime = Math.round(totalDays / paidInvoices.length);
     }
-  
+
     return stats;
   };
 
