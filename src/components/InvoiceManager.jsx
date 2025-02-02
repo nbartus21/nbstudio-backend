@@ -102,24 +102,26 @@ const InvoiceManager = () => {
 
   const updateInvoiceStatus = async (projectId, invoiceId, status) => {
     try {
+      // First update the invoice status
       const invoiceResponse = await api.put(`${API_URL}/projects/${projectId}/invoices/${invoiceId}`, {
         status,
         paidAmount: status === 'fizetett' ? selectedInvoice.totalAmount : 0,
         paidDate: status === 'fizetett' ? new Date().toISOString() : null
       });
-
+  
       if (!invoiceResponse.ok) {
-        throw new Error('Nem sikerült frissíteni a számlát');
+        throw new Error('Failed to update invoice status');
       }
-
+  
+      // If marking as paid, create the transaction with correct category
       if (status === 'fizetett') {
         const transactionData = {
           amount: selectedInvoice.totalAmount,
           date: new Date().toISOString(),
           description: `Számla kifizetése: ${selectedInvoice.number}`,
-          type: 'income',  // Explicit kategória beállítása
-          category: 'invoice_payment',  // Dedikált kategória
-          paymentStatus: 'paid',
+          type: 'bevétel',  // Changed from 'income' to Hungarian
+          category: 'számlakifizetés', // Changed from 'invoice_payment'
+          paymentStatus: 'teljesített', // Changed from 'paid'
           invoiceNumber: selectedInvoice.number,
           projectId: projectId,
           metadata: {
@@ -128,22 +130,59 @@ const InvoiceManager = () => {
             clientName: selectedInvoice.client?.name
           }
         };
-
+  
         const transactionResponse = await api.post(`${API_URL}/accounting/transactions`, transactionData);
         
         if (!transactionResponse.ok) {
-          throw new Error('Nem sikerült létrehozni a tranzakciót');
+          // If transaction creation fails, we should log it but not fail the whole operation
+          console.error('Failed to create transaction:', await transactionResponse.text());
         }
       }
-
+  
       await fetchInvoices();
       setShowModal(false);
       setError(null);
     } catch (error) {
-      console.error('Hiba:', error);
-      setError('Nem sikerült frissíteni a számla státuszát: ' + error.message);
+      console.error('Error:', error);
+      setError(`Failed to update invoice status: ${error.message}`);
     }
   };
+  
+  // projects.js route handler improvement
+  router.put('/projects/:projectId/invoices/:invoiceId', async (req, res) => {
+    try {
+      const project = await Project.findById(req.params.projectId);
+      if (!project) {
+        return res.status(404).json({ message: 'Project not found' });
+      }
+  
+      const invoice = project.invoices.id(req.params.invoiceId);
+      if (!invoice) {
+        return res.status(404).json({ message: 'Invoice not found' });
+      }
+  
+      // Update invoice fields
+      Object.assign(invoice, {
+        ...req.body,
+        updatedAt: new Date()
+      });
+  
+      // If marking as paid, ensure proper paid amount and date
+      if (req.body.status === 'fizetett') {
+        invoice.paidAmount = invoice.totalAmount;
+        invoice.paidDate = new Date();
+      }
+  
+      await project.save();
+      res.json(project);
+    } catch (error) {
+      console.error('Invoice update error:', error);
+      res.status(500).json({ 
+        message: 'Server error while updating invoice',
+        error: error.message 
+      });
+    }
+  });
 
   const deleteInvoice = async (projectId, invoiceId) => {
     if (!window.confirm('Biztosan törölni szeretné ezt a számlát?')) return;

@@ -108,21 +108,25 @@ router.post('/projects/:id/invoices', async (req, res) => {
 });
 
 // Számla státusz frissítése
-// Számla státusz frissítése
 router.put('/projects/:projectId/invoices/:invoiceId', async (req, res) => {
   try {
     const project = await Project.findById(req.params.projectId);
     if (!project) {
-      return res.status(404).json({ message: 'Projekt nem található' });
+      return res.status(404).json({ message: 'Project not found' });
     }
 
     const invoice = project.invoices.id(req.params.invoiceId);
     if (!invoice) {
-      return res.status(404).json({ message: 'Számla nem található' });
+      return res.status(404).json({ message: 'Invoice not found' });
     }
 
-    // Státusz frissítése
-    invoice.status = req.body.status;
+    // Update invoice fields
+    Object.assign(invoice, {
+      ...req.body,
+      updatedAt: new Date()
+    });
+
+    // If marking as paid, ensure proper paid amount and date
     if (req.body.status === 'fizetett') {
       invoice.paidAmount = invoice.totalAmount;
       invoice.paidDate = new Date();
@@ -131,7 +135,11 @@ router.put('/projects/:projectId/invoices/:invoiceId', async (req, res) => {
     await project.save();
     res.json(project);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Invoice update error:', error);
+    res.status(500).json({ 
+      message: 'Server error while updating invoice',
+      error: error.message 
+    });
   }
 });
 
