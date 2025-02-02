@@ -104,7 +104,7 @@ const TransactionList = ({
       console.log('FormData tartalom:', Object.fromEntries(formData.entries())); // Debug log
 
       const response = await api.put(
-        `${API_URL}/transactions/${selectedTransaction._id}`, // Eltávolítottuk a /details részt
+        `${API_URL}/accounting/transactions/${selectedTransaction._id}/details`, // Javított útvonal
         formData,
         {
           headers: {
