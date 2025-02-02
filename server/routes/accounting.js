@@ -220,6 +220,60 @@ router.put('/transactions/:id', async (req, res) => {
   }
 });
 
+// Tranzakció részletek frissítése
+router.put('/accounting/transactions/:id/details', async (req, res) => {
+  try {
+    const transaction = await Accounting.findById(req.params.id);
+    if (!transaction) {
+      return res.status(404).json({ message: 'Tranzakció nem található' });
+    }
+
+    // Frissítjük a tranzakció részleteit
+    transaction.paymentStatus = 'paid';
+    transaction.paidDate = req.body.paymentDate || new Date();
+    transaction.paymentMethod = req.body.paymentMethod;
+    transaction.notes = req.body.notes;
+
+    // Ha van csatolt fájl, kezeljük
+    if (req.files && req.files.length > 0) {
+      const attachments = req.files.map(file => ({
+        name: file.originalname,
+        url: file.path, // vagy a tárolt fájl URL-je
+        uploadDate: new Date()
+      }));
+      transaction.attachments = [...(transaction.attachments || []), ...attachments];
+    }
+
+    if (req.body.attachmentDescription) {
+      transaction.attachmentDescription = req.body.attachmentDescription;
+    }
+
+    await transaction.save();
+
+    // Ha ez egy számla, frissítsük a kapcsolódó projekt számlát is
+    if (transaction.invoiceNumber && transaction.projectId) {
+      await Project.updateOne(
+        { 
+          '_id': transaction.projectId,
+          'invoices.number': transaction.invoiceNumber 
+        },
+        { 
+          $set: { 
+            'invoices.$.status': 'fizetett',
+            'invoices.$.paidDate': transaction.paidDate,
+            'invoices.$.paymentMethod': transaction.paymentMethod
+          } 
+        }
+      );
+    }
+
+    res.json(transaction);
+  } catch (error) {
+    console.error('Error updating transaction details:', error);
+    res.status(500).json({ message: 'Hiba történt a részletek mentése során' });
+  }
+});
+
 // Tétel törlése
 router.delete('/transactions/:id', async (req, res) => {
   try {
