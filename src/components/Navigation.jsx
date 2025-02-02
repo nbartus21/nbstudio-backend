@@ -32,7 +32,9 @@ const Navigation = () => {
       items: [
         { path: "/domains", label: "Domain Kezelő" },
         { path: "/infrastructure", label: "Infrastruktúra Kezelő" },
-        { path: "/invoices", label: "Számla Kezelő" }
+        { path: "/invoices", label: "Számla Kezelő" },
+        { path: "/accounting", label: "Könyvelés" }
+        
       ]
     }
   ];

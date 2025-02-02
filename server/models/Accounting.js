@@ -1,108 +1,90 @@
 import mongoose from 'mongoose';
 
-const assetSchema = new mongoose.Schema({
-  name: { type: String, required: true },
+const accountingSchema = new mongoose.Schema({
   type: {
     type: String,
-    enum: ['purchase', 'rental', 'subscription', 'license'],
+    enum: ['servers', 'licenses', 'equipment', 'subscriptions', 'education', 'software', 'rent', 'other'],
     required: true
   },
-  amount: { type: Number, required: true },
-  purchaseDate: { type: Date, required: true },
+  name: {
+    type: String,
+    required: true
+  },
   description: String,
-  depreciationYears: { type: Number, default: 3 }, // Alapértelmezett értékcsökkenési időszak
-  category: {
-    type: String,
-    enum: ['software', 'hardware', 'office', 'education', 'other'],
+  amount: {
+    type: Number,
     required: true
   },
-  status: {
+  currency: {
     type: String,
-    enum: ['active', 'expired', 'deprecated'],
-    default: 'active'
+    default: 'EUR'
   },
-  recurring: { type: Boolean, default: false }, // Ismétlődő költség-e (pl. előfizetések)
-  recurringPeriod: { // Ismétlődési periódus
-    type: String,
-    enum: ['monthly', 'quarterly', 'yearly', 'none'],
-    default: 'none'
-  },
-  nextPaymentDate: Date,
-  attachments: [{
-    name: String,
-    url: String,
-    type: String
-  }],
-  taxDeductible: { type: Boolean, default: true }, // Leírható-e az adóból
-  taxCategory: String, // Adózási kategória
-  notes: String
-});
-
-const expenseSchema = new mongoose.Schema({
-  description: { type: String, required: true },
-  amount: { type: Number, required: true },
-  date: { type: Date, required: true },
-  category: {
-    type: String,
-    enum: ['office', 'travel', 'education', 'marketing', 'utilities', 'other'],
+  date: {
+    type: Date,
     required: true
   },
-  taxDeductible: { type: Boolean, default: true },
+  recurring: {
+    type: Boolean,
+    default: false
+  },
+  interval: {
+    type: String,
+    enum: ['monthly', 'quarterly', 'yearly'],
+    required: function() { return this.recurring; }
+  },
+  // For equipment and assets
+  asset: {
+    purchasePrice: Number,
+    depreciationYears: Number,
+    depreciationStart: Date,
+    residualValue: Number
+  },
+  // For tax purposes
+  taxDeductible: {
+    type: Boolean,
+    default: false
+  },
+  taxCategory: String,
+  invoiceNumber: String,
   attachments: [{
-    name: String,
+    filename: String,
     url: String,
-    type: String
+    uploadDate: Date
   }],
-  notes: String
+  notes: String,
+  createdAt: {
+    type: Date,
+    default: Date.now
+  },
+  updatedAt: {
+    type: Date,
+    default: Date.now
+  }
 });
 
-const accountingSchema = new mongoose.Schema({
-  year: { type: Number, required: true },
-  company: { type: mongoose.Schema.Types.ObjectId, ref: 'Company' },
-  assets: [assetSchema],
-  expenses: [expenseSchema],
-  summary: {
-    totalIncome: { type: Number, default: 0 },
-    totalExpenses: { type: Number, default: 0 },
-    taxableIncome: { type: Number, default: 0 },
-    taxDeductions: { type: Number, default: 0 },
-    estimatedTax: { type: Number, default: 0 }
-  },
-  taxSettings: {
-    taxRate: { type: Number, default: 0.27 }, // 27% alapértelmezett adókulcs
-    vatRate: { type: Number, default: 0.27 }, // 27% ÁFA
-    currency: { type: String, default: 'EUR' }
-  },
-  lastCalculated: { type: Date, default: Date.now },
-  notes: String
-}, {
-  timestamps: true
-});
-
-// Automatikus számítások mentés előtt
+// Update timestamp middleware
 accountingSchema.pre('save', function(next) {
-  // Összegzések frissítése
-  this.summary.totalExpenses = this.expenses.reduce((sum, exp) => sum + exp.amount, 0) +
-    this.assets.reduce((sum, asset) => {
-      if (asset.recurring) {
-        // Ismétlődő költségek éves összege
-        const annualCost = asset.amount * (asset.recurringPeriod === 'monthly' ? 12 : 
-                                         asset.recurringPeriod === 'quarterly' ? 4 : 1);
-        return sum + annualCost;
-      }
-      // Egyszeri költségek esetén az értékcsökkenést számoljuk
-      const depreciation = asset.amount / (asset.depreciationYears || 3);
-      return sum + depreciation;
-    }, 0);
-
-  // Adóalap számítása
-  this.summary.taxableIncome = this.summary.totalIncome - this.summary.totalExpenses;
-  
-  // Becsült adó számítása
-  this.summary.estimatedTax = Math.max(0, this.summary.taxableIncome * this.taxSettings.taxRate);
-  
-  this.lastCalculated = new Date();
+  this.updatedAt = new Date();
   next();
 });
+
+// Method to calculate current depreciation value
+accountingSchema.methods.getCurrentValue = function() {
+  if (!this.asset || !this.asset.purchasePrice) return null;
+
+  const now = new Date();
+  const start = new Date(this.asset.depreciationStart);
+  const yearsPassed = (now - start) / (1000 * 60 * 60 * 24 * 365);
+  
+  if (yearsPassed >= this.asset.depreciationYears) {
+    return this.asset.residualValue;
+  }
+
+  const totalDepreciation = this.asset.purchasePrice - this.asset.residualValue;
+  const yearlyDepreciation = totalDepreciation / this.asset.depreciationYears;
+  const currentValue = this.asset.purchasePrice - (yearlyDepreciation * yearsPassed);
+
+  return Math.max(currentValue, this.asset.residualValue);
+};
 
 export default mongoose.model('Accounting', accountingSchema);

@@ -11,6 +11,7 @@ import DomainManager from './domain/DomainManager';
 import InfrastructureManager from './InfrastructureManager';
 import SharedProjectView from './SharedProjectView';
 import InvoiceManager from './InvoiceManager';
+import AccountingManager from './AccountingManager';
 
 
 const App = () => {
@@ -102,6 +103,14 @@ const App = () => {
   element={
     <PrivateRoute>
       <InvoiceManager />
+    </PrivateRoute>
+  }
+/>
+<Route
+  path="/accounting"
+  element={
+    <PrivateRoute>
+      <AccountingManager />
     </PrivateRoute>
   }
 />
