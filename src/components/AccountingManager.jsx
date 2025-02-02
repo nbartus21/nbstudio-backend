@@ -33,13 +33,12 @@ const AccountingManager = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      // Kiegészített API hívások a domain-ekkel
       const [transactionsRes, projectsRes, statsRes, taxRes, domainsRes] = await Promise.all([
         api.get(`${API_URL}/accounting/transactions?year=${selectedYear}&month=${selectedMonth}`),
         api.get(`${API_URL}/projects`),
         api.get(`${API_URL}/accounting/statistics?year=${selectedYear}&month=${selectedMonth}`),
         api.get(`${API_URL}/accounting/tax-report?year=${selectedYear}`),
-        api.get(`${API_URL}/domains`)  // Domain adatok lekérése
+        api.get(`${API_URL}/domains`)
       ]);
   
       const [transactionsData, projectsData, statsData, taxData, domainsData] = await Promise.all([
@@ -50,29 +49,7 @@ const AccountingManager = () => {
         domainsRes.json()
       ]);
   
-      // Számlák kinyerése a projektekből
-      const projectInvoices = projectsData.flatMap(project => 
-        (project.invoices || []).map(invoice => ({
-          ...invoice,
-          projectId: project._id,
-          projectName: project.name,
-          clientName: project.client?.name,
-          type: 'project_invoice',
-          transactionData: invoice.status === 'fizetett' ? {
-            type: 'income',
-            category: 'invoice_payment',
-            amount: invoice.totalAmount,
-            date: invoice.paidDate,
-            description: `Számla kifizetése: ${invoice.number}`,
-            invoiceNumber: invoice.number,
-            projectId: project._id,
-            projectName: project.name,
-            status: 'completed'
-          } : null
-        }))
-      );
-  
-      // Domain költségek konvertálása tranzakciókká
+      // Domain tranzakciók konvertálása
       const domainTransactions = domainsData.map(domain => ({
         _id: `domain_${domain._id}`,
         type: 'expense',
@@ -87,20 +64,41 @@ const AccountingManager = () => {
         recurringInterval: 'yearly'
       }));
   
-      // Összes tranzakció egyesítése (normál tranzakciók + fizetett számlák + domain költségek)
+      // Számlák kinyerése és szűrése a duplikációk elkerülésére
+      const invoiceTransactions = transactionsData.filter(t => t.invoiceNumber);
+      const invoiceNumbers = new Set(invoiceTransactions.map(t => t.invoiceNumber));
+  
+      // Projekt számlák konvertálása, csak azokat vesszük figyelembe, amik még nincsenek a tranzakciók között
+      const projectInvoices = projectsData.flatMap(project => 
+        (project.invoices || [])
+          .filter(invoice => !invoiceNumbers.has(invoice.number)) // Kiszűrjük a már meglévő számlákat
+          .map(invoice => ({
+            projectId: project._id,
+            projectName: project.name,
+            clientName: project.client?.name,
+            type: 'income',
+            category: 'project_invoice',
+            amount: invoice.totalAmount,
+            date: invoice.date,
+            description: `Számla: ${project.client?.name || 'Ismeretlen ügyfél'}`,
+            invoiceNumber: invoice.number,
+            paymentStatus: invoice.status === 'fizetett' ? 'paid' : 'pending',
+            status: invoice.status
+          }))
+      );
+  
+      // Egyesített tranzakciók lista
       const combinedTransactions = [
         ...transactionsData,
-        ...projectInvoices
-          .filter(inv => inv.status === 'fizetett' && inv.transactionData)
-          .map(inv => inv.transactionData),
+        ...projectInvoices,
         ...domainTransactions
       ];
   
       setTransactions(combinedTransactions);
       setProjects(projectsData);
       
-      // Frissített statisztikák számítása
-      const updatedStats = calculateUpdatedStatistics(combinedTransactions, projectInvoices, domainsData);
+      // Statisztikák számítása
+      const updatedStats = calculateUpdatedStatistics(combinedTransactions, projectsData, domainsData);
       setStatistics(updatedStats);
       setTaxData(taxData);
   
@@ -112,6 +110,7 @@ const AccountingManager = () => {
       setLoading(false);
     }
   };
+  
   
   // Frissített calculateUpdatedStatistics függvény domain támogatással
   const calculateUpdatedStatistics = (transactions, invoices, domains) => {
