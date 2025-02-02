@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import BiometricAuth from './BiometricAuth';
+import { login } from '../services/auth';  // Importáljuk az auth service-t
 
 const Login = () => {
   const navigate = useNavigate();
@@ -8,15 +8,14 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [showBiometricPrompt, setShowBiometricPrompt] = useState(false);
-  const biometricRef = useRef(null); // useRef használata
 
   const handleLogin = async (e) => {
-    if (e) e.preventDefault();
+    e.preventDefault();
     setLoading(true);
     setError('');
 
     try {
+      // Használjuk az API-t a bejelentkezéshez
       const response = await fetch('https://admin.nb-studio.net:5001/api/auth/login', {
         method: 'POST',
         headers: {
@@ -31,16 +30,13 @@ const Login = () => {
         throw new Error(data.message || 'Bejelentkezési hiba');
       }
 
+      // Mentjük a tokent
       sessionStorage.setItem('token', data.token);
       sessionStorage.setItem('isAuthenticated', 'true');
 
-      // Ha még nincs beállítva biometrikus bejelentkezés, felajánljuk
-      const biometricCredential = localStorage.getItem('biometricCredential');
-      if (!biometricCredential && biometricRef.current) { // .current ellenőrzése
-        setShowBiometricPrompt(true);
-      } else {
-        navigate('/blog');
-      }
+      console.log('Login successful, token received');
+      
+      navigate('/blog');
     } catch (err) {
       console.error('Login error:', err);
       setError('Hibás email vagy jelszó!');
@@ -49,13 +45,7 @@ const Login = () => {
     }
   };
 
-  const handleBiometricAuth = async (savedEmail) => {
-    if (savedEmail) {
-      setEmail(savedEmail);
-      await handleLogin();
-    }
-  };
-
+  // Ellenőrizzük, hogy van-e már aktív session
   useEffect(() => {
     const isAuth = sessionStorage.getItem('isAuthenticated');
     const token = sessionStorage.getItem('token');
@@ -73,23 +63,6 @@ const Login = () => {
             Bejelentkezés az admin felületre
           </h2>
         </div>
-
-        <BiometricAuth 
-          ref={biometricRef} // useRef használata
-          onAuthSuccess={handleBiometricAuth} 
-        />
-
-        <div className="relative my-6">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-gray-300"></div>
-          </div>
-          <div className="relative flex justify-center text-sm">
-            <span className="px-2 bg-gray-50 text-gray-500">
-              vagy
-            </span>
-          </div>
-        </div>
-
         <form className="mt-8 space-y-6" onSubmit={handleLogin}>
           <div className="rounded-md shadow-sm space-y-4">
             <div>
@@ -146,42 +119,6 @@ const Login = () => {
             </button>
           </div>
         </form>
-
-        {/* Biometrikus beállítás prompt */}
-        {showBiometricPrompt && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-lg p-6 max-w-sm w-full">
-              <h3 className="text-lg font-medium mb-4">Biometrikus bejelentkezés beállítása</h3>
-              <p className="text-sm text-gray-600 mb-4">
-                Szeretné beállítani a biometrikus bejelentkezést? Így a következő alkalommal 
-                egyszerűbben tud bejelentkezni.
-              </p>
-              <div className="flex justify-end gap-4">
-                <button
-                  onClick={() => {
-                    setShowBiometricPrompt(false);
-                    navigate('/blog');
-                  }}
-                  className="px-4 py-2 text-sm text-gray-600"
-                >
-                  Most nem
-                </button>
-                <button
-                  onClick={async () => {
-                    if (biometricRef.current) { // .current használata
-                      await biometricRef.current.registerBiometric(email);
-                    }
-                    setShowBiometricPrompt(false);
-                    navigate('/blog');
-                  }}
-                  className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
-                >
-                  Beállítás
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
