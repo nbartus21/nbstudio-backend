@@ -231,4 +231,5 @@ const LicenseModal = ({ isOpen, onClose, onSave, license = null }) => {
   );
 };
 
+
 export default LicenseModal;
