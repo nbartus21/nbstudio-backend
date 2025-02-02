@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/auth';
 import { useNavigate } from 'react-router-dom'; // useNavigate helyett useHistory
+import { Card, CardHeader, CardContent, CardTitle } from './Card';  // adjuk meg a helyes útvonalat
 
 const InvoiceManager = () => {
   const [invoices, setInvoices] = useState([]);
