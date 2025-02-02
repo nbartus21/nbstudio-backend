@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { Bell, LogOut, Menu, X } from 'lucide-react';
 import NotificationsManager from './NotificationsManager';
 
 const Navigation = () => {
@@ -22,12 +23,11 @@ const Navigation = () => {
       ]
     },
     {
-        category: "Projektek",
-        items: [
-          { path: "/projects", label: "Projekt kezelő" },
-          { path: "/invoices", label: "Számla Kezelő" }
-
-        ]
+      category: "Projektek",
+      items: [
+        { path: "/projects", label: "Projekt kezelő" },
+        { path: "/invoices", label: "Számla Kezelő" }
+      ]
     },
     {
       category: "Eszközök",
@@ -35,7 +35,6 @@ const Navigation = () => {
         { path: "/domains", label: "Domain Kezelő" },
         { path: "/infrastructure", label: "Infrastruktúra Kezelő" },
         { path: "/accounting", label: "Könyvelés" }
-        
       ]
     }
   ];
@@ -43,94 +42,83 @@ const Navigation = () => {
   const isActive = (path) => location.pathname === path;
 
   return (
-    <nav className="bg-gray-800">
+    <nav className="bg-gray-900 shadow-md">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <span className="text-white text-xl font-bold">NB Studio Admin</span>
-            </div>
-            
-            {/* Desktop Menu */}
-            <div className="hidden md:block">
-              <div className="ml-10 flex items-baseline space-x-8">
-                {menuItems.map((category, idx) => (
-                  <div key={idx} className="relative group">
-                    <button className="px-3 py-2 text-gray-300 hover:text-white">
-                      {category.category}
-                    </button>
-                    <div className="absolute left-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
-                      <div className="py-1">
-                        {category.items.map((item, itemIdx) => (
-                          <Link
-                            key={itemIdx}
-                            to={item.path}
-                            className={`block px-4 py-2 text-sm ${
-                              isActive(item.path)
-                                ? 'bg-gray-100 text-gray-900'
-                                : 'text-gray-700 hover:bg-gray-100'
-                            }`}
-                          >
-                            {item.label}
-                          </Link>
-                        ))}
-                      </div>
-                    </div>
+          
+          {/* Logo */}
+          <div className="text-white text-xl font-bold">NB Studio Admin</div>
+
+          {/* Desktop Menu */}
+          <div className="hidden md:flex space-x-8">
+            {menuItems.map((category, idx) => (
+              <div key={idx} className="relative group">
+                <button className="text-gray-300 hover:text-white transition">
+                  {category.category}
+                </button>
+                <div className="absolute left-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
+                  <div className="py-2">
+                    {category.items.map((item, itemIdx) => (
+                      <Link
+                        key={itemIdx}
+                        to={item.path}
+                        className={`block px-4 py-2 text-sm ${
+                          isActive(item.path)
+                            ? 'bg-gray-200 text-gray-900'
+                            : 'text-gray-700 hover:bg-gray-100'
+                        }`}
+                      >
+                        {item.label}
+                      </Link>
+                    ))}
                   </div>
-                ))}
+                </div>
               </div>
-            </div>
+            ))}
           </div>
 
-{/* Notifications and Logout */}
-<div className="flex items-center gap-4">
-  <NotificationsManager />
-  <button
-    onClick={() => {
-      sessionStorage.removeItem('isAuthenticated');
-      window.location.href = '/login';
-    }}
-    className="text-gray-300 hover:bg-gray-700 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
-  >
-    Kijelentkezés
-  </button>
-</div>
+          {/* Notifications and Logout */}
+          <div className="flex items-center gap-4">
+            <NotificationsManager />
+            <button
+              onClick={() => {
+                sessionStorage.removeItem('isAuthenticated');
+                window.location.href = '/login';
+              }}
+              className="text-gray-300 hover:text-white flex items-center gap-1 transition"
+            >
+              <LogOut size={18} />
+              Kijelentkezés
+            </button>
+          </div>
 
           {/* Mobile menu button */}
           <div className="md:hidden">
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-white hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-white"
+              className="text-gray-300 hover:text-white transition"
             >
-              <span className="sr-only">Főmenü megnyitása</span>
-              {!isMenuOpen ? (
-                <svg className="block h-6 w-6" stroke="currentColor" fill="none" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
-              ) : (
-                <svg className="block h-6 w-6" stroke="currentColor" fill="none" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              )}
+              {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
           </div>
+
         </div>
       </div>
 
       {/* Mobile menu */}
       {isMenuOpen && (
-        <div className="md:hidden">
-          <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
+        <div className="md:hidden bg-gray-800">
+          <div className="px-4 py-3 space-y-1">
             {menuItems.map((category, categoryIdx) => (
               <div key={categoryIdx} className="space-y-1">
-                <div className="px-3 py-2 text-gray-300 font-medium">
+                <div className="text-gray-400 font-semibold uppercase text-sm py-2">
                   {category.category}
                 </div>
                 {category.items.map((item, itemIdx) => (
                   <Link
                     key={itemIdx}
                     to={item.path}
-                    className={`block px-3 py-2 rounded-md text-base font-medium ${
+                    className={`block px-4 py-2 rounded-md text-base font-medium ${
                       isActive(item.path)
                         ? 'bg-gray-900 text-white'
                         : 'text-gray-300 hover:bg-gray-700 hover:text-white'
@@ -149,5 +137,3 @@ const Navigation = () => {
 };
 
 export default Navigation;
-
-
