@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import BiometricAuth from './BiometricAuth';
 
@@ -9,7 +9,7 @@ const Login = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showBiometricPrompt, setShowBiometricPrompt] = useState(false);
-  const [biometricRef, setBiometricRef] = useState(null);
+  const biometricRef = useRef(null); // useRef használata
 
   const handleLogin = async (e) => {
     if (e) e.preventDefault();
@@ -36,7 +36,7 @@ const Login = () => {
 
       // Ha még nincs beállítva biometrikus bejelentkezés, felajánljuk
       const biometricCredential = localStorage.getItem('biometricCredential');
-      if (!biometricCredential && biometricRef) {
+      if (!biometricCredential && biometricRef.current) { // .current ellenőrzése
         setShowBiometricPrompt(true);
       } else {
         navigate('/blog');
@@ -75,7 +75,7 @@ const Login = () => {
         </div>
 
         <BiometricAuth 
-          ref={setBiometricRef}
+          ref={biometricRef} // useRef használata
           onAuthSuccess={handleBiometricAuth} 
         />
 
@@ -168,8 +168,8 @@ const Login = () => {
                 </button>
                 <button
                   onClick={async () => {
-                    if (biometricRef) {
-                      await biometricRef.registerBiometric(email);
+                    if (biometricRef.current) { // .current használata
+                      await biometricRef.current.registerBiometric(email);
                     }
                     setShowBiometricPrompt(false);
                     navigate('/blog');

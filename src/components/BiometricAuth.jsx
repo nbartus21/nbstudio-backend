@@ -1,9 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { Fingerprint } from 'lucide-react';
 
-const BiometricAuth = ({ onAuthSuccess }) => {
+const BiometricAuth = forwardRef(({ onAuthSuccess }, ref) => {
   const [biometricAvailable, setBiometricAvailable] = useState(false);
   const [registeredCredential, setRegisteredCredential] = useState(null);
+
+  useImperativeHandle(ref, () => ({
+    registerBiometric: async (email) => {
+      return await registerBiometric(email);
+    }
+  }));
 
   useEffect(() => {
     // Ellenőrizzük, hogy támogatott-e a WebAuthn
@@ -134,6 +140,6 @@ const BiometricAuth = ({ onAuthSuccess }) => {
       ) : null}
     </div>
   );
-};
+});
 
 export default BiometricAuth;
