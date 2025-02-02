@@ -2,8 +2,172 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, DollarSign, FileText, PieChart } from 'lucide-react';
 import Card from './ui/Card';
 import { api } from '../services/auth';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 const API_URL = 'https://admin.nb-studio.net:5001/api';
+
+// SVG ikonok komponensek
+const PaidIcon = () => <span className="text-green-500">✓</span>;
+const UnpaidIcon = () => <span className="text-red-500">✘</span>;
+const OverdueIcon = () => <span className="text-yellow-500">⚠</span>;
+const PartialIcon = () => <span className="text-orange-500">~</span>;
+
+// Új Modal komponens
+const Modal = ({ isOpen, onClose, children }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+      <div className="bg-white rounded-lg max-w-lg w-full m-4 p-6">
+        <div className="flex justify-between items-center mb-4">
+          <button
+            onClick={onClose}
+            className="text-gray-500 hover:text-gray-700"
+          >
+            ✕
+          </button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+};
+
+// Új Asset Modal komponens
+const AssetModal = ({ isOpen, onClose, onSave }) => {
+  const [assetData, setAssetData] = useState({
+    name: '',
+    type: 'purchase',
+    amount: '',
+    purchaseDate: '',
+    category: 'software',
+    description: '',
+    recurring: false,
+    recurringPeriod: 'none',
+    depreciationYears: 3,
+    taxDeductible: true
+  });
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSave(assetData);
+    onClose();
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose}>
+      <h2 className="text-2xl font-bold mb-4">Új eszköz hozzáadása</h2>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium mb-1">Megnevezés</label>
+          <input
+            type="text"
+            className="w-full px-3 py-2 border rounded-md"
+            value={assetData.name}
+            onChange={(e) => setAssetData({...assetData, name: e.target.value})}
+            required
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-1">Típus</label>
+          <select
+            className="w-full px-3 py-2 border rounded-md"
+            value={assetData.type}
+            onChange={(e) => setAssetData({...assetData, type: e.target.value})}
+          >
+            <option value="purchase">Vásárlás</option>
+            <option value="rental">Bérlés</option>
+            <option value="subscription">Előfizetés</option>
+            <option value="license">Licensz</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-1">Összeg (EUR)</label>
+          <input
+            type="number"
+            className="w-full px-3 py-2 border rounded-md"
+            value={assetData.amount}
+            onChange={(e) => setAssetData({...assetData, amount: e.target.value})}
+            required
+          />
+        </div>
+        <button
+          type="submit"
+          className="w-full bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600"
+        >
+          Mentés
+        </button>
+      </form>
+    </Modal>
+  );
+};
+
+// Új Expense Modal komponens
+const ExpenseModal = ({ isOpen, onClose, onSave }) => {
+  const [expenseData, setExpenseData] = useState({
+    description: '',
+    amount: '',
+    date: '',
+    category: 'office',
+    taxDeductible: true,
+    notes: ''
+  });
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSave(expenseData);
+    onClose();
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose}>
+      <h2 className="text-2xl font-bold mb-4">Új költség hozzáadása</h2>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium mb-1">Leírás</label>
+          <input
+            type="text"
+            className="w-full px-3 py-2 border rounded-md"
+            value={expenseData.description}
+            onChange={(e) => setExpenseData({...expenseData, description: e.target.value})}
+            required
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-1">Összeg (EUR)</label>
+          <input
+            type="number"
+            className="w-full px-3 py-2 border rounded-md"
+            value={expenseData.amount}
+            onChange={(e) => setExpenseData({...expenseData, amount: e.target.value})}
+            required
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-1">Kategória</label>
+          <select
+            className="w-full px-3 py-2 border rounded-md"
+            value={expenseData.category}
+            onChange={(e) => setExpenseData({...expenseData, category: e.target.value})}
+          >
+            <option value="office">Iroda</option>
+            <option value="travel">Utazás</option>
+            <option value="education">Oktatás</option>
+            <option value="marketing">Marketing</option>
+            <option value="utilities">Rezsi</option>
+            <option value="other">Egyéb</option>
+          </select>
+        </div>
+        <button
+          type="submit"
+          className="w-full bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600"
+        >
+          Mentés
+        </button>
+      </form>
+    </Modal>
+  );
+};
 
 const AccountingManager = () => {
   const [activeYear, setActiveYear] = useState(new Date().getFullYear());
@@ -233,6 +397,16 @@ const AccountingManager = () => {
           </div>
         </div>
       </Card>
+
+      {/* Expense Modal */}
+      <ExpenseModal
+        isOpen={showExpenseModal}
+        onClose={() => setShowExpenseModal(false)}
+        onSave={(newExpense) => {
+          setExpenses([...expenses, newExpense]);
+          setShowExpenseModal(false);
+        }}
+      />
     </div>
   );
 };
