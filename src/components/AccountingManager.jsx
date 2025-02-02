@@ -18,6 +18,7 @@ const AccountingManager = () => {
   const [showTransactionModal, setShowTransactionModal] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
   const [transactions, setTransactions] = useState([]);
+  const [projects, setProjects] = useState([]);
   const [statistics, setStatistics] = useState(null);
   const [taxData, setTaxData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -32,21 +33,39 @@ const AccountingManager = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [transactionsRes, statsRes, taxRes] = await Promise.all([
+      const [transactionsRes, statsRes, taxRes, projectsRes] = await Promise.all([
         api.get(`${API_URL}/accounting/transactions?year=${selectedYear}&month=${selectedMonth}`),
         api.get(`${API_URL}/accounting/statistics?year=${selectedYear}&month=${selectedMonth}`),
-        api.get(`${API_URL}/accounting/tax-report?year=${selectedYear}`)
+        api.get(`${API_URL}/accounting/tax-report?year=${selectedYear}`),
+        api.get(`${API_URL}/projects`)
       ]);
 
-      const [transactionsData, statsData, taxData] = await Promise.all([
+      const [transactionsData, statsData, taxData, projectsData] = await Promise.all([
         transactionsRes.json(),
         statsRes.json(),
-        taxRes.json()
+        taxRes.json(),
+        projectsRes.json()
       ]);
 
       setTransactions(transactionsData);
       setStatistics(statsData);
       setTaxData(taxData);
+      setProjects(projectsData);
+
+      // Számlák kinyerése a projektekből
+      const allInvoices = projectsData.flatMap(project => 
+        (project.invoices || []).map(invoice => ({
+          ...invoice,
+          projectId: project._id,
+          projectName: project.name
+        }))
+      );
+
+      // Statisztikák számítása
+      calculateStatistics(allInvoices);
+      // Adójelentés generálása
+      generateTaxReport(allInvoices);
+
       setError(null);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -83,6 +102,59 @@ const AccountingManager = () => {
     } catch (error) {
       setError('Hiba történt a törlés során');
     }
+  };
+
+  // Számla státusz módosítása
+  const handleUpdateStatus = async (projectId, invoiceId, status) => {
+    try {
+      await api.put(`${API_URL}/projects/${projectId}/invoices/${invoiceId}`, { status });
+      await fetchData(); // Adatok újratöltése
+      setSuccess('Számla státusz sikeresen frissítve');
+    } catch (error) {
+      setError('Hiba történt a státusz módosítása során');
+    }
+  };
+
+  // Számla törlése
+  const handleDeleteInvoice = async (projectId, invoiceId) => {
+    if (!window.confirm('Biztosan törli ezt a számlát?')) return;
+    
+    try {
+      await api.delete(`${API_URL}/projects/${projectId}/invoices/${invoiceId}`);
+      await fetchData(); // Adatok újratöltése
+      setSuccess('Számla sikeresen törölve');
+    } catch (error) {
+      setError('Hiba történt a számla törlése során');
+    }
+  };
+
+  // Statisztikák számítása
+  const calculateStatistics = (invoices) => {
+    const stats = {
+      totalIncome: 0,
+      paidAmount: 0,
+      overdueAmount: 0,
+      averagePaymentTime: 0
+    };
+
+    invoices.forEach(invoice => {
+      stats.totalIncome += invoice.totalAmount || 0;
+      stats.paidAmount += invoice.status === 'fizetett' ? invoice.totalAmount : 0;
+      
+      if (new Date(invoice.dueDate) < new Date() && invoice.status !== 'fizetett') {
+        stats.overdueAmount += invoice.totalAmount;
+      }
+    });
+
+    setStatistics(stats);
+  };
+
+  // Adójelentés generálása
+  const generateTaxReport = (invoices) => {
+    // Itt lehet implementálni az adójelentés generálását
+    // Például:
+    const taxReportData = invoices.filter(invoice => invoice.status === 'fizetett');
+    setTaxData(taxReportData);
   };
 
   // Adatok szinkronizálása
