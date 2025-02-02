@@ -8,7 +8,6 @@ const InvoiceManager = () => {
   const [error, setError] = useState(null);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [showModal, setShowModal] = useState(false);
-
   const [filters, setFilters] = useState({
     status: 'all', // Szűrési státusz: 'all', 'fizetett', 'késedelmes', stb.
     search: '', // Keresési kulcs a projekt nevére
@@ -357,6 +356,80 @@ const InvoiceManager = () => {
           </tbody>
         </table>
       </div>
+
+      {/* Fizetési trendek grafikon */}
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle>Fizetési Trendek</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart
+                data={invoices.map(invoice => ({
+                  date: new Date(invoice.date).toLocaleDateString(),
+                  amount: invoice.totalAmount,
+                  paid: invoice.paidAmount || 0
+                }))}
+                margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="date" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Line type="monotone" dataKey="amount" stroke="#6366f1" name="Teljes összeg" />
+                <Line type="monotone" dataKey="paid" stroke="#22c55e" name="Fizetett összeg" />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Számla részletek modal */}
+      {showModal && selectedInvoice && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg max-w-4xl w-full p-6 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-semibold">Számla Részletek</h2>
+              <button
+                onClick={() => setShowModal(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-8 mb-6">
+              <div>
+                <h3 className="font-semibold mb-2">Projekt Adatok:</h3>
+                <p className="text-sm">Projekt: {selectedInvoice.projectName}</p>
+                <p className="text-sm">Ügyfél: {selectedInvoice.client?.name}</p>
+                <p className="text-sm">Számla szám: {selectedInvoice.number}</p>
+                <p className="text-sm">Kiállítás dátuma: {new Date(selectedInvoice.date).toLocaleDateString()}</p>
+                <p className="text-sm">Fizetési határidő: {new Date(selectedInvoice.dueDate).toLocaleDateString()}</p>
+              </div>
+              <div>
+                <h3 className="font-semibold mb-2">Pénzügyi Részletek:</h3>
+                <p className="text-sm">Összeg: {selectedInvoice.totalAmount?.toLocaleString()} €</p>
+                <p className="text-sm">Fizetve: {selectedInvoice.paidAmount?.toLocaleString()} €</p>
+                <p className="text-sm">Hátralék: {(selectedInvoice.totalAmount - selectedInvoice.paidAmount)?.toLocaleString()} €</p>
+              </div>
+            </div>
+
+            <div className="flex justify-end">
+              <button
+                onClick={() => updateInvoiceStatus(selectedInvoice.projectId, selectedInvoice._id, 'fizetett')}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+              >
+                Fizetettnek jelöl
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
