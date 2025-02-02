@@ -402,12 +402,7 @@ const InvoiceManager = () => {
                     >
                       Részletek
                     </button>
-                    <button
-                      onClick={() => updateInvoiceStatus(invoice.projectId, invoice._id, 'fizetett')}
-                      className="text-green-600 hover:text-green-900 mr-3"
-                    >
-                      Fizetettnek jelöl
-                    </button>
+
                     <button
                       onClick={() => deleteInvoice(invoice.projectId, invoice._id)}
                       className="text-red-600 hover:text-red-900"
@@ -492,15 +487,6 @@ const InvoiceManager = () => {
                   className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
                 >
                   Bezárás
-                </button>
-                <button
-                  onClick={() => {
-                    updateInvoiceStatus(selectedInvoice.projectId, selectedInvoice._id, 'fizetett');
-                    setShowModal(false);
-                  }}
-                  className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700"
-                >
-                  Fizetettnek jelölés
                 </button>
               </div>
             </div>
