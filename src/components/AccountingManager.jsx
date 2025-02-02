@@ -317,6 +317,7 @@ const AccountingManager = () => {
               onDelete={handleDeleteTransaction}
               selectedYear={selectedYear}
               selectedMonth={selectedMonth}
+              fetchTransactions={fetchData}  // Add this line
             />
           )}
 
