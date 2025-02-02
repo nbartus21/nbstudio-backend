@@ -157,6 +157,10 @@ app.use('/api', domainRoutes);
 app.use('/api', serverRoutes);
 app.use('/api', licenseRoutes);
 app.use('/api', notificationRoutes);  // <- Ez az új sor
+app.use('/api/accounting', accountingRoutes);
+
+
+
 
 // Alap route teszteléshez
 app.get('/', (req, res) => {
