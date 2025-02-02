@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/auth';
-import { useNavigate } from 'react-router-dom'; // useNavigate helyett useHistory
-import { Card, CardHeader, CardContent, CardTitle } from './Card';  // adjuk meg a helyes útvonalat
+import { useNavigate } from 'react-router-dom';
+import { Card, CardHeader, CardContent, CardTitle } from './Card';
 
 const API_URL = 'https://admin.nb-studio.net:5001/api';
 
@@ -53,7 +53,7 @@ const InvoiceManager = () => {
   const fetchInvoices = async () => {
     try {
       setLoading(true);
-      const response = await api.get('https://admin.nb-studio.net:5001/api/projects');
+      const response = await api.get(`${API_URL}/projects`);
       const projects = await response.json();
       const allInvoices = projects.flatMap(project => 
         (project.invoices || []).map(invoice => ({
@@ -147,42 +147,6 @@ const InvoiceManager = () => {
       setError(`Failed to update invoice status: ${error.message}`);
     }
   };
-  
-  // projects.js route handler improvement
-  router.put('/projects/:projectId/invoices/:invoiceId', async (req, res) => {
-    try {
-      const project = await Project.findById(req.params.projectId);
-      if (!project) {
-        return res.status(404).json({ message: 'Project not found' });
-      }
-  
-      const invoice = project.invoices.id(req.params.invoiceId);
-      if (!invoice) {
-        return res.status(404).json({ message: 'Invoice not found' });
-      }
-  
-      // Update invoice fields
-      Object.assign(invoice, {
-        ...req.body,
-        updatedAt: new Date()
-      });
-  
-      // If marking as paid, ensure proper paid amount and date
-      if (req.body.status === 'fizetett') {
-        invoice.paidAmount = invoice.totalAmount;
-        invoice.paidDate = new Date();
-      }
-  
-      await project.save();
-      res.json(project);
-    } catch (error) {
-      console.error('Invoice update error:', error);
-      res.status(500).json({ 
-        message: 'Server error while updating invoice',
-        error: error.message 
-      });
-    }
-  });
 
   const deleteInvoice = async (projectId, invoiceId) => {
     if (!window.confirm('Biztosan törölni szeretné ezt a számlát?')) return;
