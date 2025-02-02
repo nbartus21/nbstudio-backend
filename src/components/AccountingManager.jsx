@@ -207,7 +207,6 @@ const AccountingManager = () => {
 
   // Adójelentés generálása
   const generateTaxReport = (invoices) => {
-    // Itt lehet implementálni az adójelentés generálását
     const taxReportData = invoices.filter(invoice => invoice.status === 'fizetett');
     setTaxData(taxReportData);
   };
@@ -232,6 +231,20 @@ const AccountingManager = () => {
     link.href = URL.createObjectURL(blob);
     link.download = `konyveles_${selectedYear}_${selectedMonth}.csv`;
     link.click();
+  };
+
+  // Szinkronizálás
+  const handleSync = async () => {
+    try {
+      setLoading(true);
+      await api.post(`${API_URL}/accounting/sync`);
+      await fetchData();
+      setSuccess('Adatok sikeresen szinkronizálva');
+    } catch (error) {
+      setError('Hiba történt a szinkronizálás során');
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (loading) {
@@ -358,7 +371,7 @@ const AccountingManager = () => {
               onDelete={handleDeleteTransaction}
               selectedYear={selectedYear}
               selectedMonth={selectedMonth}
-              fetchTransactions={fetchData}  // Add this line
+              fetchTransactions={fetchData}
             />
           )}
 
