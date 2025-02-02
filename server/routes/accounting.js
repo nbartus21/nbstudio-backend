@@ -204,38 +204,19 @@ router.post('/sync', async (req, res) => {
 });
 
 // Tétel módosítása
-router.put('/transactions/:id', upload.array('files'), async (req, res) => {
+router.put('/transactions/:id', async (req, res) => {
   try {
-    console.log('Received form data:', req.body);
-    console.log('Received files:', req.files);
-
-    const transaction = await Accounting.findById(req.params.id);
-    if (!transaction) {
-      return res.status(404).json({ message: 'Tranzakció nem található' });
+    const updatedTransaction = await Accounting.findByIdAndUpdate(
+      req.params.id,
+      { $set: req.body },
+      { new: true, runValidators: true }
+    );
+    if (!updatedTransaction) {
+      return res.status(404).json({ message: 'Tétel nem található' });
     }
-
-    // Frissítjük a mezőket
-    transaction.paymentMethod = req.body.paymentMethod;
-    transaction.notes = req.body.notes;
-    transaction.paidDate = req.body.paymentDate;
-    transaction.attachmentDescription = req.body.attachmentDescription;
-    transaction.paymentStatus = 'paid';
-
-    // Fájlok kezelése
-    if (req.files?.length > 0) {
-      const newAttachments = req.files.map(file => ({
-        name: file.originalname,
-        url: `/uploads/${file.filename}`,
-        uploadDate: new Date()
-      }));
-      transaction.attachments = [...(transaction.attachments || []), ...newAttachments];
-    }
-
-    await transaction.save();
-    res.json(transaction);
+    res.json(updatedTransaction);
   } catch (error) {
-    console.error('Error:', error);
-    res.status(500).json({ message: error.message });
+    res.status(400).json({ message: error.message });
   }
 });
 
