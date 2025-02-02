@@ -13,7 +13,7 @@ const AccountingStats = ({ statistics, selectedYear, selectedMonth }) => {
 
   // Havi adatok előkészítése
   const monthlyData = Array.from({ length: 12 }, (_, index) => ({
-    name: new Date(2024, index).toLocaleString('hu-HU', { month: 'long' }),
+    name: new Date(selectedYear, index).toLocaleString('hu-HU', { month: 'long' }),
     bevétel: statistics?.monthlyIncomes?.[index] || 0,
     kiadás: statistics?.monthlyExpenses?.[index] || 0
   }));
@@ -25,6 +25,9 @@ const AccountingStats = ({ statistics, selectedYear, selectedMonth }) => {
       value: amount
     }))
     .filter(item => item.value > 0);
+
+  // Ismétlődő költségek előkészítése
+  const recurringExpenses = statistics?.recurringExpenses || [];
 
   return (
     <div className="space-y-6">
@@ -100,28 +103,33 @@ const AccountingStats = ({ statistics, selectedYear, selectedMonth }) => {
         <div className="bg-white p-6 rounded-lg shadow">
           <h3 className="text-lg font-medium mb-4">Költségek kategóriánként</h3>
           <div className="space-y-3">
-            {categoryExpenses.map((expense, index) => (
-              <div key={index} className="flex justify-between items-center p-3 bg-gray-50 rounded">
-                <p className="font-medium">{expense.name}</p>
-                <p className="text-red-600 font-medium">{formatCurrency(expense.value)}</p>
-              </div>
-            ))}
+            {categoryExpenses.length > 0 ? (
+              categoryExpenses.map((expense, index) => (
+                <div key={index} className="flex justify-between items-center p-3 bg-gray-50 rounded">
+                  <p className="font-medium">{expense.name}</p>
+                  <p className="text-red-600 font-medium">{formatCurrency(expense.value)}</p>
+                </div>
+              ))
+            ) : (
+              <p className="text-gray-500 text-center">Nincsenek költségek kategóriánként.</p>
+            )}
           </div>
         </div>
 
         <div className="bg-white p-6 rounded-lg shadow">
           <h3 className="text-lg font-medium mb-4">Ismétlődő költségek</h3>
           <div className="space-y-3">
-            {statistics?.recurringExpenses?.map((expense, index) => (
-              <div key={index} className="flex justify-between items-center p-3 bg-gray-50 rounded">
-                <div>
-                  <p className="font-medium">{expense.name}</p>
-                  <p className="text-sm text-gray-500">{expense.interval}</p>
+            {recurringExpenses.length > 0 ? (
+              recurringExpenses.map((expense, index) => (
+                <div key={index} className="flex justify-between items-center p-3 bg-gray-50 rounded">
+                  <div>
+                    <p className="font-medium">{expense.name}</p>
+                    <p className="text-sm text-gray-500">{expense.interval}</p>
+                  </div>
+                  <p className="text-red-600 font-medium">{formatCurrency(expense.amount)}</p>
                 </div>
-                <p className="text-red-600 font-medium">{formatCurrency(expense.amount)}</p>
-              </div>
-            ))}
-            {(!statistics?.recurringExpenses || statistics.recurringExpenses.length === 0) && (
+              ))
+            ) : (
               <p className="text-gray-500 text-center">Nincsenek ismétlődő költségek</p>
             )}
           </div>
