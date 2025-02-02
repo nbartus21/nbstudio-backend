@@ -24,7 +24,9 @@ const Navigation = () => {
     {
         category: "Projektek",
         items: [
-          { path: "/projects", label: "Projekt kezelő" }
+          { path: "/projects", label: "Projekt kezelő" },
+          { path: "/invoices", label: "Számla Kezelő" }
+
         ]
     },
     {
@@ -32,7 +34,6 @@ const Navigation = () => {
       items: [
         { path: "/domains", label: "Domain Kezelő" },
         { path: "/infrastructure", label: "Infrastruktúra Kezelő" },
-        { path: "/invoices", label: "Számla Kezelő" },
         { path: "/accounting", label: "Könyvelés" }
         
       ]
