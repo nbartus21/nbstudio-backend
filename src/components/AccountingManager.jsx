@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
+import { hu } from 'date-fns/locale';
 import { api } from '../services/auth';
+import { Filter, PlusCircle, Download } from 'lucide-react';
 
 const AccountingManager = () => {
   const [transactions, setTransactions] = useState([]);
@@ -8,6 +10,9 @@ const AccountingManager = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear()); // Aktuális év alapértelmezett
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1); // Aktuális hónap alapértelmezett
+  const [activeTab, setActiveTab] = useState('transactions'); // Aktív fül alapértelmezett
 
   const fetchTransactions = async () => {
     try {
@@ -22,10 +27,6 @@ const AccountingManager = () => {
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    fetchTransactions();
-  }, []);
 
   const calculateStatistics = (transactions) => {
     const stats = {
@@ -72,12 +73,6 @@ const AccountingManager = () => {
     };
   };
 
-  // Adójelentés generálása
-  const generateTaxReport = (invoices) => {
-    const taxReportData = invoices.filter(invoice => invoice.status === 'fizetett');
-    setTaxData(taxReportData);
-  };
-
   // CSV exportálás
   const handleExport = () => {
     const csvContent = [
@@ -105,7 +100,7 @@ const AccountingManager = () => {
     try {
       setLoading(true);
       await api.post(`${API_URL}/accounting/sync`);
-      await fetchData();
+      await fetchTransactions();
       setSuccess('Adatok sikeresen szinkronizálva');
     } catch (error) {
       setError('Hiba történt a szinkronizálás során');
@@ -113,6 +108,10 @@ const AccountingManager = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchTransactions();
+  }, []);
 
   if (loading) {
     return (
@@ -238,7 +237,7 @@ const AccountingManager = () => {
               onDelete={handleDeleteTransaction}
               selectedYear={selectedYear}
               selectedMonth={selectedMonth}
-              fetchTransactions={fetchData}
+              fetchTransactions={fetchTransactions}
             />
           )}
 
@@ -258,19 +257,6 @@ const AccountingManager = () => {
             />
           )}
         </div>
-
-        {/* Tranzakció Modal */}
-        {showTransactionModal && (
-          <TransactionModal
-            isOpen={showTransactionModal}
-            onClose={() => {
-              setShowTransactionModal(false);
-              setSelectedTransaction(null);
-            }}
-            onSave={handleSaveTransaction}
-            transaction={selectedTransaction}
-          />
-        )}
       </div>
     </div>
   );
