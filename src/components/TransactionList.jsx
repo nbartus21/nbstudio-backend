@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { format } from 'date-fns';
+import React, { useState, useMemo } from 'react';
+import { format, parseISO } from 'date-fns';
 import { hu } from 'date-fns/locale';
 import { Edit, Trash2, FileText, Check, X } from 'lucide-react';
 import TransactionDetailModal from './TransactionDetailModal';
@@ -16,10 +16,28 @@ const TransactionList = ({
   selectedMonth,
   fetchTransactions
 }) => {
-  // States
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
   const [error, setError] = useState(null);
+
+  // Szűrt tranzakciók számítása
+  const filteredTransactions = useMemo(() => {
+    return transactions.filter(transaction => {
+      try {
+        if (!transaction.date) return false;
+        const date = new Date(transaction.date);
+        if (isNaN(date.getTime())) return false;
+        
+        return (
+          date.getFullYear() === selectedYear &&
+          date.getMonth() + 1 === selectedMonth
+        );
+      } catch (error) {
+        console.error('Date filtering error:', error);
+        return false;
+      }
+    });
+  }, [transactions, selectedYear, selectedMonth]);
 
   // Helper function for status colors
   const getStatusColor = (status) => {
@@ -35,7 +53,6 @@ const TransactionList = ({
     }
   };
 
-  // Category name translations
   const categoryNames = {
     project_invoice: 'Projekt számla',
     server_cost: 'Szerver költség',
@@ -46,26 +63,24 @@ const TransactionList = ({
     other: 'Egyéb'
   };
 
-  // Format amount with sign
   const formatAmount = (amount, type) => {
-    const formattedAmount = Math.abs(amount).toLocaleString('hu-HU', {
+    if (!amount || isNaN(amount)) return '0 €';
+    const formattedAmount = Math.abs(Number(amount)).toLocaleString('hu-HU', {
       style: 'currency',
       currency: 'EUR'
     });
     return type === 'income' ? `+${formattedAmount}` : `-${formattedAmount}`;
   };
 
-  // Format date with error handling
-  const formatDate = (date) => {
+  const formatDate = (dateString) => {
     try {
-      const parsedDate = new Date(date);
-      if (isNaN(parsedDate)) {
-        throw new Error('Invalid date');
-      }
-      return format(parsedDate, 'yyyy.MM.dd.', { locale: hu });
+      if (!dateString) return '-';
+      const date = typeof dateString === 'string' ? parseISO(dateString) : dateString;
+      if (isNaN(date.getTime())) throw new Error('Invalid date');
+      return format(date, 'yyyy.MM.dd.', { locale: hu });
     } catch (error) {
-      console.error('Invalid date format:', date, error);
-      return 'Érvénytelen dátum';
+      console.error('Date formatting error:', error);
+      return '-';
     }
   };
 
@@ -98,7 +113,6 @@ const TransactionList = ({
     }
   };
 
-  // Handle saving transaction details
   const handleSaveDetails = async (formData) => {
     try {
       const response = await api.put(
@@ -158,13 +172,13 @@ const TransactionList = ({
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {transactions.map((transaction) => (
-              <tr key={transaction._id} className="hover:bg-gray-50">
+            {filteredTransactions.map((transaction) => (
+              <tr key={transaction._id || `${transaction.date}_${transaction.amount}_${Math.random()}`} className="hover:bg-gray-50">
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                   {formatDate(transaction.date)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {categoryNames[transaction.category]}
+                  {categoryNames[transaction.category] || transaction.category}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                   <div className="flex items-center">
@@ -225,7 +239,7 @@ const TransactionList = ({
         </table>
       </div>
 
-      {transactions.length === 0 && (
+      {filteredTransactions.length === 0 && (
         <div className="text-center py-8 text-gray-500">
           Nincs megjeleníthető tranzakció a kiválasztott időszakban.
         </div>
