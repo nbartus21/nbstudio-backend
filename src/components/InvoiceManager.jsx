@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/auth';
-import { useHistory } from 'react-router-dom'; // Az API hívások után navigálni fogunk a megfelelő oldalra
+import { useNavigate } from 'react-router-dom'; // useNavigate helyett
 
 const InvoiceManager = () => {
   const [invoices, setInvoices] = useState([]);
@@ -8,6 +8,8 @@ const InvoiceManager = () => {
   const [error, setError] = useState(null);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [showModal, setShowModal] = useState(false);
+
+  const navigate = useNavigate(); // useHistory() helyett useNavigate()
 
   const fetchInvoices = async () => {
     try {
