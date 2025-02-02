@@ -1,16 +1,17 @@
 import mongoose from 'mongoose';
 
 const accountingSchema = new mongoose.Schema({
+  // Alap adatok
   type: {
     type: String,
-    enum: ['servers', 'licenses', 'equipment', 'subscriptions', 'education', 'software', 'rent', 'other'],
+    enum: ['income', 'expense'],
     required: true
   },
-  name: {
+  category: {
     type: String,
+    enum: ['project_invoice', 'server_cost', 'license_cost', 'education', 'software', 'service', 'other'],
     required: true
   },
-  description: String,
   amount: {
     type: Number,
     required: true
@@ -23,68 +24,86 @@ const accountingSchema = new mongoose.Schema({
     type: Date,
     required: true
   },
-  recurring: {
+  description: String,
+  
+  // Számlázási adatok
+  invoiceNumber: String,
+  paymentStatus: {
+    type: String,
+    enum: ['paid', 'pending', 'overdue', 'cancelled'],
+    default: 'pending'
+  },
+  dueDate: Date,
+
+  // Kapcsolódó elemek
+  projectId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Project'
+  },
+  serverId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Server'
+  },
+  licenseId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'License'
+  },
+
+  // Ismétlődő költség beállításai
+  isRecurring: {
     type: Boolean,
     default: false
   },
-  interval: {
+  recurringInterval: {
     type: String,
     enum: ['monthly', 'quarterly', 'yearly'],
-    required: function() { return this.recurring; }
+    default: 'monthly'
   },
-  // For equipment and assets
-  asset: {
-    purchasePrice: Number,
-    depreciationYears: Number,
-    depreciationStart: Date,
-    residualValue: Number
-  },
-  // For tax purposes
+  nextRecurringDate: Date,
+
+  // Adózási információk
   taxDeductible: {
     type: Boolean,
     default: false
   },
   taxCategory: String,
-  invoiceNumber: String,
+  taxPercentage: Number,
+
+  // Metaadatok
+  notes: String,
   attachments: [{
-    filename: String,
+    name: String,
     url: String,
     uploadDate: Date
   }],
-  notes: String,
-  createdAt: {
-    type: Date,
-    default: Date.now
+  createdBy: String,
+  createdAt: { 
+    type: Date, 
+    default: Date.now 
   },
-  updatedAt: {
-    type: Date,
-    default: Date.now
+  updatedAt: { 
+    type: Date, 
+    default: Date.now 
   }
 });
 
-// Update timestamp middleware
+// Frissítési dátum automatikus beállítása
 accountingSchema.pre('save', function(next) {
   this.updatedAt = new Date();
   next();
 });
 
-// Method to calculate current depreciation value
-accountingSchema.methods.getCurrentValue = function() {
-  if (!this.asset || !this.asset.purchasePrice) return null;
+// Virtual mező a teljes összeghez (adóval)
+accountingSchema.virtual('totalAmount').get(function() {
+  if (!this.taxPercentage) return this.amount;
+  return this.amount * (1 + this.taxPercentage / 100);
+});
 
-  const now = new Date();
-  const start = new Date(this.asset.depreciationStart);
-  const yearsPassed = (now - start) / (1000 * 60 * 60 * 24 * 365);
-  
-  if (yearsPassed >= this.asset.depreciationYears) {
-    return this.asset.residualValue;
-  }
-
-  const totalDepreciation = this.asset.purchasePrice - this.asset.residualValue;
-  const yearlyDepreciation = totalDepreciation / this.asset.depreciationYears;
-  const currentValue = this.asset.purchasePrice - (yearlyDepreciation * yearsPassed);
-
-  return Math.max(currentValue, this.asset.residualValue);
-};
+// Keresési indexek
+accountingSchema.index({ type: 1, date: -1 });
+accountingSchema.index({ category: 1 });
+accountingSchema.index({ paymentStatus: 1 });
+accountingSchema.index({ projectId: 1 });
+accountingSchema.index({ isRecurring: 1, nextRecurringDate: 1 });
 
 export default mongoose.model('Accounting', accountingSchema);
