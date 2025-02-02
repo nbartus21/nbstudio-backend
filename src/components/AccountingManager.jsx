@@ -33,38 +33,54 @@ const AccountingManager = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [transactionsRes, statsRes, taxRes, projectsRes] = await Promise.all([
+      const [transactionsRes, statsRes, taxRes, projectsRes, domainsRes] = await Promise.all([
         api.get(`${API_URL}/accounting/transactions?year=${selectedYear}&month=${selectedMonth}`),
         api.get(`${API_URL}/accounting/statistics?year=${selectedYear}&month=${selectedMonth}`),
         api.get(`${API_URL}/accounting/tax-report?year=${selectedYear}`),
-        api.get(`${API_URL}/projects`)
+        api.get(`${API_URL}/projects`),
+        api.get(`${API_URL}/domains`)  // Domain adatok lekérése
       ]);
 
-      const [transactionsData, statsData, taxData, projectsData] = await Promise.all([
+      const [transactionsData, statsData, taxData, projectsData, domainsData] = await Promise.all([
         transactionsRes.json(),
         statsRes.json(),
         taxRes.json(),
-        projectsRes.json()
+        projectsRes.json(),
+        domainsRes.json()
       ]);
 
-      setTransactions(transactionsData);
-      setStatistics(statsData);
-      setTaxData(taxData);
-      setProjects(projectsData);
-
       // Számlák kinyerése a projektekből
-      const allInvoices = projectsData.flatMap(project => 
+      const projectInvoices = projectsData.flatMap(project => 
         (project.invoices || []).map(invoice => ({
           ...invoice,
           projectId: project._id,
-          projectName: project.name
+          projectName: project.name,
+          type: 'project_invoice'
         }))
       );
 
-      // Statisztikák számítása
-      calculateStatistics(allInvoices);
-      // Adójelentés generálása
-      generateTaxReport(allInvoices);
+      // Domain költségek konvertálása tranzakciókká
+      const domainTransactions = domainsData.map(domain => ({
+        _id: `domain_${domain._id}`,
+        type: 'expense',
+        category: 'domain_cost',
+        amount: domain.cost,
+        date: domain.expiryDate,
+        description: `${domain.name} domain megújítás`,
+        domainId: domain._id,
+        paymentStatus: domain.paymentStatus || 'pending',
+        dueDate: domain.expiryDate,
+        recurring: true,
+        recurringInterval: 'yearly'
+      }));
+
+      // Összes tranzakció egyesítése
+      setTransactions([...transactionsData, ...domainTransactions]);
+      setStatistics(statsData);
+      setTaxData(taxData);
+
+      // Statisztikák újraszámolása
+      calculateStatistics([...projectInvoices, ...domainTransactions]);
 
       setError(null);
     } catch (error) {
@@ -78,6 +94,13 @@ const AccountingManager = () => {
   // Tranzakció mentése/módosítása
   const handleSaveTransaction = async (data) => {
     try {
+      // Ha domain tranzakció, frissítjük a domain fizetési státuszát is
+      if (data.category === 'domain_cost' && data.domainId) {
+        await api.put(`${API_URL}/domains/${data.domainId}`, {
+          paymentStatus: data.paymentStatus
+        });
+      }
+
       if (selectedTransaction) {
         await api.put(`${API_URL}/accounting/transactions/${selectedTransaction._id}`, data);
         setSuccess('Tranzakció sikeresen módosítva');
@@ -85,6 +108,7 @@ const AccountingManager = () => {
         await api.post(`${API_URL}/accounting/transactions`, data);
         setSuccess('Új tranzakció sikeresen hozzáadva');
       }
+      
       await fetchData();
       setShowTransactionModal(false);
       setSelectedTransaction(null);
@@ -96,6 +120,14 @@ const AccountingManager = () => {
   // Tranzakció törlése
   const handleDeleteTransaction = async (id) => {
     try {
+      // Ha domain tranzakció, állítsuk vissza a domain fizetési státuszát pending-re
+      if (id.startsWith('domain_')) {
+        const domainId = id.replace('domain_', '');
+        await api.put(`${API_URL}/domains/${domainId}`, {
+          paymentStatus: 'pending'
+        });
+      }
+
       await api.delete(`${API_URL}/accounting/transactions/${id}`);
       setSuccess('Tranzakció sikeresen törölve');
       await fetchData();
