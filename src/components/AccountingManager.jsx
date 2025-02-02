@@ -136,71 +136,80 @@ const AccountingManager = () => {
     }
   };
 
-  // Számla státusz módosítása
-  const handleUpdateStatus = async (projectId, invoiceId, status) => {
-    try {
-      await api.put(`${API_URL}/projects/${projectId}/invoices/${invoiceId}`, { status });
-      await fetchData(); // Adatok újratöltése
-      setSuccess('Számla státusz sikeresen frissítve');
-    } catch (error) {
-      setError('Hiba történt a státusz módosítása során');
-    }
-  };
-
-  // Számla törlése
-  const handleDeleteInvoice = async (projectId, invoiceId) => {
-    if (!window.confirm('Biztosan törli ezt a számlát?')) return;
-    
-    try {
-      await api.delete(`${API_URL}/projects/${projectId}/invoices/${invoiceId}`);
-      await fetchData(); // Adatok újratöltése
-      setSuccess('Számla sikeresen törölve');
-    } catch (error) {
-      setError('Hiba történt a számla törlése során');
-    }
-  };
-
   // Statisztikák számítása
-  const calculateStatistics = (invoices) => {
+  const calculateStatistics = (transactions) => {
     const stats = {
       totalIncome: 0,
-      paidAmount: 0,
-      overdueAmount: 0,
-      averagePaymentTime: 0
+      totalExpenses: 0,
+      monthlyIncomes: Array(12).fill(0),
+      monthlyExpenses: Array(12).fill(0),
+      expensesByCategory: {},
+      recurringExpenses: []
     };
 
-    invoices.forEach(invoice => {
-      stats.totalIncome += invoice.totalAmount || 0;
-      stats.paidAmount += invoice.status === 'fizetett' ? invoice.totalAmount : 0;
-      
-      if (new Date(invoice.dueDate) < new Date() && invoice.status !== 'fizetett') {
-        stats.overdueAmount += invoice.totalAmount;
+    transactions.forEach(transaction => {
+      const amount = parseFloat(transaction.amount) || 0;
+      const date = new Date(transaction.date);
+      const month = date.getMonth();
+
+      if (transaction.type === 'income') {
+        stats.totalIncome += amount;
+        stats.monthlyIncomes[month] += amount;
+      } else {
+        stats.totalExpenses += amount;
+        stats.monthlyExpenses[month] += amount;
+
+        // Kategória szerinti költségek
+        if (!stats.expensesByCategory[transaction.category]) {
+          stats.expensesByCategory[transaction.category] = 0;
+        }
+        stats.expensesByCategory[transaction.category] += amount;
+
+        // Ismétlődő költségek
+        if (transaction.recurring) {
+          const existingRecurring = stats.recurringExpenses.find(
+            item => item.name === transaction.description
+          );
+          
+          if (!existingRecurring) {
+            stats.recurringExpenses.push({
+              name: transaction.description,
+              amount: amount,
+              interval: transaction.recurringInterval || 'monthly'
+            });
+          }
+        }
       }
     });
 
     setStatistics(stats);
   };
 
+  // Havi statisztikák frissítése
+  const updateMonthlyStats = async (year, month) => {
+    const startDate = new Date(year, month - 1, 1);
+    const endDate = new Date(year, month, 0);
+
+    const transactions = await api.get(
+      `${API_URL}/accounting/transactions?startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}`
+    ).then(res => res.json());
+
+    const stats = calculateStatistics(transactions);
+
+    return {
+      ...stats,
+      summary: {
+        year: parseInt(year),
+        month: parseInt(month)
+      }
+    };
+  };
+
   // Adójelentés generálása
   const generateTaxReport = (invoices) => {
     // Itt lehet implementálni az adójelentés generálását
-    // Például:
     const taxReportData = invoices.filter(invoice => invoice.status === 'fizetett');
     setTaxData(taxReportData);
-  };
-
-  // Adatok szinkronizálása
-  const handleSync = async () => {
-    try {
-      setLoading(true);
-      await api.post(`${API_URL}/accounting/sync`);
-      await fetchData();
-      setSuccess('Adatok sikeresen szinkronizálva');
-    } catch (error) {
-      setError('Hiba történt a szinkronizálás során');
-    } finally {
-      setLoading(false);
-    }
   };
 
   // CSV exportálás
