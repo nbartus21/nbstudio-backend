@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { TabList, Tab } from '@headlessui/react';
 import { format } from 'date-fns';
 import { hu } from 'date-fns/locale';
 import { Download, Filter, PlusCircle } from 'lucide-react';
@@ -200,8 +199,8 @@ const AccountingManager = () => {
 
         {/* Fülek */}
         <div className="mb-6">
-          <TabList className="flex space-x-4 border-b border-gray-200">
-            <Tab
+          <div className="flex space-x-4 border-b border-gray-200">
+            <button
               className={`py-2 px-4 font-medium ${
                 activeTab === 'transactions'
                   ? 'border-b-2 border-blue-500 text-blue-600'
@@ -210,8 +209,8 @@ const AccountingManager = () => {
               onClick={() => setActiveTab('transactions')}
             >
               Tranzakciók
-            </Tab>
-            <Tab
+            </button>
+            <button
               className={`py-2 px-4 font-medium ${
                 activeTab === 'statistics'
                   ? 'border-b-2 border-blue-500 text-blue-600'
@@ -220,8 +219,8 @@ const AccountingManager = () => {
               onClick={() => setActiveTab('statistics')}
             >
               Statisztikák
-            </Tab>
-            <Tab
+            </button>
+            <button
               className={`py-2 px-4 font-medium ${
                 activeTab === 'tax'
                   ? 'border-b-2 border-blue-500 text-blue-600'
@@ -230,8 +229,8 @@ const AccountingManager = () => {
               onClick={() => setActiveTab('tax')}
             >
               Adójelentés
-            </Tab>
-          </TabList>
+            </button>
+          </div>
         </div>
 
         {/* Tartalom */}
