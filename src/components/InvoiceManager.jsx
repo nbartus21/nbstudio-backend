@@ -33,16 +33,8 @@ const InvoiceManager = () => {
   const fetchInvoices = async () => {
     try {
       setLoading(true);
-      const response = await api.get(`${API_URL}/projects`, {
-        headers: {
-          'Authorization': `Bearer ${sessionStorage.getItem('token')}`
-        }
-      });
+      const response = await api.get(`${API_URL}/projects`);
       
-      if (!response.ok) {
-        throw new Error('Nem sikerült betölteni a projekteket');
-      }
-  
       const projects = await response.json();
       const allInvoices = projects.flatMap(project => 
         (project.invoices || []).map(invoice => ({
@@ -54,6 +46,7 @@ const InvoiceManager = () => {
       );
       setInvoices(allInvoices);
       calculateStatistics(allInvoices);
+      setError(null);
     } catch (error) {
       console.error('Hiba:', error);
       setError('Nem sikerült betölteni a számlákat');
@@ -84,7 +77,7 @@ const InvoiceManager = () => {
         stats.overdueAmount += (invoice.totalAmount - (invoice.paidAmount || 0));
       }
 
-      if (invoice.status === 'fizetett') {
+      if (invoice.status === 'fizetett' && invoice.paidDate) {
         const paymentTime = (new Date(invoice.paidDate) - new Date(invoice.date)) / (1000 * 60 * 60 * 24);
         stats.paymentTimes.push(paymentTime);
       }
@@ -102,90 +95,44 @@ const InvoiceManager = () => {
     });
   };
 
-  // Számla státusz frissítése
+  // Módosított számla státusz frissítés
   const updateInvoiceStatus = async (projectId, invoiceId, status) => {
     try {
-      const response = await api.get(`${API_URL}/projects/${projectId}`, {
-        headers: {
-          'Authorization': `Bearer ${sessionStorage.getItem('token')}`
-        }
+      const response = await api.put(`${API_URL}/projects/${projectId}/invoices/${invoiceId}`, {
+        status,
+        paidAmount: status === 'fizetett' ? selectedInvoice.totalAmount : 0,
+        paidDate: status === 'fizetett' ? new Date().toISOString() : null
       });
-  
+
       if (!response.ok) {
-        throw new Error('Nem sikerült betölteni a projektet');
-      }
-  
-      const project = await response.json();
-      
-      const updatedInvoices = project.invoices.map(inv => 
-        inv._id === invoiceId 
-          ? {
-              ...inv,
-              status,
-              paidAmount: status === 'fizetett' ? inv.totalAmount : inv.paidAmount,
-              paidDate: status === 'fizetett' ? new Date().toISOString() : inv.paidDate
-            }
-          : inv
-      );
-  
-      const updateResponse = await api.put(`${API_URL}/projects/${projectId}`, {
-        ...project,
-        invoices: updatedInvoices
-      }, {
-        headers: {
-          'Authorization': `Bearer ${sessionStorage.getItem('token')}`,
-          'Content-Type': 'application/json'
-        }
-      });
-  
-      if (!updateResponse.ok) {
         throw new Error('Nem sikerült frissíteni a számlát');
       }
-  
+
       await fetchInvoices();
+      setShowModal(false);
+      setError(null);
     } catch (error) {
       console.error('Hiba:', error);
       setError('Nem sikerült frissíteni a számla státuszát');
     }
   };
 
-  // Új függvény a számla törléshez
+  // Módosított számla törlés
   const deleteInvoice = async (projectId, invoiceId) => {
     if (!window.confirm('Biztosan törölni szeretné ezt a számlát?')) return;
   
     try {
-      const response = await api.get(`${API_URL}/projects/${projectId}`, {
-        headers: {
-          'Authorization': `Bearer ${sessionStorage.getItem('token')}`
-        }
-      });
-  
+      const response = await api.delete(`${API_URL}/projects/${projectId}/invoices/${invoiceId}`);
+
       if (!response.ok) {
-        throw new Error('Nem sikerült betölteni a projektet');
-      }
-  
-      const project = await response.json();
-      const updatedInvoices = project.invoices.filter(inv => inv._id !== invoiceId);
-  
-      const updateResponse = await api.put(`${API_URL}/projects/${projectId}`, {
-        ...project,
-        invoices: updatedInvoices
-      }, {
-        headers: {
-          'Authorization': `Bearer ${sessionStorage.getItem('token')}`,
-          'Content-Type': 'application/json'
-        }
-      });
-  
-      if (!updateResponse.ok) {
         throw new Error('Nem sikerült törölni a számlát');
       }
-  
+
       await fetchInvoices();
-      
       if (selectedInvoice?._id === invoiceId) {
         setShowModal(false);
       }
+      setError(null);
     } catch (error) {
       console.error('Hiba:', error);
       setError('Nem sikerült törölni a számlát');
