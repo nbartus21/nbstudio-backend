@@ -221,7 +221,7 @@ router.put('/transactions/:id', async (req, res) => {
 });
 
 // Tranzakció részletek frissítése
-router.put('/accounting/transactions/:id/details', async (req, res) => {
+router.put('/transactions/:id/details', async (req, res) => {
   try {
     const transaction = await Accounting.findById(req.params.id);
     if (!transaction) {
