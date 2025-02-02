@@ -101,25 +101,29 @@ const TransactionList = ({
   // Handle saving transaction details
   const handleSaveDetails = async (formData) => {
     try {
+      console.log('Sending formData:', formData); // Debug log
+  
       const response = await api.put(
-        `${API_URL}/accounting/transactions/${selectedTransaction._id}/details`,
-        formData
+        `${API_URL}/transactions/${selectedTransaction._id}/details`,
+        formData,
+        {
+          headers: {
+            // Ne állítsuk be a Content-Type-ot, mert a FormData automatikusan beállítja
+          },
+        }
       );
   
-      if (response.ok) {
-        const data = await response.json();
-        // Frissítjük a tranzakciók listáját
-        if (fetchTransactions) {
-          await fetchTransactions();
-        }
-        setShowDetailModal(false);
-        setError(null);
-      } else {
-        throw new Error('Nem sikerült menteni a részleteket');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Nem sikerült menteni a részleteket');
       }
+  
+      await fetchTransactions();
+      setShowDetailModal(false);
+      setError(null);
     } catch (error) {
       console.error('Hiba:', error);
-      setError('Nem sikerült menteni a részleteket');
+      setError(error.message || 'Nem sikerült menteni a részleteket');
     }
   };
 
