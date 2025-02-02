@@ -45,6 +45,20 @@ const TransactionList = ({
     return type === 'income' ? `+${formattedAmount}` : `-${formattedAmount}`;
   };
 
+  // Dátum formázása hibakezeléssel
+  const formatDate = (date) => {
+    try {
+      const parsedDate = new Date(date);
+      if (isNaN(parsedDate)) {
+        throw new Error('Invalid date');
+      }
+      return format(parsedDate, 'yyyy.MM.dd.', { locale: hu });
+    } catch (error) {
+      console.error('Invalid date format:', date, error);
+      return 'Érvénytelen dátum';
+    }
+  };
+
   return (
     <div className="bg-white rounded-lg shadow overflow-hidden">
       <div className="overflow-x-auto">
@@ -75,7 +89,7 @@ const TransactionList = ({
             {transactions.map((transaction) => (
               <tr key={transaction._id} className="hover:bg-gray-50">
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {format(new Date(transaction.date), 'yyyy.MM.dd.', { locale: hu })}
+                  {formatDate(transaction.date)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                   {categoryNames[transaction.category]}
