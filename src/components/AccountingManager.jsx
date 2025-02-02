@@ -33,21 +33,24 @@ const AccountingManager = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [transactionsRes, projectsRes, statsRes, taxRes] = await Promise.all([
+      // Kiegészített API hívások a domain-ekkel
+      const [transactionsRes, projectsRes, statsRes, taxRes, domainsRes] = await Promise.all([
         api.get(`${API_URL}/accounting/transactions?year=${selectedYear}&month=${selectedMonth}`),
         api.get(`${API_URL}/projects`),
         api.get(`${API_URL}/accounting/statistics?year=${selectedYear}&month=${selectedMonth}`),
-        api.get(`${API_URL}/accounting/tax-report?year=${selectedYear}`)
+        api.get(`${API_URL}/accounting/tax-report?year=${selectedYear}`),
+        api.get(`${API_URL}/domains`)  // Domain adatok lekérése
       ]);
   
-      const [transactionsData, projectsData, statsData, taxData] = await Promise.all([
+      const [transactionsData, projectsData, statsData, taxData, domainsData] = await Promise.all([
         transactionsRes.json(),
         projectsRes.json(),
         statsRes.json(),
-        taxRes.json()
+        taxRes.json(),
+        domainsRes.json()
       ]);
   
-      // Számlák kinyerése a projektekből részletesebb adatokkal
+      // Számlák kinyerése a projektekből
       const projectInvoices = projectsData.flatMap(project => 
         (project.invoices || []).map(invoice => ({
           ...invoice,
@@ -55,7 +58,6 @@ const AccountingManager = () => {
           projectName: project.name,
           clientName: project.client?.name,
           type: 'project_invoice',
-          // Konvertáljuk a számla adatait tranzakció formátumba is
           transactionData: invoice.status === 'fizetett' ? {
             type: 'income',
             category: 'invoice_payment',
@@ -70,19 +72,35 @@ const AccountingManager = () => {
         }))
       );
   
-      // Tranzakciók és számlák kombinálása
+      // Domain költségek konvertálása tranzakciókká
+      const domainTransactions = domainsData.map(domain => ({
+        _id: `domain_${domain._id}`,
+        type: 'expense',
+        category: 'domain_cost',
+        amount: domain.cost,
+        date: domain.expiryDate,
+        description: `${domain.name} domain megújítás`,
+        domainId: domain._id,
+        paymentStatus: domain.paymentStatus || 'pending',
+        dueDate: domain.expiryDate,
+        recurring: true,
+        recurringInterval: 'yearly'
+      }));
+  
+      // Összes tranzakció egyesítése (normál tranzakciók + fizetett számlák + domain költségek)
       const combinedTransactions = [
         ...transactionsData,
         ...projectInvoices
           .filter(inv => inv.status === 'fizetett' && inv.transactionData)
-          .map(inv => inv.transactionData)
+          .map(inv => inv.transactionData),
+        ...domainTransactions
       ];
   
       setTransactions(combinedTransactions);
       setProjects(projectsData);
       
       // Frissített statisztikák számítása
-      const updatedStats = calculateUpdatedStatistics(combinedTransactions, projectInvoices);
+      const updatedStats = calculateUpdatedStatistics(combinedTransactions, projectInvoices, domainsData);
       setStatistics(updatedStats);
       setTaxData(taxData);
   
@@ -95,8 +113,8 @@ const AccountingManager = () => {
     }
   };
   
-  // Frissített statisztika számítás
-  const calculateUpdatedStatistics = (transactions, invoices) => {
+  // Frissített calculateUpdatedStatistics függvény domain támogatással
+  const calculateUpdatedStatistics = (transactions, invoices, domains) => {
     const stats = {
       totalIncome: 0,
       totalExpenses: 0,
@@ -110,6 +128,16 @@ const AccountingManager = () => {
         averagePaymentTime: 0,
         totalCount: invoices.length,
         paidCount: invoices.filter(inv => inv.status === 'fizetett').length
+      },
+      domainStats: {
+        totalDomains: domains.length,
+        totalCost: domains.reduce((sum, domain) => sum + (domain.cost || 0), 0),
+        pendingRenewals: domains.filter(domain => {
+          const expiryDate = new Date(domain.expiryDate);
+          const now = new Date();
+          const daysUntilExpiry = (expiryDate - now) / (1000 * 60 * 60 * 24);
+          return daysUntilExpiry <= 30;
+        }).length
       }
     };
   
