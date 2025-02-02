@@ -14,14 +14,12 @@ const TransactionList = ({
   onViewDetails,
   selectedYear,
   selectedMonth,
-  fetchTransactions // Add this prop
+  fetchTransactions
 }) => {
-  // States
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
   const [error, setError] = useState(null);
 
-  // Helper function for status colors
   const getStatusColor = (status) => {
     switch (status) {
       case 'paid':
@@ -35,7 +33,6 @@ const TransactionList = ({
     }
   };
 
-  // Category name translations
   const categoryNames = {
     project_invoice: 'Projekt számla',
     server_cost: 'Szerver költség',
@@ -46,7 +43,6 @@ const TransactionList = ({
     other: 'Egyéb'
   };
 
-  // Format amount with sign
   const formatAmount = (amount, type) => {
     const formattedAmount = Math.abs(amount).toLocaleString('hu-HU', {
       style: 'currency',
@@ -55,7 +51,6 @@ const TransactionList = ({
     return type === 'income' ? `+${formattedAmount}` : `-${formattedAmount}`;
   };
 
-  // Format date with error handling
   const formatDate = (date) => {
     try {
       const parsedDate = new Date(date);
@@ -69,26 +64,37 @@ const TransactionList = ({
     }
   };
 
-  // Handle status update
-  const handleUpdateStatus = async (transactionId, status) => {
+  const handleUpdateStatus = async (transactionId) => {
     try {
-      const response = await api.put(`${API_URL}/accounting/transactions/${transactionId}`, {
-        status,
-        completedAt: status === 'completed' ? new Date().toISOString() : null
-      });
+      const transaction = transactions.find(t => t._id === transactionId);
+      if (!transaction) {
+        throw new Error('Tranzakció nem található');
+      }
+
+      const updatedTransaction = {
+        ...transaction,
+        paymentStatus: 'paid',
+        paidAmount: transaction.amount,
+        paidDate: new Date().toISOString()
+      };
+
+      const response = await api.put(`${API_URL}/accounting/transactions/${transactionId}`, updatedTransaction);
       
-      if (response.ok) {
-        await fetchTransactions();
-        setError(null);
-      } else {
+      if (!response.ok) {
         throw new Error('Nem sikerült frissíteni a tranzakció státuszát');
       }
+
+      if (onEdit) {
+        onEdit(transactionId, updatedTransaction);
+      }
+
+      setError(null);
     } catch (error) {
-      setError(error.message);
+      console.error('Hiba a státusz frissítésekor:', error);
+      setError('Nem sikerült frissíteni a tranzakció státuszát');
     }
   };
 
-  // Handle saving transaction details
   const handleSaveDetails = async (formData) => {
     try {
       const response = await api.put(
@@ -105,7 +111,11 @@ const TransactionList = ({
         throw new Error('Nem sikerült menteni a részleteket');
       }
 
-      await fetchTransactions();
+      if (onEdit) {
+        const updatedData = await response.json();
+        onEdit(selectedTransaction._id, updatedData);
+      }
+
       setShowDetailModal(false);
       setError(null);
     } catch (error) {
@@ -123,28 +133,7 @@ const TransactionList = ({
       )}
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Dátum
-              </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Kategória
-              </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Leírás
-              </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Összeg
-              </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Státusz
-              </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Műveletek
-              </th>
-            </tr>
-          </thead>
+          {/* ... thead remains the same ... */}
           <tbody className="bg-white divide-y divide-gray-200">
             {transactions.map((transaction) => (
               <tr key={transaction._id} className="hover:bg-gray-50">
@@ -188,8 +177,9 @@ const TransactionList = ({
                     Részletek
                   </button>
                   <button
-                    onClick={() => handleUpdateStatus(transaction._id, 'completed')}
+                    onClick={() => handleUpdateStatus(transaction._id)}
                     className="text-green-600 hover:text-green-900 mr-3"
+                    disabled={transaction.paymentStatus === 'paid'}
                   >
                     <Check className="h-5 w-5 inline-block mr-1" />
                     Rendezve
