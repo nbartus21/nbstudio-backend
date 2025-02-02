@@ -27,17 +27,29 @@ const TransactionDetailModal = ({ isOpen, onClose, transaction, onSave }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
     const formData = new FormData();
     formData.append('paymentDate', paymentDetails.paymentDate);
     formData.append('paymentMethod', paymentDetails.paymentMethod);
-    formData.append('notes', paymentDetails.notes);
-    formData.append('attachmentDescription', paymentDetails.attachmentDescription);
-    paymentDetails.files.forEach(file => {
-      formData.append('files', file);
+    formData.append('notes', paymentDetails.notes || '');
+    formData.append('attachmentDescription', paymentDetails.attachmentDescription || '');
+    
+    // Debug log
+    console.log('Küldés előtt formData tartalma:', {
+      paymentDate: paymentDetails.paymentDate,
+      paymentMethod: paymentDetails.paymentMethod,
+      notes: paymentDetails.notes,
+      attachmentDescription: paymentDetails.attachmentDescription
     });
-
+  
+    // Fájlok hozzáadása
+    if (paymentDetails.files && paymentDetails.files.length > 0) {
+      paymentDetails.files.forEach((file, index) => {
+        formData.append(`files`, file);
+      });
+    }
+  
     await onSave(formData);
-    onClose();
   };
 
   if (!isOpen) return null;

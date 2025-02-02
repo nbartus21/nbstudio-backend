@@ -98,32 +98,35 @@ const TransactionList = ({
     }
   };
 
-  // Handle saving transaction details
+  // New handleSaveDetails function with updated logic
   const handleSaveDetails = async (formData) => {
     try {
-      console.log('Sending formData:', formData); // Debug log
-  
+      console.log('FormData tartalom:', Object.fromEntries(formData.entries())); // Debug log
+
       const response = await api.put(
-        `${API_URL}/transactions/${selectedTransaction._id}/details`,
+        `${API_URL}/transactions/${selectedTransaction._id}`, // Eltávolítottuk a /details részt
         formData,
         {
           headers: {
-            // Ne állítsuk be a Content-Type-ot, mert a FormData automatikusan beállítja
+            // Hagyjuk, hogy a FormData állítsa be a határokat
+            // 'Content-Type': 'multipart/form-data' - ezt NE állítsuk be
           },
         }
       );
-  
+
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = await response.json().catch(() => ({ message: 'Ismeretlen hiba' }));
         throw new Error(errorData.message || 'Nem sikerült menteni a részleteket');
       }
-  
-      await fetchTransactions();
+
+      if (fetchTransactions) {
+        await fetchTransactions();
+      }
       setShowDetailModal(false);
       setError(null);
     } catch (error) {
       console.error('Hiba:', error);
-      setError(error.message || 'Nem sikerült menteni a részleteket');
+      setError('Nem sikerült menteni a részleteket: ' + error.message);
     }
   };
 
