@@ -17,6 +17,10 @@ import authRoutes from './routes/auth.js';
 import notificationRoutes from './routes/notifications.js';
 import Calculator from './models/Calculator.js';  // Ezt add hozzá
 import accountingRoutes from './routes/accounting.js';
+import biometricRoutes from './routes/biometric.js';
+
+
+
 
 dotenv.config();
 
@@ -158,6 +162,8 @@ app.use('/api', serverRoutes);
 app.use('/api', licenseRoutes);
 app.use('/api', notificationRoutes);  // <- Ez az új sor
 app.use('/api/accounting', accountingRoutes);
+app.use('/api', biometricRoutes);
+
 
 
 
