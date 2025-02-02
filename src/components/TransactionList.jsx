@@ -3,6 +3,9 @@ import { format } from 'date-fns';
 import { hu } from 'date-fns/locale';
 import { Edit, Trash2, FileText, Check, X } from 'lucide-react';
 import TransactionDetailModal from './TransactionDetailModal';
+import { api } from '../services/auth';
+
+const API_URL = 'https://admin.nb-studio.net:5001/api';
 
 const TransactionList = ({ 
   transactions, 
@@ -10,13 +13,15 @@ const TransactionList = ({
   onDelete,
   onViewDetails,
   selectedYear,
-  selectedMonth 
+  selectedMonth,
+  fetchTransactions // Add this prop
 }) => {
-  // Új state-ek hozzáadása
+  // States
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
+  const [error, setError] = useState(null);
 
-  // Státusz badge színek
+  // Helper function for status colors
   const getStatusColor = (status) => {
     switch (status) {
       case 'paid':
@@ -30,7 +35,7 @@ const TransactionList = ({
     }
   };
 
-  // Kategória nevek magyarítása
+  // Category name translations
   const categoryNames = {
     project_invoice: 'Projekt számla',
     server_cost: 'Szerver költség',
@@ -41,7 +46,7 @@ const TransactionList = ({
     other: 'Egyéb'
   };
 
-  // Formázott összeg előjellel
+  // Format amount with sign
   const formatAmount = (amount, type) => {
     const formattedAmount = Math.abs(amount).toLocaleString('hu-HU', {
       style: 'currency',
@@ -50,7 +55,7 @@ const TransactionList = ({
     return type === 'income' ? `+${formattedAmount}` : `-${formattedAmount}`;
   };
 
-  // Dátum formázása hibakezeléssel
+  // Format date with error handling
   const formatDate = (date) => {
     try {
       const parsedDate = new Date(date);
@@ -64,7 +69,7 @@ const TransactionList = ({
     }
   };
 
-  // Új kezelő függvények hozzáadása
+  // Handle status update
   const handleUpdateStatus = async (transactionId, status) => {
     try {
       const response = await api.put(`${API_URL}/accounting/transactions/${transactionId}`, {
@@ -83,8 +88,39 @@ const TransactionList = ({
     }
   };
 
+  // Handle saving transaction details
+  const handleSaveDetails = async (formData) => {
+    try {
+      const response = await api.put(
+        `${API_URL}/accounting/transactions/${selectedTransaction._id}/details`, 
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        }
+      );
+      
+      if (!response.ok) {
+        throw new Error('Nem sikerült menteni a részleteket');
+      }
+
+      await fetchTransactions();
+      setShowDetailModal(false);
+      setError(null);
+    } catch (error) {
+      console.error('Hiba:', error);
+      setError('Nem sikerült menteni a részleteket');
+    }
+  };
+
   return (
     <div className="bg-white rounded-lg shadow overflow-hidden">
+      {error && (
+        <div className="p-4 bg-red-100 text-red-700 border-b border-red-200">
+          {error}
+        </div>
+      )}
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
@@ -182,7 +218,6 @@ const TransactionList = ({
         </div>
       )}
 
-      {/* Modális ablak hozzáadása */}
       {showDetailModal && selectedTransaction && (
         <TransactionDetailModal
           isOpen={showDetailModal}

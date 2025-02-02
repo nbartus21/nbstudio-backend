@@ -56,7 +56,6 @@ const TransactionDetailModal = ({ isOpen, onClose, transaction, onSave }) => {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Fizetés dátuma */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Fizetés dátuma
@@ -70,7 +69,6 @@ const TransactionDetailModal = ({ isOpen, onClose, transaction, onSave }) => {
             />
           </div>
 
-          {/* Fizetési mód */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Fizetési mód
@@ -87,7 +85,6 @@ const TransactionDetailModal = ({ isOpen, onClose, transaction, onSave }) => {
             </select>
           </div>
 
-          {/* Jegyzetek */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Jegyzetek
@@ -101,7 +98,6 @@ const TransactionDetailModal = ({ isOpen, onClose, transaction, onSave }) => {
             />
           </div>
 
-          {/* Fájl feltöltés */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Dokumentumok csatolása
@@ -130,7 +126,6 @@ const TransactionDetailModal = ({ isOpen, onClose, transaction, onSave }) => {
             </div>
           </div>
 
-          {/* Feltöltött fájlok listája */}
           {paymentDetails.files.length > 0 && (
             <div className="mt-4">
               <h4 className="text-sm font-medium text-gray-700 mb-2">Feltöltött fájlok:</h4>
@@ -154,21 +149,22 @@ const TransactionDetailModal = ({ isOpen, onClose, transaction, onSave }) => {
             </div>
           )}
 
-          {/* Csatolmány leírása */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Csatolmány leírása
             </label>
             <textarea
               value={paymentDetails.attachmentDescription}
-              onChange={(e) => setPaymentDetails(prev => ({ ...prev, attachmentDescription: e.target.value }))}
+              onChange={(e) => setPaymentDetails(prev => ({ 
+                ...prev, 
+                attachmentDescription: e.target.value 
+              }))}
               rows={2}
               className="w-full px-3 py-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500"
               placeholder="A csatolt dokumentumok rövid leírása..."
             />
           </div>
 
-          {/* Műveleti gombok */}
           <div className="flex justify-end gap-3 pt-4">
             <button
               type="button"
