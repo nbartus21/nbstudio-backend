@@ -1,14 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import Card from '../ui/Card';
+import Card, { CardHeader, CardTitle, CardContent } from '../ui/Card';
 import DomainTable from './DomainTable';
 import DomainModal from './DomainModal';
 import BudgetSummary from './BudgetSummary';
-import { AlertTriangle, DollarSign, Clock } from 'lucide-react';
-import { api } from '../../services/auth';  // Javított útvonal
+import { AlertTriangle, DollarSign, Clock, Bell } from 'lucide-react';
+import { api } from '../../services/auth';
 
 const formatCurrency = (amount) => `€${Math.round(amount).toLocaleString()}`;
 const API_URL = 'https://admin.nb-studio.net:5001';
-
 
 const DomainManager = () => {
   const [domains, setDomains] = useState([]);
