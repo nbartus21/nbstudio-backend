@@ -44,23 +44,35 @@ const InfrastructureManager = () => {
   // Módosítsd a többi API hívást is:
   const handleAddServer = async (serverData) => {
     try {
-      await api.post(`${API_URL}/api/servers`, serverData);
+      if (selectedServer) {
+        // Ha van kiválasztott szerver, akkor frissítjük
+        await api.put(`${API_URL}/api/servers/${selectedServer._id}`, serverData);
+      } else {
+        // Ha nincs kiválasztott szerver, új szervert hozunk létre
+        await api.post(`${API_URL}/api/servers`, serverData);
+      }
       await fetchData();
       setShowServerModal(false);
     } catch (error) {
       console.error('Hiba:', error);
-      alert('Nem sikerült létrehozni a szervert: ' + error.message);
+      alert('Művelet sikertelen: ' + error.message);
     }
   };
   
   const handleAddLicense = async (licenseData) => {
     try {
-      await api.post(`${API_URL}/api/licenses`, licenseData);
+      if (selectedLicense) {
+        // Ha van kiválasztott licensz, akkor frissítjük
+        await api.put(`${API_URL}/api/licenses/${selectedLicense._id}`, licenseData);
+      } else {
+        // Ha nincs kiválasztott licensz, új licenszet hozunk létre
+        await api.post(`${API_URL}/api/licenses`, licenseData);
+      }
       await fetchData();
       setShowLicenseModal(false);
     } catch (error) {
       console.error('Hiba:', error);
-      alert('Nem sikerült létrehozni a licenszt: ' + error.message);
+      alert('Művelet sikertelen: ' + error.message);
     }
   };
   

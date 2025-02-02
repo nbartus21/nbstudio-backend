@@ -29,7 +29,35 @@ const LicenseModal = ({ isOpen, onClose, onSave, license = null }) => {
 
   useEffect(() => {
     if (license) {
-      setFormData(license);
+      // Ha módosítunk, átmásoljuk az összes mezőt
+      setFormData({ ...license });
+    } else {
+      // Ha új licenszet hozunk létre, alapértelmezett értékeket használunk
+      setFormData({
+        name: '',
+        type: 'wordpress-plugin',
+        key: {
+          value: '',
+          issuedTo: ''
+        },
+        vendor: {
+          name: '',
+          website: '',
+          supportEmail: ''
+        },
+        purchase: {
+          date: '',
+          cost: 0,
+          currency: 'EUR'
+        },
+        renewal: {
+          type: 'subscription',
+          nextRenewalDate: '',
+          cost: 0,
+          autoRenewal: false
+        },
+        status: 'active'
+      });
     }
   }, [license]);
 
