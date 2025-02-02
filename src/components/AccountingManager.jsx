@@ -4,15 +4,18 @@ import { hu } from 'date-fns/locale';
 import { api } from '../services/auth';
 import { Filter, PlusCircle, Download } from 'lucide-react';
 
+// Importáld a TransactionList komponenst
+import TransactionList from './TransactionList';  // Győződj meg róla, hogy az útvonal helyes!
+
 const AccountingManager = () => {
   const [transactions, setTransactions] = useState([]);
   const [statistics, setStatistics] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear()); // Aktuális év alapértelmezett
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1); // Aktuális hónap alapértelmezett
-  const [activeTab, setActiveTab] = useState('transactions'); // Aktív fül alapértelmezett
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
+  const [activeTab, setActiveTab] = useState('transactions');
 
   const fetchTransactions = async () => {
     try {
@@ -51,62 +54,6 @@ const AccountingManager = () => {
     });
 
     setStatistics(stats);
-  };
-
-  // Havi statisztikák frissítése
-  const updateMonthlyStats = async (year, month) => {
-    const startDate = new Date(year, month - 1, 1);
-    const endDate = new Date(year, month, 0);
-
-    const transactions = await api.get(
-      `${API_URL}/accounting/transactions?startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}`
-    ).then(res => res.json());
-
-    const stats = calculateStatistics(transactions);
-
-    return {
-      ...stats,
-      summary: {
-        year: parseInt(year),
-        month: parseInt(month)
-      }
-    };
-  };
-
-  // CSV exportálás
-  const handleExport = () => {
-    const csvContent = [
-      ['Dátum', 'Típus', 'Kategória', 'Leírás', 'Összeg', 'Státusz', 'Számlaszám'],
-      ...transactions.map(t => [
-        format(new Date(t.date), 'yyyy-MM-dd'),
-        t.type === 'income' ? 'Bevétel' : 'Kiadás',
-        t.category,
-        t.description,
-        t.amount,
-        t.paymentStatus,
-        t.invoiceNumber || ''
-      ])
-    ].map(row => row.join(',')).join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `konyveles_${selectedYear}_${selectedMonth}.csv`;
-    link.click();
-  };
-
-  // Szinkronizálás
-  const handleSync = async () => {
-    try {
-      setLoading(true);
-      await api.post(`${API_URL}/accounting/sync`);
-      await fetchTransactions();
-      setSuccess('Adatok sikeresen szinkronizálva');
-    } catch (error) {
-      setError('Hiba történt a szinkronizálás során');
-    } finally {
-      setLoading(false);
-    }
   };
 
   useEffect(() => {
@@ -176,18 +123,6 @@ const AccountingManager = () => {
             </button>
           </div>
         </div>
-
-        {/* Hibaüzenet és sikeres művelet visszajelzése */}
-        {error && (
-          <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
-            {error}
-          </div>
-        )}
-        {success && (
-          <div className="mb-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded">
-            {success}
-          </div>
-        )}
 
         {/* Fülek */}
         <div className="mb-6">
