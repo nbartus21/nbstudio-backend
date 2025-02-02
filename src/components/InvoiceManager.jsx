@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/auth';
-import { useNavigate } from 'react-router-dom'; // useNavigate helyett useHistory
+import { useNavigate } from 'react-router-dom'; // useNavigate helyett
 
 const InvoiceManager = () => {
   const [invoices, setInvoices] = useState([]);
@@ -8,13 +8,8 @@ const InvoiceManager = () => {
   const [error, setError] = useState(null);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [showModal, setShowModal] = useState(false);
-  const [filters, setFilters] = useState({
-    status: 'all', // Szűrési státusz: 'all', 'fizetett', 'késedelmes', stb.
-    search: '', // Keresési kulcs a projekt nevére
-    dateRange: 'all', // Időszak szűrési lehetőség: 'all', 'week', 'month', 'quarter'
-  });
 
-  const navigate = useNavigate(); // useHistory helyett useNavigate
+  const navigate = useNavigate(); // useHistory() helyett useNavigate()
 
   const fetchInvoices = async () => {
     try {
@@ -328,28 +323,28 @@ const InvoiceManager = () => {
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <button
-                      onClick={() => {
-                        setSelectedInvoice(invoice);
-                        setShowModal(true);
-                      }}
-                      className="text-indigo-600 hover:text-indigo-900 mr-3"
-                    >
-                      Részletek
-                    </button>
-                    <button
-                      onClick={() => updateInvoiceStatus(invoice.projectId, invoice._id, 'fizetett')}
-                      className="text-green-600 hover:text-green-900 mr-3"
-                    >
-                      Fizetettnek jelöl
-                    </button>
-                    <button
-                      onClick={() => deleteInvoice(invoice.projectId, invoice._id)}
-                      className="text-red-600 hover:text-red-900"
-                    >
-                      Törlés
-                    </button>
-                  </td>
+  <button
+    onClick={() => {
+      setSelectedInvoice(invoice);
+      setShowModal(true);
+    }}
+    className="text-indigo-600 hover:text-indigo-900 mr-3"
+  >
+    Részletek
+  </button>
+  <button
+    onClick={() => updateInvoiceStatus(invoice.projectId, invoice._id, 'fizetett')}
+    className="text-green-600 hover:text-green-900 mr-3"
+  >
+    Fizetettnek jelöl
+  </button>
+  <button
+    onClick={() => deleteInvoice(invoice.projectId, invoice._id)}
+    className="text-red-600 hover:text-red-900"
+  >
+    Törlés
+  </button>
+</td>
                 </tr>
               );
             })}
@@ -411,21 +406,62 @@ const InvoiceManager = () => {
                 <p className="text-sm">Kiállítás dátuma: {new Date(selectedInvoice.date).toLocaleDateString()}</p>
                 <p className="text-sm">Fizetési határidő: {new Date(selectedInvoice.dueDate).toLocaleDateString()}</p>
               </div>
+
               <div>
-                <h3 className="font-semibold mb-2">Pénzügyi Részletek:</h3>
-                <p className="text-sm">Összeg: {selectedInvoice.totalAmount?.toLocaleString()} €</p>
-                <p className="text-sm">Fizetve: {selectedInvoice.paidAmount?.toLocaleString()} €</p>
-                <p className="text-sm">Hátralék: {(selectedInvoice.totalAmount - selectedInvoice.paidAmount)?.toLocaleString()} €</p>
+                <h3 className="font-semibold mb-2">Fizetési Adatok:</h3>
+                <p className="text-sm">Teljes összeg: {selectedInvoice.totalAmount?.toLocaleString()} €</p>
+                <p className="text-sm">Fizetett összeg: {selectedInvoice.paidAmount?.toLocaleString()} €</p>
+                <p className="text-sm">Fennmaradó összeg: {(selectedInvoice.totalAmount - (selectedInvoice.paidAmount || 0)).toLocaleString()} €</p>
+                <p className="text-sm">Státusz: {selectedInvoice.status}</p>
               </div>
             </div>
 
-            <div className="flex justify-end">
-              <button
-                onClick={() => updateInvoiceStatus(selectedInvoice.projectId, selectedInvoice._id, 'fizetett')}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-              >
-                Fizetettnek jelöl
-              </button>
+            <div className="space-y-4">
+              <h3 className="font-semibold">Tételek:</h3>
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Megnevezés</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Mennyiség</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Egységár</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Összesen</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {selectedInvoice.items.map((item, index) => (
+                    <tr key={index}>
+                      <td className="px-4 py-2 text-sm">{item.description}</td>
+                      <td className="px-4 py-2 text-sm">{item.quantity}</td>
+                      <td className="px-4 py-2 text-sm">{item.unitPrice?.toLocaleString()} €</td>
+                      <td className="px-4 py-2 text-sm">{item.total?.toLocaleString()} €</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              <div className="mt-6 flex justify-end gap-4">
+  <button
+    onClick={() => deleteInvoice(selectedInvoice.projectId, selectedInvoice._id)}
+    className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
+  >
+    Számla törlése
+  </button>
+  <button
+    onClick={() => setShowModal(false)}
+    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+  >
+    Bezárás
+  </button>
+  <button
+    onClick={() => {
+      updateInvoiceStatus(selectedInvoice.projectId, selectedInvoice._id, 'fizetett');
+      setShowModal(false);
+    }}
+    className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700"
+  >
+    Fizetettnek jelölés
+  </button>
+</div>
             </div>
           </div>
         </div>
