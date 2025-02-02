@@ -1,150 +1,38 @@
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
-import { hu } from 'date-fns/locale';
-import { Download, Filter, PlusCircle } from 'lucide-react';
-import TransactionList from './TransactionList';
-import TransactionModal from './TransactionModal';
-import AccountingStats from './AccountingStats';
-import TaxReport from './TaxReport';
 import { api } from '../services/auth';
 
-const API_URL = 'https://admin.nb-studio.net:5001/api';
-
 const AccountingManager = () => {
-  // Állapotok
-  const [activeTab, setActiveTab] = useState('transactions');
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
-  const [showTransactionModal, setShowTransactionModal] = useState(false);
-  const [selectedTransaction, setSelectedTransaction] = useState(null);
   const [transactions, setTransactions] = useState([]);
-  const [projects, setProjects] = useState([]);
-  const [statistics, setStatistics] = useState(null);
-  const [taxData, setTaxData] = useState(null);
+  const [statistics, setStatistics] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
 
-  // Adatok betöltése
-  useEffect(() => {
-    fetchData();
-  }, [selectedYear, selectedMonth]);
-
-  const fetchData = async () => {
+  const fetchTransactions = async () => {
     try {
       setLoading(true);
-      const [transactionsRes, statsRes, taxRes, projectsRes, domainsRes] = await Promise.all([
-        api.get(`${API_URL}/accounting/transactions?year=${selectedYear}&month=${selectedMonth}`),
-        api.get(`${API_URL}/accounting/statistics?year=${selectedYear}&month=${selectedMonth}`),
-        api.get(`${API_URL}/accounting/tax-report?year=${selectedYear}`),
-        api.get(`${API_URL}/projects`),
-        api.get(`${API_URL}/domains`)  // Domain adatok lekérése
-      ]);
-
-      const [transactionsData, statsData, taxData, projectsData, domainsData] = await Promise.all([
-        transactionsRes.json(),
-        statsRes.json(),
-        taxRes.json(),
-        projectsRes.json(),
-        domainsRes.json()
-      ]);
-
-      // Számlák kinyerése a projektekből
-      const projectInvoices = projectsData.flatMap(project => 
-        (project.invoices || []).map(invoice => ({
-          ...invoice,
-          projectId: project._id,
-          projectName: project.name,
-          type: 'project_invoice'
-        }))
-      );
-
-      // Domain költségek konvertálása tranzakciókká
-      const domainTransactions = domainsData.map(domain => ({
-        _id: `domain_${domain._id}`,
-        type: 'expense',
-        category: 'domain_cost',
-        amount: domain.cost,
-        date: domain.expiryDate,
-        description: `${domain.name} domain megújítás`,
-        domainId: domain._id,
-        paymentStatus: domain.paymentStatus || 'pending',
-        dueDate: domain.expiryDate,
-        recurring: true,
-        recurringInterval: 'yearly'
-      }));
-
-      // Összes tranzakció egyesítése
-      setTransactions([...transactionsData, ...domainTransactions]);
-      setStatistics(statsData);
-      setTaxData(taxData);
-
-      // Statisztikák újraszámolása
-      calculateStatistics([...projectInvoices, ...domainTransactions]);
-
-      setError(null);
+      const response = await api.get('https://admin.nb-studio.net:5001/api/accounting/transactions');
+      const data = await response.json();
+      setTransactions(data);
+      calculateStatistics(data);
     } catch (error) {
-      console.error('Error fetching data:', error);
-      setError('Hiba történt az adatok betöltése során');
+      setError('Nem sikerült betölteni a tranzakciókat');
     } finally {
       setLoading(false);
     }
   };
 
-  // Tranzakció mentése/módosítása
-  const handleSaveTransaction = async (data) => {
-    try {
-      // Ha domain tranzakció, frissítjük a domain fizetési státuszát is
-      if (data.category === 'domain_cost' && data.domainId) {
-        await api.put(`${API_URL}/domains/${data.domainId}`, {
-          paymentStatus: data.paymentStatus
-        });
-      }
+  useEffect(() => {
+    fetchTransactions();
+  }, []);
 
-      if (selectedTransaction) {
-        await api.put(`${API_URL}/accounting/transactions/${selectedTransaction._id}`, data);
-        setSuccess('Tranzakció sikeresen módosítva');
-      } else {
-        await api.post(`${API_URL}/accounting/transactions`, data);
-        setSuccess('Új tranzakció sikeresen hozzáadva');
-      }
-      
-      await fetchData();
-      setShowTransactionModal(false);
-      setSelectedTransaction(null);
-    } catch (error) {
-      setError('Hiba történt a mentés során');
-    }
-  };
-
-  // Tranzakció törlése
-  const handleDeleteTransaction = async (id) => {
-    try {
-      // Ha domain tranzakció, állítsuk vissza a domain fizetési státuszát pending-re
-      if (id.startsWith('domain_')) {
-        const domainId = id.replace('domain_', '');
-        await api.put(`${API_URL}/domains/${domainId}`, {
-          paymentStatus: 'pending'
-        });
-      }
-
-      await api.delete(`${API_URL}/accounting/transactions/${id}`);
-      setSuccess('Tranzakció sikeresen törölve');
-      await fetchData();
-    } catch (error) {
-      setError('Hiba történt a törlés során');
-    }
-  };
-
-  // Statisztikák számítása
   const calculateStatistics = (transactions) => {
     const stats = {
       totalIncome: 0,
       totalExpenses: 0,
       monthlyIncomes: Array(12).fill(0),
       monthlyExpenses: Array(12).fill(0),
-      expensesByCategory: {},
-      recurringExpenses: []
     };
 
     transactions.forEach(transaction => {
@@ -158,27 +46,6 @@ const AccountingManager = () => {
       } else {
         stats.totalExpenses += amount;
         stats.monthlyExpenses[month] += amount;
-
-        // Kategória szerinti költségek
-        if (!stats.expensesByCategory[transaction.category]) {
-          stats.expensesByCategory[transaction.category] = 0;
-        }
-        stats.expensesByCategory[transaction.category] += amount;
-
-        // Ismétlődő költségek
-        if (transaction.recurring) {
-          const existingRecurring = stats.recurringExpenses.find(
-            item => item.name === transaction.description
-          );
-          
-          if (!existingRecurring) {
-            stats.recurringExpenses.push({
-              name: transaction.description,
-              amount: amount,
-              interval: transaction.recurringInterval || 'monthly'
-            });
-          }
-        }
       }
     });
 

@@ -1,15 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/auth';
-import Card, { CardHeader, CardTitle, CardContent } from './Card';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-
-const API_URL = 'https://admin.nb-studio.net:5001/api';
-
-// SVG ikonok komponensek
-const PaidIcon = () => <span className="text-green-500">✓</span>;
-const UnpaidIcon = () => <span className="text-red-500">✘</span>;
-const OverdueIcon = () => <span className="text-yellow-500">⚠</span>;
-const PartialIcon = () => <span className="text-orange-500">~</span>;
+import { useHistory } from 'react-router-dom'; // Az API hívások után navigálni fogunk a megfelelő oldalra
 
 const InvoiceManager = () => {
   const [invoices, setInvoices] = useState([]);
@@ -17,24 +8,11 @@ const InvoiceManager = () => {
   const [error, setError] = useState(null);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [showModal, setShowModal] = useState(false);
-  const [filters, setFilters] = useState({
-    status: 'all',
-    dateRange: 'all',
-    search: ''
-  });
-  const [statistics, setStatistics] = useState({
-    totalAmount: 0,
-    paidAmount: 0,
-    overdueAmount: 0,
-    averagePaymentTime: 0
-  });
 
-  // Számlák lekérése a projektekből
   const fetchInvoices = async () => {
     try {
       setLoading(true);
-      const response = await api.get(`${API_URL}/projects`);
-      
+      const response = await api.get('https://admin.nb-studio.net:5001/api/projects');
       const projects = await response.json();
       const allInvoices = projects.flatMap(project => 
         (project.invoices || []).map(invoice => ({
@@ -45,10 +23,9 @@ const InvoiceManager = () => {
         }))
       );
       setInvoices(allInvoices);
-      calculateStatistics(allInvoices);
       setError(null);
     } catch (error) {
-      console.error('Hiba:', error);
+      console.error('Error:', error);
       setError('Nem sikerült betölteni a számlákat');
     } finally {
       setLoading(false);
@@ -59,46 +36,10 @@ const InvoiceManager = () => {
     fetchInvoices();
   }, []);
 
-  // Statisztikák számítása
-  const calculateStatistics = (invoiceData) => {
-    const stats = {
-      totalAmount: 0,
-      paidAmount: 0,
-      overdueAmount: 0,
-      paymentTimes: []
-    };
-
-    invoiceData.forEach(invoice => {
-      stats.totalAmount += invoice.totalAmount || 0;
-      stats.paidAmount += invoice.paidAmount || 0;
-
-      const dueDate = new Date(invoice.dueDate);
-      if (dueDate < new Date() && invoice.status !== 'fizetett') {
-        stats.overdueAmount += (invoice.totalAmount - (invoice.paidAmount || 0));
-      }
-
-      if (invoice.status === 'fizetett' && invoice.paidDate) {
-        const paymentTime = (new Date(invoice.paidDate) - new Date(invoice.date)) / (1000 * 60 * 60 * 24);
-        stats.paymentTimes.push(paymentTime);
-      }
-    });
-
-    const avgPaymentTime = stats.paymentTimes.length > 0
-      ? Math.round(stats.paymentTimes.reduce((a, b) => a + b) / stats.paymentTimes.length)
-      : 0;
-
-    setStatistics({
-      totalAmount: stats.totalAmount,
-      paidAmount: stats.paidAmount,
-      overdueAmount: stats.overdueAmount,
-      averagePaymentTime: avgPaymentTime
-    });
-  };
-
-  // Módosított számla státusz frissítés
+  // Számla státuszának frissítése és könyvelési szinkronizálás
   const updateInvoiceStatus = async (projectId, invoiceId, status) => {
     try {
-      const response = await api.put(`${API_URL}/projects/${projectId}/invoices/${invoiceId}`, {
+      const response = await api.put(`https://admin.nb-studio.net:5001/api/projects/${projectId}/invoices/${invoiceId}`, {
         status,
         paidAmount: status === 'fizetett' ? selectedInvoice.totalAmount : 0,
         paidDate: status === 'fizetett' ? new Date().toISOString() : null
@@ -106,6 +47,22 @@ const InvoiceManager = () => {
 
       if (!response.ok) {
         throw new Error('Nem sikerült frissíteni a számlát');
+      }
+
+      // Ha a státusz fizetettre változik, szinkronizáljuk az accounting rendszerrel is
+      if (status === 'fizetett') {
+        const transactionData = {
+          amount: selectedInvoice.totalAmount,
+          date: new Date(),
+          description: `Számla kifizetése: ${selectedInvoice.number}`,
+          category: 'income',
+          paymentStatus: 'paid',
+          invoiceNumber: selectedInvoice.number,
+          projectId: projectId
+        };
+        
+        // Új tranzakció hozzáadása az accounting rendszerhez
+        await api.post('https://admin.nb-studio.net:5001/api/accounting/transactions', transactionData);
       }
 
       await fetchInvoices();
