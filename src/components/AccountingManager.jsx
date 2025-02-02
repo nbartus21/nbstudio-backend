@@ -33,55 +33,59 @@ const AccountingManager = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [transactionsRes, statsRes, taxRes, projectsRes, domainsRes] = await Promise.all([
+      const [transactionsRes, projectsRes, statsRes, taxRes] = await Promise.all([
         api.get(`${API_URL}/accounting/transactions?year=${selectedYear}&month=${selectedMonth}`),
-        api.get(`${API_URL}/accounting/statistics?year=${selectedYear}&month=${selectedMonth}`),
-        api.get(`${API_URL}/accounting/tax-report?year=${selectedYear}`),
         api.get(`${API_URL}/projects`),
-        api.get(`${API_URL}/domains`)  // Domain adatok lekérése
+        api.get(`${API_URL}/accounting/statistics?year=${selectedYear}&month=${selectedMonth}`),
+        api.get(`${API_URL}/accounting/tax-report?year=${selectedYear}`)
       ]);
-
-      const [transactionsData, statsData, taxData, projectsData, domainsData] = await Promise.all([
+  
+      const [transactionsData, projectsData, statsData, taxData] = await Promise.all([
         transactionsRes.json(),
-        statsRes.json(),
-        taxRes.json(),
         projectsRes.json(),
-        domainsRes.json()
+        statsRes.json(),
+        taxRes.json()
       ]);
-
-      // Számlák kinyerése a projektekből
+  
+      // Számlák kinyerése a projektekből részletesebb adatokkal
       const projectInvoices = projectsData.flatMap(project => 
         (project.invoices || []).map(invoice => ({
           ...invoice,
           projectId: project._id,
           projectName: project.name,
-          type: 'project_invoice'
+          clientName: project.client?.name,
+          type: 'project_invoice',
+          // Konvertáljuk a számla adatait tranzakció formátumba is
+          transactionData: invoice.status === 'fizetett' ? {
+            type: 'income',
+            category: 'invoice_payment',
+            amount: invoice.totalAmount,
+            date: invoice.paidDate,
+            description: `Számla kifizetése: ${invoice.number}`,
+            invoiceNumber: invoice.number,
+            projectId: project._id,
+            projectName: project.name,
+            status: 'completed'
+          } : null
         }))
       );
-
-      // Domain költségek konvertálása tranzakciókká
-      const domainTransactions = domainsData.map(domain => ({
-        _id: `domain_${domain._id}`,
-        type: 'expense',
-        category: 'domain_cost',
-        amount: domain.cost,
-        date: domain.expiryDate,
-        description: `${domain.name} domain megújítás`,
-        domainId: domain._id,
-        paymentStatus: domain.paymentStatus || 'pending',
-        dueDate: domain.expiryDate,
-        recurring: true,
-        recurringInterval: 'yearly'
-      }));
-
-      // Összes tranzakció egyesítése
-      setTransactions([...transactionsData, ...domainTransactions]);
-      setStatistics(statsData);
+  
+      // Tranzakciók és számlák kombinálása
+      const combinedTransactions = [
+        ...transactionsData,
+        ...projectInvoices
+          .filter(inv => inv.status === 'fizetett' && inv.transactionData)
+          .map(inv => inv.transactionData)
+      ];
+  
+      setTransactions(combinedTransactions);
+      setProjects(projectsData);
+      
+      // Frissített statisztikák számítása
+      const updatedStats = calculateUpdatedStatistics(combinedTransactions, projectInvoices);
+      setStatistics(updatedStats);
       setTaxData(taxData);
-
-      // Statisztikák újraszámolása
-      calculateStatistics([...projectInvoices, ...domainTransactions]);
-
+  
       setError(null);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -90,17 +94,82 @@ const AccountingManager = () => {
       setLoading(false);
     }
   };
+  
+  // Frissített statisztika számítás
+  const calculateUpdatedStatistics = (transactions, invoices) => {
+    const stats = {
+      totalIncome: 0,
+      totalExpenses: 0,
+      monthlyIncomes: Array(12).fill(0),
+      monthlyExpenses: Array(12).fill(0),
+      expensesByCategory: {},
+      recurringExpenses: [],
+      invoiceStats: {
+        totalPaid: 0,
+        totalPending: 0,
+        averagePaymentTime: 0,
+        totalCount: invoices.length,
+        paidCount: invoices.filter(inv => inv.status === 'fizetett').length
+      }
+    };
+  
+    // Tranzakciók feldolgozása
+    transactions.forEach(transaction => {
+      const amount = parseFloat(transaction.amount) || 0;
+      const date = new Date(transaction.date);
+      const month = date.getMonth();
+  
+      if (transaction.type === 'income') {
+        stats.totalIncome += amount;
+        stats.monthlyIncomes[month] += amount;
+      } else {
+        stats.totalExpenses += amount;
+        stats.monthlyExpenses[month] += amount;
+  
+        if (!stats.expensesByCategory[transaction.category]) {
+          stats.expensesByCategory[transaction.category] = 0;
+        }
+        stats.expensesByCategory[transaction.category] += amount;
+      }
+  
+      if (transaction.recurring) {
+        const existingRecurring = stats.recurringExpenses.find(
+          item => item.name === transaction.description
+        );
+        
+        if (!existingRecurring) {
+          stats.recurringExpenses.push({
+            name: transaction.description,
+            amount: amount,
+            interval: transaction.recurringInterval || 'monthly'
+          });
+        }
+      }
+    });
+  
+    // Számlák statisztikái
+    const paidInvoices = invoices.filter(inv => inv.status === 'fizetett');
+    stats.invoiceStats.totalPaid = paidInvoices.reduce((sum, inv) => sum + (inv.paidAmount || inv.totalAmount || 0), 0);
+    stats.invoiceStats.totalPending = invoices
+      .filter(inv => inv.status !== 'fizetett')
+      .reduce((sum, inv) => sum + (inv.totalAmount || 0), 0);
+  
+    if (paidInvoices.length > 0) {
+      const totalDays = paidInvoices.reduce((sum, inv) => {
+        if (inv.paidDate && inv.date) {
+          return sum + ((new Date(inv.paidDate) - new Date(inv.date)) / (1000 * 60 * 60 * 24));
+        }
+        return sum;
+      }, 0);
+      stats.invoiceStats.averagePaymentTime = Math.round(totalDays / paidInvoices.length);
+    }
+  
+    return stats;
+  };
 
   // Tranzakció mentése/módosítása
   const handleSaveTransaction = async (data) => {
     try {
-      // Ha domain tranzakció, frissítjük a domain fizetési státuszát is
-      if (data.category === 'domain_cost' && data.domainId) {
-        await api.put(`${API_URL}/domains/${data.domainId}`, {
-          paymentStatus: data.paymentStatus
-        });
-      }
-
       if (selectedTransaction) {
         await api.put(`${API_URL}/accounting/transactions/${selectedTransaction._id}`, data);
         setSuccess('Tranzakció sikeresen módosítva');
@@ -108,7 +177,6 @@ const AccountingManager = () => {
         await api.post(`${API_URL}/accounting/transactions`, data);
         setSuccess('Új tranzakció sikeresen hozzáadva');
       }
-      
       await fetchData();
       setShowTransactionModal(false);
       setSelectedTransaction(null);
@@ -120,95 +188,12 @@ const AccountingManager = () => {
   // Tranzakció törlése
   const handleDeleteTransaction = async (id) => {
     try {
-      // Ha domain tranzakció, állítsuk vissza a domain fizetési státuszát pending-re
-      if (id.startsWith('domain_')) {
-        const domainId = id.replace('domain_', '');
-        await api.put(`${API_URL}/domains/${domainId}`, {
-          paymentStatus: 'pending'
-        });
-      }
-
       await api.delete(`${API_URL}/accounting/transactions/${id}`);
       setSuccess('Tranzakció sikeresen törölve');
       await fetchData();
     } catch (error) {
       setError('Hiba történt a törlés során');
     }
-  };
-
-  // Statisztikák számítása
-  const calculateStatistics = (transactions) => {
-    const stats = {
-      totalIncome: 0,
-      totalExpenses: 0,
-      monthlyIncomes: Array(12).fill(0),
-      monthlyExpenses: Array(12).fill(0),
-      expensesByCategory: {},
-      recurringExpenses: []
-    };
-
-    transactions.forEach(transaction => {
-      const amount = parseFloat(transaction.amount) || 0;
-      const date = new Date(transaction.date);
-      const month = date.getMonth();
-
-      if (transaction.type === 'income') {
-        stats.totalIncome += amount;
-        stats.monthlyIncomes[month] += amount;
-      } else {
-        stats.totalExpenses += amount;
-        stats.monthlyExpenses[month] += amount;
-
-        // Kategória szerinti költségek
-        if (!stats.expensesByCategory[transaction.category]) {
-          stats.expensesByCategory[transaction.category] = 0;
-        }
-        stats.expensesByCategory[transaction.category] += amount;
-
-        // Ismétlődő költségek
-        if (transaction.recurring) {
-          const existingRecurring = stats.recurringExpenses.find(
-            item => item.name === transaction.description
-          );
-          
-          if (!existingRecurring) {
-            stats.recurringExpenses.push({
-              name: transaction.description,
-              amount: amount,
-              interval: transaction.recurringInterval || 'monthly'
-            });
-          }
-        }
-      }
-    });
-
-    setStatistics(stats);
-  };
-
-  // Havi statisztikák frissítése
-  const updateMonthlyStats = async (year, month) => {
-    const startDate = new Date(year, month - 1, 1);
-    const endDate = new Date(year, month, 0);
-
-    const transactions = await api.get(
-      `${API_URL}/accounting/transactions?startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}`
-    ).then(res => res.json());
-
-    const stats = calculateStatistics(transactions);
-
-    return {
-      ...stats,
-      summary: {
-        year: parseInt(year),
-        month: parseInt(month)
-      }
-    };
-  };
-
-  // Adójelentés generálása
-  const generateTaxReport = (invoices) => {
-    const taxReportData = invoices.filter(invoice => invoice.status === 'fizetett');
-    setTaxData(taxReportData);
   };
 
   // CSV exportálás
@@ -258,7 +243,6 @@ const AccountingManager = () => {
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Fejléc */}
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-2xl font-bold text-gray-900">Könyvelés</h1>
           <div className="flex items-center space-x-4">

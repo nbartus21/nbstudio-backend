@@ -77,21 +77,21 @@ const InvoiceManager = () => {
     fetchInvoices();
   }, []);
 
-  const calculateStatistics = (invoices) => {
+  const calculateStatistics = (invoiceList) => {
     return {
-      paidAmount: invoices
+      paidAmount: invoiceList
         .filter(inv => inv.status === 'fizetett')
         .reduce((sum, inv) => sum + (inv.paidAmount || 0), 0),
-      overdueAmount: invoices
+      overdueAmount: invoiceList
         .filter(inv => new Date(inv.dueDate) < new Date() && inv.status !== 'fizetett')
         .reduce((sum, inv) => sum + (inv.totalAmount - (inv.paidAmount || 0)), 0),
       averagePaymentTime: Math.round(
-        invoices
+        invoiceList
           .filter(inv => inv.status === 'fizetett' && inv.paidDate)
           .reduce((avg, inv) => {
             const days = (new Date(inv.paidDate) - new Date(inv.date)) / (1000 * 60 * 60 * 24);
             return avg + days;
-          }, 0) / invoices.filter(inv => inv.status === 'fizetett').length || 0
+          }, 0) / (invoiceList.filter(inv => inv.status === 'fizetett').length || 1)
       )
     };
   };
@@ -102,28 +102,38 @@ const InvoiceManager = () => {
 
   const updateInvoiceStatus = async (projectId, invoiceId, status) => {
     try {
-      const response = await api.put(`https://admin.nb-studio.net:5001/api/projects/${projectId}/invoices/${invoiceId}`, {
+      const invoiceResponse = await api.put(`${API_URL}/projects/${projectId}/invoices/${invoiceId}`, {
         status,
         paidAmount: status === 'fizetett' ? selectedInvoice.totalAmount : 0,
         paidDate: status === 'fizetett' ? new Date().toISOString() : null
       });
 
-      if (!response.ok) {
+      if (!invoiceResponse.ok) {
         throw new Error('Nem sikerült frissíteni a számlát');
       }
 
       if (status === 'fizetett') {
         const transactionData = {
           amount: selectedInvoice.totalAmount,
-          date: new Date(),
+          date: new Date().toISOString(),
           description: `Számla kifizetése: ${selectedInvoice.number}`,
-          category: 'income',
+          type: 'income',  // Explicit kategória beállítása
+          category: 'invoice_payment',  // Dedikált kategória
           paymentStatus: 'paid',
           invoiceNumber: selectedInvoice.number,
-          projectId: projectId
+          projectId: projectId,
+          metadata: {
+            invoiceId: invoiceId,
+            projectName: selectedInvoice.projectName,
+            clientName: selectedInvoice.client?.name
+          }
         };
+
+        const transactionResponse = await api.post(`${API_URL}/accounting/transactions`, transactionData);
         
-        await api.post('https://admin.nb-studio.net:5001/api/accounting/transactions', transactionData);
+        if (!transactionResponse.ok) {
+          throw new Error('Nem sikerült létrehozni a tranzakciót');
+        }
       }
 
       await fetchInvoices();
@@ -131,7 +141,7 @@ const InvoiceManager = () => {
       setError(null);
     } catch (error) {
       console.error('Hiba:', error);
-      setError('Nem sikerült frissíteni a számla státuszát');
+      setError('Nem sikerült frissíteni a számla státuszát: ' + error.message);
     }
   };
 
