@@ -3,20 +3,52 @@ import { api } from '../services/auth';
 import { useNavigate } from 'react-router-dom'; // useNavigate helyett useHistory
 import { Card, CardHeader, CardContent, CardTitle } from './Card';  // adjuk meg a helyes útvonalat
 
+const API_URL = 'https://admin.nb-studio.net:5001/api';
+
+// Ikon komponensek definiálása
+const PaidIcon = () => (
+  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+  </svg>
+);
+
+const OverdueIcon = () => (
+  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+  </svg>
+);
+
+const PartialIcon = () => (
+  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 8h6m-5 0a3 3 0 110 6H9l3-3-3-3z" />
+  </svg>
+);
+
+const UnpaidIcon = () => (
+  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+  </svg>
+);
+
 const InvoiceManager = () => {
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [showModal, setShowModal] = useState(false);
-
   const [filters, setFilters] = useState({
-    status: 'all', // Szűrési státusz: 'all', 'fizetett', 'késedelmes', stb.
-    search: '', // Keresési kulcs a projekt nevére
-    dateRange: 'all', // Időszak szűrési lehetőség: 'all', 'week', 'month', 'quarter'
+    status: 'all',
+    search: '',
+    dateRange: 'all',
   });
 
-  const navigate = useNavigate(); // useHistory helyett useNavigate
+  const [statistics, setStatistics] = useState({
+    paidAmount: 0,
+    overdueAmount: 0,
+    averagePaymentTime: 0
+  });
+
+  const navigate = useNavigate();
 
   const fetchInvoices = async () => {
     try {
@@ -45,7 +77,29 @@ const InvoiceManager = () => {
     fetchInvoices();
   }, []);
 
-  // Számla státuszának frissítése és könyvelési szinkronizálás
+  const calculateStatistics = (invoices) => {
+    return {
+      paidAmount: invoices
+        .filter(inv => inv.status === 'fizetett')
+        .reduce((sum, inv) => sum + (inv.paidAmount || 0), 0),
+      overdueAmount: invoices
+        .filter(inv => new Date(inv.dueDate) < new Date() && inv.status !== 'fizetett')
+        .reduce((sum, inv) => sum + (inv.totalAmount - (inv.paidAmount || 0)), 0),
+      averagePaymentTime: Math.round(
+        invoices
+          .filter(inv => inv.status === 'fizetett' && inv.paidDate)
+          .reduce((avg, inv) => {
+            const days = (new Date(inv.paidDate) - new Date(inv.date)) / (1000 * 60 * 60 * 24);
+            return avg + days;
+          }, 0) / invoices.filter(inv => inv.status === 'fizetett').length || 0
+      )
+    };
+  };
+
+  useEffect(() => {
+    setStatistics(calculateStatistics(invoices));
+  }, [invoices]);
+
   const updateInvoiceStatus = async (projectId, invoiceId, status) => {
     try {
       const response = await api.put(`https://admin.nb-studio.net:5001/api/projects/${projectId}/invoices/${invoiceId}`, {
@@ -58,7 +112,6 @@ const InvoiceManager = () => {
         throw new Error('Nem sikerült frissíteni a számlát');
       }
 
-      // Ha a státusz fizetettre változik, szinkronizáljuk az accounting rendszerrel is
       if (status === 'fizetett') {
         const transactionData = {
           amount: selectedInvoice.totalAmount,
@@ -70,7 +123,6 @@ const InvoiceManager = () => {
           projectId: projectId
         };
         
-        // Új tranzakció hozzáadása az accounting rendszerhez
         await api.post('https://admin.nb-studio.net:5001/api/accounting/transactions', transactionData);
       }
 
@@ -83,7 +135,6 @@ const InvoiceManager = () => {
     }
   };
 
-  // Módosított számla törlés
   const deleteInvoice = async (projectId, invoiceId) => {
     if (!window.confirm('Biztosan törölni szeretné ezt a számlát?')) return;
   
@@ -123,7 +174,6 @@ const InvoiceManager = () => {
     }
   };
 
-  // Szűrt számlák
   const filteredInvoices = invoices.filter(invoice => {
     if (filters.status !== 'all' && invoice.status !== filters.status) return false;
     if (filters.search && !invoice.projectName.toLowerCase().includes(filters.search.toLowerCase())) return false;
