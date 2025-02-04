@@ -6,53 +6,53 @@ const NotificationsManager = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
+  const API_URL = 'http://38.242.208.190:5001/api';
+
   const fetchAllNotifications = async () => {
     try {
-      // Fetch from all endpoints
-      const contactsRes = await fetch('http://38.242.208.190:5001/api/contacts');
-      const contacts = await contactsRes.json();
-      
-      const calculatorsRes = await fetch('http://38.242.208.190:5001/api/calculators');
-      const calculators = await calculatorsRes.json();
-      
-      const domainsRes = await fetch('http://38.242.208.190:5001/api/domains');
-      const domains = await domainsRes.json();
-      
-      let newNotifications = [];
+      // Fetch from all endpoints in parallel
+      const [contacts, calculators, domains, servers, licenses, projects] = await Promise.all([
+        fetch(`${API_URL}/contacts`).then(res => res.json()),
+        fetch(`${API_URL}/calculators`).then(res => res.json()),
+        fetch(`${API_URL}/domains`).then(res => res.json()),
+        fetch(`${API_URL}/servers`).then(res => res.json()),
+        fetch(`${API_URL}/licenses`).then(res => res.json()),
+        fetch(`${API_URL}/projects`).then(res => res.json())
+      ]);
 
-      // Process contacts
-      console.log('Beérkező kontaktok:', contacts); // Debug log
-      contacts.forEach(contact => {
-        // Ha nincs státusz vagy 'new' státuszú
-        if (!contact.status || contact.status === 'new') {
+      const newNotifications = [];
+
+      // Process new contacts
+      contacts
+        .filter(contact => contact.status === 'new')
+        .forEach(contact => {
           newNotifications.push({
             _id: `contact_${contact._id}`,
             title: 'Új kapcsolatfelvétel',
             message: `${contact.name} üzenetet küldött: ${contact.subject}`,
             severity: 'info',
-            createdAt: contact.createdAt || new Date().toISOString(),
+            createdAt: contact.createdAt,
             type: 'contact',
             link: '/contacts'
           });
-        }
-      });
+        });
 
-      // Process calculators
-      calculators.forEach(calc => {
-        if (!calc.status || calc.status === 'new') {
+      // Process new calculator entries
+      calculators
+        .filter(calc => calc.status === 'new')
+        .forEach(calc => {
           newNotifications.push({
             _id: `calculator_${calc._id}`,
             title: 'Új kalkulátor jelentkezés',
             message: `Új ${calc.projectType} projektre érkezett kalkuláció`,
             severity: 'info',
-            createdAt: calc.createdAt || new Date().toISOString(),
+            createdAt: calc.createdAt,
             type: 'calculator',
             link: '/calculator'
           });
-        }
-      });
+        });
 
-      // Process domains
+      // Process expiring domains
       domains.forEach(domain => {
         const daysUntilExpiry = Math.ceil(
           (new Date(domain.expiryDate) - new Date()) / (1000 * 60 * 60 * 24)
@@ -70,10 +70,63 @@ const NotificationsManager = () => {
         }
       });
 
+      // Process server issues
+      servers.forEach(server => {
+        if (server.status === 'maintenance' || server.status === 'offline') {
+          newNotifications.push({
+            _id: `server_${server._id}`,
+            title: 'Szerver probléma',
+            message: `A ${server.name} szerver ${server.status === 'maintenance' ? 'karbantartás alatt' : 'offline'}`,
+            severity: 'error',
+            createdAt: server.updatedAt,
+            type: 'server',
+            link: '/infrastructure'
+          });
+        }
+      });
+
+      // Process expiring licenses
+      licenses.forEach(license => {
+        if (license.renewal?.nextRenewalDate) {
+          const daysUntilRenewal = Math.ceil(
+            (new Date(license.renewal.nextRenewalDate) - new Date()) / (1000 * 60 * 60 * 24)
+          );
+          if (daysUntilRenewal <= 30 && daysUntilRenewal > 0) {
+            newNotifications.push({
+              _id: `license_${license._id}`,
+              title: 'Licensz megújítás',
+              message: `A ${license.name} licensz ${daysUntilRenewal} nap múlva lejár`,
+              severity: daysUntilRenewal <= 7 ? 'warning' : 'info',
+              createdAt: new Date().toISOString(),
+              type: 'license',
+              link: '/infrastructure'
+            });
+          }
+        }
+      });
+
+      // Process urgent projects
+      projects.forEach(project => {
+        const hasDelayedMilestones = (project.milestones || []).some(
+          milestone => milestone.status === 'késedelmes'
+        );
+        if (project.priority === 'magas' || hasDelayedMilestones) {
+          newNotifications.push({
+            _id: `project_${project._id}`,
+            title: 'Sürgős projekt',
+            message: hasDelayedMilestones 
+              ? `A "${project.name}" projektben késésben lévő milestone-ok vannak`
+              : `A "${project.name}" projekt magas prioritású`,
+            severity: 'warning',
+            createdAt: project.updatedAt,
+            type: 'project',
+            link: '/projects'
+          });
+        }
+      });
+
       // Sort by date and update state
       newNotifications.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-      console.log('Feldolgozott értesítések:', newNotifications); // Debug log
-      
       setNotifications(newNotifications);
       setUnreadCount(newNotifications.length);
     } catch (error) {
@@ -110,6 +163,7 @@ const NotificationsManager = () => {
 
   return (
     <div className="relative">
+      {/* Értesítés ikon és számláló */}
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="relative p-2 text-gray-300 hover:text-white transition-colors"
@@ -122,6 +176,7 @@ const NotificationsManager = () => {
         )}
       </button>
 
+      {/* Értesítések panel */}
       {isOpen && (
         <div className="absolute right-0 mt-2 w-96 bg-white rounded-lg shadow-xl z-50">
           <div className="p-4 border-b flex justify-between items-center">
@@ -143,9 +198,10 @@ const NotificationsManager = () => {
               </div>
             ) : (
               notifications.map((notification) => (
-                <div
+                <a
                   key={notification._id}
-                  className="border-b hover:bg-gray-50 cursor-pointer"
+                  href={notification.link}
+                  className="block border-b hover:bg-gray-50"
                 >
                   <div className="p-4 flex items-start gap-3">
                     {getIcon(notification.severity)}
@@ -157,13 +213,16 @@ const NotificationsManager = () => {
                       </div>
                     </div>
                     <button
-                      onClick={() => handleDismiss(notification._id)}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        handleDismiss(notification._id);
+                      }}
                       className="text-gray-400 hover:text-gray-600"
                     >
                       <X className="w-5 h-5" />
                     </button>
                   </div>
-                </div>
+                </a>
               ))
             )}
           </div>
