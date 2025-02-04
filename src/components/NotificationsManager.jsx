@@ -1,174 +1,231 @@
 import React, { useState, useEffect } from 'react';
-import { Bell } from 'lucide-react';
+import { Bell, X, AlertTriangle, Info } from 'lucide-react';
 
 const NotificationsManager = () => {
-  const [notifications, setNotifications] = useState({
-    contacts: 0,
-    calculator: 0,
-    domains: 0,
-    servers: 0,
-    licenses: 0,
-    projects: 0,
-    invoices: 0,
-    accounting: 0
-  });
+  const [notifications, setNotifications] = useState([]);
+  const [isOpen, setIsOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
-  const [showDropdown, setShowDropdown] = useState(false);
+  const API_URL = 'http://38.242.208.190:5001/api';
 
-  const fetchNotifications = async () => {
+  const fetchAllNotifications = async () => {
     try {
-      // Fetch new contacts
-      const contactsResponse = await fetch('http://38.242.208.190:5001/api/contacts');
-      const contactsData = await contactsResponse.json();
-      const newContacts = contactsData.filter(contact => contact.status === 'new').length;
+      // Fetch from all endpoints in parallel
+      const [contacts, calculators, domains, servers, licenses, projects] = await Promise.all([
+        fetch(`${API_URL}/contacts`).then(res => res.json()),
+        fetch(`${API_URL}/calculators`).then(res => res.json()),
+        fetch(`${API_URL}/domains`).then(res => res.json()),
+        fetch(`${API_URL}/servers`).then(res => res.json()),
+        fetch(`${API_URL}/licenses`).then(res => res.json()),
+        fetch(`${API_URL}/projects`).then(res => res.json())
+      ]);
 
-      // Fetch new calculator entries
-      const calculatorsResponse = await fetch('http://38.242.208.190:5001/api/calculators');
-      const calculatorsData = await calculatorsResponse.json();
-      const newCalculators = calculatorsData.filter(calc => calc.status === 'new').length;
+      const newNotifications = [];
 
-      // Fetch expiring domains
-      const domainsResponse = await fetch('http://38.242.208.190:5001/api/domains');
-      const domainsData = await domainsResponse.json();
-      const expiringDomains = domainsData.filter(domain => {
+      // Process new contacts
+      contacts
+        .filter(contact => contact.status === 'new')
+        .forEach(contact => {
+          newNotifications.push({
+            _id: `contact_${contact._id}`,
+            title: 'Új kapcsolatfelvétel',
+            message: `${contact.name} üzenetet küldött: ${contact.subject}`,
+            severity: 'info',
+            createdAt: contact.createdAt,
+            type: 'contact',
+            link: '/contacts'
+          });
+        });
+
+      // Process new calculator entries
+      calculators
+        .filter(calc => calc.status === 'new')
+        .forEach(calc => {
+          newNotifications.push({
+            _id: `calculator_${calc._id}`,
+            title: 'Új kalkulátor jelentkezés',
+            message: `Új ${calc.projectType} projektre érkezett kalkuláció`,
+            severity: 'info',
+            createdAt: calc.createdAt,
+            type: 'calculator',
+            link: '/calculator'
+          });
+        });
+
+      // Process expiring domains
+      domains.forEach(domain => {
         const daysUntilExpiry = Math.ceil(
           (new Date(domain.expiryDate) - new Date()) / (1000 * 60 * 60 * 24)
         );
-        return daysUntilExpiry <= 30 && daysUntilExpiry > 0;
-      }).length;
-
-      // Fetch server issues
-      const serversResponse = await fetch('http://38.242.208.190:5001/api/servers');
-      const serversData = await serversResponse.json();
-      const serverIssues = serversData.filter(server => 
-        server.status === 'maintenance' || 
-        server.status === 'offline' ||
-        (server.monitoring?.alerts || []).some(alert => !alert.resolved)
-      ).length;
-
-      // Fetch expiring licenses
-      const licensesResponse = await fetch('http://38.242.208.190:5001/api/licenses');
-      const licensesData = await licensesResponse.json();
-      const expiringLicenses = licensesData.filter(license => {
-        if (!license.renewal?.nextRenewalDate) return false;
-        const daysUntilRenewal = Math.ceil(
-          (new Date(license.renewal.nextRenewalDate) - new Date()) / (1000 * 60 * 60 * 24)
-        );
-        return daysUntilRenewal <= 30 && daysUntilRenewal > 0;
-      }).length;
-
-      // Fetch urgent projects
-      const projectsResponse = await fetch('http://38.242.208.190:5001/api/projects');
-      const projectsData = await projectsResponse.json();
-      const urgentProjects = projectsData.filter(project => {
-        const hasDelayedMilestones = (project.milestones || []).some(milestone => 
-          milestone.status === 'késedelmes'
-        );
-        return project.priority === 'magas' || hasDelayedMilestones;
-      }).length;
-
-      // Fetch unpaid invoices
-      const projectsWithInvoices = projectsData.filter(project => 
-        (project.invoices || []).some(invoice => 
-          invoice.status === 'késedelmes'
-        )
-      ).length;
-
-      setNotifications({
-        contacts: newContacts,
-        calculator: newCalculators,
-        domains: expiringDomains,
-        servers: serverIssues,
-        licenses: expiringLicenses,
-        projects: urgentProjects,
-        invoices: projectsWithInvoices,
-        accounting: 0 // Placeholder for future accounting notifications
+        if (daysUntilExpiry <= 30 && daysUntilExpiry > 0) {
+          newNotifications.push({
+            _id: `domain_${domain._id}`,
+            title: 'Domain lejárat',
+            message: `A ${domain.name} domain ${daysUntilExpiry} nap múlva lejár`,
+            severity: daysUntilExpiry <= 7 ? 'error' : 'warning',
+            createdAt: new Date().toISOString(),
+            type: 'domain',
+            link: '/domains'
+          });
+        }
       });
+
+      // Process server issues
+      servers.forEach(server => {
+        if (server.status === 'maintenance' || server.status === 'offline') {
+          newNotifications.push({
+            _id: `server_${server._id}`,
+            title: 'Szerver probléma',
+            message: `A ${server.name} szerver ${server.status === 'maintenance' ? 'karbantartás alatt' : 'offline'}`,
+            severity: 'error',
+            createdAt: server.updatedAt,
+            type: 'server',
+            link: '/infrastructure'
+          });
+        }
+      });
+
+      // Process expiring licenses
+      licenses.forEach(license => {
+        if (license.renewal?.nextRenewalDate) {
+          const daysUntilRenewal = Math.ceil(
+            (new Date(license.renewal.nextRenewalDate) - new Date()) / (1000 * 60 * 60 * 24)
+          );
+          if (daysUntilRenewal <= 30 && daysUntilRenewal > 0) {
+            newNotifications.push({
+              _id: `license_${license._id}`,
+              title: 'Licensz megújítás',
+              message: `A ${license.name} licensz ${daysUntilRenewal} nap múlva lejár`,
+              severity: daysUntilRenewal <= 7 ? 'warning' : 'info',
+              createdAt: new Date().toISOString(),
+              type: 'license',
+              link: '/infrastructure'
+            });
+          }
+        }
+      });
+
+      // Process urgent projects
+      projects.forEach(project => {
+        const hasDelayedMilestones = (project.milestones || []).some(
+          milestone => milestone.status === 'késedelmes'
+        );
+        if (project.priority === 'magas' || hasDelayedMilestones) {
+          newNotifications.push({
+            _id: `project_${project._id}`,
+            title: 'Sürgős projekt',
+            message: hasDelayedMilestones 
+              ? `A "${project.name}" projektben késésben lévő milestone-ok vannak`
+              : `A "${project.name}" projekt magas prioritású`,
+            severity: 'warning',
+            createdAt: project.updatedAt,
+            type: 'project',
+            link: '/projects'
+          });
+        }
+      });
+
+      // Sort by date and update state
+      newNotifications.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      setNotifications(newNotifications);
+      setUnreadCount(newNotifications.length);
     } catch (error) {
       console.error('Error fetching notifications:', error);
     }
   };
 
   useEffect(() => {
-    fetchNotifications();
-    const interval = setInterval(fetchNotifications, 30000); // Refresh every 30 seconds
+    fetchAllNotifications();
+    const interval = setInterval(fetchAllNotifications, 30000);
     return () => clearInterval(interval);
   }, []);
 
-  const totalNotifications = Object.values(notifications).reduce((a, b) => a + b, 0);
+  const handleDismiss = (notificationId) => {
+    setNotifications(prev => prev.filter(n => n._id !== notificationId));
+    setUnreadCount(prev => prev - 1);
+  };
 
-  const NotificationItem = ({ count, label, color = "red" }) => {
-    if (count === 0) return null;
-    return (
-      <div className="flex justify-between items-center px-4 py-2 hover:bg-gray-50">
-        <span className="text-sm text-gray-700">{label}</span>
-        <span className={`px-2 py-1 text-xs font-bold text-white bg-${color}-500 rounded-full`}>
-          {count}
-        </span>
-      </div>
-    );
+  const handleDismissAll = () => {
+    setNotifications([]);
+    setUnreadCount(0);
+  };
+
+  const getIcon = (severity) => {
+    switch (severity) {
+      case 'error':
+        return <AlertTriangle className="w-5 h-5 text-red-500" />;
+      case 'warning':
+        return <AlertTriangle className="w-5 h-5 text-yellow-500" />;
+      default:
+        return <Info className="w-5 h-5 text-blue-500" />;
+    }
   };
 
   return (
     <div className="relative">
-      <button 
-        className="text-gray-300 hover:text-white relative"
-        onClick={() => setShowDropdown(!showDropdown)}
+      {/* Értesítés ikon és számláló */}
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="relative p-2 text-gray-300 hover:text-white transition-colors"
       >
-        <Bell size={20} />
-        {totalNotifications > 0 && (
-          <span className="absolute -top-2 -right-2 inline-flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-red-500 rounded-full">
-            {totalNotifications}
+        <Bell className="w-6 h-6" />
+        {unreadCount > 0 && (
+          <span className="absolute -top-1 -right-1 flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-red-500 rounded-full">
+            {unreadCount}
           </span>
         )}
       </button>
 
-      {showDropdown && (
-        <div className="absolute right-0 mt-2 w-64 bg-white rounded-md shadow-lg py-1 z-50">
-          <NotificationItem 
-            count={notifications.contacts} 
-            label="Új kapcsolatfelvétel" 
-          />
-          <NotificationItem 
-            count={notifications.calculator} 
-            label="Új kalkulátor jelentkezés" 
-          />
-          <NotificationItem 
-            count={notifications.domains} 
-            label="Lejáró domain" 
-            color="yellow"
-          />
-          <NotificationItem 
-            count={notifications.servers} 
-            label="Szerver probléma" 
-            color="orange"
-          />
-          <NotificationItem 
-            count={notifications.licenses} 
-            label="Lejáró licensz" 
-            color="purple"
-          />
-          <NotificationItem 
-            count={notifications.projects} 
-            label="Sürgős projekt" 
-            color="blue"
-          />
-          <NotificationItem 
-            count={notifications.invoices} 
-            label="Késedelmes számla" 
-            color="red"
-          />
-          <NotificationItem 
-            count={notifications.accounting} 
-            label="Könyvelési feladat" 
-            color="green"
-          />
-          
-          {totalNotifications === 0 && (
-            <div className="px-4 py-2 text-sm text-gray-500">
-              Nincsenek új értesítések
-            </div>
-          )}
+      {/* Értesítések panel */}
+      {isOpen && (
+        <div className="absolute right-0 mt-2 w-96 bg-white rounded-lg shadow-xl z-50">
+          <div className="p-4 border-b flex justify-between items-center">
+            <h3 className="text-lg font-semibold">Értesítések</h3>
+            {unreadCount > 0 && (
+              <button
+                onClick={handleDismissAll}
+                className="text-sm text-blue-600 hover:text-blue-800"
+              >
+                Összes elrejtése
+              </button>
+            )}
+          </div>
+
+          <div className="max-h-96 overflow-y-auto">
+            {notifications.length === 0 ? (
+              <div className="p-4 text-center text-gray-500">
+                Nincsenek új értesítések
+              </div>
+            ) : (
+              notifications.map((notification) => (
+                <a
+                  key={notification._id}
+                  href={notification.link}
+                  className="block border-b hover:bg-gray-50"
+                >
+                  <div className="p-4 flex items-start gap-3">
+                    {getIcon(notification.severity)}
+                    <div className="flex-1">
+                      <div className="font-medium">{notification.title}</div>
+                      <div className="text-sm text-gray-600">{notification.message}</div>
+                      <div className="text-xs text-gray-400 mt-1">
+                        {new Date(notification.createdAt).toLocaleString()}
+                      </div>
+                    </div>
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        handleDismiss(notification._id);
+                      }}
+                      className="text-gray-400 hover:text-gray-600"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+                </a>
+              ))
+            )}
+          </div>
         </div>
       )}
     </div>
