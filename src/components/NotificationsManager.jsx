@@ -6,7 +6,7 @@ const NotificationsManager = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  const API_URL = 'http://38.242.208.190:5001/api';
+  const API_URL = 'https://admin.nb-studio.net:5001/api';
 
   const fetchAllNotifications = async () => {
     try {
