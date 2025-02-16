@@ -15,15 +15,19 @@ const SharedProjectDashboard = ({ project, onUpdate }) => {
   const handleFileUpload = async (event) => {
     const file = event.target.files[0];
     if (!file) return;
-
+  
     try {
-      const fileData = await window.fs.readFile(file.path, { encoding: 'utf8' });
-      setFiles(prev => [...prev, {
-        name: file.name,
-        size: file.size,
-        uploadedAt: new Date(),
-        content: fileData
-      }]);
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const content = e.target.result;
+        setFiles(prev => [...prev, {
+          name: file.name,
+          size: file.size,
+          uploadedAt: new Date(),
+          content: content
+        }]);
+      };
+      reader.readAsText(file); // vagy readAsArrayBuffer(file) bináris fájlokhoz
     } catch (error) {
       console.error('Error uploading file:', error);
     }
