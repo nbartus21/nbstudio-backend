@@ -17,24 +17,17 @@ const SharedProjectDashboard = ({ project, onUpdate }) => {
     if (!file) return;
   
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('projectId', project._id);
-  
-      const response = await fetch(`${API_URL}/api/projects/${project._id}/files`, {
-        method: 'POST',
-        body: formData
-      });
-  
-      if (response.ok) {
-        const uploadedFile = await response.json();
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const content = e.target.result;
         setFiles(prev => [...prev, {
           name: file.name,
           size: file.size,
           uploadedAt: new Date(),
-          url: uploadedFile.url // a szerver által visszaadott URL
+          content: content
         }]);
-      }
+      };
+      reader.readAsText(file); // vagy readAsArrayBuffer(file) bináris fájlokhoz
     } catch (error) {
       console.error('Error uploading file:', error);
     }
