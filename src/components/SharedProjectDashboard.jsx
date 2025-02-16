@@ -35,19 +35,19 @@ const SharedProjectDashboard = ({ project, onUpdate }) => {
       ? invoice.totalAmount.toFixed(2) 
       : '0.00';
   
-    return [
-      'BCD',
-      '002',
-      '1',
-      'SCT',
-      'COBADEFFXXX',
-      'Norbert Bartus',
-      'DE47663400140743463800',
-      `EUR${amount}`,
-      '',
-      invoice.number || '',
-      'Rechnung'
-    ].join('\n');
+      return [
+        'BCD',                                    // Service Tag (fix)
+        '002',                                    // Verzió (fix)
+        '1',                                      // Karakterkódolás (fix)
+        'SCT',                                    // SEPA Credit Transfer (fix)
+        'COBADEFF371',                           // Commerzbank Bruchsal BIC
+        'Norbert Bartus',                        // Kedvezményezett neve
+        'DE47663400180473463800',               // IBAN (nem változott)
+        `EUR${amount}`,                          // Összeg EUR-ban
+        '',                                      // Vevőazonosító (üres)
+        invoice.number || '',                    // Számlaszám
+        `RECHNUNG ${invoice.number}`             // Közlemény
+      ].join('\n');
   };
 
   // Statisztikák számítása
