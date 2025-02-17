@@ -20,7 +20,6 @@ import notificationRoutes from './routes/notifications.js';
 import Calculator from './models/Calculator.js';
 import accountingRoutes from './routes/accounting.js';
 import hostingRoutes from './routes/hosting.js';
-import validateApiKey from './middleware/validateApiKey.js';
 
 dotenv.config();
 

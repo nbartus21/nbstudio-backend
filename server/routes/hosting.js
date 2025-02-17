@@ -1,38 +1,48 @@
 import express from 'express';
 import Hosting from '../models/Hosting.js';
 import HostingNotification from '../models/HostingNotification.js';
-import validateApiKey from '../middleware/validateApiKey.js';  // Hozzáadjuk ezt
+import authMiddleware from '../middleware/auth.js';
 
 const router = express.Router();
 
 // Publikus végpontok
-router.post('/orders/public', validateApiKey, async (req, res) => {
-    try {
-      const order = new Hosting(req.body);
-      await order.save();
-  
-      const notification = new HostingNotification({
-        type: 'new_order',
-        title: 'Új hosting rendelés',
-        message: `Új ${order.plan.name} csomag rendelés érkezett ${order.client.name} ügyféltől`,
-        severity: 'info',
-        orderId: order._id,
-        link: '/hosting'
-      });
-      await notification.save();
-  
-      res.status(201).json({ 
-        success: true,
-        message: 'Rendelés sikeresen létrehozva',
-        orderId: order._id 
-      });
-    } catch (error) {
-      console.error('Hiba a rendelés mentésekor:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Hiba történt a rendelés feldolgozása során',
-        error: error.message
-      });
+router.post('/hosting/orders/public', async (req, res) => {
+  try {
+    const order = new Hosting({
+      ...req.body,
+      status: 'new',
+      service: {
+        ...req.body.service,
+        status: 'pending'
+      },
+      payment: {
+        status: 'pending'
+      }
+    });
+
+    await order.save();
+
+    const notification = new HostingNotification({
+      type: 'new_order',
+      title: 'Új hosting rendelés',
+      message: `Új ${order.plan.name} csomag rendelés érkezett ${order.client.name} ügyféltől`,
+      severity: 'info',
+      orderId: order._id
+    });
+    await notification.save();
+
+    res.status(201).json({ 
+      success: true,
+      message: 'Rendelés sikeresen létrehozva',
+      orderId: order._id 
+    });
+  } catch (error) {
+    console.error('Hiba a rendelés mentésekor:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Hiba történt a rendelés feldolgozása során',
+      error: error.message
+    });
   }
 });
 
