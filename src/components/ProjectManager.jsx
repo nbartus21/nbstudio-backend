@@ -18,6 +18,17 @@ const ProjectManager = () => {
     items: [{ description: '', quantity: 1, unitPrice: 0 }]
   });
 
+  const handleProjectUpdate = async (updatedProject) => {
+    try {
+      const response = await api.put(`${API_URL}/projects/${updatedProject._id}`, updatedProject);
+      if (response.ok) {
+        setProject(updatedProject);
+      }
+    } catch (error) {
+      console.error('Hiba a projekt frissítésekor:', error);
+    }
+  };
+  
   const truncateDescription = (description, maxLength = 140) => {
     if (!description) return '';
     return description.length > maxLength 
