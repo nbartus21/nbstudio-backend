@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Check, X, Info, Edit, Monitor, Server, Bell } from 'lucide-react';
 import { api } from '../services/auth';
 
-const API_URL = 'https://admin.nb-studio.net:5001/api';
+const API_URL = import.meta.env.VITE_API_URL || 'https://admin.nb-studio.net:5001/api';
 
 const HostingManager = () => {
   const [orders, setOrders] = useState([]);
@@ -19,7 +19,7 @@ const HostingManager = () => {
   // Értesítések engedélyezésének kérése
   const requestNotificationPermission = async () => {
     try {
-      if ('Notification' in window) {
+      if ('Notification' in window && window.isSecureContext) {  // Ellenőrizzük a secure context-et
         const permission = await Notification.requestPermission();
         setHasNotificationPermission(permission === 'granted');
       }
@@ -75,6 +75,11 @@ const HostingManager = () => {
     try {
       setLoading(true);
       const response = await api.get(`${API_URL}/hosting/orders`);
+    
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const data = await response.json();
       
       // Új rendelések ellenőrzése
