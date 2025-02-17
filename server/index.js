@@ -4,7 +4,9 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import https from 'https';
 import fs from 'fs';
-import Contact from './models/Contact.js'; 
+import Contact from './models/Contact.js';
+import Hosting from './models/Hosting.js';
+import HostingNotification from './models/HostingNotification.js';
 import postRoutes from './routes/posts.js';
 import contactRoutes from './routes/contacts.js';
 import calculatorRoutes from './routes/calculators.js';
@@ -15,9 +17,9 @@ import licenseRoutes from './routes/licenses.js';
 import authMiddleware from './middleware/auth.js';
 import authRoutes from './routes/auth.js';
 import notificationRoutes from './routes/notifications.js';
-import Calculator from './models/Calculator.js';  // Ezt add hozzá
+import Calculator from './models/Calculator.js';
 import accountingRoutes from './routes/accounting.js';
-import hostingRoutes from './routes/hosting.js';  // Új import
+import hostingRoutes from './routes/hosting.js';
 
 dotenv.config();
 
@@ -95,9 +97,11 @@ app.use((req, res, next) => {
   next();
 });
 
-// FONTOS: Publikus végpontok az auth middleware ELŐTT
-const publicContactRouter = express.Router();
-publicContactRouter.post('/contact', validateApiKey, async (req, res) => {
+// PUBLIKUS VÉGPONTOK
+const publicRouter = express.Router();
+
+// Contact végpont
+publicRouter.post('/contact', validateApiKey, async (req, res) => {
   try {
     const { name, email, message } = req.body;
     const contact = new Contact({
@@ -107,7 +111,7 @@ publicContactRouter.post('/contact', validateApiKey, async (req, res) => {
       message,
       status: 'new'
     });
-    const savedContact = await contact.save();
+    await contact.save();
     res.status(201).json({
       success: true,
       message: 'Üzenet sikeresen elküldve'
@@ -119,11 +123,9 @@ publicContactRouter.post('/contact', validateApiKey, async (req, res) => {
     });
   }
 });
-app.use('/api/public', publicContactRouter);
 
-// Új publikus végpont a kalkulátorhoz
-const publicCalculatorRouter = express.Router();
-publicCalculatorRouter.post('/calculators', validateApiKey, async (req, res) => {
+// Calculator végpont
+publicRouter.post('/calculators', validateApiKey, async (req, res) => {
   try {
     const calculator = new Calculator(req.body);
     await calculator.save();
@@ -138,14 +140,10 @@ publicCalculatorRouter.post('/calculators', validateApiKey, async (req, res) => 
     });
   }
 });
-app.use('/api/public', publicCalculatorRouter);
 
-// Hosting rendelés publikus végpont
-const publicHostingRouter = express.Router();
-publicHostingRouter.post('/hosting/orders', validateApiKey, async (req, res) => {
+// Hosting rendelés végpont
+publicRouter.post('/hosting/orders', validateApiKey, async (req, res) => {
   try {
-    console.log('Hosting order request received:', req.body);
-    
     const order = new Hosting(req.body);
     await order.save();
 
@@ -160,31 +158,40 @@ publicHostingRouter.post('/hosting/orders', validateApiKey, async (req, res) => 
     });
     await notification.save();
 
-    res.status(201).json({ 
+    res.status(201).json({
       success: true,
       message: 'Rendelés sikeresen létrehozva',
-      orderId: order._id 
+      orderId: order._id
     });
   } catch (error) {
-    console.error('Hiba a rendelés mentésekor:', error);
+    console.error('Hosting order error:', error);
     res.status(500).json({
       message: 'Hiba történt a rendelés feldolgozása során'
     });
   }
 });
 
-// Publikus route-ok (az auth middleware ELŐTT)
-app.use('/api/public', publicContactRouter);      // Már létező contact route
-app.use('/api/public', publicCalculatorRouter);   // Már létező calculator route
-app.use('/api/public', publicHostingRouter);      // Új hosting route
+// Publikus végpontok regisztrálása
+app.use('/api/public', publicRouter);
+
+// Projects publikus végpontok
+app.use('/api/public/projects', validateApiKey, projectRoutes);
 
 // Auth routes
 app.use('/api/auth', authRoutes);
 
-// Védett végpontok az auth middleware-el
+// VÉDETT VÉGPONTOK
 app.use('/api', authMiddleware);
-app.use('/api', hostingRoutes);  // Ez csak a védett hosting végpontokat tartalmazza
-// ... többi védett route
+app.use('/api', postRoutes);
+app.use('/api', contactRoutes);
+app.use('/api', calculatorRoutes);
+app.use('/api', projectRoutes);
+app.use('/api', domainRoutes);
+app.use('/api', serverRoutes);
+app.use('/api', licenseRoutes);
+app.use('/api', notificationRoutes);
+app.use('/api/accounting', accountingRoutes);
+app.use('/api', hostingRoutes);
 
 // Alap route teszteléshez
 app.get('/', (req, res) => {
@@ -208,3 +215,5 @@ mongoose.connect(process.env.MONGO_URI)
   .catch((error) => {
     console.error('MongoDB connection error:', error);
   });
+
+export default app;
