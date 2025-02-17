@@ -12,7 +12,7 @@ import InfrastructureManager from './InfrastructureManager';
 import SharedProjectView from './SharedProjectView';
 import InvoiceManager from './InvoiceManager';
 import AccountingManager from './AccountingManager';
-
+import HostingManager from './HostingManager'; // Javított import
 
 const App = () => {
   // Védett route komponens
