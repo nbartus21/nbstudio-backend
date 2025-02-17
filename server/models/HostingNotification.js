@@ -33,3 +33,5 @@ const hostingNotificationSchema = new mongoose.Schema({
     default: Date.now
   }
 });
+
+export default mongoose.model('HostingNotification', hostingNotificationSchema);
