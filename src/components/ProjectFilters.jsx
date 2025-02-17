@@ -13,9 +13,9 @@ const ProjectFilters = ({ projects, onFilterChange }) => {
   });
 
   // Amikor változik egy szűrő, hívjuk meg a szülő komponens callback függvényét
-  const onFilterChange = useCallback((filters) => {
-    // filter logika
-  }, []);
+  useEffect(() => {
+    onFilterChange(filters);
+  }, [filters, onFilterChange]);
 
   // Unikális kliensek listájának létrehozása
   const uniqueClients = [...new Set(projects.map(p => p.client?.name))].filter(Boolean);
