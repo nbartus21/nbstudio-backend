@@ -30,10 +30,11 @@ const Navigation = () => {
       ]
     },
     {
-      category: "Eszközök",
+      category: "Szolgáltatások",
       items: [
         { path: "/domains", label: "Domain Kezelő" },
         { path: "/infrastructure", label: "Infrastruktúra Kezelő" },
+        { path: "/hosting", label: "Hosting Kezelő" },
         { path: "/accounting", label: "Könyvelés" }
       ]
     }

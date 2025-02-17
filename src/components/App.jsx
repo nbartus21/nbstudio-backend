@@ -114,6 +114,14 @@ const App = () => {
     </PrivateRoute>
   }
 />
+<Route
+        path="/hosting"
+        element={
+          <PrivateRoute>
+            <HostingManager />
+          </PrivateRoute>
+        }
+      />
       <Route path="*" element={<Navigate to="/login" />} />
       <Route path="/shared-project/:token" element={<SharedProjectView />} />
 
