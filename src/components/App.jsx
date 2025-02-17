@@ -1,6 +1,7 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Navigation from './Navigation';
+import Dashboard from './components/Dashboard';  // Importáljuk a Dashboard komponenst
 import BlogAdmin from './BlogAdmin';
 import BlogCreator from './BlogCreator';
 import ContactAdmin from './ContactAdmin';
@@ -12,10 +13,9 @@ import InfrastructureManager from './InfrastructureManager';
 import SharedProjectView from './SharedProjectView';
 import InvoiceManager from './InvoiceManager';
 import AccountingManager from './AccountingManager';
-import HostingManager from './HostingManager'; // Javított import
+import HostingManager from './HostingManager';
 
 const App = () => {
-  // Védett route komponens
   const PrivateRoute = ({ children }) => {
     const isAuthenticated = sessionStorage.getItem('isAuthenticated') === 'true';
     
@@ -99,30 +99,30 @@ const App = () => {
         }
       />
       <Route
-  path="/infrastructure"
-  element={
-    <PrivateRoute>
-      <InfrastructureManager />
-    </PrivateRoute>
-  }
-/>
-<Route
-  path="/invoices"
-  element={
-    <PrivateRoute>
-      <InvoiceManager />
-    </PrivateRoute>
-  }
-/>
-<Route
-  path="/accounting"
-  element={
-    <PrivateRoute>
-      <AccountingManager />
-    </PrivateRoute>
-  }
-/>
-<Route
+        path="/infrastructure"
+        element={
+          <PrivateRoute>
+            <InfrastructureManager />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/invoices"
+        element={
+          <PrivateRoute>
+            <InvoiceManager />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/accounting"
+        element={
+          <PrivateRoute>
+            <AccountingManager />
+          </PrivateRoute>
+        }
+      />
+      <Route
         path="/hosting"
         element={
           <PrivateRoute>
@@ -132,7 +132,6 @@ const App = () => {
       />
       <Route path="*" element={<Navigate to="/login" />} />
       <Route path="/shared-project/:token" element={<SharedProjectView />} />
-
     </Routes>
   );
 };
