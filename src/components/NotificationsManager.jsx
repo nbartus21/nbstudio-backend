@@ -9,7 +9,16 @@ const NotificationsManager = () => {
 
   const API_URL = 'https://admin.nb-studio.net:5001/api';
 
-  // Notification permission kérése
+  // Helper function to process API responses
+  const processData = (data, type) => {
+    if (!Array.isArray(data)) {
+      console.error(`Invalid ${type} data received:`, data);
+      return [];
+    }
+    return data;
+  };
+
+  // Notification permission request
   const requestNotificationPermission = async () => {
     try {
       const permission = await Notification.requestPermission();
@@ -19,13 +28,13 @@ const NotificationsManager = () => {
     }
   };
 
-  // Browser notification küldése
+  // Browser notification
   const sendBrowserNotification = (title, body) => {
     if (!hasNotificationPermission) return;
 
     const notification = new Notification(title, {
       body,
-      icon: '/favicon.ico', // Az oldal ikonja
+      icon: '/favicon.ico',
       badge: '/favicon.ico',
       tag: 'nb-studio-notification'
     });
@@ -40,20 +49,50 @@ const NotificationsManager = () => {
   const fetchAllNotifications = async () => {
     try {
       const [contacts, calculators, domains, servers, licenses, projects] = await Promise.all([
-        fetch(`${API_URL}/contacts`).then(res => res.json()),
-        fetch(`${API_URL}/calculators`).then(res => res.json()),
-        fetch(`${API_URL}/domains`).then(res => res.json()),
-        fetch(`${API_URL}/servers`).then(res => res.json()),
-        fetch(`${API_URL}/licenses`).then(res => res.json()),
-        fetch(`${API_URL}/projects`).then(res => res.json())
+        fetch(`${API_URL}/contacts`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        }).then(res => res.json()),
+        fetch(`${API_URL}/calculators`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        }).then(res => res.json()),
+        fetch(`${API_URL}/domains`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        }).then(res => res.json()),
+        fetch(`${API_URL}/servers`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        }).then(res => res.json()),
+        fetch(`${API_URL}/licenses`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        }).then(res => res.json()),
+        fetch(`${API_URL}/projects`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        }).then(res => res.json())
       ]);
+
+      // Process data to ensure it's in array format
+      const processedContacts = processData(contacts, 'contacts');
+      const processedCalculators = processData(calculators, 'calculators');
+      const processedDomains = processData(domains, 'domains');
+      const processedServers = processData(servers, 'servers');
+      const processedLicenses = processData(licenses, 'licenses');
+      const processedProjects = processData(projects, 'projects');
 
       const newNotifications = [];
 
-      // Process new notifications and send browser notifications for new items
-      
-      // New contacts
-      contacts
+      // Process new contacts
+      processedContacts
         .filter(contact => contact.status === 'new')
         .forEach(contact => {
           const notification = {
@@ -66,16 +105,11 @@ const NotificationsManager = () => {
             link: '/contacts'
           };
           newNotifications.push(notification);
-          
-          // Send browser notification for new contacts
-          sendBrowserNotification(
-            'Új kapcsolatfelvétel',
-            `${contact.name} üzenetet küldött`
-          );
+          sendBrowserNotification('Új kapcsolatfelvétel', `${contact.name} üzenetet küldött`);
         });
 
-      // New calculator entries
-      calculators
+      // Process new calculator entries
+      processedCalculators
         .filter(calc => calc.status === 'new')
         .forEach(calc => {
           const notification = {
@@ -88,19 +122,12 @@ const NotificationsManager = () => {
             link: '/calculator'
           };
           newNotifications.push(notification);
-          
-          // Send browser notification for new calculations
-          sendBrowserNotification(
-            'Új kalkuláció',
-            `Új ${calc.projectType} projektre érkezett kalkuláció`
-          );
+          sendBrowserNotification('Új kalkuláció', `Új ${calc.projectType} projektre érkezett kalkuláció`);
         });
 
-      // Domain expiry warnings
-      domains.forEach(domain => {
-        const daysUntilExpiry = Math.ceil(
-          (new Date(domain.expiryDate) - new Date()) / (1000 * 60 * 60 * 24)
-        );
+      // Process domain expiry warnings
+      processedDomains.forEach(domain => {
+        const daysUntilExpiry = Math.ceil((new Date(domain.expiryDate) - new Date()) / (1000 * 60 * 60 * 24));
         if (daysUntilExpiry <= 30 && daysUntilExpiry > 0) {
           const notification = {
             _id: `domain_${domain._id}`,
@@ -112,19 +139,14 @@ const NotificationsManager = () => {
             link: '/domains'
           };
           newNotifications.push(notification);
-          
-          // Send browser notification for urgent domain expiry
           if (daysUntilExpiry <= 7) {
-            sendBrowserNotification(
-              'Sürgős domain lejárat',
-              `A ${domain.name} domain ${daysUntilExpiry} nap múlva lejár!`
-            );
+            sendBrowserNotification('Sürgős domain lejárat', `A ${domain.name} domain ${daysUntilExpiry} nap múlva lejár!`);
           }
         }
       });
 
-      // Server issues
-      servers.forEach(server => {
+      // Process server issues
+      processedServers.forEach(server => {
         if (server.status === 'maintenance' || server.status === 'offline') {
           const notification = {
             _id: `server_${server._id}`,
@@ -136,12 +158,7 @@ const NotificationsManager = () => {
             link: '/infrastructure'
           };
           newNotifications.push(notification);
-          
-          // Send browser notification for server issues
-          sendBrowserNotification(
-            'Szerver probléma',
-            `A ${server.name} szerver ${server.status === 'maintenance' ? 'karbantartás alatt' : 'offline'}`
-          );
+          sendBrowserNotification('Szerver probléma', `A ${server.name} szerver ${server.status === 'maintenance' ? 'karbantartás alatt' : 'offline'}`);
         }
       });
 
@@ -157,15 +174,12 @@ const NotificationsManager = () => {
 
   // Initialization
   useEffect(() => {
-    // Check notification permission on mount
     if ('Notification' in window) {
       setHasNotificationPermission(Notification.permission === 'granted');
     }
 
-    // Initial fetch
     fetchAllNotifications();
 
-    // Set up polling interval
     const interval = setInterval(fetchAllNotifications, 30000);
     return () => clearInterval(interval);
   }, []);
@@ -193,7 +207,6 @@ const NotificationsManager = () => {
 
   return (
     <div className="relative">
-      {/* Notification bell icon */}
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="relative p-2 text-gray-300 hover:text-white transition-colors"
@@ -206,7 +219,6 @@ const NotificationsManager = () => {
         )}
       </button>
 
-      {/* Request notification permission if not granted */}
       {!hasNotificationPermission && (
         <button
           onClick={requestNotificationPermission}
@@ -216,7 +228,6 @@ const NotificationsManager = () => {
         </button>
       )}
 
-      {/* Notifications panel */}
       {isOpen && (
         <div className="absolute right-0 mt-2 w-96 bg-white rounded-lg shadow-xl z-50">
           <div className="p-4 border-b flex justify-between items-center">
