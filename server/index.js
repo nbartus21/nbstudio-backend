@@ -56,12 +56,6 @@ app.use(express.json());
 
 // API Key validation middleware
 const validateApiKey = (req, res, next) => {
-  console.log('======= API Key Validation =======');
-  console.log('Headers received:', req.headers);
-  console.log('Received API Key:', req.headers['x-api-key']);
-  console.log('Expected API Key:', process.env.PUBLIC_API_KEY);
-  console.log('================================');
-  
   const apiKey = req.headers['x-api-key'];
   
   if (!process.env.PUBLIC_API_KEY) {
@@ -75,13 +69,8 @@ const validateApiKey = (req, res, next) => {
   }
 
   if (apiKey === process.env.PUBLIC_API_KEY) {
-    console.log('API Key validation successful');
     next();
   } else {
-    console.error('API Key validation failed');
-    console.log('Keys do not match:');
-    console.log('Received:', apiKey);
-    console.log('Expected:', process.env.PUBLIC_API_KEY);
     res.status(401).json({ message: 'Invalid API key' });
   }
 };
@@ -144,10 +133,10 @@ publicRouter.post('/calculators', validateApiKey, async (req, res) => {
 // Hosting rendelés végpont
 publicRouter.post('/hosting/orders', validateApiKey, async (req, res) => {
   try {
+    console.log('Received hosting order:', req.body);
     const order = new Hosting(req.body);
     await order.save();
 
-    // Értesítés létrehozása új rendelésről
     const notification = new HostingNotification({
       type: 'new_order',
       title: 'Új hosting rendelés',
@@ -166,7 +155,9 @@ publicRouter.post('/hosting/orders', validateApiKey, async (req, res) => {
   } catch (error) {
     console.error('Hosting order error:', error);
     res.status(500).json({
-      message: 'Hiba történt a rendelés feldolgozása során'
+      success: false,
+      message: 'Hiba történt a rendelés feldolgozása során',
+      error: error.message
     });
   }
 });
