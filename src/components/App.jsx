@@ -1,7 +1,7 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Navigation from './Navigation';
-import Dashboard from './components/Dashboard';  // Importáljuk a Dashboard komponenst
+import Dashboard from './Dashboard';  // Importáljuk a Dashboard komponenst
 import BlogAdmin from './BlogAdmin';
 import BlogCreator from './BlogCreator';
 import ContactAdmin from './ContactAdmin';
