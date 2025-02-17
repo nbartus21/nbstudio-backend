@@ -1,16 +1,20 @@
 import mongoose from 'mongoose';
 
 const hostingSchema = new mongoose.Schema({
-  // Ügyfél adatok
   client: {
     name: { type: String, required: true },
     email: { type: String, required: true },
     phone: String,
     company: String,
-    vatNumber: String
+    vatNumber: String,
+    address: {
+      street: String,
+      city: String,
+      postcode: String,
+      country: { type: String, default: 'DE' }
+    }
   },
   
-  // Csomag adatok
   plan: {
     type: { type: String, enum: ['regular', 'reseller'], required: true },
     name: { type: String, required: true },
@@ -20,10 +24,9 @@ const hostingSchema = new mongoose.Schema({
     bandwidth: Number,
     domains: Number,
     databases: Number,
-    accounts: Number  // reseller csomagoknál
+    accounts: Number
   },
   
-  // Fizetési adatok
   payment: {
     status: { 
       type: String, 
@@ -35,7 +38,6 @@ const hostingSchema = new mongoose.Schema({
     paidAt: Date
   },
   
-  // Szolgáltatás adatok
   service: {
     status: { 
       type: String, 
@@ -44,13 +46,13 @@ const hostingSchema = new mongoose.Schema({
     },
     startDate: Date,
     endDate: Date,
-    domainName: String,
+    domainName: { type: String, required: true },
+    domainType: { type: String, enum: ['new', 'transfer'], default: 'new' },
     serverIp: String,
     cpanelUsername: String
   },
   
-  // Rendszer adatok
-  status: {  // A teljes rendelés státusza
+  status: {
     type: String,
     enum: ['new', 'processing', 'active', 'suspended', 'cancelled'],
     default: 'new'
@@ -64,7 +66,6 @@ const hostingSchema = new mongoose.Schema({
   updatedAt: { type: Date, default: Date.now }
 });
 
-// Automatikus updatedAt frissítés
 hostingSchema.pre('save', function(next) {
   this.updatedAt = new Date();
   next();

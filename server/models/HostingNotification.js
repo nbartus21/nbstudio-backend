@@ -21,17 +21,24 @@ const hostingNotificationSchema = new mongoose.Schema({
   },
   orderId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Hosting'
+    ref: 'Hosting',
+    required: true
   },
   read: {
     type: Boolean,
     default: false
   },
-  link: String,
+  link: {
+    type: String,
+    default: '/hosting'
+  },
   createdAt: {
     type: Date,
     default: Date.now
   }
 });
+
+hostingNotificationSchema.index({ createdAt: -1 });
+hostingNotificationSchema.index({ orderId: 1 });
 
 export default mongoose.model('HostingNotification', hostingNotificationSchema);
