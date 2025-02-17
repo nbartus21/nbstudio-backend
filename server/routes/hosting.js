@@ -1,5 +1,7 @@
+// routes/hosting.js
 import express from 'express';
 import Hosting from '../models/Hosting.js';
+import HostingNotification from '../models/HostingNotification.js';
 import authMiddleware from '../middleware/auth.js';
 
 const router = express.Router();
@@ -9,6 +11,17 @@ router.post('/hosting/orders/public', async (req, res) => {
   try {
     const order = new Hosting(req.body);
     await order.save();
+
+    // Értesítés létrehozása új rendelésről
+    const notification = new HostingNotification({
+      type: 'new_order',
+      title: 'Új hosting rendelés',
+      message: `Új ${order.plan.name} csomag rendelés érkezett ${order.client.name} ügyféltől`,
+      severity: 'info',
+      orderId: order._id,
+      link: '/hosting'
+    });
+    await notification.save();
 
     res.status(201).json({ 
       success: true,
@@ -26,24 +39,40 @@ router.post('/hosting/orders/public', async (req, res) => {
 // Protected routes
 router.use(authMiddleware);
 
-// Összes rendelés lekérése
-router.get('/hosting/orders', async (req, res) => {
+// Értesítések lekérése
+router.get('/hosting/notifications', async (req, res) => {
   try {
-    const orders = await Hosting.find().sort({ createdAt: -1 });
-    res.json(orders);
+    const notifications = await HostingNotification.find()
+      .sort({ createdAt: -1 })
+      .limit(50);
+    res.json(notifications);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 });
 
-// Egy rendelés lekérése
-router.get('/hosting/orders/:id', async (req, res) => {
+// Értesítés olvasottnak jelölése
+router.put('/hosting/notifications/:id/read', async (req, res) => {
   try {
-    const order = await Hosting.findById(req.params.id);
-    if (!order) {
-      return res.status(404).json({ message: 'Rendelés nem található' });
-    }
-    res.json(order);
+    const notification = await HostingNotification.findByIdAndUpdate(
+      req.params.id,
+      { read: true },
+      { new: true }
+    );
+    res.json(notification);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Összes értesítés olvasottnak jelölése
+router.put('/hosting/notifications/read-all', async (req, res) => {
+  try {
+    await HostingNotification.updateMany(
+      { read: false },
+      { read: true }
+    );
+    res.json({ message: 'Minden értesítés olvasottnak jelölve' });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -59,6 +88,7 @@ router.put('/hosting/orders/:id/status', async (req, res) => {
       return res.status(404).json({ message: 'Rendelés nem található' });
     }
 
+    const oldStatus = order.status;
     order.status = status;
     
     // Szolgáltatás státuszának automatikus frissítése
@@ -87,36 +117,26 @@ router.put('/hosting/orders/:id/status', async (req, res) => {
     }
 
     await order.save();
-    res.json(order);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
 
-// Jegyzet hozzáadása
-router.post('/hosting/orders/:id/notes', async (req, res) => {
-  try {
-    const { content, addedBy } = req.body;
-    const order = await Hosting.findById(req.params.id);
-    
-    if (!order) {
-      return res.status(404).json({ message: 'Rendelés nem található' });
-    }
-
-    order.notes.push({
-      content,
-      addedBy,
-      addedAt: new Date()
+    // Értesítés létrehozása a státuszváltozásról
+    const notification = new HostingNotification({
+      type: 'status_change',
+      title: 'Rendelés státusza módosult',
+      message: `${order.client.name} rendelésének új státusza: ${status}`,
+      severity: status === 'active' ? 'success' : 
+                status === 'suspended' ? 'error' : 'info',
+      orderId: order._id,
+      link: '/hosting'
     });
+    await notification.save();
 
-    await order.save();
     res.json(order);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 });
 
-// Fizetési státusz frissítése
+// Fizetés beérkezésének kezelése
 router.put('/hosting/orders/:id/payment', async (req, res) => {
   try {
     const { status, method, transactionId } = req.body;
@@ -132,6 +152,17 @@ router.put('/hosting/orders/:id/payment', async (req, res) => {
     
     if (status === 'paid') {
       order.payment.paidAt = new Date();
+
+      // Értesítés létrehozása a beérkezett fizetésről
+      const notification = new HostingNotification({
+        type: 'payment_received',
+        title: 'Fizetés beérkezett',
+        message: `${order.client.name} rendelésének fizetése megérkezett`,
+        severity: 'success',
+        orderId: order._id,
+        link: '/hosting'
+      });
+      await notification.save();
     }
 
     await order.save();
@@ -141,25 +172,38 @@ router.put('/hosting/orders/:id/payment', async (req, res) => {
   }
 });
 
-// Szolgáltatás adatok frissítése
-router.put('/hosting/orders/:id/service', async (req, res) => {
+// Szolgáltatás lejáratának ellenőrzése (cron job)
+const checkExpiringServices = async () => {
   try {
-    const { domainName, serverIp, cpanelUsername } = req.body;
-    const order = await Hosting.findById(req.params.id);
-    
-    if (!order) {
-      return res.status(404).json({ message: 'Rendelés nem található' });
+    const orders = await Hosting.find({ 
+      'status': 'active',
+      'service.endDate': { $exists: true }
+    });
+
+    for (const order of orders) {
+      const endDate = new Date(order.service.endDate);
+      const now = new Date();
+      const daysUntilExpiry = Math.ceil((endDate - now) / (1000 * 60 * 60 * 24));
+
+      if (daysUntilExpiry <= 7 && daysUntilExpiry > 0) {
+        // Értesítés a közelgő lejáratról
+        const notification = new HostingNotification({
+          type: 'expiry_warning',
+          title: 'Szolgáltatás hamarosan lejár',
+          message: `${order.client.name} szolgáltatása ${daysUntilExpiry} nap múlva lejár`,
+          severity: 'warning',
+          orderId: order._id,
+          link: '/hosting'
+        });
+        await notification.save();
+      }
     }
-
-    if (domainName) order.service.domainName = domainName;
-    if (serverIp) order.service.serverIp = serverIp;
-    if (cpanelUsername) order.service.cpanelUsername = cpanelUsername;
-
-    await order.save();
-    res.json(order);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Error checking expiring services:', error);
   }
-});
+};
+
+// Cron job indítása (naponta egyszer)
+setInterval(checkExpiringServices, 24 * 60 * 60 * 1000);
 
 export default router;

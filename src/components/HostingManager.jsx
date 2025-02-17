@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Check, X, Info, Edit, Monitor, Server } from 'lucide-react';
+import { Check, X, Info, Edit, Monitor, Server, Bell } from 'lucide-react';
 import { api } from '../services/auth';
 
 const API_URL = 'https://admin.nb-studio.net:5001/api';
@@ -10,15 +10,104 @@ const HostingManager = () => {
   const [error, setError] = useState(null);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [lastCheckedTimestamp, setLastCheckedTimestamp] = useState(Date.now());
+  const [hasNotificationPermission, setHasNotificationPermission] = useState(false);
+  const [notificationCount, setNotificationCount] = useState(0);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState([]);
 
-  // Fetch orders
+  // Értesítések engedélyezésének kérése
+  const requestNotificationPermission = async () => {
+    try {
+      if ('Notification' in window) {
+        const permission = await Notification.requestPermission();
+        setHasNotificationPermission(permission === 'granted');
+      }
+    } catch (error) {
+      console.error('Error requesting notification permission:', error);
+    }
+  };
+
+  // Böngésző értesítés küldése
+  const sendBrowserNotification = (title, body, data = {}) => {
+    if (!hasNotificationPermission) return;
+
+    const notification = new Notification(title, {
+      body,
+      icon: '/favicon.ico',
+      badge: '/favicon.ico',
+      tag: 'nb-studio-hosting-notification',
+      data
+    });
+
+    notification.onclick = () => {
+      window.focus();
+      notification.close();
+      if (data.orderId) {
+        const order = orders.find(o => o._id === data.orderId);
+        if (order) {
+          setSelectedOrder(order);
+          setShowDetailsModal(true);
+        }
+      }
+    };
+  };
+
+  // Rendszerértesítés létrehozása
+  const createSystemNotification = async (notification) => {
+    try {
+      const response = await api.post(`${API_URL}/notifications/generate`, {
+        type: 'hosting',
+        ...notification
+      });
+
+      if (response.ok) {
+        setNotifications(prev => [notification, ...prev]);
+        setNotificationCount(prev => prev + 1);
+      }
+    } catch (error) {
+      console.error('Error creating system notification:', error);
+    }
+  };
+
+  // Rendelések lekérése és új rendelések ellenőrzése
   const fetchOrders = async () => {
     try {
       setLoading(true);
       const response = await api.get(`${API_URL}/hosting/orders`);
       const data = await response.json();
+      
+      // Új rendelések ellenőrzése
+      const newOrders = data.filter(order => 
+        new Date(order.createdAt).getTime() > lastCheckedTimestamp
+      );
+
+      // Értesítések küldése az új rendelésekről
+      newOrders.forEach(order => {
+        // Browser notification
+        sendBrowserNotification(
+          'Új hosting rendelés érkezett!',
+          `${order.client.name} - ${order.plan.name} csomag`,
+          { orderId: order._id }
+        );
+
+        // Rendszerértesítés
+        createSystemNotification({
+          title: 'Új hosting rendelés',
+          message: `Új ${order.plan.name} csomag rendelés érkezett ${order.client.name} ügyféltől`,
+          severity: 'info',
+          link: '/hosting',
+          orderId: order._id
+        });
+      });
+
       setOrders(data);
+      setLastCheckedTimestamp(Date.now());
       setError(null);
+
+      // Lejáró szolgáltatások ellenőrzése
+      checkExpiringServices(data);
+
     } catch (error) {
       console.error('Error fetching orders:', error);
       setError('Failed to load hosting orders');
@@ -27,11 +116,100 @@ const HostingManager = () => {
     }
   };
 
+  // Lejáró szolgáltatások ellenőrzése
+  const checkExpiringServices = (currentOrders) => {
+    currentOrders.forEach(order => {
+      if (order.status === 'active' && order.service.endDate) {
+        const endDate = new Date(order.service.endDate);
+        const now = new Date();
+        const daysUntilExpiry = Math.ceil((endDate - now) / (1000 * 60 * 60 * 24));
+
+        if (daysUntilExpiry <= 7 && daysUntilExpiry > 0) {
+          // Értesítés a közelgő lejáratról
+          createSystemNotification({
+            title: 'Szolgáltatás hamarosan lejár',
+            message: `${order.client.name} szolgáltatása ${daysUntilExpiry} nap múlva lejár`,
+            severity: 'warning',
+            link: '/hosting',
+            orderId: order._id
+          });
+
+          sendBrowserNotification(
+            'Szolgáltatás hamarosan lejár',
+            `${order.client.name} szolgáltatása ${daysUntilExpiry} nap múlva lejár`,
+            { orderId: order._id }
+          );
+        } else if (daysUntilExpiry <= 0 && order.payment.status !== 'paid') {
+          // Automatikus felfüggesztés
+          handleStatusUpdate(order._id, 'suspended');
+          
+          createSystemNotification({
+            title: 'Szolgáltatás felfüggesztve',
+            message: `${order.client.name} szolgáltatása lejárt és felfüggesztésre került`,
+            severity: 'error',
+            link: '/hosting',
+            orderId: order._id
+          });
+
+          sendBrowserNotification(
+            'Szolgáltatás felfüggesztve',
+            `${order.client.name} szolgáltatása lejárt és felfüggesztésre került`,
+            { orderId: order._id }
+          );
+        }
+      }
+    });
+  };
+
+  // Státusz frissítése
+  const handleStatusUpdate = async (orderId, newStatus) => {
+    try {
+      const response = await api.put(`${API_URL}/hosting/orders/${orderId}/status`, {
+        status: newStatus
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update status');
+      }
+
+      const updatedOrder = await response.json();
+      
+      // Státusz változás értesítés
+      const statusMessages = {
+        processing: 'feldolgozás alatt',
+        active: 'aktív',
+        suspended: 'felfüggesztve',
+        cancelled: 'törölve'
+      };
+
+      createSystemNotification({
+        title: 'Rendelés státusza módosult',
+        message: `${updatedOrder.client.name} rendelésének új státusza: ${statusMessages[newStatus]}`,
+        severity: newStatus === 'active' ? 'success' : 'info',
+        link: '/hosting',
+        orderId: orderId
+      });
+
+      await fetchOrders();
+      setError(null);
+    } catch (error) {
+      console.error('Error updating status:', error);
+      setError('Failed to update order status');
+    }
+  };
+
+  // Inicializálás
   useEffect(() => {
+    requestNotificationPermission();
     fetchOrders();
+
+    // Polling időzítő beállítása
+    const interval = setInterval(fetchOrders, 30000); // 30 másodpercenként ellenőriz
+
+    return () => clearInterval(interval);
   }, []);
 
-  // Status colors
+  // Státusz színek
   const getStatusColor = (status) => {
     switch (status) {
       case 'new': return 'bg-blue-100 text-blue-800';
@@ -43,7 +221,7 @@ const HostingManager = () => {
     }
   };
 
-  // Payment status colors
+  // Fizetési státusz színek
   const getPaymentStatusColor = (status) => {
     switch (status) {
       case 'paid': return 'bg-green-100 text-green-800';
@@ -54,7 +232,7 @@ const HostingManager = () => {
     }
   };
 
-  // Format date
+  // Dátum formázás
   const formatDate = (date) => {
     return new Date(date).toLocaleDateString('hu-HU', {
       year: 'numeric',
@@ -65,153 +243,44 @@ const HostingManager = () => {
     });
   };
 
-  // Handle status update
-  const handleStatusUpdate = async (orderId, newStatus) => {
-    try {
-      const response = await api.put(`${API_URL}/hosting/orders/${orderId}/status`, {
-        status: newStatus
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to update status');
-      }
-
-      await fetchOrders();
-      setError(null);
-    } catch (error) {
-      console.error('Error updating status:', error);
-      setError('Failed to update order status');
-    }
-  };
-
-  // Details Modal
-  const OrderDetailsModal = ({ order, onClose }) => {
-    if (!order) return null;
-
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-lg max-w-4xl w-full p-6 max-h-[90vh] overflow-y-auto">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-semibold">Rendelés részletek</h2>
-            <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
-              <X className="h-6 w-6" />
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Ügyfél adatok */}
-            <div className="space-y-4">
-              <h3 className="font-medium text-lg">Ügyfél adatok</h3>
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <p><span className="font-medium">Név:</span> {order.client.name}</p>
-                <p><span className="font-medium">Email:</span> {order.client.email}</p>
-                <p><span className="font-medium">Telefon:</span> {order.client.phone || '-'}</p>
-                <p><span className="font-medium">Cég:</span> {order.client.company || '-'}</p>
-                <p><span className="font-medium">Adószám:</span> {order.client.vatNumber || '-'}</p>
-              </div>
-            </div>
-
-            {/* Csomag adatok */}
-            <div className="space-y-4">
-              <h3 className="font-medium text-lg">Csomag adatok</h3>
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <p><span className="font-medium">Típus:</span> {order.plan.type === 'regular' ? 'Normál' : 'Viszonteladói'}</p>
-                <p><span className="font-medium">Csomag:</span> {order.plan.name}</p>
-                <p><span className="font-medium">Számlázás:</span> {order.plan.billing === 'monthly' ? 'Havi' : 'Éves'}</p>
-                <p><span className="font-medium">Ár:</span> {order.plan.price}€/{order.plan.billing === 'monthly' ? 'hó' : 'év'}</p>
-                <p><span className="font-medium">Tárhely:</span> {order.plan.storage} GB</p>
-                <p><span className="font-medium">Sávszélesség:</span> {order.plan.bandwidth} GB</p>
-                {order.plan.type === 'regular' ? (
-                  <>
-                    <p><span className="font-medium">Domainek:</span> {order.plan.domains}</p>
-                    <p><span className="font-medium">Adatbázisok:</span> {order.plan.databases}</p>
-                  </>
-                ) : (
-                  <p><span className="font-medium">Fiókok:</span> {order.plan.accounts}</p>
-                )}
-              </div>
-            </div>
-
-            {/* Szolgáltatás adatok */}
-            <div className="space-y-4">
-              <h3 className="font-medium text-lg">Szolgáltatás adatok</h3>
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <p><span className="font-medium">Státusz:</span> 
-                  <span className={`ml-2 px-2 py-1 rounded-full text-xs ${getStatusColor(order.service.status)}`}>
-                    {order.service.status}
-                  </span>
-                </p>
-                <p><span className="font-medium">Domain név:</span> {order.service.domainName || '-'}</p>
-                <p><span className="font-medium">Szerver IP:</span> {order.service.serverIp || '-'}</p>
-                <p><span className="font-medium">cPanel felhasználó:</span> {order.service.cpanelUsername || '-'}</p>
-                {order.service.startDate && (
-                  <p><span className="font-medium">Kezdés dátuma:</span> {formatDate(order.service.startDate)}</p>
-                )}
-                {order.service.endDate && (
-                  <p><span className="font-medium">Lejárat dátuma:</span> {formatDate(order.service.endDate)}</p>
-                )}
-              </div>
-            </div>
-
-            {/* Fizetési adatok */}
-            <div className="space-y-4">
-              <h3 className="font-medium text-lg">Fizetési adatok</h3>
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <p><span className="font-medium">Státusz:</span>
-                  <span className={`ml-2 px-2 py-1 rounded-full text-xs ${getPaymentStatusColor(order.payment.status)}`}>
-                    {order.payment.status}
-                  </span>
-                </p>
-                <p><span className="font-medium">Fizetési mód:</span> {order.payment.method || '-'}</p>
-                <p><span className="font-medium">Tranzakció ID:</span> {order.payment.transactionId || '-'}</p>
-                {order.payment.paidAt && (
-                  <p><span className="font-medium">Fizetés dátuma:</span> {formatDate(order.payment.paidAt)}</p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Jegyzetek */}
-          <div className="mt-6">
-            <h3 className="font-medium text-lg mb-4">Jegyzetek</h3>
-            <div className="space-y-4">
-              {order.notes.map((note, index) => (
-                <div key={index} className="bg-gray-50 p-4 rounded-lg">
-                  <p className="text-sm text-gray-500">{formatDate(note.addedAt)} - {note.addedBy}</p>
-                  <p className="mt-1">{note.content}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Műveletek */}
-          <div className="mt-6 flex justify-end gap-4">
-            <button
-              onClick={() => handleStatusUpdate(order._id, 'processing')}
-              disabled={order.status !== 'new'}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-            >
-              Feldolgozás
-            </button>
-            <button
-              onClick={() => handleStatusUpdate(order._id, 'active')}
-              disabled={order.status !== 'processing'}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
-            >
-              Aktiválás
-            </button>
-            <button
-              onClick={() => handleStatusUpdate(order._id, 'suspended')}
-              disabled={order.status !== 'active'}
-              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
-            >
-              Felfüggesztés
-            </button>
-          </div>
-        </div>
+  // Értesítések panel komponens
+  const NotificationsPanel = () => (
+    <div className="absolute right-0 mt-2 w-96 bg-white rounded-lg shadow-xl z-50">
+      <div className="p-4 border-b">
+        <h3 className="text-lg font-semibold">Értesítések</h3>
       </div>
-    );
-  };
+      <div className="max-h-96 overflow-y-auto">
+        {notifications.length === 0 ? (
+          <div className="p-4 text-center text-gray-500">
+            Nincsenek új értesítések
+          </div>
+        ) : (
+          notifications.map((notification, index) => (
+            <div 
+              key={index}
+              className="p-4 border-b hover:bg-gray-50 cursor-pointer"
+              onClick={() => {
+                if (notification.orderId) {
+                  const order = orders.find(o => o._id === notification.orderId);
+                  if (order) {
+                    setSelectedOrder(order);
+                    setShowDetailsModal(true);
+                  }
+                }
+                setShowNotifications(false);
+              }}
+            >
+              <div className="font-medium">{notification.title}</div>
+              <div className="text-sm text-gray-600">{notification.message}</div>
+              <div className="text-xs text-gray-400 mt-1">
+                {formatDate(notification.createdAt || new Date())}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
 
   if (loading) {
     return (
@@ -223,10 +292,37 @@ const HostingManager = () => {
 
   return (
     <div className="p-6">
+      {/* Értesítések engedélyezése banner */}
+      {!hasNotificationPermission && (
+        <div className="mb-4 p-4 bg-yellow-100 border border-yellow-400 text-yellow-700 rounded-lg flex justify-between items-center">
+          <span>Az értesítések engedélyezése segít nyomon követni az új rendeléseket.</span>
+          <button
+            onClick={requestNotificationPermission}
+            className="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600"
+          >
+            Értesítések engedélyezése
+          </button>
+        </div>
+      )}
+
+      {/* Fejléc értesítés gombbal */}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Hosting Rendelések</h1>
+        <div className="relative">
+          <button
+            onClick={() => setShowNotifications(!showNotifications)}
+            className="relative p-2 text-gray-600 hover:text-gray-800"
+          >
+            <Bell className="w-6 h-6" />
+            {notificationCount > 0 && (
+              <span className="absolute -top-1 -right-1 flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-red-500 rounded-full">
+                {notificationCount}
+              </span>
+            )}
+          </button>
+          {showNotifications && <NotificationsPanel />}
+        </div>
       </div>
-
       {/* Statisztika kártyák */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-white p-6 rounded-lg shadow">
