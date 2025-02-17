@@ -140,30 +140,51 @@ publicCalculatorRouter.post('/calculators', validateApiKey, async (req, res) => 
 });
 app.use('/api/public', publicCalculatorRouter);
 
-// CORS és egyéb middleware-k után, de az auth middleware ELŐTT
-const publicProjectRouter = express.Router();
-publicProjectRouter.use(validateApiKey);
-app.use('/api/public/projects', projectRoutes);  // Publikus végpontok
+// Hosting rendelés publikus végpont
+const publicHostingRouter = express.Router();
+publicHostingRouter.post('/hosting/orders', validateApiKey, async (req, res) => {
+  try {
+    console.log('Hosting order request received:', req.body);
+    
+    const order = new Hosting(req.body);
+    await order.save();
+
+    // Értesítés létrehozása új rendelésről
+    const notification = new HostingNotification({
+      type: 'new_order',
+      title: 'Új hosting rendelés',
+      message: `Új ${order.plan.name} csomag rendelés érkezett ${order.client.name} ügyféltől`,
+      severity: 'info',
+      orderId: order._id,
+      link: '/hosting'
+    });
+    await notification.save();
+
+    res.status(201).json({ 
+      success: true,
+      message: 'Rendelés sikeresen létrehozva',
+      orderId: order._id 
+    });
+  } catch (error) {
+    console.error('Hiba a rendelés mentésekor:', error);
+    res.status(500).json({
+      message: 'Hiba történt a rendelés feldolgozása során'
+    });
+  }
+});
+
+// Publikus route-ok (az auth middleware ELŐTT)
+app.use('/api/public', publicContactRouter);      // Már létező contact route
+app.use('/api/public', publicCalculatorRouter);   // Már létező calculator route
+app.use('/api/public', publicHostingRouter);      // Új hosting route
 
 // Auth routes
 app.use('/api/auth', authRoutes);
 
-// Védett végpontok
-app.use('/api', postRoutes);
-app.use('/api', authMiddleware); // Az auth middleware csak ezután jön
-app.use('/api', contactRoutes);
-app.use('/api', calculatorRoutes);  // Áthelyezve az auth middleware után
-app.use('/api', projectRoutes);
-app.use('/api', domainRoutes);
-app.use('/api', serverRoutes);
-app.use('/api', licenseRoutes);
-app.use('/api', notificationRoutes);  // <- Ez az új sor
-app.use('/api/accounting', accountingRoutes);
-app.use('/api', hostingRoutes);  // Új route hozzáadása
-
-
-
-
+// Védett végpontok az auth middleware-el
+app.use('/api', authMiddleware);
+app.use('/api', hostingRoutes);  // Ez csak a védett hosting végpontokat tartalmazza
+// ... többi védett route
 
 // Alap route teszteléshez
 app.get('/', (req, res) => {
