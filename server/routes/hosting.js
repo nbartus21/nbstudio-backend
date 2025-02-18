@@ -5,8 +5,8 @@ import authMiddleware from '../middleware/auth.js';
 
 const router = express.Router();
 
-// Publikus végpontok
-router.post('/hosting/orders/public', async (req, res) => {
+// Publikus végpont - módosított útvonal, hogy egyezzen a frontenddel
+router.post('/public/hosting/orders', async (req, res) => {
   try {
     const order = new Hosting({
       ...req.body,
@@ -31,10 +31,10 @@ router.post('/hosting/orders/public', async (req, res) => {
     });
     await notification.save();
 
-    res.status(201).json({ 
+    res.status(201).json({
       success: true,
       message: 'Rendelés sikeresen létrehozva',
-      orderId: order._id 
+      orderId: order._id
     });
   } catch (error) {
     console.error('Hiba a rendelés mentésekor:', error);
