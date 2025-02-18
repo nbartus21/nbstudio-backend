@@ -174,7 +174,7 @@ publicRouter.post('/hosting/orders', validateApiKey, async (req, res) => {
 // Publikus végpontok regisztrálása
 app.use('/api/public', publicRouter);
 
-// BLOG VÉGPONTOK - teljesen publikusak, nincs auth vagy API key ellenőrzés
+// Publikus blog posts végpontok - auth middleware előtt!
 app.use('/api/posts', postRoutes);
 
 // Projects publikus végpontok
@@ -183,16 +183,18 @@ app.use('/api/public/projects', validateApiKey, projectRoutes);
 // Auth routes
 app.use('/api/auth', authRoutes);
 
-// VÉDETT VÉGPONTOK - minden más végpont védett
-app.use('/api/contacts', authMiddleware, contactRoutes);
-app.use('/api/calculators', authMiddleware, calculatorRoutes);
-app.use('/api/projects', authMiddleware, projectRoutes);
-app.use('/api/domains', authMiddleware, domainRoutes);
-app.use('/api/servers', authMiddleware, serverRoutes);
-app.use('/api/licenses', authMiddleware, licenseRoutes);
-app.use('/api/notifications', authMiddleware, notificationRoutes);
-app.use('/api/accounting', authMiddleware, accountingRoutes);
-app.use('/api/hosting', authMiddleware, hostingRoutes);
+// VÉDETT VÉGPONTOK
+app.use('/api', authMiddleware);
+// Minden más védett végpont, kivéve a posts
+app.use('/api/contacts', contactRoutes);
+app.use('/api/calculators', calculatorRoutes);
+app.use('/api/projects', projectRoutes);
+app.use('/api/domains', domainRoutes);
+app.use('/api/servers', serverRoutes);
+app.use('/api/licenses', licenseRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/accounting', accountingRoutes);
+app.use('/api/hosting', hostingRoutes);
 
 // Alap route teszteléshez
 app.get('/', (req, res) => {
