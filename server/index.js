@@ -51,6 +51,8 @@ app.use(cors({
   optionsSuccessStatus: 200
 }));
 
+
+
 // Middleware-ek
 app.use(express.json());
 
@@ -171,32 +173,11 @@ publicRouter.post('/hosting/orders', validateApiKey, async (req, res) => {
   }
 });
 
-// Blog posts külön router
-const blogRouter = express.Router();
-
-// GET kérések publikussá tétele
-blogRouter.get('/', async (req, res) => {
-  try {
-    const posts = await Post.find({ published: true }).sort({ createdAt: -1 });
-    res.json(posts);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
-
-// Többi blog művelet védett marad
-blogRouter.use((req, res, next) => {
-  if (req.method !== 'GET') {
-    return authMiddleware(req, res, next);
-  }
-  next();
-});
-
-// Blog router regisztrálása
-app.use('/api/posts', blogRouter);
-
 // Publikus végpontok regisztrálása
 app.use('/api/public', publicRouter);
+
+// PUBLIKUS BLOG VÉGPONTOK - auth middleware előtt!
+app.use('/api/posts', publicRouter);
 
 // Projects publikus végpontok
 app.use('/api/public/projects', validateApiKey, projectRoutes);
@@ -206,6 +187,7 @@ app.use('/api/auth', authRoutes);
 
 // VÉDETT VÉGPONTOK
 app.use('/api', authMiddleware);
+app.use('/api', postRoutes);
 app.use('/api', contactRoutes);
 app.use('/api', calculatorRoutes);
 app.use('/api', projectRoutes);
