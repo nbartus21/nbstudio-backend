@@ -7,6 +7,7 @@ import fs from 'fs';
 import Contact from './models/Contact.js';
 import Hosting from './models/Hosting.js';
 import HostingNotification from './models/HostingNotification.js';
+import Post from './models/Post.js';
 import postRoutes from './routes/posts.js';
 import contactRoutes from './routes/contacts.js';
 import calculatorRoutes from './routes/calculators.js';
@@ -56,49 +57,47 @@ app.use(express.json());
 
 // API Key validation middleware
 const validateApiKey = (req, res, next) => {
-  console.log('======= API Key Validation =======');
-  console.log('Headers received:', req.headers);
-  console.log('Received API Key:', req.headers['x-api-key']);
-  console.log('Expected API Key:', process.env.PUBLIC_API_KEY);
-  console.log('================================');
-  
   const apiKey = req.headers['x-api-key'];
   
   if (!process.env.PUBLIC_API_KEY) {
-    console.error('PUBLIC_API_KEY is not set in environment!');
     return res.status(500).json({ message: 'Server configuration error' });
   }
   
   if (!apiKey) {
-    console.error('No API key provided in request');
     return res.status(401).json({ message: 'API key is required' });
   }
 
   if (apiKey === process.env.PUBLIC_API_KEY) {
-    console.log('API Key validation successful');
     next();
   } else {
-    console.error('API Key validation failed');
-    console.log('Keys do not match:');
-    console.log('Received:', apiKey);
-    console.log('Expected:', process.env.PUBLIC_API_KEY);
     res.status(401).json({ message: 'Invalid API key' });
   }
 };
 
-// Debug middleware
-app.use((req, res, next) => {
-  console.log('========= Request Debug =========');
-  console.log('Method:', req.method);
-  console.log('URL:', req.url);
-  console.log('Headers:', req.headers);
-  console.log('Environment PUBLIC_API_KEY:', process.env.PUBLIC_API_KEY ? 'Set' : 'Not set');
-  console.log('===============================');
-  next();
-});
-
 // PUBLIKUS VÉGPONTOK
 const publicRouter = express.Router();
+
+// Blog posztok publikus elérése
+publicRouter.get('/posts', async (req, res) => {
+  try {
+    const posts = await Post.find().sort({ createdAt: -1 });
+    res.json(posts);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+publicRouter.get('/posts/:id', async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.id);
+    if (!post) {
+      return res.status(404).json({ message: 'Post not found' });
+    }
+    res.json(post);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
 
 // Contact végpont
 publicRouter.post('/contact', validateApiKey, async (req, res) => {
@@ -182,7 +181,8 @@ app.use('/api/auth', authRoutes);
 
 // VÉDETT VÉGPONTOK
 app.use('/api', authMiddleware);
-app.use('/api', postRoutes);
+// Admin műveletek a blog posztokkal (létrehozás, módosítás, törlés)
+app.use('/api/admin/posts', postRoutes);
 app.use('/api', contactRoutes);
 app.use('/api', calculatorRoutes);
 app.use('/api', projectRoutes);
