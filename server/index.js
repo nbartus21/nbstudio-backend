@@ -7,7 +7,6 @@ import fs from 'fs';
 import Contact from './models/Contact.js';
 import Hosting from './models/Hosting.js';
 import HostingNotification from './models/HostingNotification.js';
-import Post from './models/Post.js';
 import postRoutes from './routes/posts.js';
 import contactRoutes from './routes/contacts.js';
 import calculatorRoutes from './routes/calculators.js';
@@ -87,8 +86,16 @@ const validateApiKey = (req, res, next) => {
   }
 };
 
-// PUBLIKUS BLOG VÉGPONTOK - auth middleware előtt!
-app.use('/api/posts', postRoutes);
+// Debug middleware
+app.use((req, res, next) => {
+  console.log('========= Request Debug =========');
+  console.log('Method:', req.method);
+  console.log('URL:', req.url);
+  console.log('Headers:', req.headers);
+  console.log('Environment PUBLIC_API_KEY:', process.env.PUBLIC_API_KEY ? 'Set' : 'Not set');
+  console.log('===============================');
+  next();
+});
 
 // PUBLIKUS VÉGPONTOK
 const publicRouter = express.Router();
@@ -140,6 +147,7 @@ publicRouter.post('/hosting/orders', validateApiKey, async (req, res) => {
     const order = new Hosting(req.body);
     await order.save();
 
+    // Értesítés létrehozása új rendelésről
     const notification = new HostingNotification({
       type: 'new_order',
       title: 'Új hosting rendelés',
@@ -173,16 +181,17 @@ app.use('/api/public/projects', validateApiKey, projectRoutes);
 app.use('/api/auth', authRoutes);
 
 // VÉDETT VÉGPONTOK
-app.use('/api/admin', authMiddleware);  // Védett admin útvonalak
-app.use('/api/admin/contacts', contactRoutes);
-app.use('/api/admin/calculators', calculatorRoutes);
-app.use('/api/admin/projects', projectRoutes);
-app.use('/api/admin/domains', domainRoutes);
-app.use('/api/admin/servers', serverRoutes);
-app.use('/api/admin/licenses', licenseRoutes);
-app.use('/api/admin/notifications', notificationRoutes);
-app.use('/api/admin/accounting', accountingRoutes);
-app.use('/api/admin/hosting', hostingRoutes);
+app.use('/api', authMiddleware);
+app.use('/api', postRoutes);
+app.use('/api', contactRoutes);
+app.use('/api', calculatorRoutes);
+app.use('/api', projectRoutes);
+app.use('/api', domainRoutes);
+app.use('/api', serverRoutes);
+app.use('/api', licenseRoutes);
+app.use('/api', notificationRoutes);
+app.use('/api/accounting', accountingRoutes);
+app.use('/api', hostingRoutes);
 
 // Alap route teszteléshez
 app.get('/', (req, res) => {
