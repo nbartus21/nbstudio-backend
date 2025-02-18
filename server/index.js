@@ -20,6 +20,7 @@ import notificationRoutes from './routes/notifications.js';
 import Calculator from './models/Calculator.js';
 import accountingRoutes from './routes/accounting.js';
 import hostingRoutes from './routes/hosting.js';
+import Post from './models/Post.js';
 
 dotenv.config();
 
