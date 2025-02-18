@@ -57,47 +57,41 @@ app.use(express.json());
 
 // API Key validation middleware
 const validateApiKey = (req, res, next) => {
+  console.log('======= API Key Validation =======');
+  console.log('Headers received:', req.headers);
+  console.log('Received API Key:', req.headers['x-api-key']);
+  console.log('Expected API Key:', process.env.PUBLIC_API_KEY);
+  console.log('================================');
+  
   const apiKey = req.headers['x-api-key'];
   
   if (!process.env.PUBLIC_API_KEY) {
+    console.error('PUBLIC_API_KEY is not set in environment!');
     return res.status(500).json({ message: 'Server configuration error' });
   }
   
   if (!apiKey) {
+    console.error('No API key provided in request');
     return res.status(401).json({ message: 'API key is required' });
   }
 
   if (apiKey === process.env.PUBLIC_API_KEY) {
+    console.log('API Key validation successful');
     next();
   } else {
+    console.error('API Key validation failed');
+    console.log('Keys do not match:');
+    console.log('Received:', apiKey);
+    console.log('Expected:', process.env.PUBLIC_API_KEY);
     res.status(401).json({ message: 'Invalid API key' });
   }
 };
 
+// PUBLIKUS BLOG VÉGPONTOK - auth middleware előtt!
+app.use('/api/posts', postRoutes);
+
 // PUBLIKUS VÉGPONTOK
 const publicRouter = express.Router();
-
-// Blog posztok publikus elérése
-publicRouter.get('/posts', async (req, res) => {
-  try {
-    const posts = await Post.find().sort({ createdAt: -1 });
-    res.json(posts);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
-
-publicRouter.get('/posts/:id', async (req, res) => {
-  try {
-    const post = await Post.findById(req.params.id);
-    if (!post) {
-      return res.status(404).json({ message: 'Post not found' });
-    }
-    res.json(post);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
 
 // Contact végpont
 publicRouter.post('/contact', validateApiKey, async (req, res) => {
@@ -146,7 +140,6 @@ publicRouter.post('/hosting/orders', validateApiKey, async (req, res) => {
     const order = new Hosting(req.body);
     await order.save();
 
-    // Értesítés létrehozása új rendelésről
     const notification = new HostingNotification({
       type: 'new_order',
       title: 'Új hosting rendelés',
@@ -180,18 +173,16 @@ app.use('/api/public/projects', validateApiKey, projectRoutes);
 app.use('/api/auth', authRoutes);
 
 // VÉDETT VÉGPONTOK
-app.use('/api', authMiddleware);
-// Admin műveletek a blog posztokkal (létrehozás, módosítás, törlés)
-app.use('/api/admin/posts', postRoutes);
-app.use('/api', contactRoutes);
-app.use('/api', calculatorRoutes);
-app.use('/api', projectRoutes);
-app.use('/api', domainRoutes);
-app.use('/api', serverRoutes);
-app.use('/api', licenseRoutes);
-app.use('/api', notificationRoutes);
-app.use('/api/accounting', accountingRoutes);
-app.use('/api', hostingRoutes);
+app.use('/api/admin', authMiddleware);  // Védett admin útvonalak
+app.use('/api/admin/contacts', contactRoutes);
+app.use('/api/admin/calculators', calculatorRoutes);
+app.use('/api/admin/projects', projectRoutes);
+app.use('/api/admin/domains', domainRoutes);
+app.use('/api/admin/servers', serverRoutes);
+app.use('/api/admin/licenses', licenseRoutes);
+app.use('/api/admin/notifications', notificationRoutes);
+app.use('/api/admin/accounting', accountingRoutes);
+app.use('/api/admin/hosting', hostingRoutes);
 
 // Alap route teszteléshez
 app.get('/', (req, res) => {
