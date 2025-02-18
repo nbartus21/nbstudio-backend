@@ -51,8 +51,7 @@ app.use(cors({
   optionsSuccessStatus: 200
 }));
 
-// PUBLIKUS BLOG VÉGPONTOK - auth middleware előtt!
-app.use('/api/posts', postRoutes);
+
 
 // Middleware-ek
 app.use(express.json());
@@ -176,6 +175,9 @@ publicRouter.post('/hosting/orders', validateApiKey, async (req, res) => {
 
 // Publikus végpontok regisztrálása
 app.use('/api/public', publicRouter);
+
+// PUBLIKUS BLOG VÉGPONTOK - auth middleware előtt!
+app.use('/api/posts', postRoutes);
 
 // Projects publikus végpontok
 app.use('/api/public/projects', validateApiKey, projectRoutes);
