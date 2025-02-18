@@ -51,6 +51,9 @@ app.use(cors({
   optionsSuccessStatus: 200
 }));
 
+// PUBLIKUS BLOG VÉGPONTOK - auth middleware előtt!
+app.use('/api/posts', postRoutes);
+
 // Middleware-ek
 app.use(express.json());
 
