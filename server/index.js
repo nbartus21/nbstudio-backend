@@ -51,6 +51,8 @@ app.use(cors({
   optionsSuccessStatus: 200
 }));
 
+
+
 // Middleware-ek
 app.use(express.json());
 
@@ -174,7 +176,7 @@ publicRouter.post('/hosting/orders', validateApiKey, async (req, res) => {
 // Publikus végpontok regisztrálása
 app.use('/api/public', publicRouter);
 
-// Publikus blog posts végpontok - auth middleware előtt!
+// PUBLIKUS BLOG VÉGPONTOK - auth middleware előtt!
 app.use('/api/posts', postRoutes);
 
 // Projects publikus végpontok
@@ -185,16 +187,16 @@ app.use('/api/auth', authRoutes);
 
 // VÉDETT VÉGPONTOK
 app.use('/api', authMiddleware);
-// Minden más védett végpont, kivéve a posts
-app.use('/api/contacts', contactRoutes);
-app.use('/api/calculators', calculatorRoutes);
-app.use('/api/projects', projectRoutes);
-app.use('/api/domains', domainRoutes);
-app.use('/api/servers', serverRoutes);
-app.use('/api/licenses', licenseRoutes);
-app.use('/api/notifications', notificationRoutes);
+app.use('/api', postRoutes);
+app.use('/api', contactRoutes);
+app.use('/api', calculatorRoutes);
+app.use('/api', projectRoutes);
+app.use('/api', domainRoutes);
+app.use('/api', serverRoutes);
+app.use('/api', licenseRoutes);
+app.use('/api', notificationRoutes);
 app.use('/api/accounting', accountingRoutes);
-app.use('/api/hosting', hostingRoutes);
+app.use('/api', hostingRoutes);
 
 // Alap route teszteléshez
 app.get('/', (req, res) => {
