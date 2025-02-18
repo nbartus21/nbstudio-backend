@@ -48,7 +48,7 @@ const Navigation = () => {
         <div className="flex items-center justify-between h-16">
           
           {/* Logo */}
-          <Link to="/dashboard" className="text-white text-xl font-bold hover:text-gray-200 transition-colors">Admin</Link>
+          <Link to="/dashboard" className="text-white text-xl font-bold hover:text-gray-200 transition-colors">NB-Studio</Link>
           {/* Desktop Menu */}
           <div className="hidden md:flex space-x-8">
             {menuItems.map((category, idx) => (
