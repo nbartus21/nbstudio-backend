@@ -20,37 +20,18 @@ const SharedProjectDashboard = ({ project, onUpdate }) => {
       const reader = new FileReader();
       reader.onload = async (e) => {
         const content = e.target.result;
-        const newFile = {
+        setFiles(prev => [...prev, {
           name: file.name,
           size: file.size,
           uploadedAt: new Date(),
           content: content
-        };
-  
-        // Lokális state frissítése
-        setFiles(prev => [...prev, newFile]);
-  
-        // Projekt frissítése a szerveren
-        const updatedProject = {
-          ...project,
-          files: [...(project.files || []), newFile]
-        };
-  
-        // onUpdate meghívása a szülő komponens felé
-        await onUpdate(updatedProject);
+        }]);
       };
-      reader.readAsText(file);
+      reader.readAsText(file); // vagy readAsArrayBuffer(file) bináris fájlokhoz
     } catch (error) {
       console.error('Error uploading file:', error);
     }
   };
-  
-  // És amikor betöltődik a komponens, inicializáljuk a files state-et:
-  useEffect(() => {
-    if (project.files) {
-      setFiles(project.files);
-    }
-  }, [project]);
 
   // SEPA átutalási QR kód generálása
   const generateSepaQrData = (invoice) => {
