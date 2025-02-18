@@ -88,7 +88,7 @@ const Navigation = () => {
               className="text-gray-300 hover:text-white flex items-center gap-1 transition"
             >
               <LogOut size={18} />
-              Kijelentkezés
+    
             </button>
           </div>
 
