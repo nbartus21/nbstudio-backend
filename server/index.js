@@ -177,7 +177,7 @@ publicRouter.post('/hosting/orders', validateApiKey, async (req, res) => {
 app.use('/api/public', publicRouter);
 
 // PUBLIKUS BLOG VÉGPONTOK - auth middleware előtt!
-app.use('/api/posts', postRoutes);
+app.use('/api/posts', publicRouter);
 
 // Projects publikus végpontok
 app.use('/api/public/projects', validateApiKey, projectRoutes);
