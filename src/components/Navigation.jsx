@@ -48,8 +48,7 @@ const Navigation = () => {
         <div className="flex items-center justify-between h-16">
           
           {/* Logo */}
-          <div className="text-white text-xl font-bold">NB Studio Admin</div>
-
+          <Link to="/dashboard" className="text-white text-xl font-bold hover:text-gray-200 transition-colors">Admin</Link>
           {/* Desktop Menu */}
           <div className="hidden md:flex space-x-8">
             {menuItems.map((category, idx) => (
