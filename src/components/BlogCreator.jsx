@@ -1,7 +1,12 @@
 import React, { useState } from 'react';
 import { Editor } from '@tinymce/tinymce-react';
 import { Calendar, Clock, Languages, Check, AlertTriangle } from 'lucide-react';
-import chatGptService from '../services/chatGptService';
+import { 
+  generateBlogContent, 
+  generateTitle, 
+  generateSEODescription, 
+  translateContent 
+} from '../services/chatGptService';
 import { api } from '../services/auth';
 import { deepseekService } from '../services/deepseekService';
 
