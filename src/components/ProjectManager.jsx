@@ -14,6 +14,7 @@ const ProjectManager = () => {
   const [showNewInvoiceForm, setShowNewInvoiceForm] = useState(false);
   const [shareLink, setShareLink] = useState('');
   const [sharePin, setSharePin] = useState('');
+  const [activeShares, setActiveShares] = useState({});
   const [newInvoice, setNewInvoice] = useState({
     items: [{ description: '', quantity: 1, unitPrice: 0 }]
   });
@@ -69,9 +70,43 @@ const ProjectManager = () => {
     }
   };
 
+  const fetchShareInfo = async (projectId) => {
+    try {
+      const response = await api.get(`${API_URL}/projects/${projectId}/share`);
+      const data = await response.json();
+      
+      setActiveShares(prev => ({
+        ...prev,
+        [projectId]: data
+      }));
+      
+      return data;
+    } catch (error) {
+      console.error('Hiba a megosztási adatok lekérésekor:', error);
+      return null;
+    }
+  };
+
   useEffect(() => {
     fetchProjects();
   }, []);
+
+  useEffect(() => {
+    const fetchAllShareInfo = async () => {
+      if (projects.length > 0) {
+        const shares = {};
+        for (const project of projects) {
+          const shareInfo = await fetchShareInfo(project._id);
+          if (shareInfo) {
+            shares[project._id] = shareInfo;
+          }
+        }
+        setActiveShares(shares);
+      }
+    };
+    
+    fetchAllShareInfo();
+  }, [projects]);
 
   // Amikor a projektek betöltődnek, beállítjuk a filteredProjects-et is
   useEffect(() => {
@@ -431,14 +466,48 @@ const ProjectManager = () => {
                 {new Date(project.createdAt).toLocaleDateString()}
               </span>
             </div>
-
+            {activeShares[project._id]?.hasActiveShare && (
+  <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+    <h4 className="text-sm font-medium text-blue-900 mb-2">Aktív megosztás</h4>
+    <div className="space-y-1 text-sm">
+      <p className="flex items-center text-blue-800">
+        <span className="w-20">Link:</span>
+        <a 
+          href={activeShares[project._id].shareLink}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-blue-600 hover:underline truncate"
+        >
+          {activeShares[project._id].shareLink}
+        </a>
+      </p>
+      <p className="flex items-center text-blue-800">
+        <span className="w-20">PIN kód:</span>
+        <span>{activeShares[project._id].pin}</span>
+      </p>
+      <p className="flex items-center text-blue-800">
+        <span className="w-20">Lejárat:</span>
+        <span>
+          {new Date(activeShares[project._id].expiresAt).toLocaleDateString()}
+        </span>
+      </p>
+      {activeShares[project._id].isExpired && (
+        <p className="text-red-600 font-medium">Lejárt megosztás</p>
+      )}
+    </div>
+  </div>
+)}
             <div className="space-y-2">
-              <button
-                onClick={() => generateShareLink(project._id)}
-                className="w-full bg-white border border-green-600 text-green-600 px-4 py-2 rounded hover:bg-green-50"
-              >
-                Megosztási Link
-              </button>
+            <button
+  onClick={() => generateShareLink(project._id)}
+  className={`w-full px-4 py-2 rounded ${
+    activeShares[project._id]?.hasActiveShare
+      ? 'bg-blue-100 text-blue-800 hover:bg-blue-200'
+      : 'bg-white border border-green-600 text-green-600 hover:bg-green-50'
+  }`}
+>
+  {activeShares[project._id]?.hasActiveShare ? 'Új megosztási link' : 'Megosztási link generálása'}
+</button>
               <button
                 onClick={() => {
                   setSelectedProject(project);
