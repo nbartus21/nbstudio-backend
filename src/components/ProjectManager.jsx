@@ -117,17 +117,22 @@ const ProjectManager = () => {
       if (projects.length > 0) {
         const shares = {};
         for (const project of projects) {
-          const shareInfo = await fetchShareInfo(project._id);
-          if (shareInfo) {
-            shares[project._id] = shareInfo;
+          try {
+            const response = await api.get(`${API_URL}/projects/${project._id}/share`);
+            const data = await response.json();
+            if (data) {
+              shares[project._id] = data;
+            }
+          } catch (error) {
+            console.error(`Hiba a ${project._id} projekt megosztási adatainak lekérésekor:`, error);
           }
         }
-        setActiveShares(shares);
+        setActiveShares(shares); // Csak egyszer, a ciklus végén állítjuk be a state-et
       }
     };
     
     fetchAllShareInfo();
-  }, [projects]);
+  }, [projects]); // Csak a projects változásakor fut le
 
   // Amikor a projektek betöltődnek, beállítjuk a filteredProjects-et is
   useEffect(() => {
