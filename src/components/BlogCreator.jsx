@@ -1,14 +1,8 @@
 import React, { useState } from 'react';
 import { Editor } from '@tinymce/tinymce-react';
 import { Calendar, Clock, Languages, Check, AlertTriangle } from 'lucide-react';
-import { 
-  generateBlogContent, 
-  generateTitle, 
-  generateSEODescription, 
-  translateContent 
-} from '../services/chatGptService';
 import { api } from '../services/auth';
-import { deepseekService } from '../services/deepseekService';
+import { generateTitle, generateBlogContent, generateSEODescription, translateContent } from '../services/chatGptService';
 
 const API_URL = 'https://admin.nb-studio.net:5001/api';
 
@@ -25,48 +19,20 @@ const BlogCreator = () => {
   });
   const [publishDate, setPublishDate] = useState('');
   const [currentLanguage, setCurrentLanguage] = useState('hu');
-  const [selectedAI, setSelectedAI] = useState('deepseek'); // 'deepseek', 'xai', 'google', 'anthropic'
-
-  // Debug logging
-  console.log('Imported functions:', {
-    generateBlogContent: typeof generateBlogContent,
-    generateTitle: typeof generateTitle,
-    generateSEODescription: typeof generateSEODescription,
-    translateContent: typeof translateContent
-  });
+  const [selectedAI, setSelectedAI] = useState('mock'); // Módosítva: AI típus 'mock'-ra változtatva
 
   const generateInitialContent = async (topic) => {
     try {
-      // Explicit function type checking
-      if (typeof generateBlogContent !== 'function') {
-        throw new Error('generateBlogContent is not a function');
-      }
-      if (typeof generateTitle !== 'function') {
-        throw new Error('generateTitle is not a function');
-      }
-      if (typeof translateContent !== 'function') {
-        throw new Error('translateContent is not a function');
-      }
-
       setLoading(true);
       setError('');
 
-      // Ha egy másik AI motort szeretnénk használni
-      if (selectedAI !== 'deepseek') {
-        try {
-          deepseekService.setModel(selectedAI);
-        } catch (modelError) {
-          console.error('Error setting AI model:', modelError);
-        }
-      }
-
-      // Először magyar nyelven generáljuk
+      // Magyar nyelven generáljuk
       const [huContent, huTitle] = await Promise.all([
         generateBlogContent(topic, 'hu'),
         generateTitle(topic, 'hu')
       ]);
 
-      console.log('Hungarian content generated:', { huContent, huTitle });
+      console.log('Hungarian content generated');
 
       // Meta leírás generálása
       const huExcerpt = await generateSEODescription(huContent, 'hu');
@@ -77,7 +43,7 @@ const BlogCreator = () => {
         translateContent(huContent, 'hu', 'de')
       ]);
 
-      console.log('Translated contents:', { enContent, deContent });
+      console.log('Translated contents');
 
       // Címek fordítása
       const [enTitle, deTitle] = await Promise.all([
@@ -85,7 +51,7 @@ const BlogCreator = () => {
         translateContent(huTitle, 'hu', 'de')
       ]);
 
-      console.log('Translated titles:', { enTitle, deTitle });
+      console.log('Translated titles');
 
       // Meta leírások generálása más nyelveken
       const [enExcerpt, deExcerpt] = await Promise.all([
@@ -93,7 +59,7 @@ const BlogCreator = () => {
         generateSEODescription(deContent, 'de')
       ]);
 
-      console.log('Generated excerpts:', { huExcerpt, enExcerpt, deExcerpt });
+      console.log('Generated excerpts');
 
       setGeneratedContent({
         hu: {
@@ -116,7 +82,7 @@ const BlogCreator = () => {
       setStep(2);
       setSuccess('Tartalom generálva minden nyelven!');
     } catch (error) {
-      console.error('Teljes hibainformáció:', error);
+      console.error('Hiba:', error);
       setError(`Hiba történt a tartalom generálása során: ${error.message}`);
     } finally {
       setLoading(false);
@@ -235,22 +201,6 @@ const BlogCreator = () => {
               className="w-full px-3 py-2 border rounded-md"
               placeholder="Add meg a blog témáját..."
             />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              AI Motor
-            </label>
-            <select
-              value={selectedAI}
-              onChange={(e) => setSelectedAI(e.target.value)}
-              className="w-full px-3 py-2 border rounded-md"
-            >
-              <option value="deepseek">DeepSeek (Alapértelmezett)</option>
-              <option value="xai">XAI</option>
-              <option value="google">Google Generative AI</option>
-              <option value="anthropic">Anthropic Claude</option>
-            </select>
           </div>
           
           <div>
@@ -389,11 +339,7 @@ const BlogCreator = () => {
             </button>
             <button
               onClick={handlePublish}
-              disabled={loading || Object.values(generatedContent).some(
-                content => 
-                  getContentStats(content.content).chars < 1000 || 
-                  getContentStats(content.content).chars > 1500
-              )}
+              disabled={loading}
               className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
             >
               {loading ? 'Mentés...' : 'Ütemezett Publikálás'}

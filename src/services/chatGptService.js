@@ -1,11 +1,14 @@
 import { deepseekService } from './deepseekService';
 
-// Eszköz a hibakereséshez
+// Módosított ChatGPT Service, amely csak a DeepSeek mock függvényeit használja
+// Nincs valódi külső AI API hívás
+
+// Debug log helper
 const debugLog = (message, data) => {
-  console.log(`[ChatGPT Service] ${message}`, data);
+  console.log(`[ChatGPT Service Mock] ${message}`, data);
 };
 
-// Explicit exportok
+// Explicit exportok - ezek mind csak a deepseekService mock funkcióit hívják
 export function generateBlogContent(topic, language = 'hu') {
   debugLog('generateBlogContent called', { topic, language });
   return deepseekService.generateBlogContent(topic, language);
