@@ -24,14 +24,13 @@ const NotificationsManager = () => {
 
   const fetchAllNotifications = async () => {
     try {
-      const [contacts, calculators, domains, servers, licenses, projects, hostingOrders] = await Promise.all([
+      const [contacts, calculators, domains, servers, licenses, projects] = await Promise.all([
         api.get(`${API_URL}/contacts`).then(res => res.json()),
         api.get(`${API_URL}/calculators`).then(res => res.json()),
         api.get(`${API_URL}/domains`).then(res => res.json()),
         api.get(`${API_URL}/servers`).then(res => res.json()),
         api.get(`${API_URL}/licenses`).then(res => res.json()),
-        api.get(`${API_URL}/projects`).then(res => res.json()),
-        api.get(`${API_URL}/hosting/orders`).then(res => res.json())
+        api.get(`${API_URL}/projects`).then(res => res.json())
       ]);
 
       const newNotifications = [];
@@ -151,60 +150,6 @@ const NotificationsManager = () => {
         });
       }
 
-      // Hosting értesítések
-      if (Array.isArray(hostingOrders)) {
-        // Új rendelések
-        hostingOrders
-          .filter(order => order.status === 'new' || order.status === 'pending')
-          .forEach(order => {
-            newNotifications.push({
-              _id: `hosting_${order._id}`,
-              title: 'Új tárhely rendelés',
-              message: `${order.client.name} megrendelte a ${order.plan.name} csomagot`,
-              severity: 'info',
-              createdAt: order.createdAt,
-              type: 'hosting',
-              link: '/hosting'
-            });
-          });
-
-        // Lejáró szolgáltatások
-        hostingOrders
-          .filter(order => order.status === 'active' && order.service.endDate)
-          .forEach(order => {
-            const daysUntilExpiry = Math.ceil(
-              (new Date(order.service.endDate) - new Date()) / (1000 * 60 * 60 * 24)
-            );
-            
-            if (daysUntilExpiry <= 30 && daysUntilExpiry > 0) {
-              newNotifications.push({
-                _id: `hosting_expiry_${order._id}`,
-                title: 'Tárhely megújítás',
-                message: `${order.client.name} tárhelye (${order.plan.name}) ${daysUntilExpiry} nap múlva lejár`,
-                severity: daysUntilExpiry <= 7 ? 'warning' : 'info',
-                createdAt: new Date().toISOString(),
-                type: 'hosting',
-                link: '/hosting'
-              });
-            }
-          });
-
-        // Függő fizetések
-        hostingOrders
-          .filter(order => order.payment.status === 'pending')
-          .forEach(order => {
-            newNotifications.push({
-              _id: `hosting_payment_${order._id}`,
-              title: 'Függő fizetés',
-              message: `${order.client.name} még nem fizette ki a ${order.plan.name} csomagot`,
-              severity: 'warning',
-              createdAt: order.createdAt,
-              type: 'hosting',
-              link: '/hosting'
-            });
-          });
-      }
-
       // Rendezés dátum szerint
       newNotifications.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
       setNotifications(newNotifications);
@@ -231,7 +176,7 @@ const NotificationsManager = () => {
   };
 
   const getIcon = (severity, type) => {
-    if (type === 'hosting') {
+    if (type === 'server') {
       return <Server className={`w-5 h-5 ${
         severity === 'error' ? 'text-red-500' : 
         severity === 'warning' ? 'text-yellow-500' : 
