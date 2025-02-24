@@ -1,14 +1,19 @@
-const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY;
+// services/chatGptService.js
+
+// Közvetlenül a process.env-ből olvassuk ki a kulcsot
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const API_URL = 'https://api.openai.com/v1/chat/completions';
 
 // Ellenőrizzük, hogy az API kulcs be van-e állítva
 if (!OPENAI_API_KEY) {
-  console.error('OpenAI API kulcs nincs beállítva! Ellenőrizd a .env fájlt.');
+  console.warn('OpenAI API kulcs nincs beállítva! Ellenőrizd a környezeti változókat.');
 }
 
 const generateContent = async (prompt, maxTokens = 2500) => {
   try {
-    if (!OPENAI_API_KEY) {
+    // API kulcs ellenőrzése minden hívásnál
+    const apiKey = process.env.OPENAI_API_KEY || OPENAI_API_KEY;
+    if (!apiKey) {
       throw new Error('OpenAI API kulcs nincs beállítva');
     }
 
@@ -16,7 +21,7 @@ const generateContent = async (prompt, maxTokens = 2500) => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${OPENAI_API_KEY}`
+        'Authorization': `Bearer ${apiKey}`
       },
       body: JSON.stringify({
         model: 'gpt-4',
@@ -39,6 +44,7 @@ const generateContent = async (prompt, maxTokens = 2500) => {
   }
 };
 
+// További exportált függvények változatlanok maradnak...
 export const generateBlogContent = async (topic, language) => {
   const languagePrompts = {
     hu: 'magyar nyelven',
