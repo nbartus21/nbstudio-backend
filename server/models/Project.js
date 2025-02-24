@@ -102,14 +102,19 @@ const projectSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
   // Megosztási adatok
-  shareToken: {
-    type: String,
-    unique: true,
-    sparse: true // Ez lehetővé teszi, hogy ne minden projektnek legyen shareToken
-  },
-  sharePin: {
-    type: String,
-    sparse: true // Ez is opcionális mező
+  sharing: {
+    token: {
+      type: String,
+      unique: true,
+      sparse: true
+    },
+    pin: {
+      type: String,
+      sparse: true
+    },
+    link: String,
+    expiresAt: Date,
+    createdAt: Date
   }
 }, {
   timestamps: true

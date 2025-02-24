@@ -211,22 +211,36 @@ router.post('/projects/:id/share', async (req, res) => {
       return res.status(404).json({ message: 'Projekt nem található' });
     }
 
+    // Lejárati dátum feldolgozása
+    const expiresAt = req.body.expiresAt 
+      ? new Date(req.body.expiresAt) 
+      : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 nap alapértelmezetten
+
     // 6 jegyű PIN kód generálása
     const pin = Math.floor(100000 + Math.random() * 900000).toString();
     
-    // Token és PIN mentése a projekthez
+    // Token generálása
     const shareToken = uuidv4();
-    project.shareToken = shareToken;
-    project.sharePin = pin;
-    await project.save();
-
+    
     // Megosztási link generálása
     const shareLink = `http://38.242.208.190:5173/shared-project/${shareToken}`;
     
-    // Visszaküldjük a linket és a PIN-t
+    // Megosztási adatok mentése
+    project.sharing = {
+      token: shareToken,
+      pin: pin,
+      link: shareLink,
+      expiresAt: expiresAt,
+      createdAt: new Date()
+    };
+
+    await project.save();
+    
     res.status(200).json({ 
       shareLink,
-      pin  // Ez a PIN kód jelenik meg az admin felületen
+      pin,
+      expiresAt,
+      createdAt: project.sharing.createdAt
     });
   } catch (error) {
     res.status(500).json({ message: 'Szerver hiba történt', error: error.message });
@@ -235,22 +249,21 @@ router.post('/projects/:id/share', async (req, res) => {
 
 // Publikus végpont a PIN ellenőrzéshez (nem kell auth middleware)
 router.post('/verify-pin', async (req, res) => {
-  console.log('PIN ellenőrzési kérés érkezett');
-  console.log('Request body:', req.body);
-  
   try {
     const { token, pin } = req.body;
-    console.log('Beérkezett token:', token);
-    console.log('Beérkezett PIN:', pin);
     
-    const project = await Project.findOne({ shareToken: token });
-    console.log('Talált projekt:', project ? 'igen' : 'nem');
+    const project = await Project.findOne({ 'sharing.token': token });
     
     if (!project) {
       return res.status(404).json({ message: 'A projekt nem található' });
     }
 
-    if (project.sharePin !== pin) {
+    // Lejárat ellenőrzése
+    if (project.sharing.expiresAt && new Date() > project.sharing.expiresAt) {
+      return res.status(403).json({ message: 'A megosztási link lejárt' });
+    }
+
+    if (project.sharing.pin !== pin) {
       return res.status(403).json({ message: 'Érvénytelen PIN kód' });
     }
 
@@ -260,27 +273,19 @@ router.post('/verify-pin', async (req, res) => {
       description: project.description,
       client: {
         name: project.client?.name || '',
-        email: project.client?.email || '',
-        phone: project.client?.phone || '',
-        companyName: project.client?.companyName || '',
-        taxNumber: project.client?.taxNumber || '',
-        euVatNumber: project.client?.euVatNumber || '',
-        registrationNumber: project.client?.registrationNumber || '',
-        address: {
-          street: project.client?.address?.street || '',
-          city: project.client?.address?.city || '',
-          postalCode: project.client?.address?.postalCode || '',
-          country: project.client?.address?.country || ''
-        }
+        email: project.client?.email || ''
       },
       invoices: project.invoices || [],
       financial: {
         currency: project.financial?.currency || 'EUR'
+      },
+      sharing: {
+        expiresAt: project.sharing.expiresAt,
+        createdAt: project.sharing.createdAt
       }
     };
 
     res.json({ project: sanitizedProject });
-    
   } catch (error) {
     console.error('Szerver hiba:', error);
     res.status(500).json({ message: 'Szerver hiba történt' });
@@ -308,5 +313,35 @@ router.get('/shared-project/:token', async (req, res) => {
     res.status(500).json({ message: 'Szerver hiba történt', error: error.message });
   }
 });
+
+
+router.get('/projects/:id/share', async (req, res) => {
+  try {
+    const project = await Project.findById(req.params.id);
+    if (!project) {
+      return res.status(404).json({ message: 'Projekt nem található' });
+    }
+
+    if (project.sharing && project.sharing.token) {
+      const isExpired = project.sharing.expiresAt && new Date() > project.sharing.expiresAt;
+      
+      res.json({
+        hasActiveShare: true,
+        shareLink: project.sharing.link,
+        pin: project.sharing.pin,
+        expiresAt: project.sharing.expiresAt,
+        createdAt: project.sharing.createdAt,
+        isExpired
+      });
+    } else {
+      res.json({
+        hasActiveShare: false
+      });
+    }
+  } catch (error) {
+    res.status(500).json({ message: 'Szerver hiba történt', error: error.message });
+  }
+});
+
 
 export default router;
