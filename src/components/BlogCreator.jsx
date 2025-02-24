@@ -1,13 +1,16 @@
-// BlogCreator.jsx
 import React, { useState } from 'react';
 import { Editor } from '@tinymce/tinymce-react';
 import { CalendarClock, Languages, Check, AlertTriangle } from 'lucide-react';
-import { generateBlogContent, generateTitle, generateSEODescription, translateContent } from '../services/chatGptService';
+import { 
+  generateSEOSuggestions, 
+  translateContent, 
+  generateMetaContent 
+} from '../services/deepseekService';
 import { api } from '../services/auth';
 
 const API_URL = 'https://admin.nb-studio.net:5001/api';
 
-const BlogCreator = () => {
+const ScheduledBlogCreator = () => {
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(1);
   const [error, setError] = useState('');
@@ -20,57 +23,55 @@ const BlogCreator = () => {
   });
   const [publishDate, setPublishDate] = useState('');
   const [currentLanguage, setCurrentLanguage] = useState('hu');
-
+  
   const generateInitialContent = async (topic) => {
     try {
       setLoading(true);
       setError('');
-
-      // Először magyar nyelven generáljuk
-      const [huContent, huTitle] = await Promise.all([
-        generateBlogContent(topic, 'hu'),
-        generateTitle(topic, 'hu')
-      ]);
-
-      // Meta leírás generálása
-      const huExcerpt = await generateSEODescription(huContent, 'hu');
-
-      // Tartalom fordítása más nyelvekre
+      
+      // Generate Hungarian content first
+      const huContent = await generateBlogContent(topic, 'hu');
+      const huSeo = await generateSEOSuggestions(huContent.content, 'hu');
+      const huMeta = await generateMetaContent(huContent.content, 'hu');
+      
+      // Translate to other languages
       const [enContent, deContent] = await Promise.all([
-        translateContent(huContent, 'hu', 'en'),
-        translateContent(huContent, 'hu', 'de')
+        translateContent(huContent.content, 'hu', 'en'),
+        translateContent(huContent.content, 'hu', 'de')
       ]);
-
-      // Címek fordítása
-      const [enTitle, deTitle] = await Promise.all([
-        translateContent(huTitle, 'hu', 'en'),
-        translateContent(huTitle, 'hu', 'de')
+      
+      // Generate SEO and meta for translations
+      const [enSeo, deSeo] = await Promise.all([
+        generateSEOSuggestions(enContent, 'en'),
+        generateSEOSuggestions(deContent, 'de')
       ]);
-
-      // Meta leírások generálása más nyelveken
-      const [enExcerpt, deExcerpt] = await Promise.all([
-        generateSEODescription(enContent, 'en'),
-        generateSEODescription(deContent, 'de')
+      
+      const [enMeta, deMeta] = await Promise.all([
+        generateMetaContent(enContent, 'en'),
+        generateMetaContent(deContent, 'de')
       ]);
-
+      
       setGeneratedContent({
         hu: {
-          content: huContent,
-          title: huTitle,
-          excerpt: huExcerpt
+          content: huContent.content,
+          title: huContent.title,
+          excerpt: huMeta.metaDescription,
+          seo: huSeo
         },
         en: {
           content: enContent,
-          title: enTitle,
-          excerpt: enExcerpt
+          title: await translateContent(huContent.title, 'hu', 'en'),
+          excerpt: enMeta.metaDescription,
+          seo: enSeo
         },
         de: {
           content: deContent,
-          title: deTitle,
-          excerpt: deExcerpt
+          title: await translateContent(huContent.title, 'hu', 'de'),
+          excerpt: deMeta.metaDescription,
+          seo: deSeo
         }
       });
-
+      
       setStep(2);
       setSuccess('Tartalom generálva minden nyelven!');
     } catch (error) {
@@ -79,7 +80,31 @@ const BlogCreator = () => {
       setLoading(false);
     }
   };
-
+  
+  const generateBlogContent = async (topic, language) => {
+    // Itt használjuk a deepseek szolgáltatást a megadott karakter limittel
+    const prompt = `Write a comprehensive blog post about ${topic} in ${language}. 
+                   The content must be between 1800-2000 characters long.
+                   Include a catchy, SEO-friendly title.
+                   The content should be well-structured with proper paragraphs.
+                   Focus on providing valuable insights and engaging information.
+                   Ensure natural keyword placement and readability.`;
+    
+    // Implement your deepseek service call here
+    // This is a placeholder for the actual implementation
+    const response = await fetch('/api/deepseek', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt })
+    });
+    
+    const data = await response.json();
+    return {
+      content: data.content,
+      title: data.title
+    };
+  };
+  
   const handlePublish = async () => {
     try {
       setLoading(true);
@@ -120,7 +145,7 @@ const BlogCreator = () => {
       setLoading(false);
     }
   };
-
+  
   const generateSlug = (text) => {
     return text
       .toLowerCase()
@@ -129,7 +154,7 @@ const BlogCreator = () => {
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-+|-+$/g, '');
   };
-
+  
   const resetForm = () => {
     setStep(1);
     setSelectedTopic('');
@@ -271,15 +296,14 @@ const BlogCreator = () => {
                   'preview', 'anchor', 'searchreplace', 'visualblocks', 'code',
                   'fullscreen', 'insertdatetime', 'media', 'table', 'help', 'wordcount'
                 ],
-                toolbar: 'undo redo | blocks | bold italic | alignleft aligncenter alignright | bullist numlist | help',
-                content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }'
+                toolbar: 'undo redo | blocks | bold italic | alignleft aligncenter alignright | bullist numlist | help'
               }}
             />
           </div>
           
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Kivonat (Meta leírás)
+              Kivonat
             </label>
             <textarea
               value={generatedContent[currentLanguage].excerpt}
@@ -297,19 +321,15 @@ const BlogCreator = () => {
           
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Karakter Számláló
+              SEO Javaslatok
             </label>
-            <div className="text-sm text-gray-600">
-              {generatedContent[currentLanguage].content.length} karakter
-              {generatedContent[currentLanguage].content.length < 1800 && 
-                <span className="text-red-500 ml-2">(Minimum 1800 karakter szükséges)</span>
-              }
-              {generatedContent[currentLanguage].content.length > 2000 && 
-                <span className="text-red-500 ml-2">(Maximum 2000 karakter megengedett)</span>
-              }
+            <div className="bg-gray-50 p-4 rounded-md">
+              <pre className="whitespace-pre-wrap text-sm">
+                {generatedContent[currentLanguage].seo}
+              </pre>
             </div>
           </div>
-
+          
           <div className="flex justify-end space-x-4">
             <button
               onClick={resetForm}
@@ -319,9 +339,7 @@ const BlogCreator = () => {
             </button>
             <button
               onClick={handlePublish}
-              disabled={loading || Object.values(generatedContent).some(
-                content => content.content.length < 1800 || content.content.length > 2000
-              )}
+              disabled={loading}
               className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
             >
               {loading ? 'Mentés...' : 'Ütemezett Publikálás'}
@@ -333,4 +351,4 @@ const BlogCreator = () => {
   );
 };
 
-export default BlogCreator;
+export default ScheduledBlogCreator;
