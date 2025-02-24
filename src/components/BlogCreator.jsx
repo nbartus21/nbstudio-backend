@@ -1,12 +1,16 @@
 import React, { useState } from 'react';
 import { Editor } from '@tinymce/tinymce-react';
-import { Calendar, Clock, Languages, Check, AlertTriangle } from 'lucide-react';
+import { CalendarClock, Languages, Check, AlertTriangle } from 'lucide-react';
+import { 
+  generateSEOSuggestions, 
+  translateContent, 
+  generateMetaContent 
+} from '../services/deepseekService';
 import { api } from '../services/auth';
-import { generateTitle, generateBlogContent, generateSEODescription, translateContent } from '../services/chatGptService';
 
 const API_URL = 'https://admin.nb-studio.net:5001/api';
 
-const BlogCreator = () => {
+const ScheduledBlogCreator = () => {
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(1);
   const [error, setError] = useState('');
@@ -19,76 +23,88 @@ const BlogCreator = () => {
   });
   const [publishDate, setPublishDate] = useState('');
   const [currentLanguage, setCurrentLanguage] = useState('hu');
-  const [selectedAI, setSelectedAI] = useState('mock'); // Módosítva: AI típus 'mock'-ra változtatva
-
+  
   const generateInitialContent = async (topic) => {
     try {
       setLoading(true);
       setError('');
-
-      // Magyar nyelven generáljuk
-      const [huContent, huTitle] = await Promise.all([
-        generateBlogContent(topic, 'hu'),
-        generateTitle(topic, 'hu')
-      ]);
-
-      console.log('Hungarian content generated');
-
-      // Meta leírás generálása
-      const huExcerpt = await generateSEODescription(huContent, 'hu');
-
-      // Tartalom fordítása más nyelvekre
+      
+      // Generate Hungarian content first
+      const huContent = await generateBlogContent(topic, 'hu');
+      const huSeo = await generateSEOSuggestions(huContent.content, 'hu');
+      const huMeta = await generateMetaContent(huContent.content, 'hu');
+      
+      // Translate to other languages
       const [enContent, deContent] = await Promise.all([
-        translateContent(huContent, 'hu', 'en'),
-        translateContent(huContent, 'hu', 'de')
+        translateContent(huContent.content, 'hu', 'en'),
+        translateContent(huContent.content, 'hu', 'de')
       ]);
-
-      console.log('Translated contents');
-
-      // Címek fordítása
-      const [enTitle, deTitle] = await Promise.all([
-        translateContent(huTitle, 'hu', 'en'),
-        translateContent(huTitle, 'hu', 'de')
+      
+      // Generate SEO and meta for translations
+      const [enSeo, deSeo] = await Promise.all([
+        generateSEOSuggestions(enContent, 'en'),
+        generateSEOSuggestions(deContent, 'de')
       ]);
-
-      console.log('Translated titles');
-
-      // Meta leírások generálása más nyelveken
-      const [enExcerpt, deExcerpt] = await Promise.all([
-        generateSEODescription(enContent, 'en'),
-        generateSEODescription(deContent, 'de')
+      
+      const [enMeta, deMeta] = await Promise.all([
+        generateMetaContent(enContent, 'en'),
+        generateMetaContent(deContent, 'de')
       ]);
-
-      console.log('Generated excerpts');
-
+      
       setGeneratedContent({
         hu: {
-          content: huContent,
-          title: huTitle,
-          excerpt: huExcerpt
+          content: huContent.content,
+          title: huContent.title,
+          excerpt: huMeta.metaDescription,
+          seo: huSeo
         },
         en: {
           content: enContent,
-          title: enTitle,
-          excerpt: enExcerpt
+          title: await translateContent(huContent.title, 'hu', 'en'),
+          excerpt: enMeta.metaDescription,
+          seo: enSeo
         },
         de: {
           content: deContent,
-          title: deTitle,
-          excerpt: deExcerpt
+          title: await translateContent(huContent.title, 'hu', 'de'),
+          excerpt: deMeta.metaDescription,
+          seo: deSeo
         }
       });
-
+      
       setStep(2);
       setSuccess('Tartalom generálva minden nyelven!');
     } catch (error) {
-      console.error('Hiba:', error);
-      setError(`Hiba történt a tartalom generálása során: ${error.message}`);
+      setError('Hiba történt a tartalom generálása során: ' + error.message);
     } finally {
       setLoading(false);
     }
   };
-
+  
+  const generateBlogContent = async (topic, language) => {
+    // Itt használjuk a deepseek szolgáltatást a megadott karakter limittel
+    const prompt = `Write a comprehensive blog post about ${topic} in ${language}. 
+                   The content must be between 1800-2000 characters long.
+                   Include a catchy, SEO-friendly title.
+                   The content should be well-structured with proper paragraphs.
+                   Focus on providing valuable insights and engaging information.
+                   Ensure natural keyword placement and readability.`;
+    
+    // Implement your deepseek service call here
+    // This is a placeholder for the actual implementation
+    const response = await fetch('/api/deepseek', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt })
+    });
+    
+    const data = await response.json();
+    return {
+      content: data.content,
+      title: data.title
+    };
+  };
+  
   const handlePublish = async () => {
     try {
       setLoading(true);
@@ -129,7 +145,7 @@ const BlogCreator = () => {
       setLoading(false);
     }
   };
-
+  
   const generateSlug = (text) => {
     return text
       .toLowerCase()
@@ -138,7 +154,7 @@ const BlogCreator = () => {
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-+|-+$/g, '');
   };
-
+  
   const resetForm = () => {
     setStep(1);
     setSelectedTopic('');
@@ -158,16 +174,6 @@ const BlogCreator = () => {
     const hours = String(now.getHours()).padStart(2, '0');
     const minutes = String(now.getMinutes()).padStart(2, '0');
     return `${year}-${month}-${day}T${hours}:${minutes}`;
-  };
-
-  const getContentStats = (content) => {
-    if (!content) return { words: 0, chars: 0 };
-    
-    const textContent = content.replace(/<[^>]*>/g, ' ');
-    const words = textContent.split(/\s+/).filter(Boolean).length;
-    const chars = textContent.replace(/\s+/g, '').length;
-    
-    return { words, chars };
   };
 
   return (
@@ -208,7 +214,7 @@ const BlogCreator = () => {
               Publikálás Időpontja
             </label>
             <div className="flex items-center">
-              <Calendar className="h-5 w-5 mr-2 text-gray-400" />
+              <CalendarClock className="h-5 w-5 mr-2 text-gray-400" />
               <input
                 type="datetime-local"
                 value={publishDate}
@@ -290,15 +296,14 @@ const BlogCreator = () => {
                   'preview', 'anchor', 'searchreplace', 'visualblocks', 'code',
                   'fullscreen', 'insertdatetime', 'media', 'table', 'help', 'wordcount'
                 ],
-                toolbar: 'undo redo | blocks | bold italic | alignleft aligncenter alignright | bullist numlist | help',
-                content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }'
+                toolbar: 'undo redo | blocks | bold italic | alignleft aligncenter alignright | bullist numlist | help'
               }}
             />
           </div>
           
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Kivonat (Meta leírás)
+              Kivonat
             </label>
             <textarea
               value={generatedContent[currentLanguage].excerpt}
@@ -316,20 +321,15 @@ const BlogCreator = () => {
           
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Karakter Számláló
+              SEO Javaslatok
             </label>
-            <div className="text-sm text-gray-600">
-              {getContentStats(generatedContent[currentLanguage].content).chars} karakter / 
-              {getContentStats(generatedContent[currentLanguage].content).words} szó
-              {getContentStats(generatedContent[currentLanguage].content).chars < 1000 && 
-                <span className="text-red-500 ml-2">(Minimum 1000 karakter ajánlott)</span>
-              }
-              {getContentStats(generatedContent[currentLanguage].content).chars > 1500 && 
-                <span className="text-yellow-500 ml-2">(Maximum 1500 karakter ajánlott)</span>
-              }
+            <div className="bg-gray-50 p-4 rounded-md">
+              <pre className="whitespace-pre-wrap text-sm">
+                {generatedContent[currentLanguage].seo}
+              </pre>
             </div>
           </div>
-
+          
           <div className="flex justify-end space-x-4">
             <button
               onClick={resetForm}
@@ -351,4 +351,4 @@ const BlogCreator = () => {
   );
 };
 
-export default BlogCreator;
+export default ScheduledBlogCreator;
