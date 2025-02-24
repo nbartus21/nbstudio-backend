@@ -1,16 +1,9 @@
 import React, { useState } from 'react';
 import { Editor } from '@tinymce/tinymce-react';
 import { Calendar, Clock, Languages, Check, AlertTriangle } from 'lucide-react';
-// A javított importálás a chatGptService-ből
-import { 
-  generateBlogContent, 
-  generateTitle, 
-  generateSEODescription, 
-  translateContent 
-} from '../services/chatGptService';
+import chatGptService from '../services/chatGptService';
 import { api } from '../services/auth';
-// Opcionálisan importáljuk a deepseekService-t is, ha közvetlenül is használnánk
-import { deepseekService } from '../deepseekService';
+import { deepseekService } from '../services/deepseekService';
 
 const API_URL = 'https://admin.nb-studio.net:5001/api';
 
@@ -27,10 +20,8 @@ const BlogCreator = () => {
   });
   const [publishDate, setPublishDate] = useState('');
   const [currentLanguage, setCurrentLanguage] = useState('hu');
-  // AI motor kiválasztásához (ha szükséges)
   const [selectedAI, setSelectedAI] = useState('deepseek'); // 'deepseek', 'xai', 'google', 'anthropic'
 
-  // Tartalom generálása chatGptService függvényeivel (ami a deepseekService-t használja)
   const generateInitialContent = async (topic) => {
     try {
       setLoading(true);
@@ -43,29 +34,29 @@ const BlogCreator = () => {
 
       // Először magyar nyelven generáljuk
       const [huContent, huTitle] = await Promise.all([
-        generateBlogContent(topic, 'hu'),
-        generateTitle(topic, 'hu')
+        chatGptService.generateBlogContent(topic, 'hu'),
+        chatGptService.generateTitle(topic, 'hu')
       ]);
 
       // Meta leírás generálása
-      const huExcerpt = await generateSEODescription(huContent, 'hu');
+      const huExcerpt = await chatGptService.generateSEODescription(huContent, 'hu');
 
       // Tartalom fordítása más nyelvekre
       const [enContent, deContent] = await Promise.all([
-        translateContent(huContent, 'hu', 'en'),
-        translateContent(huContent, 'hu', 'de')
+        chatGptService.translateContent(huContent, 'hu', 'en'),
+        chatGptService.translateContent(huContent, 'hu', 'de')
       ]);
 
       // Címek fordítása
       const [enTitle, deTitle] = await Promise.all([
-        translateContent(huTitle, 'hu', 'en'),
-        translateContent(huTitle, 'hu', 'de')
+        chatGptService.translateContent(huTitle, 'hu', 'en'),
+        chatGptService.translateContent(huTitle, 'hu', 'de')
       ]);
 
       // Meta leírások generálása más nyelveken
       const [enExcerpt, deExcerpt] = await Promise.all([
-        generateSEODescription(enContent, 'en'),
-        generateSEODescription(deContent, 'de')
+        chatGptService.generateSEODescription(enContent, 'en'),
+        chatGptService.generateSEODescription(deContent, 'de')
       ]);
 
       setGeneratedContent({
@@ -166,11 +157,9 @@ const BlogCreator = () => {
     return `${year}-${month}-${day}T${hours}:${minutes}`;
   };
 
-  // Szó és karakterszám számítása
   const getContentStats = (content) => {
     if (!content) return { words: 0, chars: 0 };
     
-    // HTML tagek eltávolítása a pontos számoláshoz
     const textContent = content.replace(/<[^>]*>/g, ' ');
     const words = textContent.split(/\s+/).filter(Boolean).length;
     const chars = textContent.replace(/\s+/g, '').length;
@@ -211,7 +200,6 @@ const BlogCreator = () => {
             />
           </div>
           
-          {/* AI kiválasztása - opcionális */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               AI Motor
