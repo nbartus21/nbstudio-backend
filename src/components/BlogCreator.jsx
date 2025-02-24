@@ -7,7 +7,7 @@ import {
   generateTitle, 
   generateSEODescription, 
   translateContent 
-} from '../chatGptService';
+} from '../services/chatGptService';
 import { api } from '../services/auth';
 // Opcionálisan importáljuk a deepseekService-t is, ha közvetlenül is használnánk
 import { deepseekService } from '../deepseekService';
