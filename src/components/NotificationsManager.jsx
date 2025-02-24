@@ -1,11 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Bell, X, AlertTriangle, Info, Server } from 'lucide-react';
+import { Bell, X, AlertTriangle, Info, Server, Calendar, FileText, Clock, Database, Globe } from 'lucide-react';
 import { api } from '../services/auth';
+import { useNavigate } from 'react-router-dom';
 
 const NotificationsManager = () => {
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState([]);
   const [isOpen, setIsOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [filterType, setFilterType] = useState('all');
   const dropdownRef = useRef(null);
 
   const API_URL = 'https://admin.nb-studio.net:5001/api';
@@ -24,6 +28,7 @@ const NotificationsManager = () => {
 
   const fetchAllNotifications = async () => {
     try {
+      setLoading(true);
       const [contacts, calculators, domains, servers, licenses, projects] = await Promise.all([
         api.get(`${API_URL}/contacts`).then(res => res.json()),
         api.get(`${API_URL}/calculators`).then(res => res.json()),
@@ -152,10 +157,22 @@ const NotificationsManager = () => {
 
       // Rendezés dátum szerint
       newNotifications.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      // Értesítések mentése és számolása
       setNotifications(newNotifications);
       setUnreadCount(newNotifications.length);
+      
+      // Értesítés küldése böngészőben, ha új értesítés érkezett
+      if (newNotifications.length > 0 && 'Notification' in window && Notification.permission === 'granted') {
+        const latestNotification = newNotifications[0];
+        new Notification('NB-Studio Admin', {
+          body: latestNotification.message,
+          icon: '/favicon.ico'
+        });
+      }
     } catch (error) {
       console.error('Error fetching notifications:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -175,22 +192,56 @@ const NotificationsManager = () => {
     setUnreadCount(0);
   };
 
-  const getIcon = (severity, type) => {
-    if (type === 'server') {
-      return <Server className={`w-5 h-5 ${
-        severity === 'error' ? 'text-red-500' : 
-        severity === 'warning' ? 'text-yellow-500' : 
-        'text-blue-500'
-      }`} />;
+  useEffect(() => {
+    // Kérjünk engedélyt a böngésző értesítésekhez
+    if ('Notification' in window && Notification.permission !== 'granted' && Notification.permission !== 'denied') {
+      Notification.requestPermission();
     }
-    
+  }, []);
+
+  // Értesítések szűrése típus szerint
+  const filteredNotifications = filterType === 'all' 
+    ? notifications 
+    : notifications.filter(notification => notification.type === filterType);
+
+  // Ikon kiválasztása az értesítés típusa és súlyossága alapján
+  const getIcon = (severity, type) => {
+    // Típus szerinti ikonok
+    switch (type) {
+      case 'server':
+        return <Server className={`w-5 h-5 ${getColorByLevel(severity)}`} />;
+      case 'domain':
+        return <Globe className={`w-5 h-5 ${getColorByLevel(severity)}`} />;
+      case 'license':
+        return <FileText className={`w-5 h-5 ${getColorByLevel(severity)}`} />;
+      case 'project':
+        return <Calendar className={`w-5 h-5 ${getColorByLevel(severity)}`} />;
+      case 'contact':
+        return <Info className={`w-5 h-5 ${getColorByLevel(severity)}`} />;
+      case 'calculator':
+        return <Database className={`w-5 h-5 ${getColorByLevel(severity)}`} />;
+      default:
+        // Súlyosság szerinti alapértelmezett ikonok
+        switch (severity) {
+          case 'error':
+            return <AlertTriangle className="w-5 h-5 text-red-500" />;
+          case 'warning':
+            return <AlertTriangle className="w-5 h-5 text-yellow-500" />;
+          default:
+            return <Info className="w-5 h-5 text-blue-500" />;
+        }
+    }
+  };
+  
+  // Szín kiválasztása súlyosság alapján
+  const getColorByLevel = (severity) => {
     switch (severity) {
       case 'error':
-        return <AlertTriangle className="w-5 h-5 text-red-500" />;
+        return 'text-red-500';
       case 'warning':
-        return <AlertTriangle className="w-5 h-5 text-yellow-500" />;
+        return 'text-yellow-500';
       default:
-        return <Info className="w-5 h-5 text-blue-500" />;
+        return 'text-blue-500';
     }
   };
 
@@ -212,40 +263,105 @@ const NotificationsManager = () => {
         <div className="absolute right-0 mt-2 w-96 bg-white rounded-lg shadow-xl z-50">
           <div className="p-4 border-b flex justify-between items-center">
             <h3 className="text-lg font-semibold">Értesítések</h3>
-            {unreadCount > 0 && (
-              <button
-                onClick={handleDismissAll}
-                className="text-sm text-blue-600 hover:text-blue-800"
-              >
-                Összes elrejtése
-              </button>
-            )}
+            <div className="flex space-x-2">
+              {unreadCount > 0 && (
+                <button
+                  onClick={handleDismissAll}
+                  className="text-sm text-blue-600 hover:text-blue-800"
+                >
+                  Összes elrejtése
+                </button>
+              )}
+            </div>
+          </div>
+          
+          {/* Szűrők */}
+          <div className="p-2 bg-gray-50 border-b flex justify-start items-center gap-1 overflow-x-auto">
+            <button
+              onClick={() => setFilterType('all')}
+              className={`px-2 py-1 text-xs rounded-full ${filterType === 'all' 
+                ? 'bg-blue-100 text-blue-800' 
+                : 'bg-gray-100 text-gray-800 hover:bg-gray-200'}`}
+            >
+              Összes
+            </button>
+            <button
+              onClick={() => setFilterType('domain')}
+              className={`px-2 py-1 text-xs rounded-full ${filterType === 'domain' 
+                ? 'bg-blue-100 text-blue-800' 
+                : 'bg-gray-100 text-gray-800 hover:bg-gray-200'}`}
+            >
+              Domain
+            </button>
+            <button
+              onClick={() => setFilterType('server')}
+              className={`px-2 py-1 text-xs rounded-full ${filterType === 'server' 
+                ? 'bg-blue-100 text-blue-800' 
+                : 'bg-gray-100 text-gray-800 hover:bg-gray-200'}`}
+            >
+              Szerver
+            </button>
+            <button
+              onClick={() => setFilterType('license')}
+              className={`px-2 py-1 text-xs rounded-full ${filterType === 'license' 
+                ? 'bg-blue-100 text-blue-800' 
+                : 'bg-gray-100 text-gray-800 hover:bg-gray-200'}`}
+            >
+              Licensz
+            </button>
+            <button
+              onClick={() => setFilterType('project')}
+              className={`px-2 py-1 text-xs rounded-full ${filterType === 'project' 
+                ? 'bg-blue-100 text-blue-800' 
+                : 'bg-gray-100 text-gray-800 hover:bg-gray-200'}`}
+            >
+              Projekt
+            </button>
+            <button
+              onClick={() => setFilterType('contact')}
+              className={`px-2 py-1 text-xs rounded-full ${filterType === 'contact' 
+                ? 'bg-blue-100 text-blue-800' 
+                : 'bg-gray-100 text-gray-800 hover:bg-gray-200'}`}
+            >
+              Kapcsolat
+            </button>
           </div>
 
           <div className="max-h-96 overflow-y-auto">
-            {notifications.length === 0 ? (
+            {loading ? (
+              <div className="flex justify-center items-center p-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent"></div>
+              </div>
+            ) : filteredNotifications.length === 0 ? (
               <div className="p-4 text-center text-gray-500">
-                Nincsenek új értesítések
+                {notifications.length === 0 ? 'Nincsenek új értesítések' : 'Nincs a szűrésnek megfelelő értesítés'}
               </div>
             ) : (
-              notifications.map((notification) => (
-                <a
+              filteredNotifications.map((notification) => (
+                <div
                   key={notification._id}
-                  href={notification.link}
-                  className="block border-b hover:bg-gray-50"
+                  className="block border-b hover:bg-gray-50 cursor-pointer"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (notification.link) {
+                      navigate(notification.link);
+                      setIsOpen(false);
+                    }
+                  }}
                 >
                   <div className="p-4 flex items-start gap-3">
                     {getIcon(notification.severity, notification.type)}
                     <div className="flex-1">
                       <div className="font-medium">{notification.title}</div>
                       <div className="text-sm text-gray-600">{notification.message}</div>
-                      <div className="text-xs text-gray-400 mt-1">
+                      <div className="text-xs text-gray-400 mt-1 flex items-center">
+                        <Clock className="h-3 w-3 mr-1" />
                         {new Date(notification.createdAt).toLocaleString()}
                       </div>
                     </div>
                     <button
                       onClick={(e) => {
-                        e.preventDefault();
+                        e.stopPropagation();
                         handleDismiss(notification._id);
                       }}
                       className="text-gray-400 hover:text-gray-600"
@@ -253,10 +369,25 @@ const NotificationsManager = () => {
                       <X className="w-5 h-5" />
                     </button>
                   </div>
-                </a>
+                </div>
               ))
             )}
           </div>
+          
+          {/* Panel lábléc */}
+          {notifications.length > 10 && (
+            <div className="p-2 border-t text-center bg-gray-50">
+              <button 
+                onClick={() => {
+                  navigate('/notifications');
+                  setIsOpen(false);
+                }}
+                className="text-sm text-blue-600 hover:text-blue-800"
+              >
+                Összes értesítés megtekintése
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
