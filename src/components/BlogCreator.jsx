@@ -82,27 +82,39 @@ const ScheduledBlogCreator = () => {
   };
   
   const generateBlogContent = async (topic, language) => {
-    // Itt használjuk a deepseek szolgáltatást a megadott karakter limittel
-    const prompt = `Write a comprehensive blog post about ${topic} in ${language}. 
+    try {
+      // Használjuk a meglévő deepseekService-t
+      const prompt = `Write a comprehensive blog post about ${topic} in ${language}. 
                    The content must be between 1800-2000 characters long.
                    Include a catchy, SEO-friendly title.
                    The content should be well-structured with proper paragraphs.
                    Focus on providing valuable insights and engaging information.
                    Ensure natural keyword placement and readability.`;
-    
-    // Implement your deepseek service call here
-    // This is a placeholder for the actual implementation
-    const response = await fetch('/api/deepseek', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt })
-    });
-    
-    const data = await response.json();
-    return {
-      content: data.content,
-      title: data.title
-    };
+
+      // Először generáljuk a címet
+      const titleResponse = await generateTitle(topic, language);
+      
+      // Majd generáljuk a tartalmat
+      const contentResponse = await generateContent(topic, language);
+
+      return {
+        content: contentResponse,
+        title: titleResponse
+      };
+    } catch (error) {
+      console.error('Error generating blog content:', error);
+      throw new Error('Nem sikerült a blog tartalom generálása: ' + error.message);
+    }
+  };
+
+  const generateTitle = async (topic, language) => {
+    const titlePrompt = `Generate a catchy, SEO-friendly title for a blog post about ${topic} in ${language}. The title should be engaging and optimized for search engines.`;
+    return await generateResponseSuggestion(titlePrompt);
+  };
+
+  const generateContent = async (topic, language) => {
+    const contentPrompt = `Write a comprehensive blog post about ${topic} in ${language}. The content must be between 1800-2000 characters.`;
+    return await generateResponseSuggestion(contentPrompt);
   };
   
   const handlePublish = async () => {
