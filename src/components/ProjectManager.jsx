@@ -15,6 +15,8 @@ const ProjectManager = () => {
   const [shareLink, setShareLink] = useState('');
   const [sharePin, setSharePin] = useState('');
   const [activeShares, setActiveShares] = useState({});
+  const [showShareModal, setShowShareModal] = useState(null);
+  const [expiryDate, setExpiryDate] = useState('');
   const [newInvoice, setNewInvoice] = useState({
     items: [{ description: '', quantity: 1, unitPrice: 0 }]
   });
@@ -39,7 +41,13 @@ const ProjectManager = () => {
 
   const generateShareLink = async (projectId) => {
     try {
-      const response = await api.post(`${API_URL}/projects/${projectId}/share`);
+      // Alapértelmezett lejárati idő: 30 nap
+      const defaultExpiryDate = new Date();
+      defaultExpiryDate.setDate(defaultExpiryDate.getDate() + 30);
+      
+      const response = await api.post(`${API_URL}/projects/${projectId}/share`, {
+        expiresAt: expiryDate // Ez egy új state lesz
+      });
       
       if (!response.ok) {
         const errorData = await response.json();
@@ -49,6 +57,19 @@ const ProjectManager = () => {
       const data = await response.json();
       setShareLink(data.shareLink);
       setSharePin(data.pin);
+      
+      // Frissítjük az activeShares state-et is
+      setActiveShares(prev => ({
+        ...prev,
+        [projectId]: {
+          hasActiveShare: true,
+          shareLink: data.shareLink,
+          pin: data.pin,
+          expiresAt: data.expiresAt,
+          createdAt: data.createdAt
+        }
+      }));
+      
       setError(null);
     } catch (error) {
       console.error('Hiba a megosztási link generálásakor:', error);
@@ -499,7 +520,7 @@ const ProjectManager = () => {
 )}
             <div className="space-y-2">
             <button
-  onClick={() => generateShareLink(project._id)}
+  onClick={() => setShowShareModal(project._id)}
   className={`w-full px-4 py-2 rounded ${
     activeShares[project._id]?.hasActiveShare
       ? 'bg-blue-100 text-blue-800 hover:bg-blue-200'
@@ -962,6 +983,51 @@ const ProjectManager = () => {
     </div>
   </div>
 )}
+
+{/* Megosztási modal */}
+{showShareModal && (
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+    <div className="bg-white rounded-lg w-full max-w-md p-6">
+      <h3 className="text-lg font-medium mb-4">Megosztási link létrehozása</h3>
+      
+      <div className="mb-4">
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Lejárati dátum
+        </label>
+        <input
+          type="date"
+          value={expiryDate?.split('T')[0] || ''}
+          onChange={(e) => setExpiryDate(e.target.value)}
+          min={new Date().toISOString().split('T')[0]}
+          className="w-full border rounded-md p-2"
+        />
+        <p className="text-sm text-gray-500 mt-1">Ha nem választasz dátumot, a link 30 napig lesz érvényes.</p>
+      </div>
+
+      <div className="flex justify-end space-x-3">
+        <button
+          onClick={() => {
+            setShowShareModal(null);
+            setExpiryDate('');
+          }}
+          className="px-4 py-2 text-gray-600 hover:text-gray-800"
+        >
+          Mégse
+        </button>
+        <button
+          onClick={() => {
+            generateShareLink(showShareModal);
+            setShowShareModal(null);
+          }}
+          className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+        >
+          Link generálása
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
     </div>
   );
 };
