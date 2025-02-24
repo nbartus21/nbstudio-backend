@@ -15,11 +15,18 @@ const ProjectFilters = ({ projects, onFilterChange }) => {
   // Amikor változik egy szűrő, hívjuk meg a szülő komponens callback függvényét
   useEffect(() => {
     onFilterChange(filters);
-  }, [filters, onFilterChange]);
+  }, [filters]); // Távolítsuk el az onFilterChange függőséget
 
+
+  
   // Unikális kliensek listájának létrehozása
-  const uniqueClients = [...new Set(projects.map(p => p.client?.name))].filter(Boolean);
+  const [uniqueClients, setUniqueClients] = useState([]);
 
+  useEffect(() => {
+    const clientNames = [...new Set(projects.map(p => p.client?.name))].filter(Boolean);
+    setUniqueClients(clientNames);
+  }, [projects]);
+  
   const handleFilterChange = (key, value) => {
     setFilters(prev => ({
       ...prev,
