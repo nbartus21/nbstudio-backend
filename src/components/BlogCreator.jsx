@@ -1,11 +1,16 @@
 import React, { useState } from 'react';
 import { Editor } from '@tinymce/tinymce-react';
 import { Calendar, Clock, Languages, Check, AlertTriangle } from 'lucide-react';
-// Eltávolítva a problémás importálás
-// import { generateBlogContent, generateTitle, generateSEODescription, translateContent } from '../services/chatGptService';
+// A javított importálás a chatGptService-ből
+import { 
+  generateBlogContent, 
+  generateTitle, 
+  generateSEODescription, 
+  translateContent 
+} from '../chatGptService';
 import { api } from '../services/auth';
-// Csak a deepseekService importálása
-import { deepseekService } from '../services/deepseekService';
+// Opcionálisan importáljuk a deepseekService-t is, ha közvetlenül is használnánk
+import { deepseekService } from '../deepseekService';
 
 const API_URL = 'https://admin.nb-studio.net:5001/api';
 
@@ -22,38 +27,45 @@ const BlogCreator = () => {
   });
   const [publishDate, setPublishDate] = useState('');
   const [currentLanguage, setCurrentLanguage] = useState('hu');
+  // AI motor kiválasztásához (ha szükséges)
+  const [selectedAI, setSelectedAI] = useState('deepseek'); // 'deepseek', 'xai', 'google', 'anthropic'
 
+  // Tartalom generálása chatGptService függvényeivel (ami a deepseekService-t használja)
   const generateInitialContent = async (topic) => {
     try {
       setLoading(true);
       setError('');
 
-      // Használjuk a deepseekService-t a tartalomgeneráláshoz
+      // Ha egy másik AI motort szeretnénk használni
+      if (selectedAI !== 'deepseek') {
+        deepseekService.setModel(selectedAI);
+      }
+
       // Először magyar nyelven generáljuk
       const [huContent, huTitle] = await Promise.all([
-        deepseekService.generateBlogContent(topic, 'hu'),
-        deepseekService.generateTitle(topic, 'hu')
+        generateBlogContent(topic, 'hu'),
+        generateTitle(topic, 'hu')
       ]);
 
       // Meta leírás generálása
-      const huExcerpt = await deepseekService.generateSEODescription(huContent, 'hu');
+      const huExcerpt = await generateSEODescription(huContent, 'hu');
 
       // Tartalom fordítása más nyelvekre
       const [enContent, deContent] = await Promise.all([
-        deepseekService.translateContent(huContent, 'hu', 'en'),
-        deepseekService.translateContent(huContent, 'hu', 'de')
+        translateContent(huContent, 'hu', 'en'),
+        translateContent(huContent, 'hu', 'de')
       ]);
 
       // Címek fordítása
       const [enTitle, deTitle] = await Promise.all([
-        deepseekService.translateContent(huTitle, 'hu', 'en'),
-        deepseekService.translateContent(huTitle, 'hu', 'de')
+        translateContent(huTitle, 'hu', 'en'),
+        translateContent(huTitle, 'hu', 'de')
       ]);
 
       // Meta leírások generálása más nyelveken
       const [enExcerpt, deExcerpt] = await Promise.all([
-        deepseekService.generateSEODescription(enContent, 'en'),
-        deepseekService.generateSEODescription(deContent, 'de')
+        generateSEODescription(enContent, 'en'),
+        generateSEODescription(deContent, 'de')
       ]);
 
       setGeneratedContent({
@@ -154,6 +166,18 @@ const BlogCreator = () => {
     return `${year}-${month}-${day}T${hours}:${minutes}`;
   };
 
+  // Szó és karakterszám számítása
+  const getContentStats = (content) => {
+    if (!content) return { words: 0, chars: 0 };
+    
+    // HTML tagek eltávolítása a pontos számoláshoz
+    const textContent = content.replace(/<[^>]*>/g, ' ');
+    const words = textContent.split(/\s+/).filter(Boolean).length;
+    const chars = textContent.replace(/\s+/g, '').length;
+    
+    return { words, chars };
+  };
+
   return (
     <div className="max-w-4xl mx-auto p-6">
       <h2 className="text-2xl font-bold mb-6">Ütemezett Blog Bejegyzés Létrehozása</h2>
@@ -185,6 +209,23 @@ const BlogCreator = () => {
               className="w-full px-3 py-2 border rounded-md"
               placeholder="Add meg a blog témáját..."
             />
+          </div>
+          
+          {/* AI kiválasztása - opcionális */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              AI Motor
+            </label>
+            <select
+              value={selectedAI}
+              onChange={(e) => setSelectedAI(e.target.value)}
+              className="w-full px-3 py-2 border rounded-md"
+            >
+              <option value="deepseek">DeepSeek (Alapértelmezett)</option>
+              <option value="xai">XAI</option>
+              <option value="google">Google Generative AI</option>
+              <option value="anthropic">Anthropic Claude</option>
+            </select>
           </div>
           
           <div>
@@ -303,12 +344,13 @@ const BlogCreator = () => {
               Karakter Számláló
             </label>
             <div className="text-sm text-gray-600">
-              {generatedContent[currentLanguage].content.length} karakter
-              {generatedContent[currentLanguage].content.length < 1800 && 
-                <span className="text-red-500 ml-2">(Minimum 1800 karakter szükséges)</span>
+              {getContentStats(generatedContent[currentLanguage].content).chars} karakter / 
+              {getContentStats(generatedContent[currentLanguage].content).words} szó
+              {getContentStats(generatedContent[currentLanguage].content).chars < 1000 && 
+                <span className="text-red-500 ml-2">(Minimum 1000 karakter ajánlott)</span>
               }
-              {generatedContent[currentLanguage].content.length > 2000 && 
-                <span className="text-red-500 ml-2">(Maximum 2000 karakter megengedett)</span>
+              {getContentStats(generatedContent[currentLanguage].content).chars > 1500 && 
+                <span className="text-yellow-500 ml-2">(Maximum 1500 karakter ajánlott)</span>
               }
             </div>
           </div>
@@ -323,7 +365,9 @@ const BlogCreator = () => {
             <button
               onClick={handlePublish}
               disabled={loading || Object.values(generatedContent).some(
-                content => content.content.length < 1800 || content.content.length > 2000
+                content => 
+                  getContentStats(content.content).chars < 1000 || 
+                  getContentStats(content.content).chars > 1500
               )}
               className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
             >
