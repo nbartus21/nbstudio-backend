@@ -18,8 +18,8 @@ export const generateSEODescription = async (content, language = 'hu') => {
 
 // Tartalom fordítás
 export const translateContent = async (content, fromLang = 'hu', toLang = 'en') => {
-  return deepseekService.translateContent(content, fromLang, toLang);
-};
+    return deepseekService.translateContent(content, fromLang, toLang);
+  };
 
 // SEO javaslatok
 export const generateSEOSuggestions = async (content, language) => {
