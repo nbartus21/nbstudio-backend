@@ -27,42 +27,73 @@ const BlogCreator = () => {
   const [currentLanguage, setCurrentLanguage] = useState('hu');
   const [selectedAI, setSelectedAI] = useState('deepseek'); // 'deepseek', 'xai', 'google', 'anthropic'
 
+  // Debug logging
+  console.log('Imported functions:', {
+    generateBlogContent: typeof generateBlogContent,
+    generateTitle: typeof generateTitle,
+    generateSEODescription: typeof generateSEODescription,
+    translateContent: typeof translateContent
+  });
+
   const generateInitialContent = async (topic) => {
     try {
+      // Explicit function type checking
+      if (typeof generateBlogContent !== 'function') {
+        throw new Error('generateBlogContent is not a function');
+      }
+      if (typeof generateTitle !== 'function') {
+        throw new Error('generateTitle is not a function');
+      }
+      if (typeof translateContent !== 'function') {
+        throw new Error('translateContent is not a function');
+      }
+
       setLoading(true);
       setError('');
 
       // Ha egy másik AI motort szeretnénk használni
       if (selectedAI !== 'deepseek') {
-        deepseekService.setModel(selectedAI);
+        try {
+          deepseekService.setModel(selectedAI);
+        } catch (modelError) {
+          console.error('Error setting AI model:', modelError);
+        }
       }
 
       // Először magyar nyelven generáljuk
       const [huContent, huTitle] = await Promise.all([
-        chatGptService.generateBlogContent(topic, 'hu'),
-        chatGptService.generateTitle(topic, 'hu')
+        generateBlogContent(topic, 'hu'),
+        generateTitle(topic, 'hu')
       ]);
 
+      console.log('Hungarian content generated:', { huContent, huTitle });
+
       // Meta leírás generálása
-      const huExcerpt = await chatGptService.generateSEODescription(huContent, 'hu');
+      const huExcerpt = await generateSEODescription(huContent, 'hu');
 
       // Tartalom fordítása más nyelvekre
       const [enContent, deContent] = await Promise.all([
-        chatGptService.translateContent(huContent, 'hu', 'en'),
-        chatGptService.translateContent(huContent, 'hu', 'de')
+        translateContent(huContent, 'hu', 'en'),
+        translateContent(huContent, 'hu', 'de')
       ]);
+
+      console.log('Translated contents:', { enContent, deContent });
 
       // Címek fordítása
       const [enTitle, deTitle] = await Promise.all([
-        chatGptService.translateContent(huTitle, 'hu', 'en'),
-        chatGptService.translateContent(huTitle, 'hu', 'de')
+        translateContent(huTitle, 'hu', 'en'),
+        translateContent(huTitle, 'hu', 'de')
       ]);
+
+      console.log('Translated titles:', { enTitle, deTitle });
 
       // Meta leírások generálása más nyelveken
       const [enExcerpt, deExcerpt] = await Promise.all([
-        chatGptService.generateSEODescription(enContent, 'en'),
-        chatGptService.generateSEODescription(deContent, 'de')
+        generateSEODescription(enContent, 'en'),
+        generateSEODescription(deContent, 'de')
       ]);
+
+      console.log('Generated excerpts:', { huExcerpt, enExcerpt, deExcerpt });
 
       setGeneratedContent({
         hu: {
@@ -85,7 +116,8 @@ const BlogCreator = () => {
       setStep(2);
       setSuccess('Tartalom generálva minden nyelven!');
     } catch (error) {
-      setError('Hiba történt a tartalom generálása során: ' + error.message);
+      console.error('Teljes hibainformáció:', error);
+      setError(`Hiba történt a tartalom generálása során: ${error.message}`);
     } finally {
       setLoading(false);
     }
