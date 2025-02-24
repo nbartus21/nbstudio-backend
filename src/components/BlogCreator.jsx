@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { Editor } from '@tinymce/tinymce-react';
-import { format } from 'date-fns';
 import { CalendarClock, Languages, Check, AlertTriangle } from 'lucide-react';
 import { 
   generateSEOSuggestions, 
@@ -84,11 +83,16 @@ const ScheduledBlogCreator = () => {
   
   const generateBlogContent = async (topic, language) => {
     // Itt használjuk a deepseek szolgáltatást a megadott karakter limittel
-    const prompt = `Write a blog post about ${topic} in ${language}. 
-                   The content should be between 1800-2000 characters long.
-                   Include an engaging title.`;
+    const prompt = `Write a comprehensive blog post about ${topic} in ${language}. 
+                   The content must be between 1800-2000 characters long.
+                   Include a catchy, SEO-friendly title.
+                   The content should be well-structured with proper paragraphs.
+                   Focus on providing valuable insights and engaging information.
+                   Ensure natural keyword placement and readability.`;
     
-    const response = await fetch('YOUR_DEEPSEEK_ENDPOINT', {
+    // Implement your deepseek service call here
+    // This is a placeholder for the actual implementation
+    const response = await fetch('/api/deepseek', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ prompt })
@@ -122,7 +126,7 @@ const ScheduledBlogCreator = () => {
           de: generatedContent.de.excerpt
         },
         slug: generateSlug(generatedContent.en.title),
-        scheduledDate: publishDate,
+        scheduledDate: new Date(publishDate).toISOString(),
         published: false,
         tags: []
       };
@@ -160,6 +164,16 @@ const ScheduledBlogCreator = () => {
       en: { content: '', title: '', excerpt: '' },
       de: { content: '', title: '', excerpt: '' }
     });
+  };
+
+  const getMinDateTimeString = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
   };
 
   return (
@@ -206,7 +220,7 @@ const ScheduledBlogCreator = () => {
                 value={publishDate}
                 onChange={(e) => setPublishDate(e.target.value)}
                 className="px-3 py-2 border rounded-md"
-                min={format(new Date(), "yyyy-MM-dd'T'HH:mm")}
+                min={getMinDateTimeString()}
               />
             </div>
           </div>
