@@ -442,6 +442,68 @@ const SharedProjectDashboard = ({ project, onUpdate }) => {
           </nav>
         </div>
 
+{/* Hozzászólások nézet */}
+{activeTab === 'comments' && (
+  <div className="bg-white rounded-lg shadow">
+    <div className="px-6 py-4 border-b border-gray-200">
+      <h2 className="text-lg font-medium">Hozzászólások</h2>
+    </div>
+    
+    {/* Hozzászólás írása */}
+    <div className="p-6 border-b">
+      <form onSubmit={(e) => {
+        e.preventDefault();
+        handleAddComment();
+      }}>
+        <textarea
+          value={newComment}
+          onChange={(e) => setNewComment(e.target.value)}
+          className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          rows={3}
+          placeholder="Írja ide hozzászólását..."
+          required
+        />
+        <div className="mt-3 flex justify-end">
+          <button
+            type="submit"
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            disabled={!newComment.trim()}
+          >
+            Hozzászólás küldése
+          </button>
+        </div>
+      </form>
+    </div>
+    
+    {/* Hozzászólások listája */}
+    <div className="divide-y divide-gray-200">
+      {comments.length > 0 ? (
+        comments.map((comment) => (
+          <div key={comment.id} className="p-6">
+            <div className="flex justify-between">
+              <div className="font-medium">{comment.author}</div>
+              <div className="text-sm text-gray-500">{formatDate(comment.timestamp)}</div>
+            </div>
+            <div className="mt-2 text-gray-700 whitespace-pre-wrap">{comment.text}</div>
+            <div className="mt-3 flex justify-end">
+              <button
+                onClick={() => handleDeleteComment(comment.id)}
+                className="text-red-600 hover:text-red-800 text-sm"
+              >
+                Törlés
+              </button>
+            </div>
+          </div>
+        ))
+      ) : (
+        <div className="p-6 text-center text-gray-500">
+          Még nincsenek hozzászólások. Legyen Ön az első, aki hozzászól!
+        </div>
+      )}
+    </div>
+  </div>
+)}
+
         {/* Áttekintés nézet */}
         {activeTab === 'overview' && (
           <div className="space-y-6">
