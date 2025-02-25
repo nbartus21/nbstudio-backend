@@ -102,16 +102,38 @@ const SharedProjectDashboard = ({ project, onUpdate }) => {
     console.log(`Saved ${comments.length} comments for project ${project._id}`);
   }, [comments, project?._id]);
 
-  const handleFileUpload = async (event) => {
-    if (!project?._id) {
-      showErrorMessage('Nincs érvényes projekt azonosító!');
-      return;
+  // Hiányzó handleFilePreview függvény hozzáadása
+  const handleFilePreview = (file) => {
+    setPreviewFile(file);
+  };
+
+  // Javított handleDeleteFile függvény
+  const handleDeleteFile = (fileId) => {
+    if (window.confirm('Biztosan törölni szeretné ezt a fájlt?')) {
+      const updatedFiles = files.filter(file => file.id !== fileId);
+      setFiles(updatedFiles);
+      localStorage.setItem(`project_${project._id}_files`, JSON.stringify(updatedFiles));
+      showSuccessMessage('Fájl sikeresen törölve');
     }
-    
+  };
+
+  // Hiányzó handleFileUpload sikeres feltöltés kezelés
+  const handleFileUpload = async (event) => {
     setLoading(true);
+    setIsUploading(true);
+    setUploadProgress(0);
+    
     try {
       const uploadedFiles = Array.from(event.target.files);
       if (uploadedFiles.length === 0) return;
+      
+      // Progress szimuláció
+      const progressInterval = setInterval(() => {
+        setUploadProgress(prev => {
+          const newProgress = prev + Math.floor(Math.random() * 10);
+          return newProgress > 90 ? 90 : newProgress;
+        });
+      }, 200);
       
       const newFiles = await Promise.all(uploadedFiles.map(async (file) => {
         return new Promise((resolve) => {
@@ -123,8 +145,7 @@ const SharedProjectDashboard = ({ project, onUpdate }) => {
               size: file.size,
               type: file.type,
               uploadedAt: new Date().toISOString(),
-              content: e.target.result,
-              projectId: project._id // Eltároljuk a projekt ID-t is a fájlhoz
+              content: e.target.result
             };
             resolve(fileData);
           };
@@ -132,42 +153,27 @@ const SharedProjectDashboard = ({ project, onUpdate }) => {
         });
       }));
 
-      setFiles(prevFiles => [...prevFiles, ...newFiles]);
-      setActiveTab('files');
-      showSuccessMessage('Fájl(ok) sikeresen feltöltve!');
+      // Befejezzük a progress-t
+      clearInterval(progressInterval);
+      setUploadProgress(100);
+      
+      setTimeout(() => {
+        setFiles(prevFiles => [...prevFiles, ...newFiles]);
+        setActiveTab('files');
+        setIsUploading(false);
+        showSuccessMessage('Fájl(ok) sikeresen feltöltve!');
+      }, 500);
+      
     } catch (error) {
       console.error('Hiba a fájl feltöltésekor:', error);
       showErrorMessage('Hiba történt a fájl feltöltése során');
+      setIsUploading(false);
     } finally {
       setLoading(false);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
     }
-  };
-
-  const handleDeleteFile = (fileId) => {
-    if (!project?._id) return;
-    
-    if (window.confirm('Biztosan törölni szeretné ezt a fájlt?')) {
-      // ID alapján szűrjük ki a fájlokat
-      const updatedFiles = files.filter(file => file.id !== fileId);
-      setFiles(updatedFiles);
-      
-      // Frissítjük a localStorage-t az új listával
-      const key = getLocalStorageKey(project._id, 'files');
-      if (updatedFiles.length > 0) {
-        localStorage.setItem(key, JSON.stringify(updatedFiles));
-      } else {
-        localStorage.removeItem(key);
-      }
-      
-      showSuccessMessage('Fájl sikeresen törölve');
-    }
-  };
-
-  const handleFilePreview = (file) => {
-    setPreviewFile(file);
   };
 
   const handleDownloadFile = (file) => {
@@ -958,44 +964,44 @@ const SharedProjectDashboard = ({ project, onUpdate }) => {
         sortedFiles.length === 0 ? 'border-2 border-dashed border-gray-300 rounded-lg m-6' : ''
       }`}
     >
-      {sortedFiles.length > 0 ? sortedFiles.map((file) => (
-        <div key={file.id} className="px-6 py-4 flex justify-between items-center hover:bg-gray-50">
-          <div className="flex items-center">
-            <FileText className="h-5 w-5 text-gray-400 mr-2" />
-            <div>
-              <p className="font-medium">{file.name}</p>
-              <div className="flex items-center text-sm text-gray-500">
-                <span>{new Date(file.uploadedAt).toLocaleDateString()}</span>
-                <span className="mx-2">•</span>
-                <span>{formatFileSize(file.size)}</span>
-              </div>
-            </div>
-          </div>
-          <div className="flex space-x-2">
-            <button
-              onClick={() => handleFilePreview(file)}
-              className="p-1 text-gray-600 hover:text-gray-800 rounded hover:bg-gray-100"
-              title="Előnézet"
-            >
-              <Eye className="h-5 w-5" />
-            </button>
-            <button
-              onClick={() => handleDownloadFile(file)}
-              className="p-1 text-blue-600 hover:text-blue-800 rounded hover:bg-blue-50"
-              title="Letöltés"
-            >
-              <Download className="h-5 w-5" />
-            </button>
-            <button
-              onClick={() => handleDeleteFile(file.id)}
-              className="p-1 text-red-600 hover:text-red-800 rounded hover:bg-red-50"
-              title="Törlés"
-            >
-              <Trash2 className="h-5 w-5" />
-            </button>
-          </div>
+{sortedFiles.length > 0 ? sortedFiles.map((file) => (
+  <div key={file.id} className="px-6 py-4 flex justify-between items-center hover:bg-gray-50">
+    <div className="flex items-center">
+      <FileText className="h-5 w-5 text-gray-400 mr-2" />
+      <div>
+        <p className="font-medium">{file.name}</p>
+        <div className="flex items-center text-sm text-gray-500">
+          <span>{new Date(file.uploadedAt).toLocaleDateString()}</span>
+          <span className="mx-2">•</span>
+          <span>{formatFileSize(file.size)}</span>
         </div>
-      )) : (
+      </div>
+    </div>
+    <div className="flex space-x-2">
+      <button
+        onClick={() => handleFilePreview(file)}
+        className="p-1 text-gray-600 hover:text-gray-800 rounded hover:bg-gray-100"
+        title="Előnézet"
+      >
+        <Eye className="h-5 w-5" />
+      </button>
+      <button
+        onClick={() => handleDownloadFile(file)}
+        className="p-1 text-blue-600 hover:text-blue-800 rounded hover:bg-blue-50"
+        title="Letöltés"
+      >
+        <Download className="h-5 w-5" />
+      </button>
+      <button
+        onClick={() => handleDeleteFile(file.id)}
+        className="p-1 text-red-600 hover:text-red-800 rounded hover:bg-red-50"
+        title="Törlés"
+      >
+        <Trash2 className="h-5 w-5" />
+      </button>
+    </div>
+  </div>
+)) : (
         <div className="py-10 text-center">
           {searchTerm || fileFilter !== 'all' ? (
             <div className="text-gray-500">
