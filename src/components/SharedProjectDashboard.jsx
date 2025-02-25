@@ -6,7 +6,7 @@ import {
 import { 
   Upload, FileText, Archive, Clock, AlertTriangle, Download, CreditCard,
   Check, X, Info, Edit, Monitor, Server, Bell, Users, MessageCircle, 
-  Calendar, Link, Paperclip, Trash2, DownloadCloud
+  Calendar, Link, Paperclip, Trash2, DownloadCloud, Eye, Search
 } from 'lucide-react';
 import QRCode from 'qrcode.react';
 
@@ -22,22 +22,25 @@ const SharedProjectDashboard = ({ project, onUpdate }) => {
   const [loading, setLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [previewFile, setPreviewFile] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [fileFilter, setFileFilter] = useState('all');
+  const [sortBy, setSortBy] = useState('date-desc');
 
   // Adatok betöltése a komponens inicializálásakor
   useEffect(() => {
-    // Fájlok betöltése localStorage-ból
     const savedFiles = localStorage.getItem(`project_${project._id}_files`);
     if (savedFiles) {
       setFiles(JSON.parse(savedFiles));
     }
 
-    // Megjegyzések betöltése localStorage-ból
     const savedComments = localStorage.getItem(`project_${project._id}_comments`);
     if (savedComments) {
       setComments(JSON.parse(savedComments));
     }
 
-    // Mérföldkövek és dokumentumok inicializálása
     setMilestones(project.milestones || []);
     setProjectDocuments(project.documents || []);
   }, [project._id]);
@@ -66,14 +69,12 @@ const SharedProjectDashboard = ({ project, onUpdate }) => {
         return new Promise((resolve) => {
           const reader = new FileReader();
           reader.onload = (e) => {
-            // Csak a metaadatokat és a hivatkozást mentsük el
             const fileData = {
               id: Date.now() + '_' + file.name.replace(/\s+/g, '_'),
               name: file.name,
               size: file.size,
               type: file.type,
               uploadedAt: new Date().toISOString(),
-              // A tartalmat base64 formátumban tároljuk a LocalStorage-ban
               content: e.target.result
             };
             resolve(fileData);
@@ -82,16 +83,14 @@ const SharedProjectDashboard = ({ project, onUpdate }) => {
         });
       }));
 
-      // Új fájlok hozzáadása a meglévőkhöz
       setFiles(prevFiles => [...prevFiles, ...newFiles]);
-      setActiveTab('files'); // Automatikusan átváltunk a fájlok fülre
+      setActiveTab('files');
       showSuccessMessage('Fájl(ok) sikeresen feltöltve!');
     } catch (error) {
       console.error('Hiba a fájl feltöltésekor:', error);
       showErrorMessage('Hiba történt a fájl feltöltése során');
     } finally {
       setLoading(false);
-      // Input mező törlése, hogy ugyanazt a fájlt újra fel lehessen tölteni
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -101,7 +100,6 @@ const SharedProjectDashboard = ({ project, onUpdate }) => {
   const handleDeleteFile = (fileId) => {
     if (window.confirm('Biztosan törölni szeretné ezt a fájlt?')) {
       setFiles(prevFiles => prevFiles.filter(file => file.id !== fileId));
-      // Törölt fájl eltávolítása a localStorage-ból is
       const updatedFiles = files.filter(file => file.id !== fileId);
       localStorage.setItem(`project_${project._id}_files`, JSON.stringify(updatedFiles));
       showSuccessMessage('Fájl sikeresen törölve');
@@ -110,7 +108,6 @@ const SharedProjectDashboard = ({ project, onUpdate }) => {
 
   const handleDownloadFile = (file) => {
     try {
-      // Letöltési link létrehozása a base64 tartalomból
       const link = document.createElement('a');
       link.href = file.content;
       link.download = file.name;
@@ -219,6 +216,77 @@ const SharedProjectDashboard = ({ project, onUpdate }) => {
       minute: '2-digit'
     });
   };
+
+  // Fájlok szűrése és rendezése
+  const sortedFiles = [...files]
+    .filter(file => {
+      const matchesSearch = searchTerm ? 
+        file.name.toLowerCase().includes(searchTerm.toLowerCase()) : true;
+      
+      let matchesType = true;
+      if (fileFilter === 'documents') {
+        matchesType = !file.type?.startsWith('image/');
+      } else if (fileFilter === 'images') {
+        matchesType = file.type?.startsWith('image/');
+      }
+      
+      return matchesSearch && matchesType;
+    })
+    .sort((a, b) => {
+      if (sortBy === 'date-desc') {
+        return new Date(b.uploadedAt) - new Date(a.uploadedAt);
+      } else if (sortBy === 'date-asc') {
+        return new Date(a.uploadedAt) - new Date(b.uploadedAt);
+      } else if (sortBy === 'name') {
+        return a.name.localeCompare(b.name);
+      } else if (sortBy === 'size') {
+        return b.size - a.size;
+      }
+      return 0;
+    });
+
+  // Drag and drop támogatás
+  useEffect(() => {
+    if (activeTab !== 'files') return;
+    
+    const dropArea = document.getElementById('file-drop-area');
+    if (!dropArea) return;
+    
+    const highlight = () => dropArea.classList.add('border-blue-400', 'bg-blue-50');
+    const unhighlight = () => dropArea.classList.remove('border-blue-400', 'bg-blue-50');
+    
+    const handleDragOver = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      highlight();
+    };
+    
+    const handleDragLeave = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      unhighlight();
+    };
+    
+    const handleDrop = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      unhighlight();
+      
+      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        handleFileUpload({ target: { files: e.dataTransfer.files } });
+      }
+    };
+    
+    dropArea.addEventListener('dragover', handleDragOver);
+    dropArea.addEventListener('dragleave', handleDragLeave);
+    dropArea.addEventListener('drop', handleDrop);
+    
+    return () => {
+      dropArea.removeEventListener('dragover', handleDragOver);
+      dropArea.removeEventListener('dragleave', handleDragLeave);
+      dropArea.removeEventListener('drop', handleDrop);
+    };
+  }, [activeTab]);
 
   return (
     <div className="bg-gray-50 min-h-screen">
