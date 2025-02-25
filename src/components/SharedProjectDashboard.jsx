@@ -10,10 +10,6 @@ import {
 } from 'lucide-react';
 import QRCode from 'qrcode.react';
 
-// API változók
-const API_URL = 'https://admin.nb-studio.net:5001/api';
-const API_KEY = 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0';
-
 const SharedProjectDashboard = ({ project, onUpdate, onLogout }) => {
   // State management
   const [files, setFiles] = useState([]);
@@ -34,74 +30,53 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout }) => {
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
   const [viewingInvoice, setViewingInvoice] = useState(null);
 
-  // Segédfüggvény API hívásokhoz
-  const fetchWithAPI = async (url, method = 'GET', data = null) => {
-    try {
-      const options = {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          'X-API-Key': API_KEY
-        }
-      };
-
-      if (data && (method === 'POST' || method === 'PUT')) {
-        options.body = JSON.stringify(data);
-      }
-
-      const response = await fetch(url, options);
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Hiba történt a kérés során');
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.error('API hívás hiba:', error);
-      throw error;
-    }
-  };
-
-  // Fájlok lekérése a szerverről
-  const fetchFiles = async () => {
-    if (!project || !project._id) return;
-    
-    try {
-      const fetchedFiles = await fetchWithAPI(`${API_URL}/projects/${project._id}/files`);
-      setFiles(fetchedFiles || []);
-    } catch (error) {
-      console.error("Hiba a fájlok lekérésekor:", error);
-      showErrorMessage('Nem sikerült betölteni a fájlokat');
-    }
-  };
-
-  // Hozzászólások lekérése a szerverről
-  const fetchComments = async () => {
-    if (!project || !project._id) return;
-    
-    try {
-      const fetchedComments = await fetchWithAPI(`${API_URL}/projects/${project._id}/comments`);
-      setComments(fetchedComments || []);
-    } catch (error) {
-      console.error("Hiba a hozzászólások lekérésekor:", error);
-      showErrorMessage('Nem sikerült betölteni a hozzászólásokat');
-    }
-  };
-
   // Load data on component initialization
   useEffect(() => {
     if (!project || !project._id) return;
     
-    // Fetch files and comments from the server
-    fetchFiles();
-    fetchComments();
+    // Load files from localStorage
+    const savedFiles = localStorage.getItem(`project_${project._id}_files`);
+    if (savedFiles) {
+      try {
+        setFiles(JSON.parse(savedFiles));
+      } catch (error) {
+        console.error("Error parsing saved files:", error);
+      }
+    }
+
+    // Load comments from localStorage
+    const savedComments = localStorage.getItem(`project_${project._id}_comments`);
+    if (savedComments) {
+      try {
+        setComments(JSON.parse(savedComments));
+      } catch (error) {
+        console.error("Error parsing saved comments:", error);
+      }
+    }
 
     // Set milestones from project data
     setMilestones(project.milestones || []);
   }, [project]);
 
-  // File upload handler - módosítva API használatra
+  // Save files to localStorage when they change
+  useEffect(() => {
+    if (!project || !project._id) return;
+    
+    if (files.length > 0) {
+      localStorage.setItem(`project_${project._id}_files`, JSON.stringify(files));
+    }
+  }, [files, project]);
+
+  // Save comments to localStorage when they change
+  useEffect(() => {
+    if (!project || !project._id) return;
+    
+    if (comments.length > 0) {
+      localStorage.setItem(`project_${project._id}_comments`, JSON.stringify(comments));
+    }
+  }, [comments, project]);
+
+  // File upload handler
   const handleFileUpload = async (event) => {
     setLoading(true);
     setIsUploading(true);
@@ -116,7 +91,7 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout }) => {
       let processedFiles = 0;
       const totalFiles = uploadedFiles.length;
       
-      const newFilesData = await Promise.all(uploadedFiles.map(async (file) => {
+      const newFiles = await Promise.all(uploadedFiles.map(async (file) => {
         return new Promise((resolve) => {
           const reader = new FileReader();
           
@@ -140,16 +115,9 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout }) => {
         });
       }));
 
-      // Feltöltés a szerverre egyesével
-      for (const fileData of newFilesData) {
-        await fetchWithAPI(`${API_URL}/projects/${project._id}/files`, 'POST', fileData);
-      }
-
-      // Frissítjük a fájlok listáját
-      fetchFiles();
-      
+      setFiles(prevFiles => [...prevFiles, ...newFiles]);
       setActiveTab('files');
-      showSuccessMessage(`${newFilesData.length} fájl sikeresen feltöltve!`);
+      showSuccessMessage(`${newFiles.length} fájl sikeresen feltöltve!`);
       
       // Simulate a slight delay to show 100% before hiding the progress bar
       setTimeout(() => {
@@ -167,78 +135,72 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout }) => {
     }
   };
 
-  // File deletion handler - módosítva API használatra
-  const handleDeleteFile = async (fileId) => {
-    if (!window.confirm('Biztosan törölni szeretné ezt a fájlt?')) return;
-    
-    try {
-      // A szerveren a fájl törlésére nincs külön végpont, ezért csak frissítjük a project objektumot
-      // Valós környezetben itt a fájl törlésére szolgáló API végpontot kellene hívni
-      const currentFiles = [...files];
-      const updatedFiles = currentFiles.filter(file => file.id !== fileId);
-      
-      await onUpdate({
-        ...project,
-        files: updatedFiles
-      });
-      
-      setFiles(updatedFiles);
+  // File preview handler
+  const handleFilePreview = (file) => {
+    setPreviewFile(file);
+    setIsPreviewModalOpen(true);
+  };
+
+  // File deletion handler
+  const handleDeleteFile = (fileId) => {
+    if (window.confirm('Biztosan törölni szeretné ezt a fájlt?')) {
+      setFiles(prevFiles => prevFiles.filter(file => file.id !== fileId));
       showSuccessMessage('Fájl sikeresen törölve');
-    } catch (error) {
-      console.error('Hiba:', error);
-      setErrorMessage('Hiba történt a törlés során');
     }
   };
 
-  // Comment addition handler - módosítva API használatra
-  const handleAddComment = async () => {
+  // Comment addition handler
+  const handleAddComment = () => {
     if (!newComment.trim()) return;
     
     const comment = {
+      id: Date.now(),
       text: newComment,
       author: 'Ügyfél',
       timestamp: new Date().toISOString(),
       projectId: project._id
     };
     
-    try {
-      await fetchWithAPI(`${API_URL}/projects/${project._id}/comments`, 'POST', comment);
-      
-      // Frissítjük a hozzászólások listáját
-      fetchComments();
-      
-      setNewComment('');
-      showSuccessMessage('Hozzászólás sikeresen hozzáadva');
-    } catch (error) {
-      console.error('Hiba a hozzászólás hozzáadásakor:', error);
-      showErrorMessage('Hiba történt a hozzászólás mentése során');
-    }
+    setComments(prevComments => [comment, ...prevComments]);
+    setNewComment('');
+    showSuccessMessage('Hozzászólás sikeresen hozzáadva');
   };
 
-  // Comment deletion handler - módosítva API-val való kezelésre
-  const handleDeleteComment = async (commentId) => {
-    if (!window.confirm('Biztosan törölni szeretné ezt a hozzászólást?')) return;
-    
-    try {
-      // A szerveren a hozzászólás törlésére nincs külön végpont, ezért csak frissítjük a project objektumot
-      // Valós környezetben itt a hozzászólás törlésére szolgáló API végpontot kellene hívni
-      const currentComments = [...comments];
-      const updatedComments = currentComments.filter(comment => comment.id !== commentId);
-      
-      await onUpdate({
-        ...project,
-        comments: updatedComments
-      });
-      
-      setComments(updatedComments);
+  // Comment deletion handler
+  const handleDeleteComment = (commentId) => {
+    if (window.confirm('Biztosan törölni szeretné ezt a hozzászólást?')) {
+      setComments(prevComments => prevComments.filter(comment => comment.id !== commentId));
       showSuccessMessage('Hozzászólás sikeresen törölve');
-    } catch (error) {
-      console.error('Hiba:', error);
-      setErrorMessage('Hiba történt a törlés során');
     }
   };
 
-  // Formázási és egyéb segédfüggvények
+  // SEPA QR code generation
+  const generateSepaQrData = (invoice) => {
+    const amount = typeof invoice.totalAmount === 'number' 
+      ? invoice.totalAmount.toFixed(2) 
+      : '0.00';
+  
+    return [
+      'BCD',                                    // Service Tag
+      '002',                                    // Version
+      '1',                                      // Encoding
+      'SCT',                                    // SEPA Credit Transfer
+      'COBADEFF371',                           // BIC
+      'Norbert Bartus',                        // Beneficiary name
+      'DE47663400180473463800',               // IBAN
+      `EUR${amount}`,                          // Amount in EUR
+      '',                                      // Customer ID (empty)
+      invoice.number || '',                    // Invoice number
+      `RECHNUNG ${invoice.number}`             // Reference
+    ].join('\n');
+  };
+
+  // View invoice in A4 format
+  const handleViewInvoice = (invoice) => {
+    setViewingInvoice(invoice);
+  };
+
+  // Formatting functions
   const formatFileSize = (bytes) => {
     if (bytes < 1024) return bytes + ' B';
     else if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
@@ -273,32 +235,6 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout }) => {
     setTimeout(() => {
       setErrorMessage('');
     }, 3000);
-  };
-
-  // SEPA QR code generation
-  const generateSepaQrData = (invoice) => {
-    const amount = typeof invoice.totalAmount === 'number' 
-      ? invoice.totalAmount.toFixed(2) 
-      : '0.00';
-  
-    return [
-      'BCD',                                    // Service Tag
-      '002',                                    // Version
-      '1',                                      // Encoding
-      'SCT',                                    // SEPA Credit Transfer
-      'COBADEFF371',                           // BIC
-      'Norbert Bartus',                        // Beneficiary name
-      'DE47663400180473463800',               // IBAN
-      `EUR${amount}`,                          // Amount in EUR
-      '',                                      // Customer ID (empty)
-      invoice.number || '',                    // Invoice number
-      `RECHNUNG ${invoice.number}`             // Reference
-    ].join('\n');
-  };
-
-  // View invoice in A4 format
-  const handleViewInvoice = (invoice) => {
-    setViewingInvoice(invoice);
   };
 
   // Filter and sort files
