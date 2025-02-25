@@ -29,67 +29,43 @@ const SharedProjectDashboard = ({ project, onUpdate }) => {
   const [fileFilter, setFileFilter] = useState('all');
   const [sortBy, setSortBy] = useState('date-desc');
 
-  // Unique storage keys for this specific project
-  const filesStorageKey = `project_${project._id}_files`;
-  const commentsStorageKey = `project_${project._id}_comments`;
-
-  // Load data specific to this project when component initializes
+  // Adatok betöltése a komponens inicializálásakor
   useEffect(() => {
-    // Clear states first to prevent data leaking between projects
-    setFiles([]);
-    setComments([]);
-    
-    const savedFiles = localStorage.getItem(filesStorageKey);
+    const savedFiles = localStorage.getItem(`project_${project._id}_files`);
     if (savedFiles) {
       try {
-        const parsedFiles = JSON.parse(savedFiles);
-        // Validate that the data belongs to this project
-        setFiles(parsedFiles);
+        setFiles(JSON.parse(savedFiles));
       } catch (error) {
-        console.error('Error parsing saved files:', error);
-        // If there's an error, start with empty files for this project
-        setFiles([]);
-        localStorage.removeItem(filesStorageKey);
+        console.error('Hiba a fájlok betöltésekor:', error);
       }
     }
 
-    const savedComments = localStorage.getItem(commentsStorageKey);
+    const savedComments = localStorage.getItem(`project_${project._id}_comments`);
     if (savedComments) {
       try {
-        const parsedComments = JSON.parse(savedComments);
-        // Validate that the data belongs to this project
-        setComments(parsedComments);
+        setComments(JSON.parse(savedComments));
       } catch (error) {
-        console.error('Error parsing saved comments:', error);
-        // If there's an error, start with empty comments for this project
-        setComments([]);
-        localStorage.removeItem(commentsStorageKey);
+        console.error('Hiba a hozzászólások betöltésekor:', error);
       }
     }
 
     setMilestones(project.milestones || []);
     setProjectDocuments(project.documents || []);
-  }, [project._id, filesStorageKey, commentsStorageKey]);
+  }, [project._id]);
 
-  // Save files to localStorage whenever they change
+  // Fájlok mentése localStorage-ba amikor változnak
   useEffect(() => {
     if (files.length > 0) {
-      localStorage.setItem(filesStorageKey, JSON.stringify(files));
-    } else {
-      // If files array is empty, remove the item to avoid storing empty arrays
-      localStorage.removeItem(filesStorageKey);
+      localStorage.setItem(`project_${project._id}_files`, JSON.stringify(files));
     }
-  }, [files, filesStorageKey]);
+  }, [files, project._id]);
 
-  // Save comments to localStorage whenever they change
+  // Kommentek mentése localStorage-ba amikor változnak
   useEffect(() => {
     if (comments.length > 0) {
-      localStorage.setItem(commentsStorageKey, JSON.stringify(comments));
-    } else {
-      // If comments array is empty, remove the item to avoid storing empty arrays
-      localStorage.removeItem(commentsStorageKey);
+      localStorage.setItem(`project_${project._id}_comments`, JSON.stringify(comments));
     }
-  }, [comments, commentsStorageKey]);
+  }, [comments, project._id]);
 
   const handleFileUpload = async (event) => {
     setLoading(true);
@@ -129,17 +105,15 @@ const SharedProjectDashboard = ({ project, onUpdate }) => {
     }
   };
 
-  // Fixed file deletion to use file.id instead of index
+  // Javított fájltörlés - ID alapján, nem index alapján törli a fájlt
   const handleDeleteFile = (fileId) => {
     if (window.confirm('Biztosan törölni szeretné ezt a fájlt?')) {
+      // ID alapján szűrjük meg a fájlokat
       const updatedFiles = files.filter(file => file.id !== fileId);
       setFiles(updatedFiles);
       
-      // Update localStorage directly with the new array
       if (updatedFiles.length > 0) {
-        localStorage.setItem(filesStorageKey, JSON.stringify(updatedFiles));
-      } else {
-        localStorage.removeItem(filesStorageKey);
+        localStorage.setItem(`project_${project._id}_files`, JSON.stringify(updatedFiles));
       }
       
       showSuccessMessage('Fájl sikeresen törölve');
@@ -184,11 +158,8 @@ const SharedProjectDashboard = ({ project, onUpdate }) => {
       const updatedComments = comments.filter(comment => comment.id !== commentId);
       setComments(updatedComments);
       
-      // Update localStorage directly with the new array
       if (updatedComments.length > 0) {
-        localStorage.setItem(commentsStorageKey, JSON.stringify(updatedComments));
-      } else {
-        localStorage.removeItem(commentsStorageKey);
+        localStorage.setItem(`project_${project._id}_comments`, JSON.stringify(updatedComments));
       }
       
       showSuccessMessage('Hozzászólás sikeresen törölve');
