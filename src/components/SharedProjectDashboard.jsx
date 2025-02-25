@@ -28,67 +28,34 @@ const SharedProjectDashboard = ({ project, onUpdate }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [fileFilter, setFileFilter] = useState('all');
   const [sortBy, setSortBy] = useState('date-desc');
-  
-  // Unique storage keys for this specific project
-  const getFilesStorageKey = () => `project_${project._id}_files`;
-  const getCommentsStorageKey = () => `project_${project._id}_comments`;
 
-  // Load data when component initializes or project changes
+  // Adatok betöltése a komponens inicializálásakor
   useEffect(() => {
-    if (!project || !project._id) return;
-    
-    console.log(`Loading data for project: ${project._id}`);
-    
-    try {
-      const savedFiles = localStorage.getItem(getFilesStorageKey());
-      if (savedFiles) {
-        const parsedFiles = JSON.parse(savedFiles);
-        console.log(`Loaded ${parsedFiles.length} files for project ${project._id}`);
-        setFiles(parsedFiles);
-      } else {
-        console.log(`No saved files found for project ${project._id}`);
-        setFiles([]);
-      }
-
-      const savedComments = localStorage.getItem(getCommentsStorageKey());
-      if (savedComments) {
-        const parsedComments = JSON.parse(savedComments);
-        console.log(`Loaded ${parsedComments.length} comments for project ${project._id}`);
-        setComments(parsedComments);
-      } else {
-        console.log(`No saved comments found for project ${project._id}`);
-        setComments([]);
-      }
-
-      setMilestones(project.milestones || []);
-      setProjectDocuments(project.documents || []);
-    } catch (error) {
-      console.error('Error loading project data:', error);
-      setErrorMessage('Hiba történt az adatok betöltése során');
+    const savedFiles = localStorage.getItem(`project_${project._id}_files`);
+    if (savedFiles) {
+      setFiles(JSON.parse(savedFiles));
     }
+
+    const savedComments = localStorage.getItem(`project_${project._id}_comments`);
+    if (savedComments) {
+      setComments(JSON.parse(savedComments));
+    }
+
+    setMilestones(project.milestones || []);
+    setProjectDocuments(project.documents || []);
   }, [project._id]);
 
-  // Save files to localStorage when they change
+  // Fájlok mentése localStorage-ba amikor változnak
   useEffect(() => {
-    if (!project || !project._id) return;
-    
-    try {
-      localStorage.setItem(getFilesStorageKey(), JSON.stringify(files));
-      console.log(`Saved ${files.length} files for project ${project._id}`);
-    } catch (error) {
-      console.error('Error saving files to localStorage:', error);
+    if (files.length > 0) {
+      localStorage.setItem(`project_${project._id}_files`, JSON.stringify(files));
     }
   }, [files, project._id]);
 
-  // Save comments to localStorage when they change
+  // Kommentek mentése localStorage-ba amikor változnak
   useEffect(() => {
-    if (!project || !project._id) return;
-    
-    try {
-      localStorage.setItem(getCommentsStorageKey(), JSON.stringify(comments));
-      console.log(`Saved ${comments.length} comments for project ${project._id}`);
-    } catch (error) {
-      console.error('Error saving comments to localStorage:', error);
+    if (comments.length > 0) {
+      localStorage.setItem(`project_${project._id}_comments`, JSON.stringify(comments));
     }
   }, [comments, project._id]);
 
@@ -103,7 +70,7 @@ const SharedProjectDashboard = ({ project, onUpdate }) => {
           const reader = new FileReader();
           reader.onload = (e) => {
             const fileData = {
-              id: `${Date.now()}_${file.name.replace(/\s+/g, '_')}`,
+              id: Date.now() + '_' + file.name.replace(/\s+/g, '_'),
               name: file.name,
               size: file.size,
               type: file.type,
@@ -130,26 +97,13 @@ const SharedProjectDashboard = ({ project, onUpdate }) => {
     }
   };
 
-  // Fixed file deletion function that properly updates localStorage
   const handleDeleteFile = (fileId) => {
     if (window.confirm('Biztosan törölni szeretné ezt a fájlt?')) {
-      // Use functional state update to ensure we have the latest state
-      setFiles(prevFiles => {
-        const updatedFiles = prevFiles.filter(file => file.id !== fileId);
-        
-        // Log the deletion for debugging
-        console.log(`Deleting file ${fileId}, ${prevFiles.length} -> ${updatedFiles.length} files`);
-        
-        return updatedFiles;
-      });
-      
+      setFiles(prevFiles => prevFiles.filter(file => file.id !== fileId));
+      const updatedFiles = files.filter(file => file.id !== fileId);
+      localStorage.setItem(`project_${project._id}_files`, JSON.stringify(updatedFiles));
       showSuccessMessage('Fájl sikeresen törölve');
     }
-  };
-
-  // Added file preview function
-  const handleFilePreview = (file) => {
-    setPreviewFile(file);
   };
 
   const handleDownloadFile = (file) => {
@@ -183,9 +137,7 @@ const SharedProjectDashboard = ({ project, onUpdate }) => {
 
   const handleDeleteComment = (commentId) => {
     if (window.confirm('Biztosan törölni szeretné ezt a hozzászólást?')) {
-      setComments(prevComments => 
-        prevComments.filter(comment => comment.id !== commentId)
-      );
+      setComments(prevComments => prevComments.filter(comment => comment.id !== commentId));
       showSuccessMessage('Hozzászólás sikeresen törölve');
     }
   };
@@ -914,8 +866,8 @@ const SharedProjectDashboard = ({ project, onUpdate }) => {
         files.length === 0 ? 'border-2 border-dashed border-gray-300 rounded-lg m-6' : ''
       }`}
     >
-      {sortedFiles.length > 0 ? sortedFiles.map((file) => (
-        <div key={file.id} className="px-6 py-4 flex justify-between items-center hover:bg-gray-50">
+      {sortedFiles.length > 0 ? sortedFiles.map((file, index) => (
+        <div key={index} className="px-6 py-4 flex justify-between items-center hover:bg-gray-50">
           <div className="flex items-center">
             <FileText className="h-5 w-5 text-gray-400 mr-2" />
             <div>
@@ -936,14 +888,22 @@ const SharedProjectDashboard = ({ project, onUpdate }) => {
               <Eye className="h-5 w-5" />
             </button>
             <button
-              onClick={() => handleDownloadFile(file)}
+              onClick={() => {
+                const blob = new Blob([file.content], { type: 'application/octet-stream' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = file.name;
+                a.click();
+                window.URL.revokeObjectURL(url);
+              }}
               className="p-1 text-blue-600 hover:text-blue-800 rounded hover:bg-blue-50"
               title="Letöltés"
             >
               <Download className="h-5 w-5" />
             </button>
             <button
-              onClick={() => handleDeleteFile(file.id)}
+              onClick={() => handleDeleteFile(index)}
               className="p-1 text-red-600 hover:text-red-800 rounded hover:bg-red-50"
               title="Törlés"
             >
@@ -1004,7 +964,7 @@ const SharedProjectDashboard = ({ project, onUpdate }) => {
           <div className="bg-gray-100 rounded-lg p-4 min-h-[300px] mb-4 flex items-center justify-center">
             {previewFile.type?.startsWith('image/') ? (
               <img 
-                src={previewFile.content}
+                src={URL.createObjectURL(new Blob([previewFile.content], { type: previewFile.type }))} 
                 alt={previewFile.name}
                 className="max-w-full max-h-[400px] object-contain"
               />
@@ -1025,7 +985,15 @@ const SharedProjectDashboard = ({ project, onUpdate }) => {
             </div>
             <div className="flex space-x-3">
               <button
-                onClick={() => handleDownloadFile(previewFile)}
+                onClick={() => {
+                  const blob = new Blob([previewFile.content], { type: 'application/octet-stream' });
+                  const url = window.URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = previewFile.name;
+                  a.click();
+                  window.URL.revokeObjectURL(url);
+                }}
                 className="px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center"
               >
                 <Download className="h-4 w-4 mr-1" />
