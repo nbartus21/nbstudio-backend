@@ -5,26 +5,19 @@ import {
 } from 'recharts';
 import { 
   Upload, FileText, Archive, Clock, AlertTriangle, Download, CreditCard,
-  Check, X, Info, Edit, Monitor, Server, Bell, Users, MessageCircle, 
-  Calendar, Link, Paperclip, Trash2, DownloadCloud, Eye, Search
+  Check, X, Info, MessageCircle, Calendar, Users, Trash2, Eye, Search,
+  LogOut, Plus, Filter, ArrowUp, ArrowDown, AlertCircle, FileCheck
 } from 'lucide-react';
 import QRCode from 'qrcode.react';
 
-// Ezt a getőr függvényt használjuk a lokális tárolás elkülönítésére
-const getLocalStorageKey = (projectId, type) => {
-  if (!projectId) return null;
-  return `project_${projectId}_${type}`;
-};
-
-const SharedProjectDashboard = ({ project, onUpdate }) => {
+const SharedProjectDashboard = ({ project, onUpdate, onLogout }) => {
+  // State management
   const [files, setFiles] = useState([]);
-  const [logEntry, setLogEntry] = useState('');
   const [activeTab, setActiveTab] = useState('overview');
   const fileInputRef = useRef(null);
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState('');
   const [milestones, setMilestones] = useState([]);
-  const [projectDocuments, setProjectDocuments] = useState([]);
   const [loading, setLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
@@ -34,136 +27,102 @@ const SharedProjectDashboard = ({ project, onUpdate }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [fileFilter, setFileFilter] = useState('all');
   const [sortBy, setSortBy] = useState('date-desc');
-  
-  const filesKey = getLocalStorageKey(project?._id, 'files');
-  const commentsKey = getLocalStorageKey(project?._id, 'comments');
+  const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
+  const [viewingInvoice, setViewingInvoice] = useState(null);
 
-  // Amikor változik a project, akkor teljesen újra betöltjük az adatokat
+  // Load data on component initialization
   useEffect(() => {
     if (!project || !project._id) return;
     
-    console.log('Loading data for project:', project._id);
-    
-    // Először töröljük a meglévő adatokat, hogy ne keveredjenek
-    setFiles([]);
-    setComments([]);
-    
-    // Fájlok betöltése a projekt-specifikus localStorage-ból
-    try {
-      const savedFilesKey = getLocalStorageKey(project._id, 'files');
-      const savedFiles = localStorage.getItem(savedFilesKey);
-      
-      if (savedFiles) {
-        const parsedFiles = JSON.parse(savedFiles);
-        if (Array.isArray(parsedFiles)) {
-          setFiles(parsedFiles);
-          console.log(`Loaded ${parsedFiles.length} files for project ${project._id}`);
-        }
+    // Load files from localStorage
+    const savedFiles = localStorage.getItem(`project_${project._id}_files`);
+    if (savedFiles) {
+      try {
+        setFiles(JSON.parse(savedFiles));
+      } catch (error) {
+        console.error("Error parsing saved files:", error);
       }
-    } catch (error) {
-      console.error('Error loading files:', error);
     }
-    
-    // Hozzászólások betöltése a projekt-specifikus localStorage-ból
-    try {
-      const savedCommentsKey = getLocalStorageKey(project._id, 'comments');
-      const savedComments = localStorage.getItem(savedCommentsKey);
-      
-      if (savedComments) {
-        const parsedComments = JSON.parse(savedComments);
-        if (Array.isArray(parsedComments)) {
-          setComments(parsedComments);
-          console.log(`Loaded ${parsedComments.length} comments for project ${project._id}`);
-        }
+
+    // Load comments from localStorage
+    const savedComments = localStorage.getItem(`project_${project._id}_comments`);
+    if (savedComments) {
+      try {
+        setComments(JSON.parse(savedComments));
+      } catch (error) {
+        console.error("Error parsing saved comments:", error);
       }
-    } catch (error) {
-      console.error('Error loading comments:', error);
     }
-    
+
+    // Set milestones from project data
     setMilestones(project.milestones || []);
-    setProjectDocuments(project.documents || []);
-  }, [project?._id]);
+  }, [project]);
 
-  // Fájlok mentése localStorage-ba amikor változnak
+  // Save files to localStorage when they change
   useEffect(() => {
-    if (!project?._id || files.length === 0) return;
+    if (!project || !project._id) return;
     
-    const key = getLocalStorageKey(project._id, 'files');
-    localStorage.setItem(key, JSON.stringify(files));
-    console.log(`Saved ${files.length} files for project ${project._id}`);
-  }, [files, project?._id]);
-
-  // Kommentek mentése localStorage-ba amikor változnak
-  useEffect(() => {
-    if (!project?._id || comments.length === 0) return;
-    
-    const key = getLocalStorageKey(project._id, 'comments');
-    localStorage.setItem(key, JSON.stringify(comments));
-    console.log(`Saved ${comments.length} comments for project ${project._id}`);
-  }, [comments, project?._id]);
-
-  // Hiányzó handleFilePreview függvény hozzáadása
-  const handleFilePreview = (file) => {
-    setPreviewFile(file);
-  };
-
-  // Javított handleDeleteFile függvény
-  const handleDeleteFile = (fileId) => {
-    if (window.confirm('Biztosan törölni szeretné ezt a fájlt?')) {
-      const updatedFiles = files.filter(file => file.id !== fileId);
-      setFiles(updatedFiles);
-      localStorage.setItem(`project_${project._id}_files`, JSON.stringify(updatedFiles));
-      showSuccessMessage('Fájl sikeresen törölve');
+    if (files.length > 0) {
+      localStorage.setItem(`project_${project._id}_files`, JSON.stringify(files));
     }
-  };
+  }, [files, project]);
 
-  // Hiányzó handleFileUpload sikeres feltöltés kezelés
+  // Save comments to localStorage when they change
+  useEffect(() => {
+    if (!project || !project._id) return;
+    
+    if (comments.length > 0) {
+      localStorage.setItem(`project_${project._id}_comments`, JSON.stringify(comments));
+    }
+  }, [comments, project]);
+
+  // File upload handler
   const handleFileUpload = async (event) => {
     setLoading(true);
     setIsUploading(true);
-    setUploadProgress(0);
-    
     try {
       const uploadedFiles = Array.from(event.target.files);
-      if (uploadedFiles.length === 0) return;
+      if (uploadedFiles.length === 0) {
+        setIsUploading(false);
+        setLoading(false);
+        return;
+      }
       
-      // Progress szimuláció
-      const progressInterval = setInterval(() => {
-        setUploadProgress(prev => {
-          const newProgress = prev + Math.floor(Math.random() * 10);
-          return newProgress > 90 ? 90 : newProgress;
-        });
-      }, 200);
+      let processedFiles = 0;
+      const totalFiles = uploadedFiles.length;
       
       const newFiles = await Promise.all(uploadedFiles.map(async (file) => {
         return new Promise((resolve) => {
           const reader = new FileReader();
+          
           reader.onload = (e) => {
+            processedFiles++;
+            setUploadProgress(Math.round((processedFiles / totalFiles) * 100));
+            
             const fileData = {
               id: Date.now() + '_' + file.name.replace(/\s+/g, '_'),
               name: file.name,
               size: file.size,
               type: file.type,
               uploadedAt: new Date().toISOString(),
-              content: e.target.result
+              content: e.target.result,
+              projectId: project._id
             };
             resolve(fileData);
           };
+          
           reader.readAsDataURL(file);
         });
       }));
 
-      // Befejezzük a progress-t
-      clearInterval(progressInterval);
-      setUploadProgress(100);
+      setFiles(prevFiles => [...prevFiles, ...newFiles]);
+      setActiveTab('files');
+      showSuccessMessage(`${newFiles.length} fájl sikeresen feltöltve!`);
       
+      // Simulate a slight delay to show 100% before hiding the progress bar
       setTimeout(() => {
-        setFiles(prevFiles => [...prevFiles, ...newFiles]);
-        setActiveTab('files');
         setIsUploading(false);
-        showSuccessMessage('Fájl(ok) sikeresen feltöltve!');
       }, 500);
-      
     } catch (error) {
       console.error('Hiba a fájl feltöltésekor:', error);
       showErrorMessage('Hiba történt a fájl feltöltése során');
@@ -176,26 +135,22 @@ const SharedProjectDashboard = ({ project, onUpdate }) => {
     }
   };
 
-  const handleDownloadFile = (file) => {
-    try {
-      const link = document.createElement('a');
-      link.href = file.content;
-      link.download = file.name;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } catch (error) {
-      console.error('Hiba a fájl letöltésekor:', error);
-      showErrorMessage('Nem sikerült letölteni a fájlt');
+  // File preview handler
+  const handleFilePreview = (file) => {
+    setPreviewFile(file);
+    setIsPreviewModalOpen(true);
+  };
+
+  // File deletion handler
+  const handleDeleteFile = (fileId) => {
+    if (window.confirm('Biztosan törölni szeretné ezt a fájlt?')) {
+      setFiles(prevFiles => prevFiles.filter(file => file.id !== fileId));
+      showSuccessMessage('Fájl sikeresen törölve');
     }
   };
 
+  // Comment addition handler
   const handleAddComment = () => {
-    if (!project?._id) {
-      showErrorMessage('Nincs érvényes projekt azonosító!');
-      return;
-    }
-    
     if (!newComment.trim()) return;
     
     const comment = {
@@ -203,7 +158,7 @@ const SharedProjectDashboard = ({ project, onUpdate }) => {
       text: newComment,
       author: 'Ügyfél',
       timestamp: new Date().toISOString(),
-      projectId: project._id // Eltároljuk a projekt ID-t is a hozzászóláshoz
+      projectId: project._id
     };
     
     setComments(prevComments => [comment, ...prevComments]);
@@ -211,83 +166,41 @@ const SharedProjectDashboard = ({ project, onUpdate }) => {
     showSuccessMessage('Hozzászólás sikeresen hozzáadva');
   };
 
+  // Comment deletion handler
   const handleDeleteComment = (commentId) => {
-    if (!project?._id) return;
-    
     if (window.confirm('Biztosan törölni szeretné ezt a hozzászólást?')) {
-      const updatedComments = comments.filter(comment => comment.id !== commentId);
-      setComments(updatedComments);
-      
-      // Frissítjük a localStorage-t az új listával
-      const key = getLocalStorageKey(project._id, 'comments');
-      if (updatedComments.length > 0) {
-        localStorage.setItem(key, JSON.stringify(updatedComments));
-      } else {
-        localStorage.removeItem(key);
-      }
-      
+      setComments(prevComments => prevComments.filter(comment => comment.id !== commentId));
       showSuccessMessage('Hozzászólás sikeresen törölve');
     }
   };
 
-  // SEPA átutalási QR kód generálása
+  // SEPA QR code generation
   const generateSepaQrData = (invoice) => {
     const amount = typeof invoice.totalAmount === 'number' 
       ? invoice.totalAmount.toFixed(2) 
       : '0.00';
   
     return [
-      'BCD',                                    // Service Tag (fix)
-      '002',                                    // Verzió (fix)
-      '1',                                      // Karakterkódolás (fix)
-      'SCT',                                    // SEPA Credit Transfer (fix)
-      'COBADEFF371',                           // Commerzbank Bruchsal BIC
-      'Norbert Bartus',                        // Kedvezményezett neve
-      'DE47663400180473463800',               // IBAN (nem változott)
-      `EUR${amount}`,                          // Összeg EUR-ban
-      '',                                      // Vevőazonosító (üres)
-      invoice.number || '',                    // Számlaszám
-      `RECHNUNG ${invoice.number}`             // Közlemény
+      'BCD',                                    // Service Tag
+      '002',                                    // Version
+      '1',                                      // Encoding
+      'SCT',                                    // SEPA Credit Transfer
+      'COBADEFF371',                           // BIC
+      'Norbert Bartus',                        // Beneficiary name
+      'DE47663400180473463800',               // IBAN
+      `EUR${amount}`,                          // Amount in EUR
+      '',                                      // Customer ID (empty)
+      invoice.number || '',                    // Invoice number
+      `RECHNUNG ${invoice.number}`             // Reference
     ].join('\n');
   };
 
-  // Statisztikák számítása
-  const stats = {
-    totalInvoices: project.invoices?.length || 0,
-    paidInvoices: project.invoices?.filter(inv => inv.status === 'fizetett').length || 0,
-    pendingAmount: project.invoices?.reduce((sum, inv) => 
-      inv.status !== 'fizetett' ? sum + (inv.totalAmount || 0) : sum, 0
-    ) || 0,
-    totalAmount: project.invoices?.reduce((sum, inv) => 
-      sum + (inv.totalAmount || 0), 0
-    ) || 0,
-    totalFiles: files.length,
-    totalComments: comments.length
+  // View invoice in A4 format
+  const handleViewInvoice = (invoice) => {
+    setViewingInvoice(invoice);
   };
 
-  const pieChartData = [
-    { name: 'Fizetve', value: stats.paidInvoices },
-    { name: 'Függőben', value: stats.totalInvoices - stats.paidInvoices }
-  ];
-
-  const COLORS = ['#10B981', '#F59E0B'];
-
-  // Sikeres és hibaüzenetek kezelése
-  const showSuccessMessage = (message) => {
-    setSuccessMessage(message);
-    setTimeout(() => {
-      setSuccessMessage('');
-    }, 3000);
-  };
-
-  const showErrorMessage = (message) => {
-    setErrorMessage(message);
-    setTimeout(() => {
-      setErrorMessage('');
-    }, 3000);
-  };
-
-  // Formázó függvények
+  // Formatting functions
   const formatFileSize = (bytes) => {
     if (bytes < 1024) return bytes + ' B';
     else if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
@@ -305,14 +218,29 @@ const SharedProjectDashboard = ({ project, onUpdate }) => {
     });
   };
 
-  // Fájlok szűrése és rendezése
+  const formatShortDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString('hu-HU');
+  };
+
+  // Success and error message handling
+  const showSuccessMessage = (message) => {
+    setSuccessMessage(message);
+    setTimeout(() => {
+      setSuccessMessage('');
+    }, 3000);
+  };
+
+  const showErrorMessage = (message) => {
+    setErrorMessage(message);
+    setTimeout(() => {
+      setErrorMessage('');
+    }, 3000);
+  };
+
+  // Filter and sort files
   const sortedFiles = [...files]
+    .filter(file => file.projectId === project._id)
     .filter(file => {
-      // Ellenőrizzük, hogy a fájl ehhez a projekthez tartozik-e
-      if (file.projectId && file.projectId !== project?._id) {
-        return false;
-      }
-      
       const matchesSearch = searchTerm ? 
         file.name.toLowerCase().includes(searchTerm.toLowerCase()) : true;
       
@@ -338,12 +266,31 @@ const SharedProjectDashboard = ({ project, onUpdate }) => {
       return 0;
     });
 
-  // Csak az aktuális projekthez tartozó hozzászólásokat szűrjük
-  const filteredComments = comments.filter(comment => 
-    !comment.projectId || comment.projectId === project?._id
-  );
+  // Project-specific comments
+  const projectComments = comments.filter(comment => comment.projectId === project._id);
 
-  // Drag and drop támogatás
+  // Calculate statistics
+  const stats = {
+    totalInvoices: project.invoices?.length || 0,
+    paidInvoices: project.invoices?.filter(inv => inv.status === 'fizetett').length || 0,
+    pendingAmount: project.invoices?.reduce((sum, inv) => 
+      inv.status !== 'fizetett' ? sum + (inv.totalAmount || 0) : sum, 0
+    ) || 0,
+    totalAmount: project.invoices?.reduce((sum, inv) => 
+      sum + (inv.totalAmount || 0), 0
+    ) || 0,
+    totalFiles: sortedFiles.length,
+    totalComments: projectComments.length
+  };
+
+  const pieChartData = [
+    { name: 'Fizetve', value: stats.paidInvoices },
+    { name: 'Függőben', value: stats.totalInvoices - stats.paidInvoices }
+  ];
+
+  const COLORS = ['#10B981', '#F59E0B'];
+
+  // Drag and drop file upload
   useEffect(() => {
     if (activeTab !== 'files') return;
     
@@ -386,228 +333,178 @@ const SharedProjectDashboard = ({ project, onUpdate }) => {
     };
   }, [activeTab]);
 
+  if (!project) return null;
+
   return (
     <div className="bg-gray-50 min-h-screen">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Projekt fejléc */}
-        <div className="bg-white rounded-lg shadow mb-6">
-          <div className="px-6 py-5 border-b border-gray-200">
-            <div className="flex justify-between items-center">
+      {/* Top Header with Project Info and Logout */}
+      <div className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center space-x-4">
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">{project.name}</h1>
-                <p className="mt-1 text-gray-500">{project.description}</p>
-              </div>
-              <div className="flex items-center">
-                <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                  project.status === 'aktív' ? 'bg-green-100 text-green-800' :
-                  project.status === 'befejezett' ? 'bg-blue-100 text-blue-800' :
-                  'bg-gray-100 text-gray-800'
-                }`}>
-                  <div className="flex items-center">
-                    <div className={`mr-1.5 h-2.5 w-2.5 rounded-full ${
-                      project.status === 'aktív' ? 'bg-green-500' :
-                      project.status === 'befejezett' ? 'bg-blue-500' :
-                      'bg-gray-500'
-                    }`}></div>
-                    {project.status}
-                  </div>
-                </span>
+                <h1 className="text-xl font-bold text-gray-900">{project.name}</h1>
+                <div className="mt-1 flex items-center text-sm text-gray-500">
+                  <Users className="h-4 w-4 mr-1.5" />
+                  <span className="mr-2">Ügyfél: {project.client?.name || 'N/A'}</span>
+                  <span className="mx-1">•</span>
+                  <Calendar className="h-4 w-4 mx-1" />
+                  <span>Utolsó frissítés: {formatShortDate(project.updatedAt || new Date())}</span>
+                </div>
               </div>
             </div>
-            <div className="mt-3 flex items-center text-sm text-gray-500">
-              <Users className="h-4 w-4 mr-1.5" />
-              <span>Ügyfél: {project.client?.name || 'N/A'}</span>
-              <span className="mx-2">•</span>
-              <Calendar className="h-4 w-4 mr-1.5" />
-              <span>Utolsó frissítés: {formatDate(project.updatedAt || new Date())}</span>
+            <div className="flex items-center space-x-3">
+              <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                project.status === 'aktív' ? 'bg-green-100 text-green-800' :
+                project.status === 'befejezett' ? 'bg-blue-100 text-blue-800' :
+                'bg-gray-100 text-gray-800'
+              }`}>
+                <div className={`mr-1.5 h-2.5 w-2.5 rounded-full ${
+                  project.status === 'aktív' ? 'bg-green-500' :
+                  project.status === 'befejezett' ? 'bg-blue-500' :
+                  'bg-gray-500'
+                }`}></div>
+                {project.status}
+              </span>
+              <button
+                onClick={onLogout}
+                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              >
+                <LogOut className="h-4 w-4 mr-2" />
+                Kilépés
+              </button>
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Sikerüzenetek és hibaüzenetek */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {/* Notification Messages */}
         {successMessage && (
-          <div className="mb-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded-md flex items-center">
+          <div className="mb-6 p-3 bg-green-100 border border-green-400 text-green-700 rounded-md flex items-center shadow-sm">
             <Check className="h-5 w-5 mr-2" />
             {successMessage}
           </div>
         )}
         
         {errorMessage && (
-          <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-md flex items-center">
+          <div className="mb-6 p-3 bg-red-100 border border-red-400 text-red-700 rounded-md flex items-center shadow-sm">
             <AlertTriangle className="h-5 w-5 mr-2" />
             {errorMessage}
           </div>
         )}
 
-        {/* Fájlfeltöltés gomb - mindig látható */}
-        <div className="mb-6 flex justify-end">
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center"
-            disabled={loading}
-          >
-            {loading ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
-                Feltöltés...
-              </>
-            ) : (
-              <>
-                <Upload className="h-4 w-4 mr-2" />
-                Fájl feltöltése
-              </>
-            )}
-          </button>
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileUpload}
-            className="hidden"
-            multiple
-          />
-        </div>
-
-        {/* Navigációs fülek */}
-        <div className="border-b border-gray-200 mb-6">
-          <nav className="-mb-px flex space-x-8">
-            <button
-              onClick={() => setActiveTab('overview')}
-              className={`${
-                activeTab === 'overview'
-                  ? 'border-indigo-500 text-indigo-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
-            >
-              Áttekintés
-            </button>
-            <button
-              onClick={() => setActiveTab('invoices')}
-              className={`${
-                activeTab === 'invoices'
-                  ? 'border-indigo-500 text-indigo-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm relative`}
-            >
-              Számlák
-              {project.invoices && project.invoices.length > 0 && (
-                <span className="absolute -top-1 -right-1 h-5 w-5 text-xs flex items-center justify-center rounded-full bg-indigo-100 text-indigo-600">
-                  {project.invoices.length}
-                </span>
-              )}
-            </button>
-            <button
-              onClick={() => setActiveTab('files')}
-              className={`${
-                activeTab === 'files'
-                  ? 'border-indigo-500 text-indigo-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm relative`}
-            >
-              Fájlok
-              {sortedFiles.length > 0 && (
-                <span className="absolute -top-1 -right-1 h-5 w-5 text-xs flex items-center justify-center rounded-full bg-indigo-100 text-indigo-600">
-                  {sortedFiles.length}
-                </span>
-              )}
-            </button>
-            <button
-              onClick={() => setActiveTab('comments')}
-              className={`${
-                activeTab === 'comments'
-                  ? 'border-indigo-500 text-indigo-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm relative`}
-            >
-              Hozzászólások
-              {filteredComments.length > 0 && (
-                <span className="absolute -top-1 -right-1 h-5 w-5 text-xs flex items-center justify-center rounded-full bg-indigo-100 text-indigo-600">
-                  {filteredComments.length}
-                </span>
-              )}
-            </button>
-            {milestones.length > 0 && (
+        {/* Navigation Tabs */}
+        <div className="bg-white rounded-lg shadow mb-6">
+          <div className="border-b border-gray-200">
+            <nav className="-mb-px flex space-x-8 px-6">
               <button
-                onClick={() => setActiveTab('milestones')}
+                onClick={() => setActiveTab('overview')}
                 className={`${
-                  activeTab === 'milestones'
+                  activeTab === 'overview'
                     ? 'border-indigo-500 text-indigo-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
               >
-                Mérföldkövek
+                Áttekintés
               </button>
-            )}
-          </nav>
-        </div>
-
-{/* Hozzászólások nézet */}
-{activeTab === 'comments' && (
-  <div className="bg-white rounded-lg shadow">
-    <div className="px-6 py-4 border-b border-gray-200">
-      <h2 className="text-lg font-medium">Hozzászólások</h2>
-    </div>
-    
-    {/* Hozzászólás írása */}
-    <div className="p-6 border-b">
-      <form onSubmit={(e) => {
-        e.preventDefault();
-        handleAddComment();
-      }}>
-        <textarea
-          value={newComment}
-          onChange={(e) => setNewComment(e.target.value)}
-          className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          rows={3}
-          placeholder="Írja ide hozzászólását..."
-          required
-        />
-        <div className="mt-3 flex justify-end">
-          <button
-            type="submit"
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-            disabled={!newComment.trim()}
-          >
-            Hozzászólás küldése
-          </button>
-        </div>
-      </form>
-    </div>
-    
-    {/* Hozzászólások listája - csak a jelenlegi projekthez tartozókat jelenítjük meg */}
-    <div className="divide-y divide-gray-200">
-      {filteredComments.length > 0 ? (
-        filteredComments.map((comment) => (
-          <div key={comment.id} className="p-6">
-            <div className="flex justify-between">
-              <div className="font-medium">{comment.author}</div>
-              <div className="text-sm text-gray-500">{formatDate(comment.timestamp)}</div>
-            </div>
-            <div className="mt-2 text-gray-700 whitespace-pre-wrap">{comment.text}</div>
-            <div className="mt-3 flex justify-end">
               <button
-                onClick={() => handleDeleteComment(comment.id)}
-                className="text-red-600 hover:text-red-800 text-sm"
+                onClick={() => setActiveTab('invoices')}
+                className={`${
+                  activeTab === 'invoices'
+                    ? 'border-indigo-500 text-indigo-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm relative`}
               >
-                Törlés
+                Számlák
+                {project.invoices && project.invoices.length > 0 && (
+                  <span className="absolute -top-1 -right-1 h-5 w-5 text-xs flex items-center justify-center rounded-full bg-indigo-100 text-indigo-600">
+                    {project.invoices.length}
+                  </span>
+                )}
               </button>
-            </div>
+              <button
+                onClick={() => setActiveTab('files')}
+                className={`${
+                  activeTab === 'files'
+                    ? 'border-indigo-500 text-indigo-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm relative`}
+              >
+                Fájlok
+                {sortedFiles.length > 0 && (
+                  <span className="absolute -top-1 -right-1 h-5 w-5 text-xs flex items-center justify-center rounded-full bg-indigo-100 text-indigo-600">
+                    {sortedFiles.length}
+                  </span>
+                )}
+              </button>
+              <button
+                onClick={() => setActiveTab('comments')}
+                className={`${
+                  activeTab === 'comments'
+                    ? 'border-indigo-500 text-indigo-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm relative`}
+              >
+                Hozzászólások
+                {projectComments.length > 0 && (
+                  <span className="absolute -top-1 -right-1 h-5 w-5 text-xs flex items-center justify-center rounded-full bg-indigo-100 text-indigo-600">
+                    {projectComments.length}
+                  </span>
+                )}
+              </button>
+              {milestones.length > 0 && (
+                <button
+                  onClick={() => setActiveTab('milestones')}
+                  className={`${
+                    activeTab === 'milestones'
+                      ? 'border-indigo-500 text-indigo-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+                >
+                  Mérföldkövek
+                </button>
+              )}
+            </nav>
           </div>
-        ))
-      ) : (
-        <div className="p-6 text-center text-gray-500">
-          Még nincsenek hozzászólások. Legyen Ön az első, aki hozzászól!
         </div>
-      )}
-    </div>
-  </div>
-)}
 
-        {/* Áttekintés nézet */}
+        {/* Upload File Button (Always Visible) */}
+        {(activeTab === 'files' || activeTab === 'overview') && (
+          <div className="mb-6 flex justify-end">
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex items-center shadow"
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
+                  Feltöltés...
+                </>
+              ) : (
+                <>
+                  <Upload className="h-4 w-4 mr-2" />
+                  Fájl feltöltése
+                </>
+              )}
+            </button>
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileUpload}
+              className="hidden"
+              multiple
+            />
+          </div>
+        )}
+
+        {/* Overview Content */}
         {activeTab === 'overview' && (
           <div className="space-y-6">
             {/* Statisztikai kártyák */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="bg-white p-6 rounded-lg shadow">
+              <div className="bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow">
                 <div className="flex justify-between items-center">
                   <div>
                     <p className="text-sm text-gray-500">Összes számla</p>
@@ -619,19 +516,19 @@ const SharedProjectDashboard = ({ project, onUpdate }) => {
                 </div>
               </div>
 
-              <div className="bg-white p-6 rounded-lg shadow">
+              <div className="bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow">
                 <div className="flex justify-between items-center">
                   <div>
                     <p className="text-sm text-gray-500">Fizetve</p>
                     <p className="text-2xl font-bold">{stats.paidInvoices} db</p>
                   </div>
                   <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
-                    <CreditCard className="h-6 w-6 text-green-600" />
+                    <FileCheck className="h-6 w-6 text-green-600" />
                   </div>
                 </div>
               </div>
 
-              <div className="bg-white p-6 rounded-lg shadow">
+              <div className="bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow">
                 <div className="flex justify-between items-center">
                   <div>
                     <p className="text-sm text-gray-500">Függő összeg</p>
@@ -643,7 +540,7 @@ const SharedProjectDashboard = ({ project, onUpdate }) => {
                 </div>
               </div>
 
-              <div className="bg-white p-6 rounded-lg shadow">
+              <div className="bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow">
                 <div className="flex justify-between items-center">
                   <div>
                     <p className="text-sm text-gray-500">Teljes összeg</p>
@@ -685,11 +582,11 @@ const SharedProjectDashboard = ({ project, onUpdate }) => {
                 </div>
               </div>
 
-              {/* Legutóbbi tevékenységek - csak a jelenlegi projekthez tartozókat jelenítjük meg */}
+              {/* Legutóbbi tevékenységek */}
               <div className="bg-white p-6 rounded-lg shadow">
                 <h3 className="text-lg font-medium mb-4">Legutóbbi tevékenységek</h3>
-                <div className="space-y-4">
-                  {/* Kombinált és rendezett tevékenységek */}
+                <div className="space-y-3">
+                  {/* Combine and sort all activities */}
                   {[
                     ...sortedFiles.map(file => ({
                       type: 'file',
@@ -697,7 +594,7 @@ const SharedProjectDashboard = ({ project, onUpdate }) => {
                       timestamp: file.uploadedAt,
                       content: file
                     })),
-                    ...filteredComments.map(comment => ({
+                    ...projectComments.map(comment => ({
                       type: 'comment',
                       id: comment.id,
                       timestamp: comment.timestamp,
@@ -707,7 +604,7 @@ const SharedProjectDashboard = ({ project, onUpdate }) => {
                     .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
                     .slice(0, 5)
                     .map((activity) => (
-                      <div key={`${activity.type}_${activity.id}`} className="flex p-3 bg-gray-50 rounded-lg">
+                      <div key={`${activity.type}_${activity.id}`} className="flex p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
                         <div className="mr-4">
                           {activity.type === 'file' ? (
                             <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
@@ -747,18 +644,89 @@ const SharedProjectDashboard = ({ project, onUpdate }) => {
                       </div>
                     ))}
                   
-                  {sortedFiles.length === 0 && filteredComments.length === 0 && (
-                    <div className="text-center text-gray-500 py-6">
-                      Nincs még tevékenység. Töltsön fel fájlokat vagy szóljon hozzá a projekthez!
+                  {sortedFiles.length === 0 && projectComments.length === 0 && (
+                    <div className="text-center text-gray-500 py-6 bg-gray-50 rounded-lg">
+                      <AlertCircle className="h-12 w-12 mx-auto text-gray-400 mb-2" />
+                      <p className="font-medium">Nincs még tevékenység</p>
+                      <p className="text-sm mt-1">Töltsön fel fájlokat vagy szóljon hozzá a projekthez!</p>
                     </div>
                   )}
                 </div>
               </div>
             </div>
+            
+            {/* Projekt információk */}
+            <div className="bg-white p-6 rounded-lg shadow">
+              <h3 className="text-lg font-medium mb-4">Projekt információk</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h4 className="font-medium text-gray-700 mb-2">Projekt adatok</h4>
+                  <div className="space-y-2">
+                    <div className="flex justify-between border-b border-gray-200 pb-2">
+                      <span className="text-gray-600">Projekt neve:</span>
+                      <span className="font-medium">{project.name}</span>
+                    </div>
+                    <div className="flex justify-between border-b border-gray-200 pb-2">
+                      <span className="text-gray-600">Státusz:</span>
+                      <span className="font-medium">{project.status}</span>
+                    </div>
+                    <div className="flex justify-between border-b border-gray-200 pb-2">
+                      <span className="text-gray-600">Prioritás:</span>
+                      <span className="font-medium">{project.priority || 'Normál'}</span>
+                    </div>
+                    {project.startDate && (
+                      <div className="flex justify-between border-b border-gray-200 pb-2">
+                        <span className="text-gray-600">Kezdés dátuma:</span>
+                        <span className="font-medium">{formatShortDate(project.startDate)}</span>
+                      </div>
+                    )}
+                    {project.expectedEndDate && (
+                      <div className="flex justify-between border-b border-gray-200 pb-2">
+                        <span className="text-gray-600">Várható befejezés:</span>
+                        <span className="font-medium">{formatShortDate(project.expectedEndDate)}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <h4 className="font-medium text-gray-700 mb-2">Ügyfél adatok</h4>
+                  <div className="space-y-2">
+                    <div className="flex justify-between border-b border-gray-200 pb-2">
+                      <span className="text-gray-600">Név:</span>
+                      <span className="font-medium">{project.client?.name || 'N/A'}</span>
+                    </div>
+                    <div className="flex justify-between border-b border-gray-200 pb-2">
+                      <span className="text-gray-600">Email:</span>
+                      <span className="font-medium">{project.client?.email || 'N/A'}</span>
+                    </div>
+                    {project.client?.phone && (
+                      <div className="flex justify-between border-b border-gray-200 pb-2">
+                        <span className="text-gray-600">Telefon:</span>
+                        <span className="font-medium">{project.client.phone}</span>
+                      </div>
+                    )}
+                    {project.client?.companyName && (
+                      <div className="flex justify-between border-b border-gray-200 pb-2">
+                        <span className="text-gray-600">Cég:</span>
+                        <span className="font-medium">{project.client.companyName}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+              {project.description && (
+                <div className="mt-6">
+                  <h4 className="font-medium text-gray-700 mb-2">Projekt leírás</h4>
+                  <div className="bg-gray-50 p-4 rounded-md">
+                    <p className="text-gray-700 whitespace-pre-wrap">{project.description}</p>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
 
-        {/* Számlák nézet */}
+        {/* Invoices Content */}
         {activeTab === 'invoices' && (
           <div className="bg-white rounded-lg shadow">
             <div className="px-6 py-4 border-b border-gray-200">
@@ -772,10 +740,10 @@ const SharedProjectDashboard = ({ project, onUpdate }) => {
                       <div>
                         <h3 className="text-lg font-medium">{invoice.number}</h3>
                         <p className="text-sm text-gray-500">
-                          Kiállítva: {new Date(invoice.date).toLocaleDateString()}
+                          Kiállítva: {formatShortDate(invoice.date)}
                         </p>
                         <p className="text-sm text-gray-500">
-                          Fizetési határidő: {new Date(invoice.dueDate).toLocaleDateString()}
+                          Fizetési határidő: {formatShortDate(invoice.dueDate)}
                         </p>
                       </div>
                       <div className="text-right">
@@ -783,6 +751,8 @@ const SharedProjectDashboard = ({ project, onUpdate }) => {
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                           invoice.status === 'fizetett' 
                             ? 'bg-green-100 text-green-800'
+                            : invoice.status === 'késedelmes' 
+                            ? 'bg-red-100 text-red-800'
                             : 'bg-yellow-100 text-yellow-800'
                         }`}>
                           {invoice.status}
@@ -790,9 +760,27 @@ const SharedProjectDashboard = ({ project, onUpdate }) => {
                       </div>
                     </div>
 
-                    {/* SEPA QR kód és fizetési adatok */}
+                    {/* Actions Buttons */}
+                    <div className="flex justify-end space-x-3 my-3">
+                      <button
+                        onClick={() => handleViewInvoice(invoice)}
+                        className="px-3 py-1.5 text-sm bg-indigo-600 text-white rounded hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex items-center"
+                      >
+                        <Eye className="h-4 w-4 mr-1" />
+                        Számla megtekintése
+                      </button>
+                      <button
+                        onClick={() => window.alert('A letöltés funkció fejlesztés alatt áll.')}
+                        className="px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 flex items-center"
+                      >
+                        <Download className="h-4 w-4 mr-1" />
+                        PDF letöltése
+                      </button>
+                    </div>
+
+                    {/* SEPA QR code and payment details */}
                     {invoice.status !== 'fizetett' && (
-                      <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+                      <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                           <div>
                             <h4 className="font-medium mb-2">Banki átutalás</h4>
@@ -817,285 +805,554 @@ const SharedProjectDashboard = ({ project, onUpdate }) => {
                       </div>
                     )}
 
-                    {/* Számla tételek */}
+                    {/* Invoice Items */}
                     <div className="mt-4">
                       <h4 className="font-medium mb-2">Tételek</h4>
-                      <table className="min-w-full divide-y divide-gray-200">
-                        <thead>
-                          <tr>
-                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Leírás</th>
-                            <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Mennyiség</th>
-                            <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Egységár</th>
-                            <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Összesen</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-200">
-                          {invoice.items?.map((item, index) => (
-                            <tr key={index}>
-                              <td className="px-3 py-2 text-sm">{item.description}</td>
-                              <td className="px-3 py-2 text-sm text-right">{item.quantity}</td>
-                              <td className="px-3 py-2 text-sm text-right">{item.unitPrice} €</td>
-                              <td className="px-3 py-2 text-sm text-right">{item.total} €</td>
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200">
+                          <thead>
+                            <tr className="bg-gray-50">
+                              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Leírás</th>
+                              <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Mennyiség</th>
+                              <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Egységár</th>
+                              <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Összesen</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                          </thead>
+                          <tbody className="divide-y divide-gray-200 bg-white">
+                            {invoice.items?.map((item, index) => (
+                              <tr key={index} className="hover:bg-gray-50">
+                                <td className="px-3 py-2 text-sm whitespace-nowrap">{item.description}</td>
+                                <td className="px-3 py-2 text-sm text-right whitespace-nowrap">{item.quantity}</td>
+                                <td className="px-3 py-2 text-sm text-right whitespace-nowrap">{item.unitPrice} €</td>
+                                <td className="px-3 py-2 text-sm text-right whitespace-nowrap font-medium">{item.total} €</td>
+                              </tr>
+                            ))}
+                            <tr className="bg-gray-50">
+                              <td colSpan="3" className="px-3 py-2 text-right font-medium">Összesen:</td>
+                              <td className="px-3 py-2 text-right font-bold">{invoice.totalAmount} €</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
                   </div>
                 ))
               ) : (
-                <div className="p-6 text-center text-gray-500">
-                  Nincsenek még számlák a projekthez
+                <div className="p-10 text-center text-gray-500">
+                  <FileText className="h-12 w-12 mx-auto text-gray-300 mb-3" />
+                  <p className="text-lg font-medium text-gray-600">Nincsenek még számlák a projekthez</p>
+                  <p className="text-sm mt-1">A számlákat a projekthez kapcsolódóan a rendszergazda állítja ki.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+        
+        {/* Files Content */}
+        {activeTab === 'files' && (
+          <div className="bg-white rounded-lg shadow">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <div className="flex justify-between items-center">
+                <h2 className="text-lg font-medium">Fájlok</h2>
+                <div className="flex items-center space-x-2">
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Search className="h-4 w-4 text-gray-400" />
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="Keresés..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10 pr-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Upload progress */}
+            {isUploading && (
+              <div className="px-6 py-4 bg-blue-50 border-b border-blue-100">
+                <div className="flex items-center">
+                  <div className="mr-3">
+                    <Upload className="h-5 w-5 text-blue-500 animate-pulse" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm font-medium text-blue-700">Feltöltés folyamatban...</span>
+                      <span className="text-xs text-blue-600">{uploadProgress}%</span>
+                    </div>
+                    <div className="w-full bg-blue-200 rounded-full h-2">
+                      <div 
+                        className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+                        style={{ width: `${uploadProgress}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {/* File filters and sorting */}
+            <div className="px-6 py-3 bg-gray-50 border-b flex flex-wrap items-center justify-between">
+              <div className="flex items-center space-x-2 mb-2 sm:mb-0">
+                <span className="text-sm text-gray-600 flex items-center">
+                  <Filter className="h-4 w-4 mr-1" />
+                  Szűrés:
+                </span>
+                <button
+                  onClick={() => setFileFilter('all')}
+                  className={`px-3 py-1 text-sm rounded ${
+                    fileFilter === 'all' 
+                      ? 'bg-indigo-100 text-indigo-700 font-medium border border-indigo-200' 
+                      : 'text-gray-600 hover:bg-gray-100 border border-transparent'
+                  }`}
+                >
+                  Összes
+                </button>
+                <button
+                  onClick={() => setFileFilter('documents')}
+                  className={`px-3 py-1 text-sm rounded ${
+                    fileFilter === 'documents' 
+                      ? 'bg-indigo-100 text-indigo-700 font-medium border border-indigo-200' 
+                      : 'text-gray-600 hover:bg-gray-100 border border-transparent'
+                  }`}
+                >
+                  Dokumentumok
+                </button>
+                <button
+                  onClick={() => setFileFilter('images')}
+                  className={`px-3 py-1 text-sm rounded ${
+                    fileFilter === 'images' 
+                      ? 'bg-indigo-100 text-indigo-700 font-medium border border-indigo-200' 
+                      : 'text-gray-600 hover:bg-gray-100 border border-transparent'
+                  }`}
+                >
+                  Képek
+                </button>
+              </div>
+              
+              <div className="flex items-center">
+                <span className="text-sm text-gray-600 mr-2 flex items-center">
+                  <ArrowDown className="h-4 w-4 mr-1" />
+                  Rendezés:
+                </span>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="text-sm border rounded px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                >
+                  <option value="date-desc">Legújabb előre</option>
+                  <option value="date-asc">Legrégebbi előre</option>
+                  <option value="name">Név szerint</option>
+                  <option value="size">Méret szerint</option>
+                </select>
+              </div>
+            </div>
+            
+            {/* File list or drop area */}
+            <div 
+              id="file-drop-area" 
+              className={`divide-y divide-gray-200 ${
+                sortedFiles.length === 0 ? 'border-2 border-dashed border-gray-300 rounded-lg m-6 p-10' : ''
+              }`}
+            >
+              {sortedFiles.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fájl neve</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Feltöltve</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Méret</th>
+                        <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Műveletek</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {sortedFiles.map((file, index) => (
+                        <tr key={file.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center">
+                              <div className="flex-shrink-0 h-10 w-10 flex items-center justify-center rounded-lg bg-gray-100">
+                                {file.type?.startsWith('image/') ? (
+                                  <img 
+                                    src={file.content} 
+                                    alt={file.name}
+                                    className="h-10 w-10 rounded-lg object-cover"
+                                  />
+                                ) : (
+                                  <FileText className="h-5 w-5 text-gray-500" />
+                                )}
+                              </div>
+                              <div className="ml-4">
+                                <div className="text-sm font-medium text-gray-900 truncate max-w-xs">{file.name}</div>
+                                <div className="text-sm text-gray-500">{file.type || 'Ismeretlen típus'}</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-500">{formatShortDate(file.uploadedAt)}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-500">{formatFileSize(file.size)}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <div className="flex justify-end space-x-2">
+                              <button
+                                onClick={() => handleFilePreview(file)}
+                                className="p-1 text-gray-600 hover:text-gray-900 rounded hover:bg-gray-100"
+                                title="Előnézet"
+                              >
+                                <Eye className="h-5 w-5" />
+                              </button>
+                              <button
+                                onClick={() => {
+                                  const link = document.createElement('a');
+                                  link.href = file.content;
+                                  link.download = file.name;
+                                  document.body.appendChild(link);
+                                  link.click();
+                                  document.body.removeChild(link);
+                                }}
+                                className="p-1 text-indigo-600 hover:text-indigo-900 rounded hover:bg-indigo-50"
+                                title="Letöltés"
+                              >
+                                <Download className="h-5 w-5" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteFile(file.id)}
+                                className="p-1 text-red-600 hover:text-red-900 rounded hover:bg-red-50"
+                                title="Törlés"
+                              >
+                                <Trash2 className="h-5 w-5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="text-center py-10">
+                  {searchTerm || fileFilter !== 'all' ? (
+                    <div className="text-gray-500">
+                      <Search className="h-10 w-10 mx-auto text-gray-300 mb-3" />
+                      <p className="text-lg font-medium">Nincs találat a keresési feltételeknek megfelelően</p>
+                      <button
+                        onClick={() => {
+                          setSearchTerm('');
+                          setFileFilter('all');
+                        }}
+                        className="mt-3 text-indigo-600 hover:text-indigo-800 font-medium"
+                      >
+                        Szűrők törlése
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="text-gray-500">
+                      <Upload className="h-12 w-12 mx-auto text-gray-300 mb-3" />
+                      <p className="text-lg font-medium">Még nincsenek feltöltött fájlok</p>
+                      <p className="text-sm mt-1">Húzza ide a fájlokat vagy kattintson a feltöltés gombra</p>
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                      >
+                        <Upload className="h-4 w-4 mr-2 inline-block" />
+                        Fájlok kiválasztása
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
           </div>
         )}
 
-        {/* Fájlok nézet */}
-{activeTab === 'files' && (
-  <div className="bg-white rounded-lg shadow">
-    <div className="px-6 py-4 border-b border-gray-200">
-      <div className="flex justify-between items-center">
-        <h2 className="text-lg font-medium">Fájlok</h2>
-        <div className="flex items-center space-x-2">
-          <input
-            type="text"
-            placeholder="Keresés..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-          >
-            <Upload className="h-4 w-4 mr-2" />
-            Feltöltés
-          </button>
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileUpload}
-            multiple
-            className="hidden"
-          />
-        </div>
-      </div>
-    </div>
-    
-    {/* Upload progress */}
-    {isUploading && (
-      <div className="px-6 py-4 bg-blue-50 border-b border-blue-100">
-        <div className="flex items-center">
-          <div className="mr-3">
-            <Upload className="h-5 w-5 text-blue-500 animate-pulse" />
-          </div>
-          <div className="flex-1">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-sm font-medium text-blue-700">Feltöltés folyamatban...</span>
-              <span className="text-xs text-blue-600">{uploadProgress}%</span>
+        {/* Comments Content */}
+        {activeTab === 'comments' && (
+          <div className="bg-white rounded-lg shadow">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h2 className="text-lg font-medium">Hozzászólások</h2>
             </div>
-            <div className="w-full bg-blue-200 rounded-full h-2">
-              <div 
-                className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
-                style={{ width: `${uploadProgress}%` }}
-              ></div>
+            
+            {/* Add Comment Form */}
+            <div className="p-6 border-b border-gray-200">
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                handleAddComment();
+              }}>
+                <div className="mb-3">
+                  <label htmlFor="commentText" className="block text-sm font-medium text-gray-700 mb-1">
+                    Új hozzászólás
+                  </label>
+                  <textarea
+                    id="commentText"
+                    value={newComment}
+                    onChange={(e) => setNewComment(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    rows={4}
+                    placeholder="Írja ide hozzászólását..."
+                    required
+                  />
+                </div>
+                <div className="flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={!newComment.trim()}
+                    className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Hozzászólás küldése
+                  </button>
+                </div>
+              </form>
             </div>
-          </div>
-        </div>
-      </div>
-    )}
-    
-    {/* Filter controls */}
-    <div className="px-6 py-3 bg-gray-50 border-b flex items-center justify-between">
-      <div className="flex items-center space-x-2">
-        <button
-          onClick={() => setFileFilter('all')}
-          className={`px-3 py-1 text-sm rounded ${
-            fileFilter === 'all' 
-              ? 'bg-blue-100 text-blue-700 font-medium' 
-              : 'text-gray-600 hover:bg-gray-100'
-          }`}
-        >
-          Összes
-        </button>
-        <button
-          onClick={() => setFileFilter('documents')}
-          className={`px-3 py-1 text-sm rounded ${
-            fileFilter === 'documents' 
-              ? 'bg-blue-100 text-blue-700 font-medium' 
-              : 'text-gray-600 hover:bg-gray-100'
-          }`}
-        >
-          Dokumentumok
-        </button>
-        <button
-          onClick={() => setFileFilter('images')}
-          className={`px-3 py-1 text-sm rounded ${
-            fileFilter === 'images' 
-              ? 'bg-blue-100 text-blue-700 font-medium' 
-              : 'text-gray-600 hover:bg-gray-100'
-          }`}
-        >
-          Képek
-        </button>
-      </div>
-      
-      <div className="flex items-center">
-        <span className="text-sm text-gray-500 mr-2">Rendezés:</span>
-        <select
-          value={sortBy}
-          onChange={(e) => setSortBy(e.target.value)}
-          className="text-sm border rounded px-2 py-1 bg-white"
-        >
-          <option value="date-desc">Legújabb előre</option>
-          <option value="date-asc">Legrégebbi előre</option>
-          <option value="name">Név szerint</option>
-          <option value="size">Méret szerint</option>
-        </select>
-      </div>
-    </div>
-    
-    {/* File list - csak a jelenlegi projekthez tartozókat jelenítjük meg */}
-    <div 
-      id="file-drop-area" 
-      className={`divide-y divide-gray-200 ${
-        sortedFiles.length === 0 ? 'border-2 border-dashed border-gray-300 rounded-lg m-6' : ''
-      }`}
-    >
-{sortedFiles.length > 0 ? sortedFiles.map((file) => (
-  <div key={file.id} className="px-6 py-4 flex justify-between items-center hover:bg-gray-50">
-    <div className="flex items-center">
-      <FileText className="h-5 w-5 text-gray-400 mr-2" />
-      <div>
-        <p className="font-medium">{file.name}</p>
-        <div className="flex items-center text-sm text-gray-500">
-          <span>{new Date(file.uploadedAt).toLocaleDateString()}</span>
-          <span className="mx-2">•</span>
-          <span>{formatFileSize(file.size)}</span>
-        </div>
-      </div>
-    </div>
-    <div className="flex space-x-2">
-      <button
-        onClick={() => handleFilePreview(file)}
-        className="p-1 text-gray-600 hover:text-gray-800 rounded hover:bg-gray-100"
-        title="Előnézet"
-      >
-        <Eye className="h-5 w-5" />
-      </button>
-      <button
-        onClick={() => handleDownloadFile(file)}
-        className="p-1 text-blue-600 hover:text-blue-800 rounded hover:bg-blue-50"
-        title="Letöltés"
-      >
-        <Download className="h-5 w-5" />
-      </button>
-      <button
-        onClick={() => handleDeleteFile(file.id)}
-        className="p-1 text-red-600 hover:text-red-800 rounded hover:bg-red-50"
-        title="Törlés"
-      >
-        <Trash2 className="h-5 w-5" />
-      </button>
-    </div>
-  </div>
-)) : (
-        <div className="py-10 text-center">
-          {searchTerm || fileFilter !== 'all' ? (
-            <div className="text-gray-500">
-              <Search className="h-10 w-10 mx-auto text-gray-300 mb-3" />
-              <p>Nincs találat a keresési feltételeknek megfelelően</p>
-              <button
-                onClick={() => {
-                  setSearchTerm('');
-                  setFileFilter('all');
-                }}
-                className="mt-3 text-blue-600 hover:text-blue-800"
-              >
-                Szűrők törlése
-              </button>
-            </div>
-          ) : (
-            <div className="text-gray-500">
-              <Upload className="h-12 w-12 mx-auto text-gray-300 mb-3" />
-              <p>Még nincsenek feltöltött fájlok</p>
-              <p className="text-sm mt-1">Húzd ide a fájlokat vagy kattints a feltöltés gombra</p>
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-              >
-                Fájlok kiválasztása
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-    
-    {/* File preview modal */}
-    {previewFile && (
-      <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-lg max-w-3xl w-full p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-medium flex items-center">
-              <FileText className="h-5 w-5 mr-2 text-gray-500" />
-              {previewFile.name}
-            </h3>
-            <button
-              onClick={() => setPreviewFile(null)}
-              className="text-gray-500 hover:text-gray-700"
-            >
-              <X className="h-6 w-6" />
-            </button>
-          </div>
-          
-          <div className="bg-gray-100 rounded-lg p-4 min-h-[300px] mb-4 flex items-center justify-center">
-            {previewFile.type?.startsWith('image/') ? (
-              <img 
-                src={previewFile.content} 
-                alt={previewFile.name}
-                className="max-w-full max-h-[400px] object-contain"
-              />
-            ) : (
-              <div className="text-center">
-                <FileText className="h-16 w-16 mx-auto text-gray-400 mb-3" />
-                <p className="text-gray-600">A fájl előnézete nem elérhető</p>
-                <p className="text-sm text-gray-500 mt-2">
-                  {previewFile.name} ({formatFileSize(previewFile.size)})
-                </p>
-              </div>
-            )}
-          </div>
-          
-          <div className="flex justify-between">
-            <div className="text-sm text-gray-500">
-              Feltöltve: {new Date(previewFile.uploadedAt).toLocaleString()}
-            </div>
-            <div className="flex space-x-3">
-              <button
-                onClick={() => handleDownloadFile(previewFile)}
-                className="px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center"
-              >
-                <Download className="h-4 w-4 mr-1" />
-                Letöltés
-              </button>
-              <button
-                onClick={() => setPreviewFile(null)}
-                className="px-3 py-1 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
-              >
-                Bezárás
-              </button>
+            
+            {/* Comments List */}
+            <div className="divide-y divide-gray-200">
+              {projectComments.length > 0 ? (
+                projectComments.map((comment) => (
+                  <div key={comment.id} className="p-6 hover:bg-gray-50">
+                    <div className="flex items-start">
+                      <div className="flex-shrink-0">
+                        <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center">
+                          <span className="text-indigo-800 font-bold">
+                            {comment.author && comment.author[0].toUpperCase()}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="ml-3 flex-1">
+                        <div className="flex justify-between items-center">
+                          <div className="font-medium text-gray-900">{comment.author}</div>
+                          <div className="text-sm text-gray-500">{formatDate(comment.timestamp)}</div>
+                        </div>
+                        <div className="mt-2 text-gray-700 whitespace-pre-wrap text-sm">
+                          {comment.text}
+                        </div>
+                        <div className="mt-3 flex justify-end">
+                          <button
+                            onClick={() => handleDeleteComment(comment.id)}
+                            className="text-red-600 hover:text-red-800 text-sm flex items-center"
+                          >
+                            <Trash2 className="h-4 w-4 mr-1" />
+                            Törlés
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="p-10 text-center text-gray-500">
+                  <MessageCircle className="h-12 w-12 mx-auto text-gray-300 mb-3" />
+                  <p className="text-lg font-medium text-gray-600">Még nincsenek hozzászólások</p>
+                  <p className="text-sm mt-1">Legyen Ön az első, aki hozzászól a projekthez!</p>
+                </div>
+              )}
             </div>
           </div>
-        </div>
-      </div>
-    )}
-  </div>
-)}
+        )}
 
-</div>
+        {/* File Preview Modal */}
+        {isPreviewModalOpen && previewFile && (
+          <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] flex flex-col">
+              <div className="flex justify-between items-center p-4 border-b">
+                <h3 className="text-lg font-medium flex items-center">
+                  <FileText className="h-5 w-5 mr-2 text-gray-500" />
+                  {previewFile.name}
+                </h3>
+                <button
+                  onClick={() => {
+                    setPreviewFile(null);
+                    setIsPreviewModalOpen(false);
+                  }}
+                  className="text-gray-500 hover:text-gray-700 focus:outline-none"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+              
+              <div className="p-6 flex-1 overflow-auto flex items-center justify-center bg-gray-100">
+                {previewFile.type?.startsWith('image/') ? (
+                  <img 
+                    src={previewFile.content} 
+                    alt={previewFile.name}
+                    className="max-w-full max-h-[600px] object-contain"
+                  />
+                ) : (
+                  <div className="text-center p-10">
+                    <FileText className="h-16 w-16 mx-auto text-gray-400 mb-3" />
+                    <p className="text-gray-600 font-medium">A fájl előnézete nem támogatott</p>
+                    <p className="text-sm text-gray-500 mt-2">
+                      {previewFile.name} ({formatFileSize(previewFile.size)})
+                    </p>
+                  </div>
+                )}
+              </div>
+              
+              <div className="flex justify-between items-center p-4 border-t bg-gray-50">
+                <div className="text-sm text-gray-500">
+                  Feltöltve: {formatDate(previewFile.uploadedAt)}
+                </div>
+                <div className="flex space-x-3">
+                  <button
+                    onClick={() => {
+                      const link = document.createElement('a');
+                      link.href = previewFile.content;
+                      link.download = previewFile.name;
+                      document.body.appendChild(link);
+                      link.click();
+                      document.body.removeChild(link);
+                    }}
+                    className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex items-center text-sm"
+                  >
+                    <Download className="h-4 w-4 mr-1" />
+                    Letöltés
+                  </button>
+                  <button
+                    onClick={() => {
+                      setPreviewFile(null);
+                      setIsPreviewModalOpen(false);
+                    }}
+                    className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 text-sm"
+                  >
+                    Bezárás
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Invoice View Modal */}
+        {viewingInvoice && (
+          <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] flex flex-col">
+              <div className="flex justify-between items-center p-4 border-b">
+                <h3 className="text-lg font-medium flex items-center">
+                  <FileText className="h-5 w-5 mr-2 text-gray-500" />
+                  Számla: {viewingInvoice.number}
+                </h3>
+                <button
+                  onClick={() => setViewingInvoice(null)}
+                  className="text-gray-500 hover:text-gray-700 focus:outline-none"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+              
+              <div className="p-6 flex-1 overflow-auto">
+                <div className="w-full max-w-2xl mx-auto bg-white p-8 border border-gray-200 rounded-lg shadow-sm">
+                  {/* Invoice Header */}
+                  <div className="flex justify-between items-start mb-8">
+                    <div>
+                      <h2 className="text-2xl font-bold">SZÁMLA</h2>
+                      <p className="text-gray-600">Számlaszám: {viewingInvoice.number}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-medium">Kelt: {formatShortDate(viewingInvoice.date)}</p>
+                      <p className="text-gray-600">Fizetési határidő: {formatShortDate(viewingInvoice.dueDate)}</p>
+                    </div>
+                  </div>
+                  
+                  {/* Company Information */}
+                  <div className="grid grid-cols-2 gap-8 mb-8">
+                    <div>
+                      <h3 className="font-bold mb-2 text-gray-700">Szolgáltató:</h3>
+                      <p className="font-medium">Norbert Bartus</p>
+                      <p>NB Studio</p>
+                      <p>Adószám: 12345678-1-42</p>
+                      <p>1234 Budapest, Példa utca 1.</p>
+                      <p>Email: info@nb-studio.net</p>
+                    </div>
+                    <div>
+                      <h3 className="font-bold mb-2 text-gray-700">Vevő:</h3>
+                      <p className="font-medium">{project.client?.name || 'N/A'}</p>
+                      {project.client?.companyName && <p>{project.client.companyName}</p>}
+                      {project.client?.taxNumber && <p>Adószám: {project.client.taxNumber}</p>}
+                      <p>Email: {project.client?.email || 'N/A'}</p>
+                      {project.client?.address && (
+                        <p>
+                          {project.client.address.postalCode} {project.client.address.city}, {project.client.address.street}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Items Table */}
+                  <div className="mb-8">
+                    <h3 className="font-bold mb-2 text-gray-700">Tételek:</h3>
+                    <table className="min-w-full border border-gray-200">
+                      <thead>
+                        <tr className="bg-gray-50">
+                          <th className="py-2 px-3 text-left border-b border-gray-200 text-gray-700">Leírás</th>
+                          <th className="py-2 px-3 text-right border-b border-gray-200 text-gray-700">Mennyiség</th>
+                          <th className="py-2 px-3 text-right border-b border-gray-200 text-gray-700">Egységár</th>
+                          <th className="py-2 px-3 text-right border-b border-gray-200 text-gray-700">Összesen</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {viewingInvoice.items?.map((item, index) => (
+                          <tr key={index} className="border-b border-gray-200">
+                            <td className="py-2 px-3">{item.description}</td>
+                            <td className="py-2 px-3 text-right">{item.quantity}</td>
+                            <td className="py-2 px-3 text-right">{item.unitPrice} €</td>
+                            <td className="py-2 px-3 text-right">{item.total} €</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot>
+                        <tr className="bg-gray-50 font-bold">
+                          <td colSpan="3" className="py-2 px-3 text-right">Végösszeg:</td>
+                          <td className="py-2 px-3 text-right">{viewingInvoice.totalAmount} €</td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                  
+                  {/* Payment Information */}
+                  <div className="mb-8">
+                    <h3 className="font-bold mb-2 text-gray-700">Fizetési információk:</h3>
+                    <div className="bg-gray-50 p-3 border border-gray-200 rounded">
+                      <p>IBAN: DE47 6634 0014 0743 4638 00</p>
+                      <p>SWIFT/BIC: COBADEFFXXX</p>
+                      <p>Bank: Commerzbank AG</p>
+                      <p>Közlemény: {viewingInvoice.number}</p>
+                    </div>
+                  </div>
+                  
+                  {/* Footer */}
+                  <div className="text-center text-gray-600 text-sm mt-12">
+                    <p>Köszönjük, hogy minket választott!</p>
+                    <p className="mt-1">Ez a számla elektronikusan készült és érvényes aláírás nélkül is.</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex justify-end items-center p-4 border-t bg-gray-50">
+                <div className="flex space-x-3">
+                  <button
+                    onClick={() => window.alert('A PDF letöltés funkció fejlesztés alatt áll.')}
+                    className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex items-center text-sm"
+                  >
+                    <Download className="h-4 w-4 mr-1" />
+                    Letöltés PDF-ként
+                  </button>
+                  <button
+                    onClick={() => setViewingInvoice(null)}
+                    className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 text-sm"
+                  >
+                    Bezárás
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
