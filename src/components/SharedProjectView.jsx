@@ -86,6 +86,15 @@ const SharedProjectView = () => {
           data.project._id = data.project.id;
         }
         
+        // Ensure files and comments arrays exist
+        if (!data.project.files) {
+          data.project.files = [];
+        }
+        
+        if (!data.project.comments) {
+          data.project.comments = [];
+        }
+        
         // Save project data
         setProject(data.project);
         setIsVerified(true);
@@ -142,7 +151,7 @@ const SharedProjectView = () => {
   // Handle logout
   const handleLogout = () => {
     if (window.confirm('Biztosan ki szeretne lépni?')) {
-      // Remove session but keep project-specific files and comments
+      // Remove session from localStorage
       localStorage.removeItem(`project_session_${token}`);
       
       setIsVerified(false);
