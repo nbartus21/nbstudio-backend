@@ -231,153 +231,6 @@ const SharedProjectDashboard = ({ project, onUpdate }) => {
                 <h1 className="text-2xl font-bold text-gray-900">{project.name}</h1>
                 <p className="mt-1 text-gray-500">{project.description}</p>
               </div>
-          </div>
-        )}
-
-        {/* Hozzászólások nézet */}
-        {activeTab === 'comments' && (
-          <div className="bg-white rounded-lg shadow">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-medium">Hozzászólások</h2>
-            </div>
-            
-            {/* Új hozzászólás beviteli mező */}
-            <div className="p-6 border-b border-gray-200">
-              <textarea 
-                value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
-                placeholder="Írja be hozzászólását..."
-                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                rows={3}
-              />
-              <div className="mt-3 flex justify-end">
-                <button
-                  onClick={handleAddComment}
-                  disabled={!newComment.trim()}
-                  className={`inline-flex items-center px-4 py-2 rounded-md text-white ${
-                    !newComment.trim() ? 'bg-gray-300 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
-                  }`}
-                >
-                  <MessageCircle className="h-4 w-4 mr-2" />
-                  Hozzászólás küldése
-                </button>
-              </div>
-            </div>
-            
-            {/* Hozzászólások listája */}
-            <div className="divide-y divide-gray-200">
-              {comments.length > 0 ? (
-                comments.map((comment) => (
-                  <div key={comment.id} className="p-6">
-                    <div className="flex items-start">
-                      <div className="mr-4">
-                        <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center">
-                          <span className="font-medium text-indigo-800">
-                            {comment.author.substring(0, 2).toUpperCase()}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <p className="font-medium text-gray-900">{comment.author}</p>
-                            <p className="text-xs text-gray-500">{formatDate(comment.timestamp)}</p>
-                          </div>
-                          <button
-                            onClick={() => handleDeleteComment(comment.id)}
-                            className="text-gray-400 hover:text-red-600"
-                            title="Hozzászólás törlése"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
-                        <div className="mt-2 text-gray-700 whitespace-pre-line">
-                          {comment.text}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="py-12 text-center text-gray-500">
-                  <MessageCircle className="h-12 w-12 mx-auto text-gray-300" />
-                  <p className="mt-2">Nincs még hozzászólás. Legyen Ön az első!</p>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Mérföldkövek nézet */}
-        {activeTab === 'milestones' && milestones.length > 0 && (
-          <div className="bg-white rounded-lg shadow">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-medium">Projekt Mérföldkövek</h2>
-            </div>
-            
-            <div className="p-6">
-              <div className="flow-root">
-                <ul className="-mb-8">
-                  {milestones.map((milestone, milestoneIdx) => (
-                    <li key={milestone.id || milestoneIdx}>
-                      <div className="relative pb-8">
-                        {milestoneIdx !== milestones.length - 1 ? (
-                          <span className="absolute top-4 left-4 -ml-px h-full w-0.5 bg-gray-200" aria-hidden="true"></span>
-                        ) : null}
-                        <div className="relative flex space-x-3">
-                          <div>
-                            <span className={`h-8 w-8 rounded-full flex items-center justify-center ring-8 ring-white ${
-                              milestone.status === 'befejezett' ? 'bg-green-500' : 
-                              milestone.status === 'folyamatban' ? 'bg-blue-500' :
-                              milestone.status === 'késedelmes' ? 'bg-red-500' :
-                              'bg-gray-500'
-                            }`}>
-                              {milestone.status === 'befejezett' ? (
-                                <Check className="h-5 w-5 text-white" />
-                              ) : milestone.status === 'késedelmes' ? (
-                                <AlertTriangle className="h-5 w-5 text-white" />
-                              ) : (
-                                <Clock className="h-5 w-5 text-white" />
-                              )}
-                            </span>
-                          </div>
-                          <div className="min-w-0 flex-1 pt-1.5 flex justify-between space-x-4">
-                            <div>
-                              <p className="text-sm font-medium text-gray-900">{milestone.title}</p>
-                              {milestone.description && (
-                                <p className="mt-1 text-sm text-gray-500">{milestone.description}</p>
-                              )}
-                            </div>
-                            <div className="text-right text-sm whitespace-nowrap">
-                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                milestone.status === 'befejezett' ? 'bg-green-100 text-green-800' :
-                                milestone.status === 'folyamatban' ? 'bg-blue-100 text-blue-800' :
-                                milestone.status === 'késedelmes' ? 'bg-red-100 text-red-800' :
-                                'bg-gray-100 text-gray-800'
-                              }`}>
-                                {milestone.status}
-                              </span>
-                              <p className="mt-1 text-gray-500">
-                                {milestone.dueDate ? formatDate(milestone.dueDate) : 'Nincs határidő'}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          </div>
-        )}
-
-      </div>
-    </div>
-  );
-};
-
-export default SharedProjectDashboard;
               <div className="flex items-center">
                 <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
                   project.status === 'aktív' ? 'bg-green-100 text-green-800' :
@@ -385,11 +238,11 @@ export default SharedProjectDashboard;
                   'bg-gray-100 text-gray-800'
                 }`}>
                   <div className="flex items-center">
-                    <div className="mr-1.5 h-2.5 w-2.5 rounded-full ${
+                    <div className={`mr-1.5 h-2.5 w-2.5 rounded-full ${
                       project.status === 'aktív' ? 'bg-green-500' :
                       project.status === 'befejezett' ? 'bg-blue-500' :
                       'bg-gray-500'
-                    }"></div>
+                    }`}></div>
                     {project.status}
                   </div>
                 </span>
@@ -772,229 +625,265 @@ export default SharedProjectDashboard;
         )}
 
         {/* Fájlok nézet */}
-        {activeTab === 'files' && (
-          <div className="bg-white rounded-lg shadow">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <div className="flex justify-between items-center">
-                <h2 className="text-lg font-medium">Fájlok</h2>
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="flex items-center px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                >
-                  <Upload className="h-4 w-4 mr-2" />
-                  Feltöltés
-                </button>
-              </div>
-            </div>
-            <div className="divide-y divide-gray-200">
-              {files.length > 0 ? (
-                files.map((file) => (
-                  <div key={file.id} className="px-6 py-4 flex justify-between items-center">
-                    <div className="flex items-center">
-                      <div className="mr-3">
-                        {file.type.startsWith('image/') ? (
-                          <div className="h-12 w-12 rounded-lg bg-gray-100 overflow-hidden flex items-center justify-center">
-                            <img 
-                              src={file.content} 
-                              alt={file.name}
-                              className="h-full w-full object-cover"
-                            />
-                          </div>
-                        ) : (
-                          <div className="h-12 w-12 rounded-lg bg-blue-100 flex items-center justify-center">
-                            <FileText className="h-6 w-6 text-blue-600" />
-                          </div>
-                        )}
-                      </div>
-                      <div>
-                        <p className="font-medium text-gray-800">{file.name}</p>
-                        <div className="flex items-center text-sm text-gray-500">
-                          <span className="mr-3">{formatFileSize(file.size)}</span>
-                          <span>{formatDate(file.uploadedAt)}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex space-x-2">
-                      <button
-                        onClick={() => handleDownloadFile(file)}
-                        className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-full"
-                        title="Letöltés"
-                      >
-                        <DownloadCloud className="h-5 w-5" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteFile(file.id)}
-                        className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-full"
-                        title="Törlés"
-                      >
-                        <Trash2 className="h-5 w-5" />
-                      </button>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="px-6 py-8 text-center">
-                  <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100">
-                    <Upload className="h-6 w-6 text-blue-600" />
-                  </div>
-                  <h3 className="mt-2 text-sm font-medium text-gray-900">Nincs feltöltött fájl</h3>
-                  <p className="mt-1 text-sm text-gray-500">
-                    Kezdéshez töltsön fel egy fájlt a projekthez.
-                  </p>
-                  <div className="mt-6">
-                    <button
-                      onClick={() => fileInputRef.current?.click()}
-                      className="inline-flex items-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700"
-                    >
-                      <Upload className="-ml-1 mr-2 h-5 w-5" />
-                      Fájl feltöltése
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Hozzászólások nézet */}
-        {activeTab === 'comments' && (
-          <div className="bg-white rounded-lg shadow">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-medium">Hozzászólások</h2>
-            </div>
-            
-            {/* Új hozzászólás beviteli mező */}
-            <div className="p-6 border-b border-gray-200">
-              <textarea 
-                value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
-                placeholder="Írja be hozzászólását..."
-                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                rows={3}
-              />
-              <div className="mt-3 flex justify-end">
-                <button
-                  onClick={handleAddComment}
-                  disabled={!newComment.trim()}
-                  className={`inline-flex items-center px-4 py-2 rounded-md text-white ${
-                    !newComment.trim() ? 'bg-gray-300 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
-                  }`}
-                >
-                  <MessageCircle className="h-4 w-4 mr-2" />
-                  Hozzászólás küldése
-                </button>
-              </div>
-            </div>
-            
-            {/* Hozzászólások listája */}
-            <div className="divide-y divide-gray-200">
-              {comments.length > 0 ? (
-                comments.map((comment) => (
-                  <div key={comment.id} className="p-6">
-                    <div className="flex items-start">
-                      <div className="mr-4">
-                        <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center">
-                          <span className="font-medium text-indigo-800">
-                            {comment.author.substring(0, 2).toUpperCase()}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <p className="font-medium text-gray-900">{comment.author}</p>
-                            <p className="text-xs text-gray-500">{formatDate(comment.timestamp)}</p>
-                          </div>
-                          <button
-                            onClick={() => handleDeleteComment(comment.id)}
-                            className="text-gray-400 hover:text-red-600"
-                            title="Hozzászólás törlése"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
-                        <div className="mt-2 text-gray-700 whitespace-pre-line">
-                          {comment.text}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="py-12 text-center text-gray-500">
-                  <MessageCircle className="h-12 w-12 mx-auto text-gray-300" />
-                  <p className="mt-2">Nincs még hozzászólás. Legyen Ön az első!</p>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Mérföldkövek nézet */}
-        {activeTab === 'milestones' && milestones.length > 0 && (
-          <div className="bg-white rounded-lg shadow">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-medium">Projekt Mérföldkövek</h2>
-            </div>
-            
-            <div className="p-6">
-              <div className="flow-root">
-                <ul className="-mb-8">
-                  {milestones.map((milestone, milestoneIdx) => (
-                    <li key={milestone.id || milestoneIdx}>
-                      <div className="relative pb-8">
-                        {milestoneIdx !== milestones.length - 1 ? (
-                          <span className="absolute top-4 left-4 -ml-px h-full w-0.5 bg-gray-200" aria-hidden="true"></span>
-                        ) : null}
-                        <div className="relative flex space-x-3">
-                          <div>
-                            <span className={`h-8 w-8 rounded-full flex items-center justify-center ring-8 ring-white ${
-                              milestone.status === 'befejezett' ? 'bg-green-500' : 
-                              milestone.status === 'folyamatban' ? 'bg-blue-500' :
-                              milestone.status === 'késedelmes' ? 'bg-red-500' :
-                              'bg-gray-500'
-                            }`}>
-                              {milestone.status === 'befejezett' ? (
-                                <Check className="h-5 w-5 text-white" />
-                              ) : milestone.status === 'késedelmes' ? (
-                                <AlertTriangle className="h-5 w-5 text-white" />
-                              ) : (
-                                <Clock className="h-5 w-5 text-white" />
-                              )}
-                            </span>
-                          </div>
-                          <div className="min-w-0 flex-1 pt-1.5 flex justify-between space-x-4">
-                            <div>
-                              <p className="text-sm font-medium text-gray-900">{milestone.title}</p>
-                              {milestone.description && (
-                                <p className="mt-1 text-sm text-gray-500">{milestone.description}</p>
-                              )}
-                            </div>
-                            <div className="text-right text-sm whitespace-nowrap">
-                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                milestone.status === 'befejezett' ? 'bg-green-100 text-green-800' :
-                                milestone.status === 'folyamatban' ? 'bg-blue-100 text-blue-800' :
-                                milestone.status === 'késedelmes' ? 'bg-red-100 text-red-800' :
-                                'bg-gray-100 text-gray-800'
-                              }`}>
-                                {milestone.status}
-                              </span>
-                              <p className="mt-1 text-gray-500">
-                                {milestone.dueDate ? formatDate(milestone.dueDate) : 'Nincs határidő'}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          </div>
-        )}
-
+{activeTab === 'files' && (
+  <div className="bg-white rounded-lg shadow">
+    <div className="px-6 py-4 border-b border-gray-200">
+      <div className="flex justify-between items-center">
+        <h2 className="text-lg font-medium">Fájlok</h2>
+        <div className="flex items-center space-x-2">
+          <input
+            type="text"
+            placeholder="Keresés..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          >
+            <Upload className="h-4 w-4 mr-2" />
+            Feltöltés
+          </button>
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileUpload}
+            multiple
+            className="hidden"
+          />
+        </div>
       </div>
+    </div>
+    
+    {/* Upload progress */}
+    {isUploading && (
+      <div className="px-6 py-4 bg-blue-50 border-b border-blue-100">
+        <div className="flex items-center">
+          <div className="mr-3">
+            <Upload className="h-5 w-5 text-blue-500 animate-pulse" />
+          </div>
+          <div className="flex-1">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-sm font-medium text-blue-700">Feltöltés folyamatban...</span>
+              <span className="text-xs text-blue-600">{uploadProgress}%</span>
+            </div>
+            <div className="w-full bg-blue-200 rounded-full h-2">
+              <div 
+                className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+                style={{ width: `${uploadProgress}%` }}
+              ></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
+    
+    {/* Filter controls */}
+    <div className="px-6 py-3 bg-gray-50 border-b flex items-center justify-between">
+      <div className="flex items-center space-x-2">
+        <button
+          onClick={() => setFileFilter('all')}
+          className={`px-3 py-1 text-sm rounded ${
+            fileFilter === 'all' 
+              ? 'bg-blue-100 text-blue-700 font-medium' 
+              : 'text-gray-600 hover:bg-gray-100'
+          }`}
+        >
+          Összes
+        </button>
+        <button
+          onClick={() => setFileFilter('documents')}
+          className={`px-3 py-1 text-sm rounded ${
+            fileFilter === 'documents' 
+              ? 'bg-blue-100 text-blue-700 font-medium' 
+              : 'text-gray-600 hover:bg-gray-100'
+          }`}
+        >
+          Dokumentumok
+        </button>
+        <button
+          onClick={() => setFileFilter('images')}
+          className={`px-3 py-1 text-sm rounded ${
+            fileFilter === 'images' 
+              ? 'bg-blue-100 text-blue-700 font-medium' 
+              : 'text-gray-600 hover:bg-gray-100'
+          }`}
+        >
+          Képek
+        </button>
+      </div>
+      
+      <div className="flex items-center">
+        <span className="text-sm text-gray-500 mr-2">Rendezés:</span>
+        <select
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value)}
+          className="text-sm border rounded px-2 py-1 bg-white"
+        >
+          <option value="date-desc">Legújabb előre</option>
+          <option value="date-asc">Legrégebbi előre</option>
+          <option value="name">Név szerint</option>
+          <option value="size">Méret szerint</option>
+        </select>
+      </div>
+    </div>
+    
+    {/* File list */}
+    <div 
+      id="file-drop-area" 
+      className={`divide-y divide-gray-200 ${
+        files.length === 0 ? 'border-2 border-dashed border-gray-300 rounded-lg m-6' : ''
+      }`}
+    >
+      {sortedFiles.length > 0 ? sortedFiles.map((file, index) => (
+        <div key={index} className="px-6 py-4 flex justify-between items-center hover:bg-gray-50">
+          <div className="flex items-center">
+            <FileText className="h-5 w-5 text-gray-400 mr-2" />
+            <div>
+              <p className="font-medium">{file.name}</p>
+              <div className="flex items-center text-sm text-gray-500">
+                <span>{new Date(file.uploadedAt).toLocaleDateString()}</span>
+                <span className="mx-2">•</span>
+                <span>{formatFileSize(file.size)}</span>
+              </div>
+            </div>
+          </div>
+          <div className="flex space-x-2">
+            <button
+              onClick={() => handleFilePreview(file)}
+              className="p-1 text-gray-600 hover:text-gray-800 rounded hover:bg-gray-100"
+              title="Előnézet"
+            >
+              <Eye className="h-5 w-5" />
+            </button>
+            <button
+              onClick={() => {
+                const blob = new Blob([file.content], { type: 'application/octet-stream' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = file.name;
+                a.click();
+                window.URL.revokeObjectURL(url);
+              }}
+              className="p-1 text-blue-600 hover:text-blue-800 rounded hover:bg-blue-50"
+              title="Letöltés"
+            >
+              <Download className="h-5 w-5" />
+            </button>
+            <button
+              onClick={() => handleDeleteFile(index)}
+              className="p-1 text-red-600 hover:text-red-800 rounded hover:bg-red-50"
+              title="Törlés"
+            >
+              <Trash2 className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+      )) : (
+        <div className="py-10 text-center">
+          {searchTerm || fileFilter !== 'all' ? (
+            <div className="text-gray-500">
+              <Search className="h-10 w-10 mx-auto text-gray-300 mb-3" />
+              <p>Nincs találat a keresési feltételeknek megfelelően</p>
+              <button
+                onClick={() => {
+                  setSearchTerm('');
+                  setFileFilter('all');
+                }}
+                className="mt-3 text-blue-600 hover:text-blue-800"
+              >
+                Szűrők törlése
+              </button>
+            </div>
+          ) : (
+            <div className="text-gray-500">
+              <Upload className="h-12 w-12 mx-auto text-gray-300 mb-3" />
+              <p>Még nincsenek feltöltött fájlok</p>
+              <p className="text-sm mt-1">Húzd ide a fájlokat vagy kattints a feltöltés gombra</p>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              >
+                Fájlok kiválasztása
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+    
+    {/* File preview modal */}
+    {previewFile && (
+      <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-lg max-w-3xl w-full p-6">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-medium flex items-center">
+              <FileText className="h-5 w-5 mr-2 text-gray-500" />
+              {previewFile.name}
+            </h3>
+            <button
+              onClick={() => setPreviewFile(null)}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              <X className="h-6 w-6" />
+            </button>
+          </div>
+          
+          <div className="bg-gray-100 rounded-lg p-4 min-h-[300px] mb-4 flex items-center justify-center">
+            {previewFile.type?.startsWith('image/') ? (
+              <img 
+                src={URL.createObjectURL(new Blob([previewFile.content], { type: previewFile.type }))} 
+                alt={previewFile.name}
+                className="max-w-full max-h-[400px] object-contain"
+              />
+            ) : (
+              <div className="text-center">
+                <FileText className="h-16 w-16 mx-auto text-gray-400 mb-3" />
+                <p className="text-gray-600">A fájl előnézete nem elérhető</p>
+                <p className="text-sm text-gray-500 mt-2">
+                  {previewFile.name} ({formatFileSize(previewFile.size)})
+                </p>
+              </div>
+            )}
+          </div>
+          
+          <div className="flex justify-between">
+            <div className="text-sm text-gray-500">
+              Feltöltve: {new Date(previewFile.uploadedAt).toLocaleString()}
+            </div>
+            <div className="flex space-x-3">
+              <button
+                onClick={() => {
+                  const blob = new Blob([previewFile.content], { type: 'application/octet-stream' });
+                  const url = window.URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = previewFile.name;
+                  a.click();
+                  window.URL.revokeObjectURL(url);
+                }}
+                className="px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center"
+              >
+                <Download className="h-4 w-4 mr-1" />
+                Letöltés
+              </button>
+              <button
+                onClick={() => setPreviewFile(null)}
+                className="px-3 py-1 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
+              >
+                Bezárás
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
+  </div>
+)}
+
+</div>
     </div>
   );
 };
