@@ -10,6 +10,12 @@ import {
 } from 'lucide-react';
 import QRCode from 'qrcode.react';
 
+// Ezt a getőr függvényt használjuk a lokális tárolás elkülönítésére
+const getLocalStorageKey = (projectId, type) => {
+  if (!projectId) return null;
+  return `project_${projectId}_${type}`;
+};
+
 const SharedProjectDashboard = ({ project, onUpdate }) => {
   const [files, setFiles] = useState([]);
   const [logEntry, setLogEntry] = useState('');
@@ -28,46 +34,80 @@ const SharedProjectDashboard = ({ project, onUpdate }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [fileFilter, setFileFilter] = useState('all');
   const [sortBy, setSortBy] = useState('date-desc');
+  
+  const filesKey = getLocalStorageKey(project?._id, 'files');
+  const commentsKey = getLocalStorageKey(project?._id, 'comments');
 
-  // Adatok betöltése a komponens inicializálásakor
+  // Amikor változik a project, akkor teljesen újra betöltjük az adatokat
   useEffect(() => {
-    const savedFiles = localStorage.getItem(`project_${project._id}_files`);
-    if (savedFiles) {
-      try {
-        setFiles(JSON.parse(savedFiles));
-      } catch (error) {
-        console.error('Hiba a fájlok betöltésekor:', error);
+    if (!project || !project._id) return;
+    
+    console.log('Loading data for project:', project._id);
+    
+    // Először töröljük a meglévő adatokat, hogy ne keveredjenek
+    setFiles([]);
+    setComments([]);
+    
+    // Fájlok betöltése a projekt-specifikus localStorage-ból
+    try {
+      const savedFilesKey = getLocalStorageKey(project._id, 'files');
+      const savedFiles = localStorage.getItem(savedFilesKey);
+      
+      if (savedFiles) {
+        const parsedFiles = JSON.parse(savedFiles);
+        if (Array.isArray(parsedFiles)) {
+          setFiles(parsedFiles);
+          console.log(`Loaded ${parsedFiles.length} files for project ${project._id}`);
+        }
       }
+    } catch (error) {
+      console.error('Error loading files:', error);
     }
-
-    const savedComments = localStorage.getItem(`project_${project._id}_comments`);
-    if (savedComments) {
-      try {
-        setComments(JSON.parse(savedComments));
-      } catch (error) {
-        console.error('Hiba a hozzászólások betöltésekor:', error);
+    
+    // Hozzászólások betöltése a projekt-specifikus localStorage-ból
+    try {
+      const savedCommentsKey = getLocalStorageKey(project._id, 'comments');
+      const savedComments = localStorage.getItem(savedCommentsKey);
+      
+      if (savedComments) {
+        const parsedComments = JSON.parse(savedComments);
+        if (Array.isArray(parsedComments)) {
+          setComments(parsedComments);
+          console.log(`Loaded ${parsedComments.length} comments for project ${project._id}`);
+        }
       }
+    } catch (error) {
+      console.error('Error loading comments:', error);
     }
-
+    
     setMilestones(project.milestones || []);
     setProjectDocuments(project.documents || []);
-  }, [project._id]);
+  }, [project?._id]);
 
   // Fájlok mentése localStorage-ba amikor változnak
   useEffect(() => {
-    if (files.length > 0) {
-      localStorage.setItem(`project_${project._id}_files`, JSON.stringify(files));
-    }
-  }, [files, project._id]);
+    if (!project?._id || files.length === 0) return;
+    
+    const key = getLocalStorageKey(project._id, 'files');
+    localStorage.setItem(key, JSON.stringify(files));
+    console.log(`Saved ${files.length} files for project ${project._id}`);
+  }, [files, project?._id]);
 
   // Kommentek mentése localStorage-ba amikor változnak
   useEffect(() => {
-    if (comments.length > 0) {
-      localStorage.setItem(`project_${project._id}_comments`, JSON.stringify(comments));
-    }
-  }, [comments, project._id]);
+    if (!project?._id || comments.length === 0) return;
+    
+    const key = getLocalStorageKey(project._id, 'comments');
+    localStorage.setItem(key, JSON.stringify(comments));
+    console.log(`Saved ${comments.length} comments for project ${project._id}`);
+  }, [comments, project?._id]);
 
   const handleFileUpload = async (event) => {
+    if (!project?._id) {
+      showErrorMessage('Nincs érvényes projekt azonosító!');
+      return;
+    }
+    
     setLoading(true);
     try {
       const uploadedFiles = Array.from(event.target.files);
@@ -83,7 +123,8 @@ const SharedProjectDashboard = ({ project, onUpdate }) => {
               size: file.size,
               type: file.type,
               uploadedAt: new Date().toISOString(),
-              content: e.target.result
+              content: e.target.result,
+              projectId: project._id // Eltároljuk a projekt ID-t is a fájlhoz
             };
             resolve(fileData);
           };
@@ -105,15 +146,20 @@ const SharedProjectDashboard = ({ project, onUpdate }) => {
     }
   };
 
-  // Javított fájltörlés - ID alapján, nem index alapján törli a fájlt
   const handleDeleteFile = (fileId) => {
+    if (!project?._id) return;
+    
     if (window.confirm('Biztosan törölni szeretné ezt a fájlt?')) {
-      // ID alapján szűrjük meg a fájlokat
+      // ID alapján szűrjük ki a fájlokat
       const updatedFiles = files.filter(file => file.id !== fileId);
       setFiles(updatedFiles);
       
+      // Frissítjük a localStorage-t az új listával
+      const key = getLocalStorageKey(project._id, 'files');
       if (updatedFiles.length > 0) {
-        localStorage.setItem(`project_${project._id}_files`, JSON.stringify(updatedFiles));
+        localStorage.setItem(key, JSON.stringify(updatedFiles));
+      } else {
+        localStorage.removeItem(key);
       }
       
       showSuccessMessage('Fájl sikeresen törölve');
@@ -139,13 +185,19 @@ const SharedProjectDashboard = ({ project, onUpdate }) => {
   };
 
   const handleAddComment = () => {
+    if (!project?._id) {
+      showErrorMessage('Nincs érvényes projekt azonosító!');
+      return;
+    }
+    
     if (!newComment.trim()) return;
     
     const comment = {
       id: Date.now(),
       text: newComment,
       author: 'Ügyfél',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      projectId: project._id // Eltároljuk a projekt ID-t is a hozzászóláshoz
     };
     
     setComments(prevComments => [comment, ...prevComments]);
@@ -154,12 +206,18 @@ const SharedProjectDashboard = ({ project, onUpdate }) => {
   };
 
   const handleDeleteComment = (commentId) => {
+    if (!project?._id) return;
+    
     if (window.confirm('Biztosan törölni szeretné ezt a hozzászólást?')) {
       const updatedComments = comments.filter(comment => comment.id !== commentId);
       setComments(updatedComments);
       
+      // Frissítjük a localStorage-t az új listával
+      const key = getLocalStorageKey(project._id, 'comments');
       if (updatedComments.length > 0) {
-        localStorage.setItem(`project_${project._id}_comments`, JSON.stringify(updatedComments));
+        localStorage.setItem(key, JSON.stringify(updatedComments));
+      } else {
+        localStorage.removeItem(key);
       }
       
       showSuccessMessage('Hozzászólás sikeresen törölve');
@@ -244,6 +302,11 @@ const SharedProjectDashboard = ({ project, onUpdate }) => {
   // Fájlok szűrése és rendezése
   const sortedFiles = [...files]
     .filter(file => {
+      // Ellenőrizzük, hogy a fájl ehhez a projekthez tartozik-e
+      if (file.projectId && file.projectId !== project?._id) {
+        return false;
+      }
+      
       const matchesSearch = searchTerm ? 
         file.name.toLowerCase().includes(searchTerm.toLowerCase()) : true;
       
@@ -268,6 +331,11 @@ const SharedProjectDashboard = ({ project, onUpdate }) => {
       }
       return 0;
     });
+
+  // Csak az aktuális projekthez tartozó hozzászólásokat szűrjük
+  const filteredComments = comments.filter(comment => 
+    !comment.projectId || comment.projectId === project?._id
+  );
 
   // Drag and drop támogatás
   useEffect(() => {
@@ -430,9 +498,9 @@ const SharedProjectDashboard = ({ project, onUpdate }) => {
               } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm relative`}
             >
               Fájlok
-              {files.length > 0 && (
+              {sortedFiles.length > 0 && (
                 <span className="absolute -top-1 -right-1 h-5 w-5 text-xs flex items-center justify-center rounded-full bg-indigo-100 text-indigo-600">
-                  {files.length}
+                  {sortedFiles.length}
                 </span>
               )}
             </button>
@@ -445,9 +513,9 @@ const SharedProjectDashboard = ({ project, onUpdate }) => {
               } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm relative`}
             >
               Hozzászólások
-              {comments.length > 0 && (
+              {filteredComments.length > 0 && (
                 <span className="absolute -top-1 -right-1 h-5 w-5 text-xs flex items-center justify-center rounded-full bg-indigo-100 text-indigo-600">
-                  {comments.length}
+                  {filteredComments.length}
                 </span>
               )}
             </button>
@@ -499,10 +567,10 @@ const SharedProjectDashboard = ({ project, onUpdate }) => {
       </form>
     </div>
     
-    {/* Hozzászólások listája */}
+    {/* Hozzászólások listája - csak a jelenlegi projekthez tartozókat jelenítjük meg */}
     <div className="divide-y divide-gray-200">
-      {comments.length > 0 ? (
-        comments.map((comment) => (
+      {filteredComments.length > 0 ? (
+        filteredComments.map((comment) => (
           <div key={comment.id} className="p-6">
             <div className="flex justify-between">
               <div className="font-medium">{comment.author}</div>
@@ -611,19 +679,19 @@ const SharedProjectDashboard = ({ project, onUpdate }) => {
                 </div>
               </div>
 
-              {/* Legutóbbi tevékenységek */}
+              {/* Legutóbbi tevékenységek - csak a jelenlegi projekthez tartozókat jelenítjük meg */}
               <div className="bg-white p-6 rounded-lg shadow">
                 <h3 className="text-lg font-medium mb-4">Legutóbbi tevékenységek</h3>
                 <div className="space-y-4">
                   {/* Kombinált és rendezett tevékenységek */}
                   {[
-                    ...files.map(file => ({
+                    ...sortedFiles.map(file => ({
                       type: 'file',
                       id: file.id,
                       timestamp: file.uploadedAt,
                       content: file
                     })),
-                    ...comments.map(comment => ({
+                    ...filteredComments.map(comment => ({
                       type: 'comment',
                       id: comment.id,
                       timestamp: comment.timestamp,
@@ -673,7 +741,7 @@ const SharedProjectDashboard = ({ project, onUpdate }) => {
                       </div>
                     ))}
                   
-                  {files.length === 0 && comments.length === 0 && (
+                  {sortedFiles.length === 0 && filteredComments.length === 0 && (
                     <div className="text-center text-gray-500 py-6">
                       Nincs még tevékenység. Töltsön fel fájlokat vagy szóljon hozzá a projekthez!
                     </div>
@@ -883,11 +951,11 @@ const SharedProjectDashboard = ({ project, onUpdate }) => {
       </div>
     </div>
     
-    {/* File list */}
+    {/* File list - csak a jelenlegi projekthez tartozókat jelenítjük meg */}
     <div 
       id="file-drop-area" 
       className={`divide-y divide-gray-200 ${
-        files.length === 0 ? 'border-2 border-dashed border-gray-300 rounded-lg m-6' : ''
+        sortedFiles.length === 0 ? 'border-2 border-dashed border-gray-300 rounded-lg m-6' : ''
       }`}
     >
       {sortedFiles.length > 0 ? sortedFiles.map((file) => (
