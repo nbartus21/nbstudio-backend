@@ -10,12 +10,13 @@ const NotificationsManager = () => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [filterType, setFilterType] = useState('all');
+  const [error, setError] = useState(null);
   const dropdownRef = useRef(null);
 
   const API_URL = 'https://admin.nb-studio.net:5001/api';
 
   useEffect(() => {
-    // Click-en-kívül kezelő
+    // Handle clicks outside dropdown
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setIsOpen(false);
@@ -26,21 +27,58 @@ const NotificationsManager = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Safe API fetch helper with error handling
+  const safeApiGet = async (url) => {
+    try {
+      const response = await api.get(url);
+      
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+      
+      return response.json();
+    } catch (error) {
+      console.error(`Failed to fetch ${url}:`, error);
+      return []; // Return empty array on failure
+    }
+  };
+
   const fetchAllNotifications = async () => {
     try {
       setLoading(true);
-      const [contacts, calculators, domains, servers, licenses, projects, files, comments] = await Promise.all([
-        api.get(`${API_URL}/contacts`).then(res => res.json()),
-        api.get(`${API_URL}/calculators`).then(res => res.json()),
-        api.get(`${API_URL}/domains`).then(res => res.json()),
-        api.get(`${API_URL}/servers`).then(res => res.json()),
-        api.get(`${API_URL}/licenses`).then(res => res.json()),
-        api.get(`${API_URL}/projects`).then(res => res.json()),
-        api.get(`${API_URL}/files`).then(res => res.json()).catch(() => []),   // Fájlok lekérése
-        api.get(`${API_URL}/comments`).then(res => res.json()).catch(() => []) // Hozzászólások lekérése
+      setError(null);
+      
+      // Use Promise.allSettled to allow some API calls to fail without blocking others
+      const results = await Promise.allSettled([
+        safeApiGet(`${API_URL}/contacts`),
+        safeApiGet(`${API_URL}/calculators`),
+        safeApiGet(`${API_URL}/domains`),
+        safeApiGet(`${API_URL}/servers`),
+        safeApiGet(`${API_URL}/licenses`),
+        safeApiGet(`${API_URL}/projects`),
+        safeApiGet(`${API_URL}/files`),
+        safeApiGet(`${API_URL}/comments`)
       ]);
+      
+      // Extract data from fulfilled promises
+      const [
+        contacts = [],
+        calculators = [],
+        domains = [],
+        servers = [],
+        licenses = [],
+        projects = [],
+        files = [],
+        comments = []
+      ] = results.map(result => result.status === 'fulfilled' ? result.value : []);
 
       const newNotifications = [];
+
+      // Check if all API calls failed
+      const allFailed = results.every(result => result.status === 'rejected');
+      if (allFailed) {
+        setError('Unable to connect to notification service. Please check your connection.');
+      }
 
       // Kapcsolat űrlapok értesítései
       if (Array.isArray(contacts)) {
@@ -199,6 +237,20 @@ const NotificationsManager = () => {
           });
       }
 
+      // Add API connection error notification if there were failures
+      const failedApiCalls = results.filter(r => r.status === 'rejected').length;
+      if (failedApiCalls > 0 && failedApiCalls < results.length) {
+        newNotifications.push({
+          _id: `system_api_error_${Date.now()}`,
+          title: 'Szerver kapcsolódási hiba',
+          message: `${failedApiCalls} API végpont nem elérhető. Egyes értesítések hiányozhatnak.`,
+          severity: 'error',
+          createdAt: new Date().toISOString(),
+          type: 'system',
+          link: '/settings'
+        });
+      }
+
       // Rendezés dátum szerint
       newNotifications.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
       // Értesítések mentése és számolása
@@ -215,6 +267,7 @@ const NotificationsManager = () => {
       }
     } catch (error) {
       console.error('Error fetching notifications:', error);
+      setError('Failed to load notifications. Please try again later.');
     } finally {
       setLoading(false);
     }
@@ -234,6 +287,10 @@ const NotificationsManager = () => {
   const handleDismissAll = () => {
     setNotifications([]);
     setUnreadCount(0);
+  };
+
+  const handleRefresh = () => {
+    fetchAllNotifications();
   };
 
   useEffect(() => {
@@ -265,9 +322,11 @@ const NotificationsManager = () => {
       case 'calculator':
         return <Database className={`w-5 h-5 ${getColorByLevel(severity)}`} />;
       case 'file':
-        return <FileText className={`w-5 h-5 ${getColorByLevel(severity)}`} />; // Fájl értesítés ikon
+        return <FileText className={`w-5 h-5 ${getColorByLevel(severity)}`} />;
       case 'comment':
-        return <MessageCircle className={`w-5 h-5 ${getColorByLevel(severity)}`} />; // Hozzászólás értesítés ikon
+        return <MessageCircle className={`w-5 h-5 ${getColorByLevel(severity)}`} />;
+      case 'system':
+        return <AlertTriangle className={`w-5 h-5 ${getColorByLevel(severity)}`} />;
       default:
         // Súlyosság szerinti alapértelmezett ikonok
         switch (severity) {
@@ -312,6 +371,13 @@ const NotificationsManager = () => {
           <div className="p-4 border-b flex justify-between items-center">
             <h3 className="text-lg font-semibold">Értesítések</h3>
             <div className="flex space-x-2">
+              <button
+                onClick={handleRefresh}
+                className="text-sm text-blue-600 hover:text-blue-800"
+                disabled={loading}
+              >
+                {loading ? 'Frissítés...' : 'Frissítés'}
+              </button>
               {unreadCount > 0 && (
                 <button
                   onClick={handleDismissAll}
@@ -395,6 +461,17 @@ const NotificationsManager = () => {
             {loading ? (
               <div className="flex justify-center items-center p-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent"></div>
+              </div>
+            ) : error ? (
+              <div className="p-4 text-center">
+                <AlertTriangle className="w-8 h-8 text-red-500 mx-auto mb-2" />
+                <p className="text-gray-700">{error}</p>
+                <button 
+                  onClick={handleRefresh}
+                  className="mt-3 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 text-sm"
+                >
+                  Újrapróbálkozás
+                </button>
               </div>
             ) : filteredNotifications.length === 0 ? (
               <div className="p-4 text-center text-gray-500">
