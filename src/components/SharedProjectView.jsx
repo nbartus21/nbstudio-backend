@@ -27,7 +27,7 @@ const SharedProjectView = () => {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // Ellenőrizze, hogy van-e már mentett munkamenet a localStorage-ban, amikor a komponens betöltődik
+  // Check for existing session on component mount
   useEffect(() => {
     const checkExistingSession = () => {
       if (!token) return;
@@ -38,23 +38,23 @@ const SharedProjectView = () => {
         if (savedSession) {
           const session = JSON.parse(savedSession);
           
-          // Ellenőrizze, hogy a munkamenet nem járt-e le (24 óra)
+          // Verificar se a sessão não expirou (24 horas)
           const sessionTime = new Date(session.timestamp).getTime();
           const currentTime = new Date().getTime();
           const sessionAge = currentTime - sessionTime;
-          const maxAge = 24 * 60 * 60 * 1000; // 24 óra milliszekundumban
+          const maxAge = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
           
           if (sessionAge < maxAge) {
-            console.log('Munkamenet visszaállítása a projekt számára', session.project.name);
+            console.log('Restoring session for project', session.project.name);
             setProject(session.project);
             setIsVerified(true);
           } else {
-            console.log('A munkamenet lejárt, eltávolítás');
+            console.log('Session expired, removing');
             localStorage.removeItem(`project_session_${token}`);
           }
         }
       } catch (error) {
-        console.error('Hiba a munkamenet ellenőrzésekor:', error);
+        console.error('Error checking session:', error);
         localStorage.removeItem(`project_session_${token}`);
       }
     };
@@ -62,7 +62,7 @@ const SharedProjectView = () => {
     checkExistingSession();
   }, [token]);
 
-  // Amikor a PIN sikeresen ellenőrződik
+  // Handle PIN verification
   const verifyPin = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -81,24 +81,24 @@ const SharedProjectView = () => {
       const data = await response.json();
       
       if (response.ok) {
-        // Adjon hozzá egy _id mezőt, ha nem létezik (kompatibilitás érdekében)
+        // Add an _id field if it doesn't exist (for compatibility)
         if (!data.project._id && data.project.id) {
           data.project._id = data.project.id;
         }
         
-        // Projekt adatok mentése
+        // Save project data
         setProject(data.project);
         setIsVerified(true);
         setError(null);
         
-        // Munkamenet mentése a localStorage-ba
+        // Save session to localStorage
         const session = {
           project: data.project,
           timestamp: new Date().toISOString()
         };
         localStorage.setItem(`project_session_${token}`, JSON.stringify(session));
         
-        console.log('Munkamenet mentve a projekt számára', data.project.name);
+        console.log('Session saved for project', data.project.name);
       } else {
         setError(data.message || 'Érvénytelen PIN kód');
       }
@@ -110,7 +110,7 @@ const SharedProjectView = () => {
     }
   };
 
-  // Projekt frissítése
+  // Handle project updates
   const handleProjectUpdate = async (updatedProject) => {
     try {
       const response = await fetch(`${API_URL}/projects/${project._id}`, {
@@ -125,7 +125,7 @@ const SharedProjectView = () => {
       if (response.ok) {
         setProject(updatedProject);
         
-        // Munkamenet frissítése a localStorage-ban
+        // Update session in localStorage
         const session = {
           project: updatedProject,
           timestamp: new Date().toISOString()
@@ -139,10 +139,10 @@ const SharedProjectView = () => {
     }
   };
   
-  // Kijelentkezés kezelése
+  // Handle logout
   const handleLogout = () => {
     if (window.confirm('Biztosan ki szeretne lépni?')) {
-      // Csak a munkamenet eltávolítása, de a projekt-specifikus fájlok és megjegyzések megtartása
+      // Remove session but keep project-specific files and comments
       localStorage.removeItem(`project_session_${token}`);
       
       setIsVerified(false);
@@ -152,7 +152,7 @@ const SharedProjectView = () => {
     }
   };
 
-  // PIN ellenőrző űrlap
+  // PIN verification form
   if (!isVerified) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
@@ -226,7 +226,7 @@ const SharedProjectView = () => {
     );
   }
 
-  // Projekt irányítópult megjelenítése ellenőrzés után
+  // Show project dashboard after verification
   return (
     <SharedProjectDashboard 
       project={project}
