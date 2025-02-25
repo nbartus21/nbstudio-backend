@@ -21,8 +21,6 @@ import Calculator from './models/Calculator.js';
 import accountingRoutes from './routes/accounting.js';
 import hostingRoutes from './routes/hosting.js';
 import Post from './models/Post.js';
-import filesRoutes from './routes/files.js';
-import commentsRoutes from './routes/comments.js';
 
 dotenv.config();
 
@@ -206,8 +204,6 @@ app.use('/api', licenseRoutes);
 app.use('/api', notificationRoutes);
 app.use('/api/accounting', accountingRoutes);
 app.use('/api', hostingRoutes);
-app.use('/api', filesRoutes);
-app.use('/api', commentsRoutes);
 
 // Alap route teszteléshez
 app.get('/', (req, res) => {
