@@ -10,8 +10,12 @@ import {
 } from 'lucide-react';
 import QRCode from 'qrcode.react';
 
+/**
+ * Componente principal do painel do projeto compartilhado
+ * Melhorado para garantir o isolamento de projetos e persistência de sessão
+ */
 const SharedProjectDashboard = ({ project, onUpdate, onLogout }) => {
-  // State management
+  // Estado local
   const [files, setFiles] = useState([]);
   const [activeTab, setActiveTab] = useState('overview');
   const fileInputRef = useRef(null);
@@ -30,56 +34,110 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout }) => {
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
   const [viewingInvoice, setViewingInvoice] = useState(null);
 
-  // Load data on component initialization
+  /**
+   * Carregar dados do localStorage quando o componente é inicializado
+   * Garantimos que apenas os dados do projeto atual sejam carregados
+   */
   useEffect(() => {
     if (!project || !project._id) return;
     
-    // Load files from localStorage
-    const savedFiles = localStorage.getItem(`project_${project._id}_files`);
-    if (savedFiles) {
-      try {
-        setFiles(JSON.parse(savedFiles));
-      } catch (error) {
-        console.error("Error parsing saved files:", error);
+    // Carregar arquivos deste projeto específico
+    try {
+      const savedFiles = localStorage.getItem(`project_files_${project._id}`);
+      if (savedFiles) {
+        const parsedFiles = JSON.parse(savedFiles);
+        // Garantir que apenas os arquivos deste projeto sejam carregados
+        const projectFiles = parsedFiles.filter(file => 
+          file.projectId === project._id || !file.projectId
+        );
+        
+        console.log(`Carregados ${projectFiles.length} arquivos para o projeto ${project._id}`);
+        setFiles(projectFiles);
+      } else {
+        console.log(`Nenhum arquivo encontrado para o projeto ${project._id}`);
+        setFiles([]);
       }
+    } catch (error) {
+      console.error("Erro ao carregar arquivos:", error);
+      setFiles([]);
     }
 
-    // Load comments from localStorage
-    const savedComments = localStorage.getItem(`project_${project._id}_comments`);
-    if (savedComments) {
-      try {
-        setComments(JSON.parse(savedComments));
-      } catch (error) {
-        console.error("Error parsing saved comments:", error);
+    // Carregar comentários deste projeto específico
+    try {
+      const savedComments = localStorage.getItem(`project_comments_${project._id}`);
+      if (savedComments) {
+        const parsedComments = JSON.parse(savedComments);
+        // Garantir que apenas os comentários deste projeto sejam carregados
+        const projectComments = parsedComments.filter(comment => 
+          comment.projectId === project._id || !comment.projectId
+        );
+        
+        console.log(`Carregados ${projectComments.length} comentários para o projeto ${project._id}`);
+        setComments(projectComments);
+      } else {
+        console.log(`Nenhum comentário encontrado para o projeto ${project._id}`);
+        setComments([]);
       }
+    } catch (error) {
+      console.error("Erro ao carregar comentários:", error);
+      setComments([]);
     }
 
-    // Set milestones from project data
+    // Definir milestones do projeto
     setMilestones(project.milestones || []);
   }, [project]);
 
-  // Save files to localStorage when they change
+  /**
+   * Salvar arquivos no localStorage quando eles mudam
+   * Uso de projectId para garantir o isolamento entre projetos
+   */
   useEffect(() => {
     if (!project || !project._id) return;
     
     if (files.length > 0) {
-      localStorage.setItem(`project_${project._id}_files`, JSON.stringify(files));
+      // Garantir que todos os arquivos tenham projectId definido
+      const filesWithProjectId = files.map(file => ({
+        ...file,
+        projectId: file.projectId || project._id
+      }));
+      
+      localStorage.setItem(`project_files_${project._id}`, JSON.stringify(filesWithProjectId));
+      console.log(`Salvos ${filesWithProjectId.length} arquivos para o projeto ${project._id}`);
     }
   }, [files, project]);
 
-  // Save comments to localStorage when they change
+  /**
+   * Salvar comentários no localStorage quando eles mudam
+   * Uso de projectId para garantir o isolamento entre projetos
+   */
   useEffect(() => {
     if (!project || !project._id) return;
     
     if (comments.length > 0) {
-      localStorage.setItem(`project_${project._id}_comments`, JSON.stringify(comments));
+      // Garantir que todos os comentários tenham projectId definido
+      const commentsWithProjectId = comments.map(comment => ({
+        ...comment,
+        projectId: comment.projectId || project._id
+      }));
+      
+      localStorage.setItem(`project_comments_${project._id}`, JSON.stringify(commentsWithProjectId));
+      console.log(`Salvos ${commentsWithProjectId.length} comentários para o projeto ${project._id}`);
     }
   }, [comments, project]);
 
-  // File upload handler
+  /**
+   * Manipulador de upload de arquivo melhorado
+   * Adiciona projectId aos arquivos para garantir o isolamento
+   */
   const handleFileUpload = async (event) => {
+    if (!project || !project._id) {
+      showErrorMessage('Erro: Projeto não encontrado.');
+      return;
+    }
+    
     setLoading(true);
     setIsUploading(true);
+    
     try {
       const uploadedFiles = Array.from(event.target.files);
       if (uploadedFiles.length === 0) {
@@ -106,26 +164,41 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout }) => {
               type: file.type,
               uploadedAt: new Date().toISOString(),
               content: e.target.result,
-              projectId: project._id
+              projectId: project._id // Importante: associar o arquivo ao projeto
             };
             resolve(fileData);
+          };
+          
+          reader.onerror = () => {
+            processedFiles++;
+            setUploadProgress(Math.round((processedFiles / totalFiles) * 100));
+            console.error(`Erro ao ler o arquivo: ${file.name}`);
+            resolve(null);
           };
           
           reader.readAsDataURL(file);
         });
       }));
 
-      setFiles(prevFiles => [...prevFiles, ...newFiles]);
-      setActiveTab('files');
-      showSuccessMessage(`${newFiles.length} fájl sikeresen feltöltve!`);
+      // Filtrar arquivos nulos (erros de leitura)
+      const validFiles = newFiles.filter(file => file !== null);
       
-      // Simulate a slight delay to show 100% before hiding the progress bar
+      if (validFiles.length > 0) {
+        console.log(`Adicionando ${validFiles.length} arquivos ao projeto ${project._id}`);
+        setFiles(prevFiles => [...prevFiles, ...validFiles]);
+        setActiveTab('files');
+        showSuccessMessage(`${validFiles.length} arquivo(s) carregado(s) com sucesso!`);
+      } else {
+        showErrorMessage('Nenhum arquivo válido foi carregado.');
+      }
+      
+      // Atraso para mostrar 100% antes de esconder a barra de progresso
       setTimeout(() => {
         setIsUploading(false);
       }, 500);
     } catch (error) {
-      console.error('Hiba a fájl feltöltésekor:', error);
-      showErrorMessage('Hiba történt a fájl feltöltése során');
+      console.error('Erro ao carregar arquivo:', error);
+      showErrorMessage('Erro ao processar os arquivos.');
       setIsUploading(false);
     } finally {
       setLoading(false);
@@ -135,46 +208,63 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout }) => {
     }
   };
 
-  // File preview handler
+  /**
+   * Visualização prévia de arquivo
+   */
   const handleFilePreview = (file) => {
     setPreviewFile(file);
     setIsPreviewModalOpen(true);
   };
 
-  // File deletion handler
+  /**
+   * Excluir arquivo com confirmação
+   * Mantém apenas os arquivos que pertencem ao projeto atual
+   */
   const handleDeleteFile = (fileId) => {
-    if (window.confirm('Biztosan törölni szeretné ezt a fájlt?')) {
+    if (window.confirm('Tem certeza que deseja excluir este arquivo?')) {
       setFiles(prevFiles => prevFiles.filter(file => file.id !== fileId));
-      showSuccessMessage('Fájl sikeresen törölve');
+      showSuccessMessage('Arquivo excluído com sucesso');
     }
   };
 
-  // Comment addition handler
+  /**
+   * Adicionar comentário com projectId para isolamento
+   */
   const handleAddComment = () => {
+    if (!project || !project._id) {
+      showErrorMessage('Erro: Projeto não encontrado.');
+      return;
+    }
+    
     if (!newComment.trim()) return;
     
     const comment = {
       id: Date.now(),
       text: newComment,
-      author: 'Ügyfél',
+      author: 'Cliente',
       timestamp: new Date().toISOString(),
-      projectId: project._id
+      projectId: project._id // Importante: associar o comentário ao projeto
     };
     
+    console.log(`Adicionando comentário ao projeto ${project._id}`);
     setComments(prevComments => [comment, ...prevComments]);
     setNewComment('');
-    showSuccessMessage('Hozzászólás sikeresen hozzáadva');
+    showSuccessMessage('Comentário adicionado com sucesso');
   };
 
-  // Comment deletion handler
+  /**
+   * Excluir comentário com confirmação
+   */
   const handleDeleteComment = (commentId) => {
-    if (window.confirm('Biztosan törölni szeretné ezt a hozzászólást?')) {
+    if (window.confirm('Tem certeza que deseja excluir este comentário?')) {
       setComments(prevComments => prevComments.filter(comment => comment.id !== commentId));
-      showSuccessMessage('Hozzászólás sikeresen törölve');
+      showSuccessMessage('Comentário excluído com sucesso');
     }
   };
 
-  // SEPA QR code generation
+  /**
+   * Gerar QR code para SEPA
+   */
   const generateSepaQrData = (invoice) => {
     const amount = typeof invoice.totalAmount === 'number' 
       ? invoice.totalAmount.toFixed(2) 
@@ -195,12 +285,16 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout }) => {
     ].join('\n');
   };
 
-  // View invoice in A4 format
+  /**
+   * Ver fatura em formato A4
+   */
   const handleViewInvoice = (invoice) => {
     setViewingInvoice(invoice);
   };
 
-  // Formatting functions
+  /**
+   * Funções de formatação
+   */
   const formatFileSize = (bytes) => {
     if (bytes < 1024) return bytes + ' B';
     else if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
@@ -222,7 +316,9 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout }) => {
     return new Date(dateString).toLocaleDateString('hu-HU');
   };
 
-  // Success and error message handling
+  /**
+   * Mensagens de sucesso e erro
+   */
   const showSuccessMessage = (message) => {
     setSuccessMessage(message);
     setTimeout(() => {
@@ -237,9 +333,12 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout }) => {
     }, 3000);
   };
 
-  // Filter and sort files
-  const sortedFiles = [...files]
-    .filter(file => file.projectId === project._id)
+  /**
+   * Filtrar e ordenar arquivos do projeto atual
+   */
+  const projectFiles = files.filter(file => file.projectId === project._id || !file.projectId);
+  
+  const sortedFiles = [...projectFiles]
     .filter(file => {
       const matchesSearch = searchTerm ? 
         file.name.toLowerCase().includes(searchTerm.toLowerCase()) : true;
@@ -266,10 +365,16 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout }) => {
       return 0;
     });
 
-  // Project-specific comments
-  const projectComments = comments.filter(comment => comment.projectId === project._id);
+  /**
+   * Comentários do projeto atual
+   */
+  const projectComments = comments.filter(comment => 
+    comment.projectId === project._id || !comment.projectId
+  );
 
-  // Calculate statistics
+  /**
+   * Calcular estatísticas
+   */
   const stats = {
     totalInvoices: project.invoices?.length || 0,
     paidInvoices: project.invoices?.filter(inv => inv.status === 'fizetett').length || 0,
@@ -290,7 +395,9 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout }) => {
 
   const COLORS = ['#10B981', '#F59E0B'];
 
-  // Drag and drop file upload
+  /**
+   * Drag and drop para upload de arquivos
+   */
   useEffect(() => {
     if (activeTab !== 'files') return;
     
@@ -331,13 +438,28 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout }) => {
       dropArea.removeEventListener('dragleave', handleDragLeave);
       dropArea.removeEventListener('drop', handleDrop);
     };
-  }, [activeTab]);
+  }, [activeTab, project]);
 
-  if (!project) return null;
+  // Verificação de segurança
+  if (!project) return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="text-center p-6 bg-white rounded-lg shadow-md">
+        <AlertTriangle className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
+        <h2 className="text-xl font-bold mb-2">Projeto não encontrado</h2>
+        <p className="text-gray-600 mb-4">Não foi possível carregar os dados do projeto.</p>
+        <button 
+          onClick={() => window.location.reload()}
+          className="px-4 py-2 bg-indigo-600 text-white rounded-md"
+        >
+          Atualizar página
+        </button>
+      </div>
+    </div>
+  );
 
   return (
     <div className="bg-gray-50 min-h-screen">
-      {/* Top Header with Project Info and Logout */}
+      {/* Cabeçalho superior com informações do projeto e botão de saída */}
       <div className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-between items-center">
@@ -379,7 +501,7 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout }) => {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {/* Notification Messages */}
+        {/* Mensagens de notificação */}
         {successMessage && (
           <div className="mb-6 p-3 bg-green-100 border border-green-400 text-green-700 rounded-md flex items-center shadow-sm">
             <Check className="h-5 w-5 mr-2" />
@@ -394,7 +516,7 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout }) => {
           </div>
         )}
 
-        {/* Navigation Tabs */}
+        {/* Abas de navegação */}
         <div className="bg-white rounded-lg shadow mb-6">
           <div className="border-b border-gray-200">
             <nav className="-mb-px flex space-x-8 px-6">
@@ -469,7 +591,7 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout }) => {
           </div>
         </div>
 
-        {/* Upload File Button (Always Visible) */}
+        {/* Botão de Upload de Arquivo (Sempre Visível) */}
         {(activeTab === 'files' || activeTab === 'overview') && (
           <div className="mb-6 flex justify-end">
             <button
@@ -499,10 +621,10 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout }) => {
           </div>
         )}
 
-        {/* Overview Content */}
+        {/* Conteúdo da guia Visão Geral */}
         {activeTab === 'overview' && (
           <div className="space-y-6">
-            {/* Statisztikai kártyák */}
+            {/* Cartões estatísticos */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow">
                 <div className="flex justify-between items-center">
@@ -553,9 +675,9 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout }) => {
               </div>
             </div>
 
-            {/* Projekt Tevékenység & Státusz */}
+            {/* Gráficos e Atividades Recentes */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Grafikon */}
+              {/* Gráfico */}
               <div className="bg-white p-6 rounded-lg shadow">
                 <h3 className="text-lg font-medium mb-4">Számlák Állapota</h3>
                 <div className="h-64">
@@ -582,11 +704,11 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout }) => {
                 </div>
               </div>
 
-              {/* Legutóbbi tevékenységek */}
+              {/* Atividades Recentes */}
               <div className="bg-white p-6 rounded-lg shadow">
                 <h3 className="text-lg font-medium mb-4">Legutóbbi tevékenységek</h3>
                 <div className="space-y-3">
-                  {/* Combine and sort all activities */}
+                  {/* Combinar e ordenar todas as atividades */}
                   {[
                     ...sortedFiles.map(file => ({
                       type: 'file',
@@ -654,79 +776,10 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout }) => {
                 </div>
               </div>
             </div>
-            
-            {/* Projekt információk */}
-            <div className="bg-white p-6 rounded-lg shadow">
-              <h3 className="text-lg font-medium mb-4">Projekt információk</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <h4 className="font-medium text-gray-700 mb-2">Projekt adatok</h4>
-                  <div className="space-y-2">
-                    <div className="flex justify-between border-b border-gray-200 pb-2">
-                      <span className="text-gray-600">Projekt neve:</span>
-                      <span className="font-medium">{project.name}</span>
-                    </div>
-                    <div className="flex justify-between border-b border-gray-200 pb-2">
-                      <span className="text-gray-600">Státusz:</span>
-                      <span className="font-medium">{project.status}</span>
-                    </div>
-                    <div className="flex justify-between border-b border-gray-200 pb-2">
-                      <span className="text-gray-600">Prioritás:</span>
-                      <span className="font-medium">{project.priority || 'Normál'}</span>
-                    </div>
-                    {project.startDate && (
-                      <div className="flex justify-between border-b border-gray-200 pb-2">
-                        <span className="text-gray-600">Kezdés dátuma:</span>
-                        <span className="font-medium">{formatShortDate(project.startDate)}</span>
-                      </div>
-                    )}
-                    {project.expectedEndDate && (
-                      <div className="flex justify-between border-b border-gray-200 pb-2">
-                        <span className="text-gray-600">Várható befejezés:</span>
-                        <span className="font-medium">{formatShortDate(project.expectedEndDate)}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div>
-                  <h4 className="font-medium text-gray-700 mb-2">Ügyfél adatok</h4>
-                  <div className="space-y-2">
-                    <div className="flex justify-between border-b border-gray-200 pb-2">
-                      <span className="text-gray-600">Név:</span>
-                      <span className="font-medium">{project.client?.name || 'N/A'}</span>
-                    </div>
-                    <div className="flex justify-between border-b border-gray-200 pb-2">
-                      <span className="text-gray-600">Email:</span>
-                      <span className="font-medium">{project.client?.email || 'N/A'}</span>
-                    </div>
-                    {project.client?.phone && (
-                      <div className="flex justify-between border-b border-gray-200 pb-2">
-                        <span className="text-gray-600">Telefon:</span>
-                        <span className="font-medium">{project.client.phone}</span>
-                      </div>
-                    )}
-                    {project.client?.companyName && (
-                      <div className="flex justify-between border-b border-gray-200 pb-2">
-                        <span className="text-gray-600">Cég:</span>
-                        <span className="font-medium">{project.client.companyName}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-              {project.description && (
-                <div className="mt-6">
-                  <h4 className="font-medium text-gray-700 mb-2">Projekt leírás</h4>
-                  <div className="bg-gray-50 p-4 rounded-md">
-                    <p className="text-gray-700 whitespace-pre-wrap">{project.description}</p>
-                  </div>
-                </div>
-              )}
-            </div>
           </div>
         )}
 
-        {/* Invoices Content */}
+        {/* Conteúdo da guia Faturas */}
         {activeTab === 'invoices' && (
           <div className="bg-white rounded-lg shadow">
             <div className="px-6 py-4 border-b border-gray-200">
@@ -735,7 +788,7 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout }) => {
             <div className="divide-y divide-gray-200">
               {project.invoices?.length > 0 ? (
                 project.invoices.map((invoice) => (
-                  <div key={invoice._id} className="p-6">
+                  <div key={invoice._id || invoice.number} className="p-6">
                     <div className="flex justify-between items-start mb-4">
                       <div>
                         <h3 className="text-lg font-medium">{invoice.number}</h3>
@@ -760,7 +813,7 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout }) => {
                       </div>
                     </div>
 
-                    {/* Actions Buttons */}
+                    {/* Botões de Ação */}
                     <div className="flex justify-end space-x-3 my-3">
                       <button
                         onClick={() => handleViewInvoice(invoice)}
@@ -778,7 +831,7 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout }) => {
                       </button>
                     </div>
 
-                    {/* SEPA QR code and payment details */}
+                    {/* Código QR SEPA e detalhes de pagamento */}
                     {invoice.status !== 'fizetett' && (
                       <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -805,7 +858,7 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout }) => {
                       </div>
                     )}
 
-                    {/* Invoice Items */}
+                    {/* Itens da Fatura */}
                     <div className="mt-4">
                       <h4 className="font-medium mb-2">Tételek</h4>
                       <div className="overflow-x-auto">
@@ -848,7 +901,7 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout }) => {
           </div>
         )}
         
-        {/* Files Content */}
+        {/* Conteúdo da guia Arquivos */}
         {activeTab === 'files' && (
           <div className="bg-white rounded-lg shadow">
             <div className="px-6 py-4 border-b border-gray-200">
@@ -871,7 +924,7 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout }) => {
               </div>
             </div>
             
-            {/* Upload progress */}
+            {/* Progresso de upload */}
             {isUploading && (
               <div className="px-6 py-4 bg-blue-50 border-b border-blue-100">
                 <div className="flex items-center">
@@ -894,7 +947,7 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout }) => {
               </div>
             )}
             
-            {/* File filters and sorting */}
+            {/* Filtros e ordenação de arquivos */}
             <div className="px-6 py-3 bg-gray-50 border-b flex flex-wrap items-center justify-between">
               <div className="flex items-center space-x-2 mb-2 sm:mb-0">
                 <span className="text-sm text-gray-600 flex items-center">
@@ -951,7 +1004,7 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout }) => {
               </div>
             </div>
             
-            {/* File list or drop area */}
+            {/* Lista de arquivos ou área de soltar */}
             <div 
               id="file-drop-area" 
               className={`divide-y divide-gray-200 ${
@@ -1070,14 +1123,14 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout }) => {
           </div>
         )}
 
-        {/* Comments Content */}
+        {/* Conteúdo da guia Comentários */}
         {activeTab === 'comments' && (
           <div className="bg-white rounded-lg shadow">
             <div className="px-6 py-4 border-b border-gray-200">
               <h2 className="text-lg font-medium">Hozzászólások</h2>
             </div>
             
-            {/* Add Comment Form */}
+            {/* Formulário de Adição de Comentários */}
             <div className="p-6 border-b border-gray-200">
               <form onSubmit={(e) => {
                 e.preventDefault();
@@ -1110,7 +1163,7 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout }) => {
               </form>
             </div>
             
-            {/* Comments List */}
+            {/* Lista de Comentários */}
             <div className="divide-y divide-gray-200">
               {projectComments.length > 0 ? (
                 projectComments.map((comment) => (
@@ -1155,7 +1208,7 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout }) => {
           </div>
         )}
 
-        {/* File Preview Modal */}
+        {/* Modal de Visualização de Arquivos */}
         {isPreviewModalOpen && previewFile && (
           <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] flex flex-col">
@@ -1227,7 +1280,7 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout }) => {
           </div>
         )}
 
-        {/* Invoice View Modal */}
+        {/* Modal de Visualização de Fatura */}
         {viewingInvoice && (
           <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] flex flex-col">
@@ -1246,7 +1299,7 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout }) => {
               
               <div className="p-6 flex-1 overflow-auto">
                 <div className="w-full max-w-2xl mx-auto bg-white p-8 border border-gray-200 rounded-lg shadow-sm">
-                  {/* Invoice Header */}
+                  {/* Cabeçalho da Fatura */}
                   <div className="flex justify-between items-start mb-8">
                     <div>
                       <h2 className="text-2xl font-bold">SZÁMLA</h2>
@@ -1258,7 +1311,7 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout }) => {
                     </div>
                   </div>
                   
-                  {/* Company Information */}
+                  {/* Informações da Empresa */}
                   <div className="grid grid-cols-2 gap-8 mb-8">
                     <div>
                       <h3 className="font-bold mb-2 text-gray-700">Szolgáltató:</h3>
@@ -1282,7 +1335,7 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout }) => {
                     </div>
                   </div>
                   
-                  {/* Items Table */}
+                  {/* Tabela de Itens */}
                   <div className="mb-8">
                     <h3 className="font-bold mb-2 text-gray-700">Tételek:</h3>
                     <table className="min-w-full border border-gray-200">
@@ -1313,7 +1366,7 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout }) => {
                     </table>
                   </div>
                   
-                  {/* Payment Information */}
+                  {/* Informações de Pagamento */}
                   <div className="mb-8">
                     <h3 className="font-bold mb-2 text-gray-700">Fizetési információk:</h3>
                     <div className="bg-gray-50 p-3 border border-gray-200 rounded">
@@ -1324,7 +1377,7 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout }) => {
                     </div>
                   </div>
                   
-                  {/* Footer */}
+                  {/* Rodapé */}
                   <div className="text-center text-gray-600 text-sm mt-12">
                     <p>Köszönjük, hogy minket választott!</p>
                     <p className="mt-1">Ez a számla elektronikusan készült és érvényes aláírás nélkül is.</p>

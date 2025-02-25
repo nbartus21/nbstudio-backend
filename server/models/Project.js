@@ -95,6 +95,22 @@ const projectSchema = new mongoose.Schema({
       default: 'általános'
     }
   }],
+//fajlok feltoltese
+files: [{
+  name: String,
+  size: Number,
+  type: String,
+  uploadedAt: { type: Date, default: Date.now },
+  content: String, // Base64 ou URL
+  uploadedBy: String
+}],
+
+// Comentários
+comments: [{
+  text: String,
+  author: String,
+  timestamp: { type: Date, default: Date.now }
+}],
   // Időbélyegek
   startDate: { type: Date, default: Date.now },
   expectedEndDate: Date,
@@ -125,5 +141,7 @@ projectSchema.pre('save', function(next) {
   this.updatedAt = new Date();
   next();
 });
+
+
 
 export default mongoose.model('Project', projectSchema);

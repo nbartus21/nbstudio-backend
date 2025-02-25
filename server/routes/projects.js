@@ -343,5 +343,76 @@ router.get('/projects/:id/share', async (req, res) => {
   }
 });
 
+// Adicionar arquivo ao projeto
+router.post('/projects/:id/files', async (req, res) => {
+  try {
+    const project = await Project.findById(req.params.id);
+    if (!project) {
+      return res.status(404).json({ message: 'Projeto não encontrado' });
+    }
+    
+    const fileData = req.body;
+    if (!project.files) {
+      project.files = [];
+    }
+    
+    project.files.push(fileData);
+    await project.save();
+    
+    res.status(201).json(project);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Obter arquivos do projeto
+router.get('/projects/:id/files', async (req, res) => {
+  try {
+    const project = await Project.findById(req.params.id);
+    if (!project) {
+      return res.status(404).json({ message: 'Projeto não encontrado' });
+    }
+    
+    res.json(project.files || []);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Adicionar comentário
+router.post('/projects/:id/comments', async (req, res) => {
+  try {
+    const project = await Project.findById(req.params.id);
+    if (!project) {
+      return res.status(404).json({ message: 'Projeto não encontrado' });
+    }
+    
+    const commentData = req.body;
+    if (!project.comments) {
+      project.comments = [];
+    }
+    
+    project.comments.push(commentData);
+    await project.save();
+    
+    res.status(201).json(project);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Obter comentários do projeto
+router.get('/projects/:id/comments', async (req, res) => {
+  try {
+    const project = await Project.findById(req.params.id);
+    if (!project) {
+      return res.status(404).json({ message: 'Projeto não encontrado' });
+    }
+    
+    res.json(project.comments || []);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
 
 export default router;

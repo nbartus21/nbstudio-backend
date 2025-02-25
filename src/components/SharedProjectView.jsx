@@ -1,10 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import SharedProjectDashboard from './SharedProjectDashboard';
 import { Lock, AlertTriangle } from 'lucide-react';
 
-// Mock functions to handle routing since we can't import react-router-dom
+// Helper functions to simulate routing
 const useParams = () => {
-  // Get token from URL
   const url = window.location.href;
   const tokenMatch = url.match(/\/shared-project\/([^\/]+)/);
   return { token: tokenMatch ? tokenMatch[1] : '' };
@@ -17,6 +16,7 @@ const useNavigate = () => {
 };
 
 const API_URL = 'https://admin.nb-studio.net:5001/api';
+const API_KEY = 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0';
 
 const SharedProjectView = () => {
   const { token } = useParams();
@@ -26,6 +26,41 @@ const SharedProjectView = () => {
   const [isVerified, setIsVerified] = useState(false);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+
+  // Check for existing session on component mount
+  useEffect(() => {
+    const checkExistingSession = () => {
+      if (!token) return;
+
+      try {
+        const savedSession = localStorage.getItem(`project_session_${token}`);
+        
+        if (savedSession) {
+          const session = JSON.parse(savedSession);
+          
+          // Verificar se a sessão não expirou (24 horas)
+          const sessionTime = new Date(session.timestamp).getTime();
+          const currentTime = new Date().getTime();
+          const sessionAge = currentTime - sessionTime;
+          const maxAge = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+          
+          if (sessionAge < maxAge) {
+            console.log('Restoring session for project', session.project.name);
+            setProject(session.project);
+            setIsVerified(true);
+          } else {
+            console.log('Session expired, removing');
+            localStorage.removeItem(`project_session_${token}`);
+          }
+        }
+      } catch (error) {
+        console.error('Error checking session:', error);
+        localStorage.removeItem(`project_session_${token}`);
+      }
+    };
+
+    checkExistingSession();
+  }, [token]);
 
   // Handle PIN verification
   const verifyPin = async (e) => {
@@ -38,7 +73,7 @@ const SharedProjectView = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-API-Key': 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0'
+          'X-API-Key': API_KEY
         },
         body: JSON.stringify({ token, pin })
       });
@@ -46,9 +81,24 @@ const SharedProjectView = () => {
       const data = await response.json();
       
       if (response.ok) {
+        // Add an _id field if it doesn't exist (for compatibility)
+        if (!data.project._id && data.project.id) {
+          data.project._id = data.project.id;
+        }
+        
+        // Save project data
         setProject(data.project);
         setIsVerified(true);
         setError(null);
+        
+        // Save session to localStorage
+        const session = {
+          project: data.project,
+          timestamp: new Date().toISOString()
+        };
+        localStorage.setItem(`project_session_${token}`, JSON.stringify(session));
+        
+        console.log('Session saved for project', data.project.name);
       } else {
         setError(data.message || 'Érvénytelen PIN kód');
       }
@@ -67,13 +117,20 @@ const SharedProjectView = () => {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'X-API-Key': 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0'
+          'X-API-Key': API_KEY
         },
         body: JSON.stringify(updatedProject)
       });
 
       if (response.ok) {
         setProject(updatedProject);
+        
+        // Update session in localStorage
+        const session = {
+          project: updatedProject,
+          timestamp: new Date().toISOString()
+        };
+        localStorage.setItem(`project_session_${token}`, JSON.stringify(session));
       } else {
         console.error('Nem sikerült frissíteni a projektet');
       }
@@ -85,6 +142,9 @@ const SharedProjectView = () => {
   // Handle logout
   const handleLogout = () => {
     if (window.confirm('Biztosan ki szeretne lépni?')) {
+      // Remove session but keep project-specific files and comments
+      localStorage.removeItem(`project_session_${token}`);
+      
       setIsVerified(false);
       setProject(null);
       setPin('');
