@@ -7,6 +7,7 @@ import BlogCreator from './BlogCreator';
 import ContactAdmin from './ContactAdmin';
 import CalculatorAdmin from './CalculatorAdmin';
 import Login from './Login';
+import MagicLogin from './MagicLogin';  // Új Magic Link komponens importálása
 import ProjectManager from './ProjectManager';
 import DomainManager from './domain/DomainManager';
 import InfrastructureManager from './InfrastructureManager';
@@ -34,11 +35,13 @@ const App = () => {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/magic-login" element={<MagicLogin />} />  {/* Új Magic Login route */}
+      
       <Route
         path="/"
         element={
           <PrivateRoute>
-            <Dashboard />
+            <BlogAdmin />
           </PrivateRoute>
         }
       />

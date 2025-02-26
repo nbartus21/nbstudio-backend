@@ -15,43 +15,15 @@ const Login = () => {
   const [authInProgress, setAuthInProgress] = useState(true);
 
   useEffect(() => {
-    // Ellenőrizzük, hogy van-e aktív session vagy mentett bejelentkezés
-    const checkAuth = async () => {
-      try {
-        const savedEmail = localStorage.getItem('nb_email');
-        const token = sessionStorage.getItem('token') || localStorage.getItem('nb_token');
-        
-        if (savedEmail) {
-          setFormData(prev => ({ ...prev, email: savedEmail, rememberMe: true }));
-        }
-        
-        if (token) {
-          // Validáljuk a tokent a szerveren
-          const response = await fetch('https://admin.nb-studio.net:5001/api/auth/validate', {
-            method: 'GET',
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
-          });
-          
-          if (response.ok) {
-            sessionStorage.setItem('isAuthenticated', 'true');
-            navigate('/blog');
-            return;
-          } else {
-            // Ha a token érvénytelen, töröljük
-            sessionStorage.removeItem('token');
-            localStorage.removeItem('nb_token');
-          }
-        }
-        setAuthInProgress(false);
-      } catch (error) {
-        console.error('Auth check error:', error);
-        setAuthInProgress(false);
-      }
-    };
+    // Ellenőrizzük, hogy van-e már aktív session
+    const isAuth = sessionStorage.getItem('isAuthenticated');
+    const token = sessionStorage.getItem('token');
     
-    checkAuth();
+    if (isAuth && token) {
+      navigate('/blog');
+    } else {
+      setAuthInProgress(false);
+    }
   }, [navigate]);
 
   const handleInputChange = (e) => {
@@ -93,9 +65,6 @@ const Login = () => {
       if (formData.rememberMe) {
         localStorage.setItem('nb_email', formData.email);
         localStorage.setItem('nb_token', data.token);
-      } else {
-        localStorage.removeItem('nb_email');
-        localStorage.removeItem('nb_token');
       }
       
       navigate('/blog');
@@ -105,6 +74,11 @@ const Login = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Magic login oldalra navigálás
+  const goToMagicLogin = () => {
+    navigate('/magic-login');
   };
 
   // Ha az auth ellenőrzés még folyamatban van, mutassunk egy loadert
@@ -209,9 +183,13 @@ const Login = () => {
             </div>
 
             <div className="text-sm">
-              <a href="#" className="font-medium text-indigo-600 hover:text-indigo-500">
-                Elfelejtett jelszó?
-              </a>
+              <button 
+                type="button"
+                onClick={goToMagicLogin}
+                className="font-medium text-indigo-600 hover:text-indigo-500 focus:outline-none"
+              >
+                Bejelentkezés link küldése
+              </button>
             </div>
           </div>
 
