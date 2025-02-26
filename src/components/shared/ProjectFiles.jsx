@@ -4,7 +4,7 @@ import {
 } from 'lucide-react';
 import { formatFileSize, formatShortDate, debugLog, saveToLocalStorage, getProjectId } from './utils';
 
-const ProjectFiles = ({ project, files, setFiles, onShowFilePreview, showSuccessMessage, showErrorMessage }) => {
+const ProjectFiles = ({ project, files, setFiles, onShowFilePreview, showSuccessMessage, showErrorMessage, isAdmin = false }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [fileFilter, setFileFilter] = useState('all');
   const [sortBy, setSortBy] = useState('date-desc');
@@ -18,7 +18,8 @@ const ProjectFiles = ({ project, files, setFiles, onShowFilePreview, showSuccess
   useEffect(() => {
     debugLog('ProjectFiles-mount', {
       projectId: projectId,
-      filesCount: files?.length || 0
+      filesCount: files?.length || 0,
+      isAdmin: isAdmin
     });
   }, []);
 
@@ -118,7 +119,8 @@ const ProjectFiles = ({ project, files, setFiles, onShowFilePreview, showSuccess
               type: file.type,
               uploadedAt: new Date().toISOString(),
               content: e.target.result,
-              projectId: projectId
+              projectId: projectId,
+              uploadedBy: isAdmin ? 'Admin' : 'Ügyfél' // Itt jelöljük, hogy ki töltötte fel
             };
             resolve(fileData);
           };
@@ -146,7 +148,12 @@ const ProjectFiles = ({ project, files, setFiles, onShowFilePreview, showSuccess
       const saved = saveToLocalStorage(project, 'files', updatedFiles);
       debugLog('handleFileUpload', 'Saved to localStorage:', saved);
       
-      showSuccessMessage(`${validFiles.length} fájl sikeresen feltöltve!`);
+      // Ha admin töltötte fel, akkor speciális üzenet
+      if (isAdmin) {
+        showSuccessMessage(`Admin: ${validFiles.length} fájl sikeresen feltöltve!`);
+      } else {
+        showSuccessMessage(`${validFiles.length} fájl sikeresen feltöltve!`);
+      }
       
       // Simulate a slight delay to show 100% before hiding the progress bar
       setTimeout(() => {
@@ -205,6 +212,10 @@ const ProjectFiles = ({ project, files, setFiles, onShowFilePreview, showSuccess
         matchesType = !file.type?.startsWith('image/');
       } else if (fileFilter === 'images') {
         matchesType = file.type?.startsWith('image/');
+      } else if (fileFilter === 'admin') {
+        matchesType = file.uploadedBy === 'Admin';
+      } else if (fileFilter === 'client') {
+        matchesType = file.uploadedBy === 'Ügyfél';
       }
       
       return matchesSearch && matchesType;
@@ -304,6 +315,32 @@ const ProjectFiles = ({ project, files, setFiles, onShowFilePreview, showSuccess
           >
             Képek
           </button>
+          {/* Admin filter option - csak ha vannak admin által feltöltött fájlok */}
+          {files.some(file => file.uploadedBy === 'Admin') && (
+            <button
+              onClick={() => setFileFilter('admin')}
+              className={`px-3 py-1 text-sm rounded ${
+                fileFilter === 'admin' 
+                  ? 'bg-purple-100 text-purple-700 font-medium border border-purple-200' 
+                  : 'text-gray-600 hover:bg-gray-100 border border-transparent'
+              }`}
+            >
+              Admin fájlok
+            </button>
+          )}
+          {/* Ügyfél filter option - csak ha vannak ügyfél által feltöltött fájlok */}
+          {files.some(file => file.uploadedBy === 'Ügyfél') && (
+            <button
+              onClick={() => setFileFilter('client')}
+              className={`px-3 py-1 text-sm rounded ${
+                fileFilter === 'client' 
+                  ? 'bg-green-100 text-green-700 font-medium border border-green-200' 
+                  : 'text-gray-600 hover:bg-gray-100 border border-transparent'
+              }`}
+            >
+              Ügyfél fájlok
+            </button>
+          )}
         </div>
         
         <div className="flex items-center">
@@ -339,6 +376,7 @@ const ProjectFiles = ({ project, files, setFiles, onShowFilePreview, showSuccess
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fájl neve</th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Feltöltve</th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Méret</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Feltöltő</th>
                   <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Műveletek</th>
                 </tr>
               </thead>
@@ -369,6 +407,11 @@ const ProjectFiles = ({ project, files, setFiles, onShowFilePreview, showSuccess
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-500">{formatFileSize(file.size)}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className={`text-sm font-medium ${file.uploadedBy === 'Admin' ? 'text-purple-600' : 'text-green-600'}`}>
+                        {file.uploadedBy || 'Ügyfél'}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex justify-end space-x-2">
