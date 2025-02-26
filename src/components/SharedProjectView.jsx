@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import SharedProjectDashboard from './SharedProjectDashboard';
+import SharedProjectDashboard from './shared/SharedProjectDashboard';
 import { Lock, AlertTriangle } from 'lucide-react';
+import { debugLog } from './shared/utils';
 
 // Helper functions to simulate routing
 const useParams = () => {
@@ -27,16 +28,26 @@ const SharedProjectView = () => {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
 
+  // Log component initialization
+  useEffect(() => {
+    debugLog('SharedProjectView', 'Component initialized', { token });
+  }, []);
+
   // Check for existing session on component mount
   useEffect(() => {
     const checkExistingSession = () => {
-      if (!token) return;
+      if (!token) {
+        debugLog('checkExistingSession', 'No token provided');
+        return;
+      }
 
       try {
+        debugLog('checkExistingSession', 'Checking for saved session', { token });
         const savedSession = localStorage.getItem(`project_session_${token}`);
         
         if (savedSession) {
           const session = JSON.parse(savedSession);
+          debugLog('checkExistingSession', 'Found saved session', { project: session.project?.name });
           
           // Verificar se a sessão não expirou (24 horas)
           const sessionTime = new Date(session.timestamp).getTime();
@@ -45,16 +56,28 @@ const SharedProjectView = () => {
           const maxAge = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
           
           if (sessionAge < maxAge) {
-            console.log('Restoring session for project', session.project.name);
-            setProject(session.project);
+            debugLog('checkExistingSession', 'Session is valid, restoring', { 
+              age: Math.round(sessionAge / (60 * 60 * 1000)) + ' hours' 
+            });
+            
+            // Ensure project has _id field for compatibility
+            const projectData = session.project;
+            if (!projectData._id && projectData.id) {
+              debugLog('checkExistingSession', 'Adding _id from id field');
+              projectData._id = projectData.id;
+            }
+            
+            setProject(projectData);
             setIsVerified(true);
           } else {
-            console.log('Session expired, removing');
+            debugLog('checkExistingSession', 'Session expired, removing');
             localStorage.removeItem(`project_session_${token}`);
           }
+        } else {
+          debugLog('checkExistingSession', 'No saved session found');
         }
       } catch (error) {
-        console.error('Error checking session:', error);
+        debugLog('checkExistingSession', 'Error checking session', { error });
         localStorage.removeItem(`project_session_${token}`);
       }
     };
@@ -68,6 +91,8 @@ const SharedProjectView = () => {
     setLoading(true);
     setError(null);
     
+    debugLog('verifyPin', 'Verifying PIN', { token, pinLength: pin.length });
+    
     try {
       const response = await fetch(`${API_URL}/public/projects/verify-pin`, {
         method: 'POST',
@@ -78,40 +103,53 @@ const SharedProjectView = () => {
         body: JSON.stringify({ token, pin })
       });
       
+      debugLog('verifyPin', 'API response status', { status: response.status });
+      
       const data = await response.json();
+      debugLog('verifyPin', 'API response data received');
       
       if (response.ok) {
+        const projectData = data.project;
+        
         // Add an _id field if it doesn't exist (for compatibility)
-        if (!data.project._id && data.project.id) {
-          data.project._id = data.project.id;
+        if (!projectData._id) {
+          debugLog('verifyPin', 'Project data needs normalization');
+          
+          if (projectData.id) {
+            debugLog('verifyPin', 'Using id as _id field');
+            projectData._id = projectData.id;
+          } else {
+            debugLog('verifyPin', 'Using token as temporary _id');
+            projectData._id = token;
+          }
         }
         
-        // Ensure files and comments arrays exist
-        if (!data.project.files) {
-          data.project.files = [];
-        }
+        // Debug log the project structure
+        debugLog('verifyPin', 'Project loaded successfully', { 
+          hasId: Boolean(projectData.id), 
+          has_Id: Boolean(projectData._id),
+          name: projectData.name
+        });
         
-        if (!data.project.comments) {
-          data.project.comments = [];
-        }
-        
-        // Save project data
-        setProject(data.project);
+        // Save project data to state
+        setProject(projectData);
         setIsVerified(true);
         setError(null);
         
         // Save session to localStorage
         const session = {
-          project: data.project,
+          project: projectData,
           timestamp: new Date().toISOString()
         };
         localStorage.setItem(`project_session_${token}`, JSON.stringify(session));
         
-        console.log('Session saved for project', data.project.name);
+        debugLog('verifyPin', 'Session saved');
       } else {
+        debugLog('verifyPin', 'PIN verification failed', { message: data.message });
         setError(data.message || 'Érvénytelen PIN kód');
       }
     } catch (error) {
+      debugLog('verifyPin', 'Error during verification', { error });
       console.error('Hiba történt:', error);
       setError('Hiba történt az ellenőrzés során');
     } finally {
@@ -122,28 +160,39 @@ const SharedProjectView = () => {
   // Handle project updates
   const handleProjectUpdate = async (updatedProject) => {
     try {
-      const response = await fetch(`${API_URL}/projects/${project._id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-API-Key': API_KEY
-        },
-        body: JSON.stringify(updatedProject)
-      });
+      debugLog('handleProjectUpdate', 'Updating project', { projectId: updatedProject._id });
+      
+      // Save locally even if API call fails
+      setProject(updatedProject);
+      
+      // Update session in localStorage
+      const session = {
+        project: updatedProject,
+        timestamp: new Date().toISOString()
+      };
+      localStorage.setItem(`project_session_${token}`, JSON.stringify(session));
+      
+      // Try to update project on server
+      try {
+        const response = await fetch(`${API_URL}/projects/${updatedProject._id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-API-Key': API_KEY
+          },
+          body: JSON.stringify(updatedProject)
+        });
 
-      if (response.ok) {
-        setProject(updatedProject);
-        
-        // Update session in localStorage
-        const session = {
-          project: updatedProject,
-          timestamp: new Date().toISOString()
-        };
-        localStorage.setItem(`project_session_${token}`, JSON.stringify(session));
-      } else {
-        console.error('Nem sikerült frissíteni a projektet');
+        if (response.ok) {
+          debugLog('handleProjectUpdate', 'Project updated on server successfully');
+        } else {
+          debugLog('handleProjectUpdate', 'Failed to update project on server', { status: response.status });
+        }
+      } catch (apiError) {
+        debugLog('handleProjectUpdate', 'API error when updating project', { error: apiError });
       }
     } catch (error) {
+      debugLog('handleProjectUpdate', 'Error updating project', { error });
       console.error('Hiba a projekt frissítésekor:', error);
     }
   };
@@ -151,13 +200,19 @@ const SharedProjectView = () => {
   // Handle logout
   const handleLogout = () => {
     if (window.confirm('Biztosan ki szeretne lépni?')) {
-      // Remove session from localStorage
+      debugLog('handleLogout', 'User confirmed logout');
+      
+      // Remove session but keep project-specific files and comments
       localStorage.removeItem(`project_session_${token}`);
       
       setIsVerified(false);
       setProject(null);
       setPin('');
       navigate(`/shared-project/${token}`);
+      
+      debugLog('handleLogout', 'Logout completed');
+    } else {
+      debugLog('handleLogout', 'Logout cancelled by user');
     }
   };
 

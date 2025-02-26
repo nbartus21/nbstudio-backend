@@ -1,5 +1,21 @@
 // Közös segédfüggvények
 
+// Biztonságos projektazonosító lekérdezés
+export const getProjectId = (project) => {
+  if (!project) return null;
+  
+  // Elsődlegesen az _id mezőt használjuk
+  if (project._id) return project._id;
+  
+  // Ha nincs _id, de van id, azt használjuk
+  if (project.id) return project.id;
+  
+  // Ha nincs azonosító, generáljunk egy egyedi ideiglenes azonosítót
+  const tempId = `temp_${Date.now()}`;
+  debugLog('getProjectId', 'Nincs projekt azonosító, ideiglenes generálva', { tempId });
+  return tempId;
+};
+
 // Méret formázás emberi olvasható formára
 export const formatFileSize = (bytes) => {
   if (bytes < 1024) return bytes + ' B';
@@ -59,8 +75,16 @@ export const debugLog = (prefix, ...args) => {
 };
 
 // Projekt adatok betöltése localStorage-ből
-export const loadFromLocalStorage = (projectId, key) => {
+export const loadFromLocalStorage = (project, key) => {
   try {
+    // Projekt azonosító biztonságos lekérdezése
+    const projectId = typeof project === 'object' ? getProjectId(project) : project;
+    
+    if (!projectId) {
+      debugLog('loadFromLocalStorage', 'Nincs érvényes projektazonosító');
+      return [];
+    }
+    
     debugLog('loadFromLocalStorage', `Betöltés: project_${projectId}_${key}`);
     const savedData = localStorage.getItem(`project_${projectId}_${key}`);
     if (savedData) {
@@ -75,8 +99,16 @@ export const loadFromLocalStorage = (projectId, key) => {
 };
 
 // Projekt adatok mentése localStorage-be
-export const saveToLocalStorage = (projectId, key, data) => {
+export const saveToLocalStorage = (project, key, data) => {
   try {
+    // Projekt azonosító biztonságos lekérdezése
+    const projectId = typeof project === 'object' ? getProjectId(project) : project;
+    
+    if (!projectId) {
+      debugLog('saveToLocalStorage', 'Nincs érvényes projektazonosító');
+      return false;
+    }
+    
     debugLog('saveToLocalStorage', `Mentés: project_${projectId}_${key}`, data);
     localStorage.setItem(`project_${projectId}_${key}`, JSON.stringify(data));
     debugLog('saveToLocalStorage', 'Sikeres mentés');

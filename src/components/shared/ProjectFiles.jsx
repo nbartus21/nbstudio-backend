@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   Upload, FileText, Search, Filter, ArrowDown, Trash2, Eye, Download, AlertCircle
 } from 'lucide-react';
-import { formatFileSize, formatShortDate, debugLog, saveToLocalStorage } from './utils';
+import { formatFileSize, formatShortDate, debugLog, saveToLocalStorage, getProjectId } from './utils';
 
 const ProjectFiles = ({ project, files, setFiles, onShowFilePreview, showSuccessMessage, showErrorMessage }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -12,10 +12,12 @@ const ProjectFiles = ({ project, files, setFiles, onShowFilePreview, showSuccess
   const [uploadProgress, setUploadProgress] = useState(0);
   const fileInputRef = useRef(null);
 
-  // Debug info
+  // Debug info at mount and get safe project ID
+  const projectId = getProjectId(project);
+  
   useEffect(() => {
     debugLog('ProjectFiles-mount', {
-      projectId: project?._id,
+      projectId: projectId,
       filesCount: files?.length || 0
     });
   }, []);
@@ -76,9 +78,9 @@ const ProjectFiles = ({ project, files, setFiles, onShowFilePreview, showSuccess
   const handleFileUpload = async (event) => {
     debugLog('handleFileUpload', 'Upload started');
     
-    if (!project || !project._id) {
+    if (!projectId) {
       debugLog('handleFileUpload', 'ERROR: No project ID');
-      showErrorMessage('Nincs érvényes projekt azonosító!');
+      showErrorMessage('Nincs érvényes projekt azonosító! Próbálja frissíteni az oldalt.');
       return;
     }
     
@@ -116,7 +118,7 @@ const ProjectFiles = ({ project, files, setFiles, onShowFilePreview, showSuccess
               type: file.type,
               uploadedAt: new Date().toISOString(),
               content: e.target.result,
-              projectId: project._id
+              projectId: projectId
             };
             resolve(fileData);
           };
@@ -141,7 +143,7 @@ const ProjectFiles = ({ project, files, setFiles, onShowFilePreview, showSuccess
       setFiles(updatedFiles);
       
       // Save to localStorage
-      const saved = saveToLocalStorage(project._id, 'files', updatedFiles);
+      const saved = saveToLocalStorage(project, 'files', updatedFiles);
       debugLog('handleFileUpload', 'Saved to localStorage:', saved);
       
       showSuccessMessage(`${validFiles.length} fájl sikeresen feltöltve!`);
@@ -181,7 +183,7 @@ const ProjectFiles = ({ project, files, setFiles, onShowFilePreview, showSuccess
       setFiles(updatedFiles);
       
       // Save to localStorage
-      saveToLocalStorage(project._id, 'files', updatedFiles);
+      saveToLocalStorage(project, 'files', updatedFiles);
       
       showSuccessMessage('Fájl sikeresen törölve');
       debugLog('handleDeleteFile', 'File deleted successfully');
@@ -193,7 +195,7 @@ const ProjectFiles = ({ project, files, setFiles, onShowFilePreview, showSuccess
 
   // Filter and sort files
   const sortedFiles = [...files]
-    .filter(file => file.projectId === project._id)
+    .filter(file => file.projectId === projectId)
     .filter(file => {
       const matchesSearch = searchTerm ? 
         file.name.toLowerCase().includes(searchTerm.toLowerCase()) : true;

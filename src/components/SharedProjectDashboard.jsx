@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Upload, Check, AlertTriangle, LogOut, Users, Calendar } from 'lucide-react';
-import { formatShortDate, debugLog, loadFromLocalStorage, saveToLocalStorage } from './shared/utils';
+import { formatShortDate, debugLog, loadFromLocalStorage, getProjectId } from './shared/utils';
 
 // Import modular components
 import ProjectOverview from './shared/ProjectOverview';
@@ -11,8 +11,38 @@ import FilePreviewModal from './shared/FilePreviewModal';
 import InvoiceViewModal from './shared/InvoiceViewModal';
 
 const SharedProjectDashboard = ({ project, onUpdate, onLogout }) => {
-  // Debug log for component initialization
-  debugLog('SharedProjectDashboard', 'Initializing dashboard', { projectId: project?._id });
+  // Normalizáljuk a projekt objektumot, ha az _id hiányzik
+  const normalizedProject = React.useMemo(() => {
+    if (!project) return null;
+    
+    // Ha nincs _id, de van id, akkor használjuk azt
+    if (!project._id && project.id) {
+      const normalizedObj = { ...project, _id: project.id };
+      debugLog('ProjectNormalization', 'Missing _id, using id instead', { id: project.id });
+      return normalizedObj;
+    }
+    
+    // Ha nincs sem _id, sem id, generáljunk egy ideiglenes azonosítót
+    if (!project._id && !project.id) {
+      const tempId = `temp_${Date.now()}`;
+      debugLog('ProjectNormalization', 'No id found, generating temporary id', { tempId });
+      return { ...project, _id: tempId, id: tempId };
+    }
+    
+    return project;
+  }, [project]);
+  
+  // Log the project structure for debugging
+  useEffect(() => {
+    if (normalizedProject) {
+      debugLog('SharedProjectDashboard', 'Project structure', {
+        hasId: Boolean(normalizedProject.id),
+        has_Id: Boolean(normalizedProject._id),
+        projectId: getProjectId(normalizedProject)
+      });
+      console.log('Full project structure:', JSON.stringify(normalizedProject, null, 2));
+    }
+  }, [normalizedProject]);
 
   // State management
   const [files, setFiles] = useState([]);
@@ -26,25 +56,28 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout }) => {
 
   // Load data on component initialization
   useEffect(() => {
-    if (!project || !project._id) {
-      debugLog('SharedProjectDashboard', 'No project ID available');
+    if (!normalizedProject) {
+      debugLog('SharedProjectDashboard', 'No project data available');
       return;
     }
     
-    debugLog('SharedProjectDashboard', 'Loading data for project', { projectId: project._id });
+    const projectId = getProjectId(normalizedProject);
+    debugLog('SharedProjectDashboard', 'Loading data for project', { projectId });
     
     // Load files from localStorage
-    const savedFiles = loadFromLocalStorage(project._id, 'files');
+    const savedFiles = loadFromLocalStorage(normalizedProject, 'files');
     if (savedFiles && savedFiles.length > 0) {
       setFiles(savedFiles);
+      debugLog('SharedProjectDashboard', `Loaded ${savedFiles.length} files from localStorage`);
     }
 
     // Load comments from localStorage
-    const savedComments = loadFromLocalStorage(project._id, 'comments');
+    const savedComments = loadFromLocalStorage(normalizedProject, 'comments');
     if (savedComments && savedComments.length > 0) {
       setComments(savedComments);
+      debugLog('SharedProjectDashboard', `Loaded ${savedComments.length} comments from localStorage`);
     }
-  }, [project]);
+  }, [normalizedProject]);
 
   // Show success message helper
   const showSuccessMessage = (message) => {
@@ -88,7 +121,31 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout }) => {
     setViewingInvoice(null);
   };
 
-  if (!project) {
+  // Handle file input change
+  const handleFileInputChange = (e) => {
+    debugLog('fileInputChange', `File input changed, files: ${e.target.files.length}`);
+    if (activeTab !== 'files') {
+      setActiveTab('files');
+      // Delay the file upload to allow tab to change first
+      setTimeout(() => {
+        const filesComponent = document.getElementById('ProjectFiles-component');
+        if (filesComponent && filesComponent.handleFileUpload) {
+          filesComponent.handleFileUpload(e);
+        } else {
+          debugLog('fileInputChange', 'ERROR: ProjectFiles component or handler not found');
+        }
+      }, 100);
+    } else {
+      const filesComponent = document.getElementById('ProjectFiles-component');
+      if (filesComponent && filesComponent.handleFileUpload) {
+        filesComponent.handleFileUpload(e);
+      } else {
+        debugLog('fileInputChange', 'ERROR: ProjectFiles component or handler not found');
+      }
+    }
+  };
+
+  if (!normalizedProject) {
     debugLog('SharedProjectDashboard', 'No project data - rendering empty state');
     return (
       <div className="flex justify-center items-center h-screen bg-gray-50">
@@ -107,6 +164,8 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout }) => {
     );
   }
 
+  const projectId = getProjectId(normalizedProject);
+
   return (
     <div className="bg-gray-50 min-h-screen">
       {/* Top Header with Project Info and Logout */}
@@ -115,28 +174,30 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout }) => {
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-4">
               <div>
-                <h1 className="text-xl font-bold text-gray-900">{project.name}</h1>
+                <h1 className="text-xl font-bold text-gray-900">{normalizedProject.name}</h1>
                 <div className="mt-1 flex items-center text-sm text-gray-500">
                   <Users className="h-4 w-4 mr-1.5" />
-                  <span className="mr-2">Ügyfél: {project.client?.name || 'N/A'}</span>
+                  <span className="mr-2">Ügyfél: {normalizedProject.client?.name || 'N/A'}</span>
                   <span className="mx-1">•</span>
                   <Calendar className="h-4 w-4 mx-1" />
-                  <span>Utolsó frissítés: {formatShortDate(project.updatedAt || new Date())}</span>
+                  <span>Utolsó frissítés: {formatShortDate(normalizedProject.updatedAt || new Date())}</span>
+                  {/* Debug information about project ID */}
+                  <span className="mx-1 text-xs text-gray-400">ID: {projectId?.substring(0, 8)}</span>
                 </div>
               </div>
             </div>
             <div className="flex items-center space-x-3">
               <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                project.status === 'aktív' ? 'bg-green-100 text-green-800' :
-                project.status === 'befejezett' ? 'bg-blue-100 text-blue-800' :
+                normalizedProject.status === 'aktív' ? 'bg-green-100 text-green-800' :
+                normalizedProject.status === 'befejezett' ? 'bg-blue-100 text-blue-800' :
                 'bg-gray-100 text-gray-800'
               }`}>
                 <div className={`mr-1.5 h-2.5 w-2.5 rounded-full ${
-                  project.status === 'aktív' ? 'bg-green-500' :
-                  project.status === 'befejezett' ? 'bg-blue-500' :
+                  normalizedProject.status === 'aktív' ? 'bg-green-500' :
+                  normalizedProject.status === 'befejezett' ? 'bg-blue-500' :
                   'bg-gray-500'
                 }`}></div>
-                {project.status}
+                {normalizedProject.status}
               </span>
               <button
                 onClick={onLogout}
@@ -189,9 +250,9 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout }) => {
                 } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm relative`}
               >
                 Számlák
-                {project.invoices && project.invoices.length > 0 && (
+                {normalizedProject.invoices && normalizedProject.invoices.length > 0 && (
                   <span className="absolute -top-1 -right-1 h-5 w-5 text-xs flex items-center justify-center rounded-full bg-indigo-100 text-indigo-600">
-                    {project.invoices.length}
+                    {normalizedProject.invoices.length}
                   </span>
                 )}
               </button>
@@ -204,9 +265,9 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout }) => {
                 } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm relative`}
               >
                 Fájlok
-                {files.filter(file => file.projectId === project._id).length > 0 && (
+                {files.filter(file => file.projectId === projectId).length > 0 && (
                   <span className="absolute -top-1 -right-1 h-5 w-5 text-xs flex items-center justify-center rounded-full bg-indigo-100 text-indigo-600">
-                    {files.filter(file => file.projectId === project._id).length}
+                    {files.filter(file => file.projectId === projectId).length}
                   </span>
                 )}
               </button>
@@ -219,13 +280,13 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout }) => {
                 } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm relative`}
               >
                 Hozzászólások
-                {comments.filter(comment => comment.projectId === project._id).length > 0 && (
+                {comments.filter(comment => comment.projectId === projectId).length > 0 && (
                   <span className="absolute -top-1 -right-1 h-5 w-5 text-xs flex items-center justify-center rounded-full bg-indigo-100 text-indigo-600">
-                    {comments.filter(comment => comment.projectId === project._id).length}
+                    {comments.filter(comment => comment.projectId === projectId).length}
                   </span>
                 )}
               </button>
-              {project.milestones && project.milestones.length > 0 && (
+              {normalizedProject.milestones && normalizedProject.milestones.length > 0 && (
                 <button
                   onClick={() => setActiveTab('milestones')}
                   className={`${
@@ -257,16 +318,7 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout }) => {
             <input
               type="file"
               ref={fileInputRef}
-              onChange={(e) => {
-                debugLog('fileInputChange', `File input changed, files: ${e.target.files.length}`);
-                const filesComponent = document.querySelector('[id^="ProjectFiles"]');
-                if (filesComponent && typeof filesComponent.handleFileUpload === 'function') {
-                  filesComponent.handleFileUpload(e);
-                } else {
-                  debugLog('fileInputChange', 'ERROR: ProjectFiles component or handler not found');
-                  setActiveTab('files');
-                }
-              }}
+              onChange={handleFileInputChange}
               className="hidden"
               multiple
             />
@@ -276,7 +328,7 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout }) => {
         {/* Content based on active tab */}
         {activeTab === 'overview' && (
           <ProjectOverview 
-            project={project} 
+            project={normalizedProject} 
             files={files} 
             comments={comments} 
             setActiveTab={setActiveTab} 
@@ -285,26 +337,26 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout }) => {
 
         {activeTab === 'invoices' && (
           <ProjectInvoices 
-            project={project} 
+            project={normalizedProject} 
             onViewInvoice={handleViewInvoice} 
           />
         )}
 
         {activeTab === 'files' && (
           <ProjectFiles 
-            project={project} 
+            id="ProjectFiles-component"
+            project={normalizedProject} 
             files={files} 
             setFiles={setFiles}
             onShowFilePreview={handleShowFilePreview}
             showSuccessMessage={showSuccessMessage}
             showErrorMessage={showErrorMessage}
-            id="ProjectFiles-component"
           />
         )}
 
         {activeTab === 'comments' && (
           <ProjectComments 
-            project={project} 
+            project={normalizedProject} 
             comments={comments} 
             setComments={setComments}
             showSuccessMessage={showSuccessMessage}
@@ -323,7 +375,7 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout }) => {
         {viewingInvoice && (
           <InvoiceViewModal 
             invoice={viewingInvoice} 
-            project={project}
+            project={normalizedProject}
             onClose={handleCloseInvoiceView} 
           />
         )}

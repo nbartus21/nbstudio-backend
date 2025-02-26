@@ -1,28 +1,32 @@
 import React, { useState, useEffect } from 'react';
 import { MessageCircle, Trash2, Plus } from 'lucide-react';
-import { formatDate, debugLog, saveToLocalStorage } from './utils';
+import { formatDate, debugLog, saveToLocalStorage, getProjectId } from './utils';
 
 const ProjectComments = ({ project, comments, setComments, showSuccessMessage, showErrorMessage }) => {
   const [newComment, setNewComment] = useState('');
+  
+  // Get safe project ID
+  const projectId = getProjectId(project);
 
   // Debug info at mount
   useEffect(() => {
     debugLog('ProjectComments-mount', {
-      projectId: project?._id,
-      commentsCount: comments?.length || 0
+      projectId: projectId,
+      commentsCount: comments?.length || 0,
+      hasValidProjectId: Boolean(projectId)
     });
   }, []);
 
   // Filter for project-specific comments
-  const projectComments = comments.filter(comment => comment.projectId === project._id);
+  const projectComments = comments.filter(comment => comment.projectId === projectId);
   
   // Comment addition handler with debug info
   const handleAddComment = () => {
-    debugLog('handleAddComment', 'Adding new comment', { projectId: project?._id, text: newComment });
+    debugLog('handleAddComment', 'Adding new comment', { projectId: projectId, text: newComment });
     
-    if (!project || !project._id) {
+    if (!projectId) {
       debugLog('handleAddComment', 'ERROR: No project ID');
-      showErrorMessage('Nincs érvényes projekt azonosító!');
+      showErrorMessage('Nincs érvényes projekt azonosító! Próbálja frissíteni az oldalt.');
       return;
     }
     
@@ -39,7 +43,7 @@ const ProjectComments = ({ project, comments, setComments, showSuccessMessage, s
         text: newComment,
         author: 'Ügyfél',
         timestamp: new Date().toISOString(),
-        projectId: project._id
+        projectId: projectId
       };
       
       // Update comments state with the new comment
@@ -48,7 +52,7 @@ const ProjectComments = ({ project, comments, setComments, showSuccessMessage, s
       
       // Save to localStorage
       debugLog('handleAddComment', 'Saving to localStorage');
-      const saved = saveToLocalStorage(project._id, 'comments', updatedComments);
+      const saved = saveToLocalStorage(project, 'comments', updatedComments);
       debugLog('handleAddComment', 'Saved to localStorage:', saved);
       
       // Reset input and show success message
@@ -80,7 +84,7 @@ const ProjectComments = ({ project, comments, setComments, showSuccessMessage, s
       setComments(updatedComments);
       
       // Save to localStorage
-      saveToLocalStorage(project._id, 'comments', updatedComments);
+      saveToLocalStorage(project, 'comments', updatedComments);
       
       showSuccessMessage('Hozzászólás sikeresen törölve');
       debugLog('handleDeleteComment', 'Comment deleted successfully');
