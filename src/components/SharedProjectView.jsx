@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import SharedProjectDashboard from './shared/SharedProjectDashboard';
+import SharedProjectDashboard from './SharedProjectDashboard';
 import { Lock, AlertTriangle } from 'lucide-react';
 import { debugLog } from './shared/utils';
 
