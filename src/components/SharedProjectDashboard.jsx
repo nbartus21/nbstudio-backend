@@ -342,29 +342,27 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout }) => {
           />
         )}
 
-{activeTab === 'files' && (
-  <ProjectFiles 
-    id="ProjectFiles-component"
-    project={normalizedProject} 
-    files={files} 
-    setFiles={setFiles}
-    onShowFilePreview={handleShowFilePreview}
-    showSuccessMessage={showSuccessMessage}
-    showErrorMessage={showErrorMessage}
-    isAdmin={true} // Amikor admin nézetben van
-  />
-)}
+        {activeTab === 'files' && (
+          <ProjectFiles 
+            id="ProjectFiles-component"
+            project={normalizedProject} 
+            files={files} 
+            setFiles={setFiles}
+            onShowFilePreview={handleShowFilePreview}
+            showSuccessMessage={showSuccessMessage}
+            showErrorMessage={showErrorMessage}
+          />
+        )}
 
-{activeTab === 'comments' && (
-  <ProjectComments 
-    project={normalizedProject} 
-    comments={comments} 
-    setComments={setComments}
-    showSuccessMessage={showSuccessMessage}
-    showErrorMessage={showErrorMessage}
-    isAdmin={true} // Amikor admin nézetben van
-  />
-)}
+        {activeTab === 'comments' && (
+          <ProjectComments 
+            project={normalizedProject} 
+            comments={comments} 
+            setComments={setComments}
+            showSuccessMessage={showSuccessMessage}
+            showErrorMessage={showErrorMessage}
+          />
+        )}
 
         {/* Modals */}
         {previewFile && (
