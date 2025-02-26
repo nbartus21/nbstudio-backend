@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Editor } from '@tinymce/tinymce-react';
+import { generateSEOSuggestions } from '../services/deepseekService';
 import { api } from '../services/auth';
 import { 
   Check, 
@@ -115,10 +116,8 @@ const BlogKészítő = () => {
       értesítésMegjelenítése('SEO javaslatok generálása folyamatban...', 'info');
 
       // SEO javaslatok generálása
-      const seoJavaslatok = await api.post(`${API_URL}/seo/generate`, {
-        content: tartalom,
-        language: 'hu'
-      }).then(res => res.json());
+      const seoJavaslatok = await generateSEOSuggestions(tartalom, 'hu');
+
 
       // Meta leírás generálása
       const huMeta = await api.post(`${API_URL}/meta/generate`, { 
