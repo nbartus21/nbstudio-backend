@@ -20,7 +20,7 @@ const Login = () => {
     const token = sessionStorage.getItem('token');
     
     if (isAuth && token) {
-      navigate('/blog');
+      navigate('/dashboard');
     } else {
       setAuthInProgress(false);
     }

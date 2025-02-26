@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Mail, AlertCircle, CheckCircle } from 'lucide-react';
+// MagicLogin.jsx elején
+console.log("MagicLogin komponens betöltve");
 
 const MagicLogin = () => {
   const navigate = useNavigate();
@@ -41,7 +43,7 @@ const MagicLogin = () => {
           sessionStorage.setItem('isAuthenticated', 'true');
           
           // Törli a tokent az URL-ből a biztonsági kockázat csökkentése érdekében
-          navigate('/blog', { replace: true });
+          navigate('/dashboard', { replace: true });
           
         } catch (error) {
           console.error('Magic link hiba:', error);
