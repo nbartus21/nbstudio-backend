@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { MessageCircle, Trash2, Plus } from 'lucide-react';
+import { MessageCircle, Trash2, Plus, User } from 'lucide-react';
 import { formatDate, debugLog, saveToLocalStorage, getProjectId } from './utils';
 
-const ProjectComments = ({ project, comments, setComments, showSuccessMessage, showErrorMessage }) => {
+const ProjectComments = ({ project, comments, setComments, showSuccessMessage, showErrorMessage, isAdmin = false }) => {
   const [newComment, setNewComment] = useState('');
   
   // Get safe project ID
@@ -13,7 +13,7 @@ const ProjectComments = ({ project, comments, setComments, showSuccessMessage, s
     debugLog('ProjectComments-mount', {
       projectId: projectId,
       commentsCount: comments?.length || 0,
-      hasValidProjectId: Boolean(projectId)
+      isAdmin: isAdmin
     });
   }, []);
 
@@ -22,7 +22,7 @@ const ProjectComments = ({ project, comments, setComments, showSuccessMessage, s
   
   // Comment addition handler with debug info
   const handleAddComment = () => {
-    debugLog('handleAddComment', 'Adding new comment', { projectId: projectId, text: newComment });
+    debugLog('handleAddComment', 'Adding new comment', { projectId: projectId, text: newComment, isAdmin: isAdmin });
     
     if (!projectId) {
       debugLog('handleAddComment', 'ERROR: No project ID');
@@ -41,9 +41,10 @@ const ProjectComments = ({ project, comments, setComments, showSuccessMessage, s
       const comment = {
         id: Date.now(),
         text: newComment,
-        author: 'Ügyfél',
+        author: isAdmin ? 'Admin' : 'Ügyfél',
         timestamp: new Date().toISOString(),
-        projectId: projectId
+        projectId: projectId,
+        isAdminComment: isAdmin // Jelöljük meg, hogy admin hozzászólás-e
       };
       
       // Update comments state with the new comment
@@ -57,7 +58,7 @@ const ProjectComments = ({ project, comments, setComments, showSuccessMessage, s
       
       // Reset input and show success message
       setNewComment('');
-      showSuccessMessage('Hozzászólás sikeresen hozzáadva');
+      showSuccessMessage(isAdmin ? 'Admin hozzászólás sikeresen hozzáadva' : 'Hozzászólás sikeresen hozzáadva');
       debugLog('handleAddComment', 'Comment added successfully');
     } catch (error) {
       debugLog('handleAddComment', 'Error adding comment', error);
@@ -108,15 +109,15 @@ const ProjectComments = ({ project, comments, setComments, showSuccessMessage, s
         }}>
           <div className="mb-3">
             <label htmlFor="commentText" className="block text-sm font-medium text-gray-700 mb-1">
-              Új hozzászólás
+              {isAdmin ? "Admin hozzászólás" : "Új hozzászólás"}
             </label>
             <textarea
               id="commentText"
               value={newComment}
               onChange={(e) => setNewComment(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              className={`w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm ${isAdmin ? 'bg-purple-50' : ''}`}
               rows={4}
-              placeholder="Írja ide hozzászólását..."
+              placeholder={isAdmin ? "Írja ide az admin hozzászólását..." : "Írja ide hozzászólását..."}
               required
             />
           </div>
@@ -124,10 +125,10 @@ const ProjectComments = ({ project, comments, setComments, showSuccessMessage, s
             <button
               type="submit"
               disabled={!newComment.trim()}
-              className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+              className={`px-4 py-2 ${isAdmin ? 'bg-purple-600 hover:bg-purple-700' : 'bg-indigo-600 hover:bg-indigo-700'} text-white rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center`}
             >
               <Plus className="h-4 w-4 mr-2" />
-              Hozzászólás küldése
+              {isAdmin ? "Admin hozzászólás küldése" : "Hozzászólás küldése"}
             </button>
           </div>
         </form>
@@ -137,18 +138,21 @@ const ProjectComments = ({ project, comments, setComments, showSuccessMessage, s
       <div className="divide-y divide-gray-200">
         {projectComments.length > 0 ? (
           projectComments.map((comment) => (
-            <div key={comment.id} className="p-6 hover:bg-gray-50">
+            <div key={comment.id} className={`p-6 hover:bg-gray-50 ${comment.isAdminComment ? 'bg-purple-50' : ''}`}>
               <div className="flex items-start">
                 <div className="flex-shrink-0">
-                  <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center">
-                    <span className="text-indigo-800 font-bold">
+                  <div className={`h-10 w-10 rounded-full ${comment.isAdminComment ? 'bg-purple-100' : 'bg-indigo-100'} flex items-center justify-center`}>
+                    <span className={`${comment.isAdminComment ? 'text-purple-800' : 'text-indigo-800'} font-bold`}>
                       {comment.author && comment.author[0].toUpperCase()}
                     </span>
                   </div>
                 </div>
                 <div className="ml-3 flex-1">
                   <div className="flex justify-between items-center">
-                    <div className="font-medium text-gray-900">{comment.author}</div>
+                    <div className={`font-medium ${comment.isAdminComment ? 'text-purple-900' : 'text-gray-900'}`}>
+                      {comment.author}
+                      {comment.isAdminComment && <span className="ml-2 px-2 py-0.5 bg-purple-100 text-purple-800 text-xs rounded-full">Admin</span>}
+                    </div>
                     <div className="text-sm text-gray-500">{formatDate(comment.timestamp)}</div>
                   </div>
                   <div className="mt-2 text-gray-700 whitespace-pre-wrap text-sm">
