@@ -10,7 +10,7 @@ import ProjectComments from './shared/ProjectComments';
 import FilePreviewModal from './shared/FilePreviewModal';
 import InvoiceViewModal from './shared/InvoiceViewModal';
 
-const SharedProjectDashboard = ({ project, onUpdate, onLogout }) => {
+const SharedProjectDashboard = ({ project, onUpdate, onLogout, isAdmin = false }) => {
   // Normalizáljuk a projekt objektumot, ha az _id hiányzik
   const normalizedProject = React.useMemo(() => {
     if (!project) return null;
@@ -38,7 +38,8 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout }) => {
       debugLog('SharedProjectDashboard', 'Project structure', {
         hasId: Boolean(normalizedProject.id),
         has_Id: Boolean(normalizedProject._id),
-        projectId: getProjectId(normalizedProject)
+        projectId: getProjectId(normalizedProject),
+        isAdmin: isAdmin
       });
       console.log('Full project structure:', JSON.stringify(normalizedProject, null, 2));
     }
@@ -53,6 +54,7 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout }) => {
   const [errorMessage, setErrorMessage] = useState('');
   const [previewFile, setPreviewFile] = useState(null);
   const [viewingInvoice, setViewingInvoice] = useState(null);
+  const [adminMode, setAdminMode] = useState(isAdmin);
 
   // Load data on component initialization
   useEffect(() => {
@@ -145,6 +147,12 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout }) => {
     }
   };
 
+  // Toggle admin mode
+  const toggleAdminMode = () => {
+    setAdminMode(!adminMode);
+    debugLog('toggleAdminMode', `Admin mode ${!adminMode ? 'enabled' : 'disabled'}`);
+  };
+
   if (!normalizedProject) {
     debugLog('SharedProjectDashboard', 'No project data - rendering empty state');
     return (
@@ -199,6 +207,21 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout }) => {
                 }`}></div>
                 {normalizedProject.status}
               </span>
+              
+              {/* Admin Mode Toggle (csak akkor látható, ha isAdmin=true) */}
+              {isAdmin && (
+                <button
+                  onClick={toggleAdminMode}
+                  className={`inline-flex items-center px-4 py-2 border rounded-md shadow-sm text-sm font-medium ${
+                    adminMode 
+                      ? 'bg-purple-600 text-white border-purple-500' 
+                      : 'bg-white text-gray-700 border-gray-300'
+                  }`}
+                >
+                  {adminMode ? 'Admin mód aktív' : 'Admin mód'}
+                </button>
+              )}
+              
               <button
                 onClick={onLogout}
                 className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
@@ -224,6 +247,24 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout }) => {
           <div className="mb-6 p-3 bg-red-100 border border-red-400 text-red-700 rounded-md flex items-center shadow-sm">
             <AlertTriangle className="h-5 w-5 mr-2" />
             {errorMessage}
+          </div>
+        )}
+
+        {/* Admin Mode Banner */}
+        {isAdmin && adminMode && (
+          <div className="mb-6 p-3 bg-purple-100 border border-purple-400 text-purple-700 rounded-md flex items-center justify-between shadow-sm">
+            <div className="flex items-center">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+              <span>Admin módban van - a hozzászólásai megkülönböztetett módon jelennek meg</span>
+            </div>
+            <button 
+              onClick={toggleAdminMode}
+              className="px-3 py-1 bg-purple-200 text-purple-800 rounded hover:bg-purple-300"
+            >
+              Kikapcsolás
+            </button>
           </div>
         )}
 
@@ -361,6 +402,7 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout }) => {
             setComments={setComments}
             showSuccessMessage={showSuccessMessage}
             showErrorMessage={showErrorMessage}
+            isAdmin={adminMode} // Átadjuk az isAdmin prop-ot a ProjectComments komponensnek
           />
         )}
 
