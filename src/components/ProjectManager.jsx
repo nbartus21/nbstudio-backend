@@ -11,10 +11,13 @@ import ShareProjectModal from './project/ShareProjectModal';
 const API_URL = 'https://admin.nb-studio.net:5001/api';
 
 const ProjectManager = () => {
+  const [projectFiles, setProjectFiles] = useState([]);
+  const [projectComments, setProjectComments] = useState([]);
   const [projects, setProjects] = useState([]);
   const [filteredProjects, setFilteredProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [successMessage, setSuccessMessage] = useState('');
   const [selectedProject, setSelectedProject] = useState(null);
   const [showNewInvoiceForm, setShowNewInvoiceForm] = useState(false);
   const [shareLink, setShareLink] = useState('');
@@ -25,6 +28,20 @@ const ProjectManager = () => {
   const [newInvoice, setNewInvoice] = useState({
     items: [{ description: '', quantity: 1, unitPrice: 0 }]
   });
+
+  // Sikeres művelet üzenet megjelenítése
+  const showSuccessMessage = (message) => {
+    setSuccessMessage(message);
+    setTimeout(() => {
+      setSuccessMessage('');
+    }, 3000);
+  };
+
+  // Hozzászólás kezelése (admin válasz az ügyfélnek)
+  const handleReplyToComment = (reply) => {
+    setProjectComments(prev => [reply, ...prev]);
+    showSuccessMessage('Admin válasz sikeresen hozzáadva');
+  };
 
   // Nézet típusok: grid, list, accordion
   const [viewType, setViewType] = useState('grid');
@@ -81,6 +98,7 @@ const ProjectManager = () => {
       }));
       
       setError(null);
+      showSuccessMessage('Megosztási link sikeresen létrehozva');
     } catch (error) {
       console.error('Hiba a megosztási link generálásakor:', error);
       setError('Nem sikerült létrehozni a megosztási linket');
@@ -164,6 +182,7 @@ const ProjectManager = () => {
   
       setSelectedProject(null);
       await fetchProjects();
+      showSuccessMessage('Projekt sikeresen mentve');
     } catch (error) {
       console.error('Hiba a projekt mentésekor:', error);
       setError(`Hiba történt: ${error.message}`);
@@ -221,6 +240,7 @@ const ProjectManager = () => {
       setShowNewInvoiceForm(false);
       setNewInvoice({ items: [{ description: '', quantity: 1, unitPrice: 0 }] });
       setError(null);
+      showSuccessMessage('Számla sikeresen létrehozva');
     } catch (error) {
       console.error('Hiba a számla létrehozásakor:', error);
       setError(`Hiba történt a számla létrehozásakor: ${error.message}`);
@@ -249,10 +269,17 @@ const ProjectManager = () => {
   
       setProjects(prevProjects => prevProjects.filter(project => project._id !== id));
       setError(null);
+      showSuccessMessage('Projekt sikeresen törölve');
     } catch (error) {
       console.error('Hiba:', error);
       setError(error.message);
     }
+  };
+
+  // File kezelés
+  const handleViewFile = (file) => {
+    // Itt kezeljük a fájl megtekintést
+    console.log('File megtekintése:', file);
   };
 
   // Apply filters to projects
@@ -341,6 +368,16 @@ const ProjectManager = () => {
       {error && (
         <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
           {error}
+        </div>
+      )}
+      
+      {/* Success message */}
+      {successMessage && (
+        <div className="mb-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded flex items-center">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+          </svg>
+          {successMessage}
         </div>
       )}
 
@@ -482,6 +519,8 @@ const ProjectManager = () => {
         <ProjectGrid 
           projects={filteredProjects}
           activeShares={activeShares}
+          comments={projectComments}
+          files={projectFiles}
           onShare={setShowShareModal}
           onNewInvoice={(project) => {
             setSelectedProject(project);
@@ -489,6 +528,8 @@ const ProjectManager = () => {
           }}
           onViewDetails={setSelectedProject}
           onDelete={handleDelete}
+          onReplyToComment={handleReplyToComment}
+          onViewFile={handleViewFile}
         />
       ) : viewType === 'list' ? (
         <ProjectList 
