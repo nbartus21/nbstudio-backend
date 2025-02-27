@@ -191,7 +191,6 @@ app.use('/api/posts', async (req, res, next) => {
 });
 // Projects publikus végpontok
 app.use('/api/public/projects', validateApiKey, projectRoutes);
-app.use('/api', monitoringRoutes); // Monitoring API útvonalak
 
 // Auth routes
 app.use('/api/auth', authRoutes);
