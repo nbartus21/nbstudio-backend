@@ -4,7 +4,7 @@ import {
   AreaChart, Area, PieChart, Pie, Cell, BarChart, Bar
 } from 'recharts';
 import { 
-  Server, HardDrive, Memory, Cpu, Wifi, Shield, 
+  Server, HardDrive, Database, Cpu, Wifi, Shield, 
   AlertTriangle, Check, X, RefreshCcw, Settings, 
   Download, Upload, Clock, Terminal 
 } from 'lucide-react';
@@ -572,7 +572,7 @@ const ServerMonitoring = () => {
                       <div className="bg-white p-4 rounded-lg border">
                         <div className="flex justify-between items-center mb-2">
                           <h3 className="text-sm font-medium">Memória Használat</h3>
-                          <Memory className="h-4 w-4 text-gray-400" />
+                          <Database className="h-4 w-4 text-gray-400" />
                         </div>
                         <div className="flex items-end justify-between">
                           <div className="text-2xl font-bold">
