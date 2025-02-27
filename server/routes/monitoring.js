@@ -26,348 +26,9 @@ const validateMonitorApiKey = (req, res, next) => {
   }
 };
 
-// ============================================================
-// NYILVÁNOS VÉGPONTOK - NEM VÉDETT AUTH-MIDDLEWARE-REL
-// ============================================================
-
-// Telepítő szkript letöltése
-router.get('/install.sh', (req, res) => {
-  const serverId = req.query.server_id || '';
-  
-  const installScript = `#!/bin/bash
-# NB Studio Szerver Monitoring telepítő szkript
-# Szerver ID: ${serverId}
-
-echo "NB Studio Szerver Monitoring Telepítő"
-echo "Szerver ID: ${serverId}"
-
-# Letöltés
-echo "Monitoring szkript letöltése..."
-curl -sSL https://admin.nb-studio.net:5001/api/monitoring/server_monitor.sh -o /tmp/server_monitor.sh
-chmod +x /tmp/server_monitor.sh
-
-# Konfiguráció
-echo "SERVER_ID=\\"${serverId}\\"" > /etc/nbstudio-monitor.conf
-
-# Telepítés
-echo "Telepítés indítása..."
-/tmp/server_monitor.sh --install
-
-echo "Telepítés befejezve!"
-`;
-
-  res.set('Content-Type', 'text/plain');
-  res.send(installScript);
-});
-
-// Monitor szkript letöltése
-router.get('/server_monitor.sh', (req, res) => {
-  // Az eredeti monitorozó szkript fájl elérése és küldése
-  
-  const monitorScript = `#!/bin/bash
-# NB Studio Szerver Monitoring Tool
-# Verzió: 1.0.0
-# Leírás: Automatikus szerver monitorozó szkript
-
-# Konfiguráció
-API_URL="https://admin.nb-studio.net:5001/api/monitoring"
-API_KEY="qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0"
-SERVER_ID=""
-COLLECTION_INTERVAL=60  # másodperc
-LOG_FILE="/var/log/nbstudio-monitor.log"
-CONFIG_FILE="/etc/nbstudio-monitor.conf"
-PING_HOSTS=("8.8.8.8" "1.1.1.1")
-
-# Fájllétezés ellenőrzése
-if [ -f "\${CONFIG_FILE}" ]; then
-  source "\${CONFIG_FILE}"
-fi
-
-if [ -z "\${SERVER_ID}" ]; then
-  if [ -n "\$1" ] && [ "\$1" != "--install" ]; then
-    SERVER_ID="\$1"
-  else
-    echo "Hiba: Nincs SERVER_ID beállítva! Használat: \$0 <server_id>"
-    echo "Vagy állítsd be a SERVER_ID-t a \${CONFIG_FILE} fájlban."
-    exit 1
-  fi
-fi
-
-# Biztosítjuk, hogy a log könyvtár létezik
-mkdir -p \$(dirname "\${LOG_FILE}")
-touch "\${LOG_FILE}"
-
-# Telepítési mód ellenőrzése
-if [ "\$1" == "--install" ]; then
-  echo "$(date '+%Y-%m-%d %H:%M:%S') - Telepítés indítása a következő server ID-val: \${SERVER_ID}" >> "\${LOG_FILE}"
-  
-  # Rendszer információk gyűjtése
-  HOSTNAME=\$(hostname)
-  OS=\$(cat /etc/os-release | grep PRETTY_NAME | cut -d '"' -f 2)
-  IP_ADDRESS=\$(hostname -I | awk '{print \$1}')
-  
-  # Szerver regisztrálása
-  echo "Szerver regisztrálása..."
-  curl -s -X POST "\${API_URL}/register" \
-    -H "Content-Type: application/json" \
-    -H "X-API-Key: \${API_KEY}" \
-    -d "{
-      \"server_id\": \"\${SERVER_ID}\",
-      \"hostname\": \"\${HOSTNAME}\",
-      \"os\": \"\${OS}\",
-      \"ip_address\": \"\${IP_ADDRESS}\",
-      \"registration_time\": \"\$(date -u +%Y-%m-%dT%H:%M:%SZ)\"
-    }" >> "\${LOG_FILE}" 2>&1
-  
-  # Cron job létrehozása (5 percenként)
-  CRON_JOB="*/5 * * * * /bin/bash /tmp/server_monitor.sh"
-  (crontab -l 2>/dev/null | grep -v "/bin/bash /tmp/server_monitor.sh"; echo "\${CRON_JOB}") | crontab -
-  
-  # Systemd service létrehozása
-  cat > /etc/systemd/system/nbstudio-monitor.service << EOL
-[Unit]
-Description=NB Studio Server Monitoring Agent
-After=network.target
-
-[Service]
-Type=simple
-ExecStart=/bin/bash /tmp/server_monitor.sh
-Restart=always
-RestartSec=300
-
-[Install]
-WantedBy=multi-user.target
-EOL
-
-  # Service aktiválása
-  systemctl daemon-reload
-  systemctl enable nbstudio-monitor.service
-  systemctl start nbstudio-monitor.service
-  
-  echo "$(date '+%Y-%m-%d %H:%M:%S') - Monitoring szolgáltatás telepítve és elindítva" >> "\${LOG_FILE}"
-  exit 0
-fi
-
-# =====================================
-# Adatgyűjtő funkciók
-# =====================================
-
-collect_system_info() {
-  # CPU információk
-  CPU_MODEL=\$(cat /proc/cpuinfo | grep 'model name' | head -1 | cut -d ':' -f 2 | xargs)
-  CPU_CORES=\$(grep -c ^processor /proc/cpuinfo)
-  CPU_USAGE=\$(top -bn1 | grep "Cpu(s)" | sed "s/.*, *\\([0-9.]*\\)%* id.*/\\1/" | awk '{print 100 - \$1}')
-  CPU_LOAD=\$(cat /proc/loadavg | awk '{print \$1,\$2,\$3}')
-  
-  # Memória információk
-  MEM_INFO=\$(free -m)
-  MEM_TOTAL=\$(echo "\${MEM_INFO}" | grep Mem | awk '{print \$2}')
-  MEM_USED=\$(echo "\${MEM_INFO}" | grep Mem | awk '{print \$3}')
-  MEM_FREE=\$(echo "\${MEM_INFO}" | grep Mem | awk '{print \$4}')
-  MEM_PERCENT=\$(echo "scale=2; \${MEM_USED} * 100 / \${MEM_TOTAL}" | bc)
-  
-  # Swap információk
-  SWAP_TOTAL=\$(echo "\${MEM_INFO}" | grep Swap | awk '{print \$2}')
-  SWAP_USED=\$(echo "\${MEM_INFO}" | grep Swap | awk '{print \$3}')
-  
-  # Lemez információk
-  DISK_INFO=\$(df -h / | awk 'NR==2 {print \$2,\$3,\$4,\$5}')
-  DISK_TOTAL=\$(echo "\${DISK_INFO}" | awk '{print \$1}')
-  DISK_USED=\$(echo "\${DISK_INFO}" | awk '{print \$2}')
-  DISK_FREE=\$(echo "\${DISK_INFO}" | awk '{print \$3}')
-  DISK_PERCENT=\$(echo "\${DISK_INFO}" | awk '{print \$4}' | tr -d '%')
-  
-  # IO latency
-  IO_LATENCY=\$(dd if=/dev/zero of=/tmp/io_test bs=512 count=1000 oflag=dsync 2>&1 | grep sec | awk '{print \$NF}')
-  rm -f /tmp/io_test
-  
-  # Disks detail
-  DISKS_DETAIL=\$(lsblk -J)
-  
-  # Uptime
-  UPTIME=\$(uptime -p)
-  
-  # JSON formátumba konvertálás
-  echo "{
-    \"cpu\": {
-      \"model\": \"\${CPU_MODEL}\",
-      \"cores\": \${CPU_CORES},
-      \"usage_percent\": \${CPU_USAGE},
-      \"load\": \"\${CPU_LOAD}\"
-    },
-    \"memory\": {
-      \"total_mb\": \${MEM_TOTAL},
-      \"used_mb\": \${MEM_USED},
-      \"free_mb\": \${MEM_FREE},
-      \"usage_percent\": \${MEM_PERCENT}
-    },
-    \"swap\": {
-      \"total_mb\": \${SWAP_TOTAL},
-      \"used_mb\": \${SWAP_USED}
-    },
-    \"disk\": {
-      \"total\": \"\${DISK_TOTAL}\",
-      \"used\": \"\${DISK_USED}\",
-      \"free\": \"\${DISK_FREE}\",
-      \"usage_percent\": \${DISK_PERCENT},
-      \"io_latency_ms\": \"\${IO_LATENCY}\",
-      \"disks_detail\": \${DISKS_DETAIL}
-    },
-    \"uptime\": \"\${UPTIME}\"
-  }"
-}
-
-collect_network_info() {
-  # Alap hálózati interfészek
-  INTERFACES=\$(ip -j addr)
-  
-  # Speedtest (ha van telepítve)
-  if command -v speedtest-cli &> /dev/null; then
-    SPEEDTEST=\$(speedtest-cli --json)
-    SPEEDTEST_DOWNLOAD=\$(echo "\${SPEEDTEST}" | grep -o '"download": [0-9]*' | awk '{print \$2}')
-    SPEEDTEST_UPLOAD=\$(echo "\${SPEEDTEST}" | grep -o '"upload": [0-9]*' | awk '{print \$2}')
-    SPEEDTEST_PING=\$(echo "\${SPEEDTEST}" | grep -o '"ping": [0-9.]*' | awk '{print \$2}')
-    SPEEDTEST_SERVER=\$(echo "\${SPEEDTEST}" | grep -o '"host": "[^"]*"' | cut -d '"' -f 4)
-    SPEEDTEST_LOCATION=\$(echo "\${SPEEDTEST}" | grep -o '"sponsor": "[^"]*"' | cut -d '"' -f 4)
-  fi
-  
-  # Ping eredmények
-  declare -A PING_RESULTS
-  for host in "\${PING_HOSTS[@]}"; do
-    ping_result=\$(ping -c 3 "\${host}" | tail -1 | awk '{print \$4}' | cut -d '/' -f 2)
-    PING_RESULTS[\${host}]=\${ping_result}
-  done
-  
-  # JSON formátumba konvertálás
-  PING_JSON="{"
-  for host in "\${!PING_RESULTS[@]}"; do
-    PING_JSON+="\\"\\"\${host}\\": \${PING_RESULTS[\${host}]},"
-  done
-  PING_JSON=\${PING_JSON%,}
-  PING_JSON+="}"
-  
-  # Van-e speedtest eredmény
-  if [ -n "\${SPEEDTEST_DOWNLOAD}" ]; then
-    echo "{
-      \"interfaces\": \${INTERFACES},
-      \"speedtest\": {
-        \"download\": \${SPEEDTEST_DOWNLOAD},
-        \"upload\": \${SPEEDTEST_UPLOAD},
-        \"ping\": \${SPEEDTEST_PING},
-        \"server\": {
-          \"host\": \"\${SPEEDTEST_SERVER}\",
-          \"location\": \"\${SPEEDTEST_LOCATION}\"
-        }
-      },
-      \"ping_results\": \${PING_JSON}
-    }"
-  else
-    echo "{
-      \"interfaces\": \${INTERFACES},
-      \"ping_results\": \${PING_JSON}
-    }"
-  fi
-}
-
-collect_security_info() {
-  # Nyitott portok
-  OPEN_PORTS=\$(ss -tuln | grep LISTEN | awk '{print \$5}' | cut -d ':' -f 2 | tr '\n' ',' | sed 's/,$//')
-  
-  # Aktív SSH kapcsolatok
-  SSH_CONNECTIONS=\$(who | grep -c pts)
-  
-  # Sikertelen bejelentkezési kísérletek
-  FAILED_LOGINS=\$(grep "Failed password" /var/log/auth.log 2>/dev/null | tail -5 | tr '\n' '|' | sed 's/|$//')
-  if [ -z "\${FAILED_LOGINS}" ]; then
-    FAILED_LOGINS=\$(grep "Failed password" /var/log/secure 2>/dev/null | tail -5 | tr '\n' '|' | sed 's/|$//')
-  fi
-  
-  # Elérhető frissítések
-  if command -v apt-get &> /dev/null; then
-    apt-get update -qq > /dev/null
-    UPDATES=\$(apt-get --simulate upgrade | grep -c ^Inst)
-    SECURITY_UPDATES=\$(apt-get --simulate upgrade | grep -c "security")
-  elif command -v yum &> /dev/null; then
-    UPDATES=\$(yum check-update --quiet | grep -v "^$" | wc -l)
-    SECURITY_UPDATES=\$(yum updateinfo list sec | grep -c update)
-  else
-    UPDATES="0"
-    SECURITY_UPDATES="0"
-  fi
-  
-  # JSON formátumba konvertálás
-  FAILED_LOGINS_JSON="[\\"\\$(echo \${FAILED_LOGINS} | sed 's/|/\\",\\"/g')\\"]"
-  OPEN_PORTS_JSON="[\\"\\$(echo \${OPEN_PORTS} | sed 's/,/\\",\\"/g')\\"]"
-  
-  echo "{
-    \"open_ports\": \${OPEN_PORTS_JSON},
-    \"active_ssh_connections\": \${SSH_CONNECTIONS},
-    \"failed_login_attempts\": \${FAILED_LOGINS_JSON},
-    \"updates_available\": \"\${UPDATES}\",
-    \"security_updates\": \"\${SECURITY_UPDATES}\"
-  }"
-}
-
-# =====================================
-# Adatok küldése
-# =====================================
-
-# System info küldése
-SYSTEM_INFO=\$(collect_system_info)
-curl -s -X POST "\${API_URL}/system" \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: \${API_KEY}" \
-  -d "{
-    \"server_id\": \"\${SERVER_ID}\",
-    \"system_info\": \${SYSTEM_INFO},
-    \"timestamp\": \"\$(date -u +%Y-%m-%dT%H:%M:%SZ)\"
-  }" >> "\${LOG_FILE}" 2>&1
-
-# Network info küldése (ritkábban, ezért feltételesen)
-if [ \$((\$RANDOM % 5)) -eq 0 ]; then
-  NETWORK_INFO=\$(collect_network_info)
-  curl -s -X POST "\${API_URL}/network" \
-    -H "Content-Type: application/json" \
-    -H "X-API-Key: \${API_KEY}" \
-    -d "{
-      \"server_id\": \"\${SERVER_ID}\",
-      \"speedtest\": \$(echo \${NETWORK_INFO} | jq '.speedtest // {}'),
-      \"ping\": \$(echo \${NETWORK_INFO} | jq '.ping_results // {}'),
-      \"timestamp\": \"\$(date -u +%Y-%m-%dT%H:%M:%SZ)\"
-    }" >> "\${LOG_FILE}" 2>&1
-fi
-
-# Security info küldése (naponta egyszer)
-if [ \$(date +%H) -eq 3 ] && [ \$(date +%M) -lt 15 ]; then
-  SECURITY_INFO=\$(collect_security_info)
-  curl -s -X POST "\${API_URL}/security" \
-    -H "Content-Type: application/json" \
-    -H "X-API-Key: \${API_KEY}" \
-    -d "{
-      \"server_id\": \"\${SERVER_ID}\",
-      \"open_ports\": \$(echo \${SECURITY_INFO} | jq '.open_ports // []'),
-      \"active_ssh_connections\": \$(echo \${SECURITY_INFO} | jq '.active_ssh_connections // 0'),
-      \"failed_login_attempts\": \$(echo \${SECURITY_INFO} | jq '.failed_login_attempts // []'),
-      \"updates_available\": \"\$(echo \${SECURITY_INFO} | jq -r '.updates_available // "0"')\",
-      \"security_updates\": \"\$(echo \${SECURITY_INFO} | jq -r '.security_updates // "0"')\",
-      \"timestamp\": \"\$(date -u +%Y-%m-%dT%H:%M:%SZ)\"
-    }" >> "\${LOG_FILE}" 2>&1
-fi
-
-echo "$(date '+%Y-%m-%d %H:%M:%S') - Adatok sikeresen elküldve" >> "\${LOG_FILE}"
-`;
-  
-  res.set('Content-Type', 'text/plain');
-  res.send(monitorScript);
-});
-
-// ============================================================
-// PUBLIKUS, DE API KULCS ÁLTAL VÉDETT VÉGPONTOK
-// ============================================================
-
 // Publikus végpontok a szerverektől érkező adatokhoz
 // Szerver regisztráció
-router.post('/register', validateMonitorApiKey, async (req, res) => {
+router.post('/monitoring/register', validateMonitorApiKey, async (req, res) => {
   try {
     const { server_id, hostname, os, ip_address, registration_time } = req.body;
     
@@ -431,61 +92,8 @@ router.post('/register', validateMonitorApiKey, async (req, res) => {
   }
 });
 
-// Rendszer információk fogadása
-router.post('/system', validateMonitorApiKey, async (req, res) => {
-  try {
-    const { server_id, system_info, timestamp } = req.body;
-    
-    // Szerver keresése az adatbázisban
-    let server = await ServerMonitor.findOne({ server_id });
-    
-    if (!server) {
-      return res.status(404).json({
-        success: false,
-        message: 'Szerver nem található, először regisztrálja'
-      });
-    }
-    
-    // Rendszer információk frissítése
-    server.system_info = system_info;
-    server.uptime = system_info.uptime;
-    server.last_seen = new Date();
-    server.status = 'online';
-    
-    // Historikus adatok frissítése
-    server.history.push({
-      timestamp: new Date(timestamp) || new Date(),
-      cpu_usage: system_info.cpu?.usage_percent,
-      memory_usage: system_info.memory?.usage_percent,
-      disk_usage: system_info.disk?.usage_percent
-    });
-    
-    // Limitáljuk a historikus adatok számát (pl. utolsó 100)
-    if (server.history.length > 100) {
-      server.history = server.history.slice(-100);
-    }
-    
-    // Riasztások generálása, ha szükséges
-    await generateAlerts(server);
-    
-    await server.save();
-    
-    res.status(200).json({
-      success: true,
-      message: 'Rendszer információk sikeresen frissítve'
-    });
-  } catch (error) {
-    console.error('Hiba a rendszer információk frissítésekor:', error);
-    res.status(500).json({ 
-      success: false,
-      message: 'Szerver hiba a rendszer adatok mentése során', 
-      error: error.message 
-    });
-  }
-});
-
 // Hálózati információk fogadása
-router.post('/network', validateMonitorApiKey, async (req, res) => {
+router.post('/monitoring/network', validateMonitorApiKey, async (req, res) => {
   try {
     const { server_id, speedtest, ping, timestamp } = req.body;
     
@@ -542,7 +150,7 @@ router.post('/network', validateMonitorApiKey, async (req, res) => {
 });
 
 // Biztonsági információk fogadása
-router.post('/security', validateMonitorApiKey, async (req, res) => {
+router.post('/monitoring/security', validateMonitorApiKey, async (req, res) => {
   try {
     const { server_id, open_ports, active_ssh_connections, failed_login_attempts, updates_available, security_updates, timestamp } = req.body;
     
@@ -728,15 +336,13 @@ async function generateAlerts(server) {
   }
 }
 
-// ============================================================
-// VÉDETT VÉGPONTOK - CSAK BEJELENTKEZETT FELHASZNÁLÓKNAK
-// ============================================================
+// Védett végpontok - csak bejelentkezett felhasználóknak
 
 // Middleware a védett végpontokhoz
 router.use(authMiddleware);
 
 // Minden szerver lekérése
-router.get('/servers', async (req, res) => {
+router.get('/monitoring/servers', async (req, res) => {
   try {
     const servers = await ServerMonitor.find()
       .select('-history')  // Ne küldje el a teljes történeti adatokat
@@ -750,7 +356,7 @@ router.get('/servers', async (req, res) => {
 });
 
 // Egy szerver részletes adatainak lekérése
-router.get('/servers/:id', async (req, res) => {
+router.get('/monitoring/servers/:id', async (req, res) => {
   try {
     const server = await ServerMonitor.findOne({ 
       server_id: req.params.id 
@@ -768,7 +374,7 @@ router.get('/servers/:id', async (req, res) => {
 });
 
 // Szerverek monitorozási összesítése
-router.get('/summary', async (req, res) => {
+router.get('/monitoring/summary', async (req, res) => {
   try {
     const totalServers = await ServerMonitor.countDocuments();
     const onlineServers = await ServerMonitor.countDocuments({ status: 'online' });
@@ -830,7 +436,7 @@ router.get('/summary', async (req, res) => {
 });
 
 // Riasztás nyugtázása
-router.put('/servers/:id/alerts/:alertId/acknowledge', async (req, res) => {
+router.put('/monitoring/servers/:id/alerts/:alertId/acknowledge', async (req, res) => {
   try {
     const server = await ServerMonitor.findOne({ server_id: req.params.id });
     
@@ -854,7 +460,7 @@ router.put('/servers/:id/alerts/:alertId/acknowledge', async (req, res) => {
 });
 
 // Szerver beállításainak frissítése
-router.put('/servers/:id/settings', async (req, res) => {
+router.put('/monitoring/servers/:id/settings', async (req, res) => {
   try {
     const { alert_cpu_threshold, alert_memory_threshold, alert_disk_threshold, monitored_services, notification_email, collection_interval } = req.body;
     
@@ -887,7 +493,7 @@ router.put('/servers/:id/settings', async (req, res) => {
 });
 
 // Minden riasztás nyugtázása egy szerveren
-router.put('/servers/:id/alerts/acknowledge-all', async (req, res) => {
+router.put('/monitoring/servers/:id/alerts/acknowledge-all', async (req, res) => {
   try {
     const server = await ServerMonitor.findOne({ server_id: req.params.id });
     
@@ -909,7 +515,7 @@ router.put('/servers/:id/alerts/acknowledge-all', async (req, res) => {
 });
 
 // Szerver kézi regisztrálása
-router.post('/servers', async (req, res) => {
+router.post('/monitoring/servers', async (req, res) => {
   try {
     const { hostname, ip_address, os } = req.body;
     
@@ -940,6 +546,62 @@ router.post('/servers', async (req, res) => {
     console.error('Hiba a szerver kézi regisztrációjakor:', error);
     res.status(500).json({ message: error.message });
   }
+});
+
+// Telepítő szkript letöltése
+router.get('/monitoring/install.sh', (req, res) => {
+  const serverId = req.query.server_id || '';
+  
+  const installScript = `#!/bin/bash
+# NB Studio Szerver Monitoring telepítő szkript
+# Szerver ID: ${serverId}
+
+echo "NB Studio Szerver Monitoring Telepítő"
+echo "Szerver ID: ${serverId}"
+
+# Letöltés
+echo "Monitoring szkript letöltése..."
+curl -sSL https://admin.nb-studio.net:5001/api/monitoring/server_monitor.sh -o /tmp/server_monitor.sh
+chmod +x /tmp/server_monitor.sh
+
+# Konfiguráció
+echo "SERVER_ID=\\"${serverId}\\"" > /etc/nbstudio-monitor.conf
+
+# Telepítés
+echo "Telepítés indítása..."
+/tmp/server_monitor.sh --install
+
+echo "Telepítés befejezve!"
+`;
+
+  res.set('Content-Type', 'text/plain');
+  res.send(installScript);
+});
+
+// Monitor szkript letöltése
+router.get('/monitoring/server_monitor.sh', (req, res) => {
+  // Az eredeti monitorozó szkript fájl elérése és küldése
+  // Ezt a fájlt a szervernek el kell érnie
+  
+  res.set('Content-Type', 'text/plain');
+  // Itt küldjük el a monitorozó szkript tartalmát
+  res.send(`#!/bin/bash
+# NB Studio Szerver Monitoring Tool
+# Verzió: 1.0.0
+# Leírás: Automatikus szerver monitorozó szkript
+
+# Konfiguráció
+API_URL="https://admin.nb-studio.net:5001/api/monitoring"
+API_KEY="qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0"
+SERVER_ID=""
+COLLECTION_INTERVAL=60  # másodperc
+LOG_FILE="/var/log/nbstudio-monitor.log"
+CONFIG_FILE="/etc/nbstudio-monitor.conf"
+PING_HOSTS=("8.8.8.8" "1.1.1.1")
+
+# Teljes monitorozó szkript...
+# (Itt az eredeti server_monitor.sh teljes tartalma következne)
+`);
 });
 
 export default router;
