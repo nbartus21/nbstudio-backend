@@ -209,8 +209,7 @@ app.use('/api/accounting', accountingRoutes);
 app.use('/api', hostingRoutes);
 app.use('/api', filesRoutes);
 app.use('/api', commentsRoutes);
-app.use('/api', monitoringRoutes); // Monitoring API útvonalak
-
+app.use('/api/monitoring', monitoringRoutes); // Monitoring API útvonalak
 
 // Alap route teszteléshez
 app.get('/', (req, res) => {
