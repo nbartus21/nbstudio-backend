@@ -210,6 +210,7 @@ app.use('/api/accounting', accountingRoutes);
 app.use('/api', hostingRoutes);
 app.use('/api', filesRoutes);
 app.use('/api', commentsRoutes);
+app.use('/api', monitoringRoutes); // Monitoring API útvonalak
 
 
 // Alap route teszteléshez
