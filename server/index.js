@@ -191,6 +191,7 @@ app.use('/api/posts', async (req, res, next) => {
 });
 // Projects publikus végpontok
 app.use('/api/public/projects', validateApiKey, projectRoutes);
+app.use('/api', monitoringRoutes); // Monitoring API útvonalak
 
 // Auth routes
 app.use('/api/auth', authRoutes);
@@ -209,7 +210,6 @@ app.use('/api/accounting', accountingRoutes);
 app.use('/api', hostingRoutes);
 app.use('/api', filesRoutes);
 app.use('/api', commentsRoutes);
-app.use('/api', monitoringRoutes); // Monitoring API útvonalak
 
 
 // Alap route teszteléshez
