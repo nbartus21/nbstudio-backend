@@ -1,163 +1,107 @@
 import mongoose from 'mongoose';
 
-const alertSchema = new mongoose.Schema({
-  type: {
-    type: String,
-    enum: ['cpu', 'memory', 'disk', 'security', 'service', 'network', 'other'],
-    required: true
-  },
-  severity: {
-    type: String,
-    enum: ['info', 'warning', 'critical'],
-    default: 'warning'
-  },
-  message: {
-    type: String,
-    required: true
-  },
-  acknowledged: {
-    type: Boolean,
-    default: false
-  },
-  timestamp: {
-    type: Date,
-    default: Date.now
-  }
-});
-
-const historyEntrySchema = new mongoose.Schema({
-  timestamp: {
-    type: Date,
-    default: Date.now
-  },
-  cpu_usage: Number,
-  memory_usage: Number,
-  disk_usage: Number,
-  load_average: [Number],
-  network_latency: Number,
-  network_traffic: {
-    rx_bytes: Number,
-    tx_bytes: Number
-  }
-});
-
 const serverMonitorSchema = new mongoose.Schema({
-  server_id: {
-    type: String,
+  server_id: { 
+    type: String, 
     required: true,
     unique: true
   },
-  hostname: {
-    type: String,
-    required: true
+  hostname: { 
+    type: String, 
+    required: true 
   },
+  os: String,
   ip_address: String,
-  os: {
-    type: String,
-    default: 'Unknown'
-  },
   status: {
     type: String,
-    enum: ['online', 'offline', 'maintenance', 'warning', 'critical'],
-    default: 'offline'
+    enum: ['online', 'offline', 'warning', 'maintenance'],
+    default: 'online'
   },
-  registration_time: {
-    type: Date,
-    default: Date.now
+  uptime: String,
+  last_seen: { 
+    type: Date, 
+    default: Date.now 
   },
-  last_seen: {
-    type: Date,
-    default: Date.now
-  },
+  registration_time: Date,
   system_info: {
-    os_details: {
-      distribution: String,
-      version: String,
-      kernel: String
-    },
     cpu: {
       model: String,
       cores: Number,
-      load_average: [Number],
-      usage_percent: Number
+      usage_percent: Number,
+      load: String
     },
     memory: {
-      total: Number,      // MB
-      used: Number,       // MB
-      free: Number,       // MB
+      total_mb: Number,
+      used_mb: Number,
+      free_mb: Number,
       usage_percent: Number
     },
+    swap: {
+      total_mb: Number,
+      used_mb: Number
+    },
     disk: {
-      total: Number,      // GB
-      used: Number,       // GB
-      free: Number,       // GB
+      total: String,
+      used: String,
+      free: String,
       usage_percent: Number,
-      mounts: [{
-        mountpoint: String,
-        size: Number,     // GB
-        used: Number,     // GB
-        usage_percent: Number
-      }]
-    },
-    processes: {
-      total: Number,
-      running: Number,
-      sleeping: Number,
-      stopped: Number,
-      zombie: Number
-    },
-    uptime: Number        // másodperc
+      io_latency_ms: String,
+      disks_detail: mongoose.Schema.Types.Mixed
+    }
   },
-  services: [{
-    name: String,
-    status: String,
-    port: Number,
-    process_id: Number,
-    memory_usage: Number,  // MB
-    cpu_usage: Number      // %
-  }],
   network: {
-    interfaces: [{
-      name: String,
-      ip_address: String,
-      mac_address: String,
-      rx_bytes: Number,
-      tx_bytes: Number,
-      rx_errors: Number,
-      tx_errors: Number
-    }],
-    connections: {
-      established: Number,
-      time_wait: Number,
-      close_wait: Number
-    },
+    interfaces: [mongoose.Schema.Types.Mixed],
     speedtest: {
-      download: Number,    // Mbps
-      upload: Number,      // Mbps
-      ping: Number,        // ms
-      server: String,
+      download: Number,
+      upload: Number,
+      ping: Number,
+      server: {
+        host: String,
+        location: String
+      },
       timestamp: Date
     },
-    ping_results: [{
-      host: String,
-      min: Number,
-      avg: Number,
-      max: Number,
-      packet_loss: Number
-    }]
+    ping_results: mongoose.Schema.Types.Mixed
   },
   security: {
-    open_ports: [Number],
+    open_ports: [String],
     active_ssh_connections: Number,
-    failed_login_attempts: [{
-      user: String,
-      ip: String,
-      timestamp: Date
-    }],
-    updates_available: Number,
-    security_updates: Number,
+    failed_login_attempts: [String],
+    updates_available: String,
+    security_updates: String,
     last_security_check: Date
   },
+  services: [String],
+  alerts: [{
+    type: {
+      type: String,
+      enum: ['cpu', 'memory', 'disk', 'network', 'security', 'service'],
+    },
+    severity: {
+      type: String,
+      enum: ['info', 'warning', 'critical'],
+      default: 'info'
+    },
+    message: String,
+    timestamp: { 
+      type: Date, 
+      default: Date.now 
+    },
+    acknowledged: {
+      type: Boolean,
+      default: false
+    }
+  }],
+  history: [{
+    timestamp: { 
+      type: Date, 
+      default: Date.now 
+    },
+    cpu_usage: Number,
+    memory_usage: Number,
+    disk_usage: Number,
+    network_latency: Number
+  }],
   settings: {
     alert_cpu_threshold: {
       type: Number,
@@ -178,75 +122,83 @@ const serverMonitorSchema = new mongoose.Schema({
       default: 60
     }
   },
-  alerts: [alertSchema],
-  history: [historyEntrySchema]
-}, {
-  timestamps: true
+  notes: String,
+  tags: [String],
+  createdAt: { 
+    type: Date, 
+    default: Date.now 
+  },
+  updatedAt: { 
+    type: Date, 
+    default: Date.now 
+  }
 });
 
-// Aktív riasztások lekérdezése
-serverMonitorSchema.virtual('active_alerts').get(function() {
-  return this.alerts.filter(alert => !alert.acknowledged);
-});
-
-// Szerver online-e az utolsó 5 percben
-serverMonitorSchema.virtual('is_online').get(function() {
-  const fiveMinutesAgo = new Date();
-  fiveMinutesAgo.setMinutes(fiveMinutesAgo.getMinutes() - 5);
-  return this.last_seen > fiveMinutesAgo;
-});
-
-// Állapot lekérdezése az aktív riasztások alapján
+// Automatikus frissítési dátum
 serverMonitorSchema.pre('save', function(next) {
-  // Biztosítsuk, hogy van-e már aktív riasztás
-  if (!this.alerts) {
-    this.alerts = [];
-  }
-  
-  // Ellenőrizzük a szervert online-e
-  const fiveMinutesAgo = new Date();
-  fiveMinutesAgo.setMinutes(fiveMinutesAgo.getMinutes() - 5);
-  
-  if (this.last_seen < fiveMinutesAgo) {
-    this.status = 'offline';
-    
-    // Nincs-e már offline riasztás
-    const existingOfflineAlert = this.alerts.find(alert => 
-      alert.type === 'other' && 
-      alert.message.includes('offline') &&
-      !alert.acknowledged
-    );
-    
-    if (!existingOfflineAlert) {
-      this.alerts.push({
-        type: 'other',
-        severity: 'critical',
-        message: 'A szerver offline állapotban van',
-        timestamp: new Date()
-      });
-    }
-  } else {
-    // Online esetén a riasztások alapján állítsuk be az állapotot
-    const criticalAlerts = this.alerts.filter(alert => 
-      !alert.acknowledged && alert.severity === 'critical'
-    );
-    
-    const warningAlerts = this.alerts.filter(alert => 
-      !alert.acknowledged && alert.severity === 'warning'
-    );
-    
-    if (criticalAlerts.length > 0) {
-      this.status = 'critical';
-    } else if (warningAlerts.length > 0) {
-      this.status = 'warning';
-    } else {
-      this.status = 'online';
-    }
-  }
-  
+  this.updatedAt = new Date();
   next();
 });
 
-const ServerMonitor = mongoose.model('ServerMonitor', serverMonitorSchema);
+// Virtual mező a teljes státusz állapotához
+serverMonitorSchema.virtual('healthStatus').get(function() {
+  if (this.status === 'offline' || this.status === 'maintenance') {
+    return this.status;
+  }
+  
+  const criticalAlerts = this.alerts.filter(alert => 
+    alert.severity === 'critical' && !alert.acknowledged
+  ).length;
+  
+  if (criticalAlerts > 0) {
+    return 'critical';
+  }
+  
+  const warningAlerts = this.alerts.filter(alert => 
+    alert.severity === 'warning' && !alert.acknowledged
+  ).length;
+  
+  if (warningAlerts > 0) {
+    return 'warning';
+  }
+  
+  return 'healthy';
+});
 
-export default ServerMonitor;
+// Metrikus számítás a rendszer egészségügyi állapotához (0-100%)
+serverMonitorSchema.virtual('healthScore').get(function() {
+  if (this.status === 'offline') return 0;
+  if (this.status === 'maintenance') return 50;
+  
+  // Alap pontszám 100
+  let score = 100;
+  
+  // CPU használat levonás (max 30 pont)
+  if (this.system_info?.cpu?.usage_percent > 0) {
+    score -= Math.min(30, (this.system_info.cpu.usage_percent / 100) * 30);
+  }
+  
+  // Memória használat levonás (max 30 pont)
+  if (this.system_info?.memory?.usage_percent > 0) {
+    score -= Math.min(30, (this.system_info.memory.usage_percent / 100) * 30);
+  }
+  
+  // Lemez használat levonás (max 20 pont)
+  if (this.system_info?.disk?.usage_percent > 0) {
+    score -= Math.min(20, (this.system_info.disk.usage_percent / 100) * 20);
+  }
+  
+  // Aktív figyelmeztetések levonás (max 20 pont)
+  const activeAlerts = this.alerts.filter(alert => !alert.acknowledged).length;
+  score -= Math.min(20, activeAlerts * 5);
+  
+  return Math.max(0, Math.round(score));
+});
+
+// Index definiálása a szerver ID-ra
+serverMonitorSchema.index({ server_id: 1 }, { unique: true });
+serverMonitorSchema.index({ status: 1 });
+serverMonitorSchema.index({ last_seen: 1 });
+serverMonitorSchema.index({ 'alerts.severity': 1, 'alerts.acknowledged': 1 });
+
+export default mongoose.model('ServerMonitor', serverMonitorSchema);
