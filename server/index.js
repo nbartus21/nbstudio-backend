@@ -193,7 +193,6 @@ app.use('/api/posts', async (req, res, next) => {
 app.use('/api/public/projects', validateApiKey, projectRoutes);
 app.use('/api/monitoring', monitoringRoutes); // Ez kerüljön az authMiddleware ELŐTT
 
-
 // Auth routes
 app.use('/api/auth', authRoutes);
 
