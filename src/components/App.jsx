@@ -1,13 +1,13 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Navigation from './Navigation';
-import Dashboard from './Dashboard';
+import Dashboard from './Dashboard';  // Importáljuk a Dashboard komponenst
 import BlogAdmin from './BlogAdmin';
 import BlogCreator from './BlogCreator';
 import ContactAdmin from './ContactAdmin';
 import CalculatorAdmin from './CalculatorAdmin';
 import Login from './Login';
-import MagicLogin from './MagicLogin';
+import MagicLogin from './MagicLogin';  // Új Magic Link komponens importálása
 import ProjectManager from './ProjectManager';
 import DomainManager from './domain/DomainManager';
 import InfrastructureManager from './InfrastructureManager';
@@ -15,21 +15,9 @@ import SharedProjectView from './SharedProjectView';
 import InvoiceManager from './InvoiceManager';
 import AccountingManager from './AccountingManager';
 import HostingManager from './HostingManager';
-
-// Simple ServerMonitoring component placeholder
-const ServerMonitoring = () => {
-  return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-6">Server Monitoring</h1>
-      <div className="bg-white rounded-lg shadow p-6">
-        <p>Server monitoring dashboard will be implemented here.</p>
-      </div>
-    </div>
-  );
-};
+import ServerMonitoring from './ServerMonitoring'; // Import ServerMonitoring component
 
 const App = () => {
-  // Védett route komponens
   const PrivateRoute = ({ children }) => {
     const isAuthenticated = sessionStorage.getItem('isAuthenticated') === 'true';
     
@@ -48,7 +36,8 @@ const App = () => {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
-      <Route path="/magic-login" element={<MagicLogin />} />
+      <Route path="/magic-login" element={<MagicLogin />} />  {/* Új Magic Login route */}
+      
       <Route
         path="/"
         element={
@@ -137,14 +126,14 @@ const App = () => {
           </PrivateRoute>
         }
       />
-      <Route
-        path="/infrastructure/monitoring"
-        element={
-          <PrivateRoute>
-            <ServerMonitoring />
-          </PrivateRoute>
-        }
-      />
+            <Route
+  path="/infrastructure/monitoring"
+  element={
+    <PrivateRoute>
+      <ServerMonitoring />
+    </PrivateRoute>
+  }
+/>
       <Route
         path="/hosting"
         element={
@@ -153,6 +142,14 @@ const App = () => {
           </PrivateRoute>
         }
       />
+      <Route
+  path="/infrastructure/monitoring"
+  element={
+    <PrivateRoute>
+      <ServerMonitoring />
+    </PrivateRoute>
+  }
+/>
       <Route path="*" element={<Navigate to="/magic-login" />} />
       <Route path="/shared-project/:token" element={<SharedProjectView />} />
     </Routes>
