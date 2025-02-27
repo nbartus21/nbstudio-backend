@@ -81,12 +81,12 @@ const Navigation = () => {
     },
     {
       category: "Szolgáltatások",
-      icon: <Server size={18} />,
       items: [
-        { path: "/domains", label: "Domain Kezelő", icon: <Globe size={16} /> },
-        { path: "/infrastructure", label: "Infrastruktúra Kezelő", icon: <Server size={16} /> },
-        { path: "/hosting", label: "Hosting Kezelő", icon: <Database size={16} /> },
-        { path: "/accounting", label: "Könyvelés", icon: <DollarSign size={16} /> }
+        { path: "/domains", label: "Domain Kezelő" },
+        { path: "/infrastructure", label: "Infrastruktúra Kezelő" },
+        { path: "/infrastructure/monitoring", label: "Szerver Monitoring" },
+        { path: "/hosting", label: "Hosting Kezelő" },
+        { path: "/accounting", label: "Könyvelés" }
       ]
     }
   ];

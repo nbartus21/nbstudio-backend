@@ -133,6 +133,14 @@ const App = () => {
           </PrivateRoute>
         }
       />
+      <Route
+  path="/infrastructure/monitoring"
+  element={
+    <PrivateRoute>
+      <ServerMonitoring />
+    </PrivateRoute>
+  }
+/>
       <Route path="*" element={<Navigate to="/magic-login" />} />
       <Route path="/shared-project/:token" element={<SharedProjectView />} />
     </Routes>
