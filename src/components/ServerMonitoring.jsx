@@ -11,7 +11,7 @@ import {
 import Card, { CardHeader, CardTitle, CardContent } from './ui/Card';
 import { api } from '../services/auth';
 
-const API_URL = 'https://admin.nb-studio.net:5001/api';
+const API_URL = 'https://admin.nb-studio.net:5001/api/monitoring';
 
 const ServerMonitoring = () => {
   // State
