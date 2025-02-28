@@ -1,9 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { X, Plus, Save, Send } from 'lucide-react';
+import { X, Plus, Save, Send, Search } from 'lucide-react';
 
-const CreateQuoteForm = ({ client, project, onClose, onSuccess }) => {
+const CreateQuoteForm = ({ client, project: initialProject, onClose, onSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [projects, setProjects] = useState([]);
+  const [loadingProjects, setLoadingProjects] = useState(false);
+  const [selectedProject, setSelectedProject] = useState(initialProject || null);
   
   // Ensure client object has the expected structure with default values
   const initialClient = {
@@ -51,8 +54,85 @@ const CreateQuoteForm = ({ client, project, onClose, onSuccess }) => {
     paymentTerms: 'Fizetés 8 napon belül banki átutalással',
     notes: 'Az árajánlat 30 napig érvényes.',
     validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    projectId: project?._id || null
+    projectId: initialProject?._id || null
   });
+
+  // Projektek lekérése
+  useEffect(() => {
+    const fetchProjects = async () => {
+      try {
+        setLoadingProjects(true);
+        const token = localStorage.getItem('token');
+        
+        if (!token) {
+          console.error('Nincs autentikációs token a projektek lekéréséhez');
+          setLoadingProjects(false);
+          return;
+        }
+
+        const response = await fetch('/api/projects', {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error('Nem sikerült lekérni a projekteket');
+        }
+
+        const data = await response.json();
+        setProjects(data || []);
+        setLoadingProjects(false);
+      } catch (error) {
+        console.error('Hiba a projektek lekérésekor:', error);
+        setLoadingProjects(false);
+      }
+    };
+
+    fetchProjects();
+  }, []);
+
+  // Ha nincs kezdeti projekt, de van kiválasztott, akkor frissítsük a quoteData-t
+  useEffect(() => {
+    if (selectedProject && selectedProject._id !== quoteData.projectId) {
+      setQuoteData(prev => ({
+        ...prev,
+        projectId: selectedProject._id
+      }));
+    }
+  }, [selectedProject, quoteData.projectId]);
+
+  // Projekt kiválasztása
+  const handleProjectSelect = (e) => {
+    const projectId = e.target.value;
+    
+    if (!projectId || projectId === "null") {
+      setSelectedProject(null);
+      setQuoteData(prev => ({
+        ...prev,
+        projectId: null
+      }));
+      return;
+    }
+
+    const selected = projects.find(p => p._id === projectId);
+    setSelectedProject(selected || null);
+    
+    // Ha van ügyfél adat a projektben, használjuk azt
+    if (selected && selected.client) {
+      setQuoteData(prev => ({
+        ...prev,
+        projectId: selected._id,
+        client: mergeClientData(selected.client)
+      }));
+    } else {
+      setQuoteData(prev => ({
+        ...prev,
+        projectId: selected?._id || null
+      }));
+    }
+  };
 
   // Memoize the calculation function to prevent recreating it on each render
   const calculateTotals = useCallback(() => {
@@ -215,6 +295,8 @@ const CreateQuoteForm = ({ client, project, onClose, onSuccess }) => {
         throw new Error('Nincs autentikációs token');
       }
 
+      console.log('Árajánlat küldése:', endpoint, dataToSend);
+
       // API hívás
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -244,13 +326,22 @@ const CreateQuoteForm = ({ client, project, onClose, onSuccess }) => {
     }
   };
 
+  // Projekt keresés
+  const [projectSearch, setProjectSearch] = useState('');
+  const filteredProjects = projectSearch
+    ? projects.filter(p => 
+        p.name.toLowerCase().includes(projectSearch.toLowerCase()) ||
+        p.client?.name?.toLowerCase().includes(projectSearch.toLowerCase())
+      )
+    : projects;
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         <div className="p-6">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-xl font-semibold">
-              {project ? 'Új árajánlat készítése projekthez' : 'Új árajánlat készítése'}
+              {selectedProject ? `Új árajánlat készítése: ${selectedProject.name}` : 'Új árajánlat készítése'}
             </h2>
             <button
               onClick={onClose}
@@ -265,6 +356,61 @@ const CreateQuoteForm = ({ client, project, onClose, onSuccess }) => {
               {error}
             </div>
           )}
+
+          {/* Projekt kiválasztás */}
+          <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+            <h3 className="font-medium text-gray-700 mb-3">Projekt kiválasztása</h3>
+            
+            <div className="flex items-center mb-3">
+              <div className="relative w-full">
+                <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                  <Search className="w-4 h-4 text-gray-500" />
+                </div>
+                <input
+                  type="text"
+                  value={projectSearch}
+                  onChange={(e) => setProjectSearch(e.target.value)}
+                  placeholder="Projekt keresése..."
+                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                />
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Projekt
+                </label>
+                <select
+                  value={selectedProject?._id || "null"}
+                  onChange={handleProjectSelect}
+                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                  disabled={loadingProjects}
+                >
+                  <option value="null">-- Projekttől független árajánlat --</option>
+                  {filteredProjects.map(project => (
+                    <option key={project._id} value={project._id}>
+                      {project.name} {project.client?.name ? `(${project.client.name})` : ''}
+                    </option>
+                  ))}
+                </select>
+                {loadingProjects && (
+                  <p className="mt-1 text-sm text-gray-500">Projektek betöltése...</p>
+                )}
+              </div>
+              
+              {selectedProject && (
+                <div>
+                  <h4 className="text-sm font-medium text-gray-700 mb-1">Kiválasztott projekt adatai</h4>
+                  <div className="bg-white p-3 rounded border border-gray-200 text-sm">
+                    <p><span className="font-medium">Név:</span> {selectedProject.name}</p>
+                    <p><span className="font-medium">Ügyfél:</span> {selectedProject.client?.name || 'Nincs megadva'}</p>
+                    <p><span className="font-medium">Státusz:</span> {selectedProject.status || 'Nincs megadva'}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
 
           <form onSubmit={(e) => handleSubmit(e, false)}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
