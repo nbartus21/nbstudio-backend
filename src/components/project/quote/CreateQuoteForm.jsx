@@ -4,20 +4,43 @@ import { X, Plus, Save, Send } from 'lucide-react';
 const CreateQuoteForm = ({ client, project, onClose, onSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [quoteData, setQuoteData] = useState({
-    client: client || {
-      name: '',
-      email: '',
-      phone: '',
-      companyName: '',
-      taxNumber: '',
+  
+  // Ensure client object has the expected structure with default values
+  const initialClient = {
+    name: '',
+    email: '',
+    phone: '',
+    companyName: '',
+    taxNumber: '',
+    address: {
+      street: '',
+      city: '',
+      postalCode: '',
+      country: 'Magyarország'
+    }
+  };
+
+  // Safely merge provided client with default structure
+  const mergeClientData = (providedClient) => {
+    if (!providedClient) return initialClient;
+    
+    return {
+      name: providedClient.name || '',
+      email: providedClient.email || '',
+      phone: providedClient.phone || '',
+      companyName: providedClient.companyName || '',
+      taxNumber: providedClient.taxNumber || '',
       address: {
-        street: '',
-        city: '',
-        postalCode: '',
-        country: 'Magyarország'
+        street: providedClient.address?.street || '',
+        city: providedClient.address?.city || '',
+        postalCode: providedClient.address?.postalCode || '',
+        country: providedClient.address?.country || 'Magyarország'
       }
-    },
+    };
+  };
+
+  const [quoteData, setQuoteData] = useState({
+    client: mergeClientData(client),
     items: [
       { description: '', quantity: 1, unitPrice: 0, discount: 0, total: 0 }
     ],
@@ -27,7 +50,7 @@ const CreateQuoteForm = ({ client, project, onClose, onSuccess }) => {
     paymentTerms: 'Fizetés 8 napon belül banki átutalással',
     notes: 'Az árajánlat 30 napig érvényes.',
     validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    projectId: project?._id
+    projectId: project?._id || null
   });
 
   // Számítások frissítése, amikor az adatok változnak
@@ -37,14 +60,34 @@ const CreateQuoteForm = ({ client, project, onClose, onSuccess }) => {
 
   // Tételek összértékének kiszámítása
   const calculateTotals = () => {
+    if (!Array.isArray(quoteData.items) || quoteData.items.length === 0) {
+      setQuoteData(prev => ({
+        ...prev,
+        subtotal: 0,
+        totalAmount: 0
+      }));
+      return;
+    }
+
     const items = quoteData.items.map(item => {
-      const discountMultiplier = 1 - (item.discount || 0) / 100;
-      const total = item.quantity * item.unitPrice * discountMultiplier;
-      return { ...item, total };
+      const quantity = parseFloat(item.quantity) || 0;
+      const unitPrice = parseFloat(item.unitPrice) || 0;
+      const discount = parseFloat(item.discount) || 0;
+      const discountMultiplier = 1 - discount / 100;
+      const total = quantity * unitPrice * discountMultiplier;
+      
+      return { 
+        ...item, 
+        quantity, 
+        unitPrice, 
+        discount, 
+        total 
+      };
     });
 
     const subtotal = items.reduce((sum, item) => sum + item.total, 0);
-    const totalAmount = subtotal * (1 + quoteData.vat / 100);
+    const vat = parseFloat(quoteData.vat) || 0;
+    const totalAmount = subtotal * (1 + vat / 100);
 
     setQuoteData(prev => ({
       ...prev,
@@ -78,7 +121,9 @@ const CreateQuoteForm = ({ client, project, onClose, onSuccess }) => {
   const handleItemChange = (index, field, value) => {
     setQuoteData(prev => {
       const newItems = [...prev.items];
-      newItems[index] = { ...newItems[index], [field]: value };
+      if (newItems[index]) {
+        newItems[index] = { ...newItems[index], [field]: value };
+      }
       return { ...prev, items: newItems };
     });
   };
@@ -97,7 +142,10 @@ const CreateQuoteForm = ({ client, project, onClose, onSuccess }) => {
       ...prev,
       client: { 
         ...prev.client, 
-        address: { ...prev.client.address, [field]: value }
+        address: { 
+          ...(prev.client.address || {}), // Ensure address exists
+          [field]: value 
+        }
       }
     }));
   };
@@ -122,9 +170,20 @@ const CreateQuoteForm = ({ client, project, onClose, onSuccess }) => {
         throw new Error('Az ügyfél neve és e-mail címe kötelező!');
       }
 
-      if (quoteData.items.some(item => !item.description || item.quantity <= 0)) {
+      if (quoteData.items.some(item => !item.description || parseFloat(item.quantity) <= 0)) {
         throw new Error('Minden tételnél adjon meg leírást és pozitív mennyiséget!');
       }
+
+      // Ensure client address is properly structured
+      const clientData = {
+        ...quoteData.client,
+        address: quoteData.client.address || {
+          street: '',
+          city: '',
+          postalCode: '',
+          country: 'Magyarország'
+        }
+      };
 
       // API végpont (attól függően, hogy van-e projekt)
       const endpoint = quoteData.projectId 
@@ -135,6 +194,7 @@ const CreateQuoteForm = ({ client, project, onClose, onSuccess }) => {
       const status = isDraft ? 'piszkozat' : 'elküldve';
       const dataToSend = {
         ...quoteData,
+        client: clientData,
         status
       };
 
@@ -143,7 +203,7 @@ const CreateQuoteForm = ({ client, project, onClose, onSuccess }) => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': localStorage.getItem('token') // JWT token a backend auth middleware-hez
+          'Authorization': localStorage.getItem('token') || '' // JWT token a backend auth middleware-hez
         },
         body: JSON.stringify(dataToSend)
       });
@@ -161,7 +221,8 @@ const CreateQuoteForm = ({ client, project, onClose, onSuccess }) => {
       setLoading(false);
       onClose();
     } catch (error) {
-      setError(error.message);
+      console.error('Hiba az árajánlat létrehozásakor:', error);
+      setError(error.message || 'Ismeretlen hiba történt');
       setLoading(false);
     }
   };
@@ -220,7 +281,7 @@ const CreateQuoteForm = ({ client, project, onClose, onSuccess }) => {
                   <label className="block text-sm font-medium text-gray-700">Telefonszám</label>
                   <input
                     type="tel"
-                    value={quoteData.client.phone}
+                    value={quoteData.client.phone || ''}
                     onChange={(e) => handleClientChange('phone', e.target.value)}
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                   />
@@ -230,7 +291,7 @@ const CreateQuoteForm = ({ client, project, onClose, onSuccess }) => {
                   <label className="block text-sm font-medium text-gray-700">Cégnév</label>
                   <input
                     type="text"
-                    value={quoteData.client.companyName}
+                    value={quoteData.client.companyName || ''}
                     onChange={(e) => handleClientChange('companyName', e.target.value)}
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                   />
@@ -240,7 +301,7 @@ const CreateQuoteForm = ({ client, project, onClose, onSuccess }) => {
                   <label className="block text-sm font-medium text-gray-700">Adószám</label>
                   <input
                     type="text"
-                    value={quoteData.client.taxNumber}
+                    value={quoteData.client.taxNumber || ''}
                     onChange={(e) => handleClientChange('taxNumber', e.target.value)}
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                   />
@@ -255,7 +316,7 @@ const CreateQuoteForm = ({ client, project, onClose, onSuccess }) => {
                   <label className="block text-sm font-medium text-gray-700">Utca, házszám</label>
                   <input
                     type="text"
-                    value={quoteData.client.address.street}
+                    value={(quoteData.client.address?.street || '')}
                     onChange={(e) => handleAddressChange('street', e.target.value)}
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                   />
@@ -266,7 +327,7 @@ const CreateQuoteForm = ({ client, project, onClose, onSuccess }) => {
                     <label className="block text-sm font-medium text-gray-700">Város</label>
                     <input
                       type="text"
-                      value={quoteData.client.address.city}
+                      value={(quoteData.client.address?.city || '')}
                       onChange={(e) => handleAddressChange('city', e.target.value)}
                       className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                     />
@@ -275,7 +336,7 @@ const CreateQuoteForm = ({ client, project, onClose, onSuccess }) => {
                     <label className="block text-sm font-medium text-gray-700">Irányítószám</label>
                     <input
                       type="text"
-                      value={quoteData.client.address.postalCode}
+                      value={(quoteData.client.address?.postalCode || '')}
                       onChange={(e) => handleAddressChange('postalCode', e.target.value)}
                       className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                     />
@@ -286,7 +347,7 @@ const CreateQuoteForm = ({ client, project, onClose, onSuccess }) => {
                   <label className="block text-sm font-medium text-gray-700">Ország</label>
                   <input
                     type="text"
-                    value={quoteData.client.address.country}
+                    value={(quoteData.client.address?.country || 'Magyarország')}
                     onChange={(e) => handleAddressChange('country', e.target.value)}
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                   />
@@ -296,7 +357,7 @@ const CreateQuoteForm = ({ client, project, onClose, onSuccess }) => {
                   <label className="block text-sm font-medium text-gray-700">Érvényesség dátuma</label>
                   <input
                     type="date"
-                    value={quoteData.validUntil}
+                    value={quoteData.validUntil || ''}
                     onChange={(e) => handleChange('validUntil', e.target.value)}
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                     required
@@ -307,7 +368,7 @@ const CreateQuoteForm = ({ client, project, onClose, onSuccess }) => {
                   <label className="block text-sm font-medium text-gray-700">ÁFA (%)</label>
                   <input
                     type="number"
-                    value={quoteData.vat}
+                    value={quoteData.vat || 27}
                     onChange={(e) => handleChange('vat', parseFloat(e.target.value) || 0)}
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                     min="0"
@@ -323,7 +384,7 @@ const CreateQuoteForm = ({ client, project, onClose, onSuccess }) => {
                 <label className="block text-sm font-medium text-gray-700">Fizetési feltételek</label>
                 <input
                   type="text"
-                  value={quoteData.paymentTerms}
+                  value={quoteData.paymentTerms || ''}
                   onChange={(e) => handleChange('paymentTerms', e.target.value)}
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                 />
@@ -332,7 +393,7 @@ const CreateQuoteForm = ({ client, project, onClose, onSuccess }) => {
               <div>
                 <label className="block text-sm font-medium text-gray-700">Megjegyzések</label>
                 <textarea
-                  value={quoteData.notes}
+                  value={quoteData.notes || ''}
                   onChange={(e) => handleChange('notes', e.target.value)}
                   rows={3}
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
@@ -367,12 +428,12 @@ const CreateQuoteForm = ({ client, project, onClose, onSuccess }) => {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {quoteData.items.map((item, index) => (
+                    {Array.isArray(quoteData.items) && quoteData.items.map((item, index) => (
                       <tr key={index}>
                         <td className="px-3 py-2">
                           <input
                             type="text"
-                            value={item.description}
+                            value={item.description || ''}
                             onChange={(e) => handleItemChange(index, 'description', e.target.value)}
                             className="block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                             placeholder="Tétel leírása"
@@ -382,7 +443,7 @@ const CreateQuoteForm = ({ client, project, onClose, onSuccess }) => {
                         <td className="px-3 py-2">
                           <input
                             type="number"
-                            value={item.quantity}
+                            value={item.quantity || ''}
                             onChange={(e) => handleItemChange(index, 'quantity', parseFloat(e.target.value) || 0)}
                             className="block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm text-right"
                             min="0.01"
@@ -393,7 +454,7 @@ const CreateQuoteForm = ({ client, project, onClose, onSuccess }) => {
                         <td className="px-3 py-2">
                           <input
                             type="number"
-                            value={item.unitPrice}
+                            value={item.unitPrice || ''}
                             onChange={(e) => handleItemChange(index, 'unitPrice', parseFloat(e.target.value) || 0)}
                             className="block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm text-right"
                             min="0"
@@ -404,7 +465,7 @@ const CreateQuoteForm = ({ client, project, onClose, onSuccess }) => {
                         <td className="px-3 py-2">
                           <input
                             type="number"
-                            value={item.discount}
+                            value={item.discount || ''}
                             onChange={(e) => handleItemChange(index, 'discount', parseFloat(e.target.value) || 0)}
                             className="block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm text-right"
                             min="0"
@@ -413,14 +474,14 @@ const CreateQuoteForm = ({ client, project, onClose, onSuccess }) => {
                           />
                         </td>
                         <td className="px-3 py-2 text-right font-medium">
-                          {item.total.toLocaleString('hu-HU', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} Ft
+                          {(item.total || 0).toLocaleString('hu-HU', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} Ft
                         </td>
                         <td className="px-3 py-2 text-center">
                           <button
                             type="button"
                             onClick={() => handleRemoveItem(index)}
                             className="text-red-600 hover:text-red-900"
-                            disabled={quoteData.items.length === 1}
+                            disabled={quoteData.items.length <= 1}
                           >
                             <X className="h-4 w-4" />
                           </button>
@@ -432,21 +493,21 @@ const CreateQuoteForm = ({ client, project, onClose, onSuccess }) => {
                     <tr className="bg-gray-50">
                       <td colSpan="4" className="px-3 py-2 text-right font-medium">Részösszeg:</td>
                       <td className="px-3 py-2 text-right font-medium">
-                        {quoteData.subtotal.toLocaleString('hu-HU', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} Ft
+                        {(quoteData.subtotal || 0).toLocaleString('hu-HU', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} Ft
                       </td>
                       <td></td>
                     </tr>
                     <tr className="bg-gray-50">
-                      <td colSpan="4" className="px-3 py-2 text-right font-medium">ÁFA ({quoteData.vat}%):</td>
+                      <td colSpan="4" className="px-3 py-2 text-right font-medium">ÁFA ({quoteData.vat || 0}%):</td>
                       <td className="px-3 py-2 text-right font-medium">
-                        {((quoteData.totalAmount - quoteData.subtotal)).toLocaleString('hu-HU', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} Ft
+                        {((quoteData.totalAmount || 0) - (quoteData.subtotal || 0)).toLocaleString('hu-HU', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} Ft
                       </td>
                       <td></td>
                     </tr>
                     <tr className="bg-gray-50">
                       <td colSpan="4" className="px-3 py-2 text-right text-lg font-bold">Végösszeg:</td>
                       <td className="px-3 py-2 text-right text-lg font-bold">
-                        {quoteData.totalAmount.toLocaleString('hu-HU', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} Ft
+                        {(quoteData.totalAmount || 0).toLocaleString('hu-HU', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} Ft
                       </td>
                       <td></td>
                     </tr>
