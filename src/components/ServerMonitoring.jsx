@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   AreaChart, Area, PieChart, Pie, Cell, BarChart, Bar
@@ -6,7 +6,7 @@ import {
 import { 
   Server, HardDrive, Database, Cpu, Wifi, Shield, 
   AlertTriangle, Check, X, RefreshCcw, Settings, 
-  Download, Upload, Clock, Terminal 
+  Download, Upload, Clock, Terminal, Trash2, PowerOff
 } from 'lucide-react';
 import Card, { CardHeader, CardTitle, CardContent } from './ui/Card';
 import { api } from '../services/auth';
@@ -32,19 +32,32 @@ const ServerMonitoring = () => {
     }
   });
   const [showInstallModal, setShowInstallModal] = useState(false);
+  const [showUninstallModal, setShowUninstallModal] = useState(false);
+  const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
   const [newServerData, setNewServerData] = useState({
     hostname: '',
     ip_address: '',
     os: ''
   });
   const [installCommand, setInstallCommand] = useState('');
+  const [uninstallCommand, setUninstallCommand] = useState('');
   const [refreshInterval, setRefreshInterval] = useState(30); // másodperc
   const [autoRefresh, setAutoRefresh] = useState(true);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
+  
+  // Refs for charts
+  const chartRefs = useRef({
+    cpu: null,
+    memory: null,
+    disk: null
+  });
 
   // Adatok lekérése
   const fetchData = async () => {
     try {
       setLoading(true);
+      setError(null);
       
       const [serversRes, summaryRes] = await Promise.all([
         api.get(`${API_URL}/monitoring/servers`),
@@ -60,13 +73,19 @@ const ServerMonitoring = () => {
       // Ha van kiválasztott szerver, frissítjük annak adatait is
       if (selectedServer) {
         const serverRes = await api.get(`${API_URL}/monitoring/servers/${selectedServer.server_id}`);
-        const serverData = await serverRes.json();
-        setSelectedServer(serverData);
+        if (serverRes.ok) {
+          const serverData = await serverRes.json();
+          setSelectedServer(serverData);
+        } else {
+          // Ha a szerver már nem létezik, töröljük a kiválasztást
+          setSelectedServer(null);
+        }
       }
       
       setLoading(false);
     } catch (error) {
       console.error('Hiba az adatok lekérésekor:', error);
+      setError('Nem sikerült kapcsolódni a szerverhez. Kérjük, próbálja újra később.');
       setLoading(false);
     }
   };
@@ -93,14 +112,19 @@ const ServerMonitoring = () => {
     try {
       if (!selectedServer) return;
       
-      await api.put(`${API_URL}/monitoring/servers/${selectedServer.server_id}/alerts/${alertId}/acknowledge`);
+      const response = await api.put(`${API_URL}/monitoring/servers/${selectedServer.server_id}/alerts/${alertId}/acknowledge`);
+      if (!response.ok) {
+        throw new Error('Nem sikerült nyugtázni a riasztást');
+      }
       
       // Frissítjük a szerver adatait
       const serverRes = await api.get(`${API_URL}/monitoring/servers/${selectedServer.server_id}`);
       const serverData = await serverRes.json();
       setSelectedServer(serverData);
+      setSuccess('Riasztás sikeresen nyugtázva');
     } catch (error) {
       console.error('Hiba a riasztás nyugtázásakor:', error);
+      setError('Nem sikerült nyugtázni a riasztást: ' + error.message);
     }
   };
 
@@ -109,14 +133,19 @@ const ServerMonitoring = () => {
     try {
       if (!selectedServer) return;
       
-      await api.put(`${API_URL}/monitoring/servers/${selectedServer.server_id}/alerts/acknowledge-all`);
+      const response = await api.put(`${API_URL}/monitoring/servers/${selectedServer.server_id}/alerts/acknowledge-all`);
+      if (!response.ok) {
+        throw new Error('Nem sikerült nyugtázni a riasztásokat');
+      }
       
       // Frissítjük a szerver adatait
       const serverRes = await api.get(`${API_URL}/monitoring/servers/${selectedServer.server_id}`);
       const serverData = await serverRes.json();
       setSelectedServer(serverData);
+      setSuccess('Minden riasztás sikeresen nyugtázva');
     } catch (error) {
       console.error('Hiba az összes riasztás nyugtázásakor:', error);
+      setError('Nem sikerült nyugtázni a riasztásokat: ' + error.message);
     }
   };
 
@@ -126,16 +155,55 @@ const ServerMonitoring = () => {
     
     try {
       const response = await api.post(`${API_URL}/monitoring/servers`, newServerData);
+      
+      if (!response.ok) {
+        throw new Error('Nem sikerült regisztrálni a szervert');
+      }
+      
       const data = await response.json();
       
       // Mentjük a telepítési parancsot
       setInstallCommand(data.installCommand);
+      setSuccess('Szerver sikeresen regisztrálva');
       
       // Frissítjük a szerverek listáját
       fetchData();
     } catch (error) {
       console.error('Hiba a szerver regisztrációjakor:', error);
+      setError('Nem sikerült regisztrálni a szervert: ' + error.message);
     }
+  };
+
+  // Szerver törlése
+  const deleteServer = async () => {
+    try {
+      if (!selectedServer) return;
+      
+      const response = await api.delete(`${API_URL}/monitoring/servers/${selectedServer.server_id}`);
+      
+      if (!response.ok) {
+        throw new Error('Nem sikerült törölni a szervert');
+      }
+      
+      setSuccess('Szerver sikeresen törölve');
+      setShowDeleteConfirmModal(false);
+      setSelectedServer(null);
+      
+      // Frissítjük a szerverek listáját
+      fetchData();
+    } catch (error) {
+      console.error('Hiba a szerver törlésekor:', error);
+      setError('Nem sikerült törölni a szervert: ' + error.message);
+    }
+  };
+
+  // Uninstall command generálása
+  const generateUninstallCommand = () => {
+    if (!selectedServer) return;
+    
+    const cmd = `curl -sSL https://admin.nb-studio.net:5001/api/monitoring/uninstall.sh | sudo bash -s -- --server-id ${selectedServer.server_id}`;
+    setUninstallCommand(cmd);
+    setShowUninstallModal(true);
   };
 
   // Health Score színe a pontszám alapján
@@ -186,6 +254,26 @@ const ServerMonitoring = () => {
 
   return (
     <div className="p-6">
+      {/* Hibaüzenetek */}
+      {error && (
+        <div className="mb-4 p-4 bg-red-100 text-red-700 rounded-lg border border-red-300 flex justify-between items-center">
+          <span>{error}</span>
+          <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+      )}
+      
+      {/* Sikeres művelet üzenetek */}
+      {success && (
+        <div className="mb-4 p-4 bg-green-100 text-green-700 rounded-lg border border-green-300 flex justify-between items-center">
+          <span>{success}</span>
+          <button onClick={() => setSuccess(null)} className="text-green-500 hover:text-green-700">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+      )}
+
       {/* Fejléc */}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Szerver Monitoring</h1>
@@ -394,6 +482,24 @@ const ServerMonitoring = () => {
                     <div className="text-sm">
                       {getStatusIcon(selectedServer.status)}
                     </div>
+                    
+                    {/* Szerver törlés és uninstall gombok */}
+                    <div className="flex space-x-2 ml-4">
+                      <button
+                        onClick={generateUninstallCommand}
+                        className="p-2 bg-yellow-500 text-white rounded hover:bg-yellow-600"
+                        title="Monitoring ügynök eltávolítása"
+                      >
+                        <PowerOff className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => setShowDeleteConfirmModal(true)}
+                        className="p-2 bg-red-500 text-white rounded hover:bg-red-600"
+                        title="Szerver törlése a monitoring rendszerből"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               </CardHeader>
@@ -456,6 +562,16 @@ const ServerMonitoring = () => {
                       </span>
                     )}
                   </button>
+                  <button
+                    onClick={() => setSelectedTab('settings')}
+                    className={`px-4 py-3 font-medium text-sm ${
+                      selectedTab === 'settings' 
+                        ? 'border-b-2 border-blue-500 text-blue-600' 
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    Beállítások
+                  </button>
                 </nav>
               </div>
               
@@ -469,12 +585,20 @@ const ServerMonitoring = () => {
                         <h3 className="font-medium mb-3">Rendszer információk</h3>
                         <div className="space-y-2">
                           <div className="flex justify-between">
+                            <span className="text-sm text-gray-600">Szerver ID:</span>
+                            <span className="text-sm font-medium">{selectedServer.server_id || 'N/A'}</span>
+                          </div>
+                          <div className="flex justify-between">
                             <span className="text-sm text-gray-600">IP cím:</span>
                             <span className="text-sm font-medium">{selectedServer.ip_address || 'N/A'}</span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-sm text-gray-600">Operációs rendszer:</span>
                             <span className="text-sm font-medium">{selectedServer.os || 'N/A'}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-sm text-gray-600">Kernel verzió:</span>
+                            <span className="text-sm font-medium">{selectedServer.system_info?.kernel_version || 'N/A'}</span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-sm text-gray-600">Uptime:</span>
@@ -507,6 +631,15 @@ const ServerMonitoring = () => {
                             </span>
                           </div>
                           <div className="flex justify-between">
+                            <span className="text-sm text-gray-600">CPU sebesség:</span>
+                            <span className="text-sm font-medium">
+                              {selectedServer.system_info?.cpu?.speed_mhz 
+                                ? `${selectedServer.system_info.cpu.speed_mhz} MHz` 
+                                : 'N/A'
+                              }
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
                             <span className="text-sm text-gray-600">Memória:</span>
                             <span className="text-sm font-medium">
                               {selectedServer.system_info?.memory?.total_mb
@@ -522,9 +655,27 @@ const ServerMonitoring = () => {
                             </span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-sm text-gray-600">Lemez I/O:</span>
+                            <span className="text-sm text-gray-600">Fájlrendszer:</span>
                             <span className="text-sm font-medium">
-                              {selectedServer.system_info?.disk?.io_latency_ms || 'N/A'}
+                              {selectedServer.system_info?.disk?.filesystem || 'N/A'}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-sm text-gray-600">I/O Sebesség:</span>
+                            <span className="text-sm font-medium">
+                              {selectedServer.system_info?.disk?.io_speed_mbps 
+                                ? `${selectedServer.system_info.disk.io_speed_mbps} MB/s` 
+                                : 'N/A'
+                              }
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-sm text-gray-600">I/O Latency:</span>
+                            <span className="text-sm font-medium">
+                              {selectedServer.system_info?.disk?.io_latency_ms 
+                                ? `${selectedServer.system_info.disk.io_latency_ms} ms` 
+                                : 'N/A'
+                              }
                             </span>
                           </div>
                         </div>
@@ -541,7 +692,7 @@ const ServerMonitoring = () => {
                         </div>
                         <div className="flex items-end justify-between">
                           <div className="text-2xl font-bold">
-                            {selectedServer.system_info?.cpu?.usage_percent
+                            {selectedServer.system_info?.cpu?.usage_percent !== undefined
                               ? `${selectedServer.system_info.cpu.usage_percent.toFixed(1)}%`
                               : 'N/A'
                             }
@@ -551,7 +702,7 @@ const ServerMonitoring = () => {
                           </div>
                         </div>
                         
-                        {selectedServer.system_info?.cpu?.usage_percent && (
+                        {selectedServer.system_info?.cpu?.usage_percent !== undefined && (
                           <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2">
                             <div
                               className="h-2.5 rounded-full"
@@ -576,7 +727,7 @@ const ServerMonitoring = () => {
                         </div>
                         <div className="flex items-end justify-between">
                           <div className="text-2xl font-bold">
-                            {selectedServer.system_info?.memory?.usage_percent
+                            {selectedServer.system_info?.memory?.usage_percent !== undefined
                               ? `${selectedServer.system_info.memory.usage_percent.toFixed(1)}%`
                               : 'N/A'
                             }
@@ -589,7 +740,7 @@ const ServerMonitoring = () => {
                           </div>
                         </div>
                         
-                        {selectedServer.system_info?.memory?.usage_percent && (
+                        {selectedServer.system_info?.memory?.usage_percent !== undefined && (
                           <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2">
                             <div
                               className="h-2.5 rounded-full"
@@ -614,7 +765,7 @@ const ServerMonitoring = () => {
                         </div>
                         <div className="flex items-end justify-between">
                           <div className="text-2xl font-bold">
-                            {selectedServer.system_info?.disk?.usage_percent
+                            {selectedServer.system_info?.disk?.usage_percent !== undefined
                               ? `${selectedServer.system_info.disk.usage_percent}%`
                               : 'N/A'
                             }
@@ -627,7 +778,7 @@ const ServerMonitoring = () => {
                           </div>
                         </div>
                         
-                        {selectedServer.system_info?.disk?.usage_percent && (
+                        {selectedServer.system_info?.disk?.usage_percent !== undefined && (
                           <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2">
                             <div
                               className="h-2.5 rounded-full"
@@ -645,20 +796,51 @@ const ServerMonitoring = () => {
                       </div>
                     </div>
                     
+                    {/* Aktív processek */}
+                    <div className="bg-gray-50 p-4 rounded-lg mb-4">
+                      <h3 className="font-medium mb-3">Top Processek</h3>
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200">
+                          <thead className="bg-gray-100">
+                            <tr>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">PID</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Név</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">CPU %</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Memória %</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Felhasználó</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-200">
+                            {selectedServer.processes 
+                              ? selectedServer.processes.map((process, index) => (
+                                <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                                  <td className="px-4 py-2 text-sm">{process.pid}</td>
+                                  <td className="px-4 py-2 text-sm">{process.name}</td>
+                                  <td className="px-4 py-2 text-sm">{process.cpu}%</td>
+                                  <td className="px-4 py-2 text-sm">{process.memory}%</td>
+                                  <td className="px-4 py-2 text-sm">{process.user}</td>
+                                </tr>
+                              ))
+                              : <tr><td colSpan="5" className="px-4 py-2 text-center text-gray-500">Nincs elérhető process információ</td></tr>
+                            }
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                    
                     {/* Aktív szolgáltatások */}
                     <div className="bg-gray-50 p-4 rounded-lg">
                       <h3 className="font-medium mb-3">Aktív Szolgáltatások</h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                        {selectedServer.services && selectedServer.services.map((service, index) => (
-                          <div key={index} className="flex items-center space-x-2 text-sm">
-                            <Terminal className="h-4 w-4 text-gray-400" />
-                            <span className="truncate">{service}</span>
-                          </div>
-                        ))}
-                        
-                        {(!selectedServer.services || selectedServer.services.length === 0) && (
-                          <p className="text-sm text-gray-500">Nincs elérhető szolgáltatás információ</p>
-                        )}
+                        {selectedServer.services && selectedServer.services.length > 0 
+                          ? selectedServer.services.map((service, index) => (
+                            <div key={index} className="flex items-center space-x-2 text-sm">
+                              <Terminal className="h-4 w-4 text-gray-400" />
+                              <span className="truncate">{service}</span>
+                            </div>
+                          ))
+                          : <p className="text-sm text-gray-500">Nincs elérhető szolgáltatás információ</p>
+                        }
                       </div>
                     </div>
                   </div>
@@ -678,6 +860,7 @@ const ServerMonitoring = () => {
                               <LineChart
                                 data={selectedServer.history.slice(-30)}
                                 margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                                ref={ref => chartRefs.current.cpu = ref}
                               >
                                 <CartesianGrid strokeDasharray="3 3" />
                                 <XAxis 
@@ -691,6 +874,7 @@ const ServerMonitoring = () => {
                                   formatter={(value) => [`${value}%`, 'CPU Használat']}
                                   labelFormatter={(timestamp) => new Date(timestamp).toLocaleString()}
                                 />
+                                <Legend />
                                 <Line 
                                   type="monotone" 
                                   dataKey="cpu_usage" 
@@ -698,6 +882,18 @@ const ServerMonitoring = () => {
                                   name="CPU Használat"
                                   strokeWidth={2}
                                   dot={false}
+                                  activeDot={{ r: 8 }}
+                                  isAnimationActive={false}
+                                />
+                                <Line 
+                                  type="monotone" 
+                                  dataKey="load_avg_1m" 
+                                  stroke="#8884d8" 
+                                  name="Load (1m)"
+                                  strokeWidth={1}
+                                  strokeDasharray="5 5"
+                                  dot={false}
+                                  isAnimationActive={false}
                                 />
                               </LineChart>
                             </ResponsiveContainer>
@@ -712,6 +908,7 @@ const ServerMonitoring = () => {
                               <AreaChart
                                 data={selectedServer.history.slice(-30)}
                                 margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                                ref={ref => chartRefs.current.memory = ref}
                               >
                                 <CartesianGrid strokeDasharray="3 3" />
                                 <XAxis 
@@ -725,6 +922,7 @@ const ServerMonitoring = () => {
                                   formatter={(value) => [`${value}%`, 'Memória Használat']}
                                   labelFormatter={(timestamp) => new Date(timestamp).toLocaleString()}
                                 />
+                                <Legend />
                                 <Area 
                                   type="monotone" 
                                   dataKey="memory_usage" 
@@ -732,6 +930,16 @@ const ServerMonitoring = () => {
                                   fill="#DDD6FE"
                                   name="Memória Használat"
                                   strokeWidth={2}
+                                  isAnimationActive={false}
+                                />
+                                <Area 
+                                  type="monotone" 
+                                  dataKey="swap_usage" 
+                                  stroke="#EC4899" 
+                                  fill="#FBCFE8"
+                                  name="Swap Használat"
+                                  strokeWidth={1}
+                                  isAnimationActive={false}
                                 />
                               </AreaChart>
                             </ResponsiveContainer>
@@ -740,12 +948,13 @@ const ServerMonitoring = () => {
                         
                         {/* Lemez használat történeti grafikon */}
                         <div>
-                          <h4 className="text-sm font-medium mb-2">Lemez Használat Történet</h4>
+                          <h4 className="text-sm font-medium mb-2">Lemez Használat és I/O Történet</h4>
                           <div className="h-64">
                             <ResponsiveContainer width="100%" height="100%">
-                              <AreaChart
+                              <LineChart
                                 data={selectedServer.history.slice(-30)}
                                 margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                                ref={ref => chartRefs.current.disk = ref}
                               >
                                 <CartesianGrid strokeDasharray="3 3" />
                                 <XAxis 
@@ -754,26 +963,57 @@ const ServerMonitoring = () => {
                                     return new Date(timestamp).toLocaleTimeString();
                                   }}
                                 />
-                                <YAxis domain={[0, 100]} />
+                                <YAxis yAxisId="left" domain={[0, 100]} />
+                                <YAxis yAxisId="right" orientation="right" />
                                 <Tooltip 
-                                  formatter={(value) => [`${value}%`, 'Lemez Használat']}
+                                  formatter={(value, name) => {
+                                    if (name === 'Lemez Használat') return [`${value}%`, name];
+                                    return [`${value} MB/s`, name];
+                                  }}
                                   labelFormatter={(timestamp) => new Date(timestamp).toLocaleString()}
                                 />
-                                <Area 
+                                <Legend />
+                                <Line 
                                   type="monotone" 
                                   dataKey="disk_usage" 
                                   stroke="#10B981" 
-                                  fill="#D1FAE5"
                                   name="Lemez Használat"
+                                  yAxisId="left"
                                   strokeWidth={2}
+                                  dot={false}
+                                  isAnimationActive={false}
                                 />
-                              </AreaChart>
+                                <Line 
+                                  type="monotone" 
+                                  dataKey="disk_read_mbps" 
+                                  stroke="#3B82F6" 
+                                  name="Olvasás (MB/s)"
+                                  yAxisId="right"
+                                  strokeWidth={1}
+                                  strokeDasharray="3 3"
+                                  dot={false}
+                                  isAnimationActive={false}
+                                />
+                                <Line 
+                                  type="monotone" 
+                                  dataKey="disk_write_mbps" 
+                                  stroke="#F59E0B" 
+                                  name="Írás (MB/s)"
+                                  yAxisId="right"
+                                  strokeWidth={1}
+                                  strokeDasharray="3 3"
+                                  dot={false}
+                                  isAnimationActive={false}
+                                />
+                              </LineChart>
                             </ResponsiveContainer>
                           </div>
                         </div>
                       </div>
                     ) : (
-                      <p className="text-gray-500">Nincs elérhető történeti adat</p>
+                      <p className="text-center text-gray-500 py-6">
+                        Nincs elérhető történeti adat
+                      </p>
                     )}
                   </div>
                 )}
@@ -792,9 +1032,22 @@ const ServerMonitoring = () => {
                               <div>
                                 <p className="font-medium">{iface.name}</p>
                                 <p className="text-sm text-gray-500">MAC: {iface.mac}</p>
+                                {iface.is_virtual && (
+                                  <span className="px-2 py-0.5 text-xs bg-blue-100 text-blue-800 rounded-full">
+                                    Virtuális
+                                  </span>
+                                )}
                               </div>
                               <div className="text-right">
                                 <p className="font-medium">{iface.ip}</p>
+                                {iface.ipv6 && (
+                                  <p className="text-sm text-gray-500">IPv6: {iface.ipv6}</p>
+                                )}
+                                {iface.tx_bytes && iface.rx_bytes && (
+                                  <p className="text-xs text-gray-500">
+                                    TX: {formatByteSize(iface.tx_bytes)} | RX: {formatByteSize(iface.rx_bytes)}
+                                  </p>
+                                )}
                               </div>
                             </div>
                           ))}
@@ -802,6 +1055,37 @@ const ServerMonitoring = () => {
                       ) : (
                         <p className="text-gray-500">Nincs elérhető hálózati interfész információ</p>
                       )}
+                    </div>
+                    
+                    {/* Hálózati statisztikák */}
+                    <div className="bg-white p-4 rounded-lg border mb-6">
+                      <h4 className="text-sm font-medium mb-3">Hálózati Statisztikák</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="p-3 bg-gray-50 rounded-lg">
+                          <p className="text-xs text-gray-500">Aktív Kapcsolatok</p>
+                          <p className="text-xl font-bold">
+                            {selectedServer.network?.active_connections || 'N/A'}
+                          </p>
+                        </div>
+                        <div className="p-3 bg-gray-50 rounded-lg">
+                          <p className="text-xs text-gray-500">Elküldött Adatok</p>
+                          <p className="text-xl font-bold">
+                            {selectedServer.network?.total_tx_bytes 
+                              ? formatByteSize(selectedServer.network?.total_tx_bytes) 
+                              : 'N/A'
+                            }
+                          </p>
+                        </div>
+                        <div className="p-3 bg-gray-50 rounded-lg">
+                          <p className="text-xs text-gray-500">Fogadott Adatok</p>
+                          <p className="text-xl font-bold">
+                            {selectedServer.network?.total_rx_bytes 
+                              ? formatByteSize(selectedServer.network?.total_rx_bytes) 
+                              : 'N/A'
+                            }
+                          </p>
+                        </div>
+                      </div>
                     </div>
                     
                     {/* Internet sebesség */}
@@ -865,7 +1149,13 @@ const ServerMonitoring = () => {
                             {Object.entries(selectedServer.network.ping_results).map(([host, ping]) => (
                               <div key={host} className="flex justify-between items-center">
                                 <span className="text-sm">{host}</span>
-                                <span className="font-medium">{ping} ms</span>
+                                <span className={`font-medium ${
+                                  ping > 100 ? 'text-red-500' : 
+                                  ping > 50 ? 'text-yellow-500' : 
+                                  'text-green-500'
+                                }`}>
+                                  {ping} ms
+                                </span>
                               </div>
                             ))}
                           </div>
@@ -873,6 +1163,58 @@ const ServerMonitoring = () => {
                           <p className="text-gray-500">Nincs elérhető ping információ</p>
                         )}
                       </div>
+                    </div>
+                    
+                    {/* Hálózati forgalom történet */}
+                    <div className="bg-white p-4 rounded-lg border">
+                      <h4 className="text-sm font-medium mb-3">Hálózati Forgalom Történet</h4>
+                      
+                      {selectedServer.history && selectedServer.history.length > 0 ? (
+                        <div className="h-64">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <LineChart
+                              data={selectedServer.history.slice(-30)}
+                              margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                            >
+                              <CartesianGrid strokeDasharray="3 3" />
+                              <XAxis 
+                                dataKey="timestamp" 
+                                tickFormatter={(timestamp) => {
+                                  return new Date(timestamp).toLocaleTimeString();
+                                }}
+                              />
+                              <YAxis />
+                              <Tooltip 
+                                formatter={(value) => [`${formatByteSize(value)}/s`, value === 'network_rx' ? 'Fogadott' : 'Küldött']}
+                                labelFormatter={(timestamp) => new Date(timestamp).toLocaleString()}
+                              />
+                              <Legend />
+                              <Line 
+                                type="monotone" 
+                                dataKey="network_rx" 
+                                stroke="#3B82F6" 
+                                name="Fogadott"
+                                strokeWidth={2}
+                                dot={false}
+                                isAnimationActive={false}
+                              />
+                              <Line 
+                                type="monotone" 
+                                dataKey="network_tx" 
+                                stroke="#F59E0B" 
+                                name="Küldött"
+                                strokeWidth={2}
+                                dot={false}
+                                isAnimationActive={false}
+                              />
+                            </LineChart>
+                          </ResponsiveContainer>
+                        </div>
+                      ) : (
+                        <p className="text-center text-gray-500 py-6">
+                          Nincs elérhető hálózati forgalom történeti adat
+                        </p>
+                      )}
                     </div>
                   </div>
                 )}
@@ -889,9 +1231,14 @@ const ServerMonitoring = () => {
                         {selectedServer.security?.open_ports && selectedServer.security.open_ports.length > 0 ? (
                           <div className="grid grid-cols-4 gap-2">
                             {selectedServer.security.open_ports.map((port, index) => (
-                              <span key={index} className="px-2 py-1 bg-gray-100 rounded text-center text-sm">
-                                {port}
-                              </span>
+                              <div key={index} className="px-2 py-1 bg-gray-100 rounded text-center text-sm">
+                                <span>{port}</span>
+                                {selectedServer.security.ports_info && selectedServer.security.ports_info[port] && (
+                                  <span className="block text-xs text-gray-500 truncate" title={selectedServer.security.ports_info[port]}>
+                                    {selectedServer.security.ports_info[port]}
+                                  </span>
+                                )}
+                              </div>
                             ))}
                           </div>
                         ) : (
@@ -904,12 +1251,30 @@ const ServerMonitoring = () => {
                         <h4 className="text-sm font-medium mb-3">SSH Kapcsolatok</h4>
                         
                         {selectedServer.security?.active_ssh_connections !== undefined ? (
-                          <div className="flex items-center">
-                            <Terminal className="h-5 w-5 text-gray-400 mr-2" />
-                            <span className="font-medium">
-                              {selectedServer.security.active_ssh_connections} aktív kapcsolat
-                            </span>
-                          </div>
+                          selectedServer.security?.ssh_sessions && selectedServer.security.ssh_sessions.length > 0 ? (
+                            <div className="space-y-2">
+                              {selectedServer.security.ssh_sessions.map((session, index) => (
+                                <div key={index} className="p-2 bg-gray-50 rounded">
+                                  <div className="flex justify-between">
+                                    <span className="text-sm font-medium">{session.user}@{session.source}</span>
+                                    <span className="text-xs text-gray-500">{session.duration || 'N/A'}</span>
+                                  </div>
+                                  {session.login_time && (
+                                    <div className="text-xs text-gray-500">
+                                      Bejelentkezés: {new Date(session.login_time).toLocaleString()}
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="flex items-center">
+                              <Terminal className="h-5 w-5 text-gray-400 mr-2" />
+                              <span className="font-medium">
+                                {selectedServer.security.active_ssh_connections} aktív kapcsolat
+                              </span>
+                            </div>
+                          )
                         ) : (
                           <p className="text-gray-500">Nincs elérhető SSH kapcsolat információ</p>
                         )}
@@ -939,6 +1304,20 @@ const ServerMonitoring = () => {
                               </span>
                             </div>
                             
+                            {selectedServer.security.pending_packages && selectedServer.security.pending_packages.length > 0 && (
+                              <div className="mt-2">
+                                <h5 className="text-xs font-medium mb-1">Függőben lévő csomagok:</h5>
+                                <div className="max-h-24 overflow-y-auto text-xs bg-gray-50 p-2 rounded">
+                                  {selectedServer.security.pending_packages.map((pkg, index) => (
+                                    <div key={index} className="flex justify-between">
+                                      <span>{pkg.name}</span>
+                                      <span className="text-gray-500">{pkg.version}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            
                             {selectedServer.security.last_security_check && (
                               <p className="text-xs text-gray-500 mt-2">
                                 Utolsó ellenőrzés: {new Date(selectedServer.security.last_security_check).toLocaleString()}
@@ -966,6 +1345,33 @@ const ServerMonitoring = () => {
                           <p className="text-gray-500">Nincs észlelt sikertelen bejelentkezési kísérlet</p>
                         )}
                       </div>
+                    </div>
+                    
+                    {/* Utolsó biztonsági audit */}
+                    <div className="bg-white p-4 rounded-lg border mt-6">
+                      <h4 className="text-sm font-medium mb-3">Biztonsági Audit</h4>
+                      
+                      {selectedServer.security?.audit_results ? (
+                        <div className="space-y-3">
+                          {Object.entries(selectedServer.security.audit_results).map(([category, result]) => (
+                            <div key={category} className="border-b pb-2">
+                              <div className="flex justify-between items-center">
+                                <span className="font-medium capitalize">{category.replace('_', ' ')}</span>
+                                <span className={`px-2 py-1 text-xs rounded-full ${
+                                  result.status === 'passed' ? 'bg-green-100 text-green-800' :
+                                  result.status === 'warning' ? 'bg-yellow-100 text-yellow-800' :
+                                  'bg-red-100 text-red-800'
+                                }`}>
+                                  {result.status}
+                                </span>
+                              </div>
+                              <p className="text-sm text-gray-600">{result.message}</p>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-gray-500">Nincs elérhető biztonsági audit információ</p>
+                      )}
                     </div>
                   </div>
                 )}
@@ -1036,6 +1442,129 @@ const ServerMonitoring = () => {
                     )}
                   </div>
                 )}
+                
+                {selectedTab === 'settings' && (
+                  <div>
+                    <h3 className="font-medium mb-4">Monitoring Beállítások</h3>
+                    
+                    <div className="bg-white p-6 rounded-lg border">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                          <h4 className="text-sm font-medium mb-3">Riasztási Küszöbértékek</h4>
+                          <div className="space-y-4">
+                            <div>
+                              <label className="block text-sm text-gray-600 mb-1">
+                                CPU Használat Riasztás (%)
+                              </label>
+                              <input
+                                type="number"
+                                className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                defaultValue={selectedServer.settings?.alert_cpu_threshold || 90}
+                                min={1}
+                                max={100}
+                              />
+                            </div>
+                            
+                            <div>
+                              <label className="block text-sm text-gray-600 mb-1">
+                                Memória Használat Riasztás (%)
+                              </label>
+                              <input
+                                type="number"
+                                className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                defaultValue={selectedServer.settings?.alert_memory_threshold || 90}
+                                min={1}
+                                max={100}
+                              />
+                            </div>
+                            
+                            <div>
+                              <label className="block text-sm text-gray-600 mb-1">
+                                Lemez Használat Riasztás (%)
+                              </label>
+                              <input
+                                type="number"
+                                className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                defaultValue={selectedServer.settings?.alert_disk_threshold || 90}
+                                min={1}
+                                max={100}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div>
+                          <h4 className="text-sm font-medium mb-3">Monitoring Beállítások</h4>
+                          <div className="space-y-4">
+                            <div>
+                              <label className="block text-sm text-gray-600 mb-1">
+                                Adatgyűjtési Intervallum (másodperc)
+                              </label>
+                              <input
+                                type="number"
+                                className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                defaultValue={selectedServer.settings?.collection_interval || 60}
+                                min={10}
+                                max={3600}
+                              />
+                            </div>
+                            
+                            <div>
+                              <label className="block text-sm text-gray-600 mb-1">
+                                Értesítési Email
+                              </label>
+                              <input
+                                type="email"
+                                className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                defaultValue={selectedServer.settings?.notification_email}
+                                placeholder="admin@example.com"
+                              />
+                            </div>
+                            
+                            <div>
+                              <label className="flex items-center text-sm text-gray-600">
+                                <input
+                                  type="checkbox"
+                                  className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4 mr-2"
+                                  defaultChecked={selectedServer.settings?.enable_notifications !== false}
+                                />
+                                Értesítések engedélyezése
+                              </label>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="mt-6">
+                        <h4 className="text-sm font-medium mb-3">Monitorozott Szolgáltatások</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                          {['nginx', 'apache', 'mysql', 'postgresql', 'mongodb', 'redis', 'docker', 'nodejs'].map((service) => (
+                            <label key={service} className="flex items-center text-sm">
+                              <input
+                                type="checkbox"
+                                className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4 mr-2"
+                                defaultChecked={selectedServer.settings?.monitored_services?.includes(service)}
+                              />
+                              {service}
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                      
+                      <div className="mt-6 flex justify-end">
+                        <button
+                          onClick={() => {
+                            setSuccess('Beállítások sikeresen mentve');
+                            // Itt implementálnánk a tényleges mentést
+                          }}
+                          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                        >
+                          Beállítások Mentése
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           ) : (
@@ -1046,6 +1575,65 @@ const ServerMonitoring = () => {
           )}
         </div>
       </div>
+
+      {/* Szerver törlés megerősítés modal */}
+      {showDeleteConfirmModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <h2 className="text-xl font-semibold mb-4">Szerver Törlése</h2>
+            <p className="mb-6">
+              Biztosan törölni szeretnéd a következő szervert a monitoring rendszerből: <span className="font-bold">{selectedServer.hostname}</span>?
+            </p>
+            <p className="mb-6 text-sm text-gray-500">
+              Ez a művelet csak a monitoringot törli, a tényleges szerver nem lesz érintve. Ha újra szeretnéd monitorozni később, újra regisztrálhatod.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowDeleteConfirmModal(false)}
+                className="px-4 py-2 text-gray-700 bg-gray-100 rounded hover:bg-gray-200"
+              >
+                Mégse
+              </button>
+              <button
+                onClick={deleteServer}
+                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+              >
+                Törlés
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Szerver uninstall modal */}
+      {showUninstallModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg max-w-2xl w-full p-6">
+            <h2 className="text-xl font-semibold mb-4">Monitoring Ügynök Eltávolítása</h2>
+            <p className="mb-4">
+              Az alábbi parancs eltávolítja a monitoring ügynököt a szerverről anélkül, hogy törölné a szerver adatait a monitoring rendszerből.
+            </p>
+            
+            <div className="bg-gray-800 text-white p-4 rounded font-mono text-sm overflow-x-auto mb-4">
+              {uninstallCommand}
+            </div>
+            
+            <p className="mb-6 text-sm text-yellow-500">
+              <AlertTriangle className="h-4 w-4 inline mr-1" />
+              Az ügynök eltávolítása után a szerver "offline" állapotba kerül, de az adatai megmaradnak a rendszerben.
+            </p>
+            
+            <div className="flex justify-end">
+              <button
+                onClick={() => setShowUninstallModal(false)}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              >
+                Bezárás
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Új szerver modal */}
       {showInstallModal && (
@@ -1061,6 +1649,20 @@ const ServerMonitoring = () => {
                   {installCommand}
                 </div>
                 
+                <div className="bg-blue-50 p-4 border border-blue-200 rounded mb-4">
+                  <h3 className="font-medium text-blue-700 mb-2">Mi történik a telepítés során?</h3>
+                  <p className="text-sm text-blue-600">
+                    Az ügynök a következő adatokat gyűjti és továbbítja a monitoring rendszernek:
+                  </p>
+                  <ul className="list-disc list-inside text-sm text-blue-600 mt-2 space-y-1">
+                    <li>Rendszerinformációk (CPU, memória, lemez használat)</li>
+                    <li>Hálózati adatok és kapcsolatok</li>
+                    <li>Biztonsági információk (SSH kapcsolatok, nyitott portok)</li>
+                    <li>Aktív szolgáltatások és processek</li>
+                    <li>Frissítési információk</li>
+                  </ul>
+                </div>
+                
                 <div className="flex justify-end">
                   <button
                     onClick={() => {
@@ -1072,7 +1674,7 @@ const ServerMonitoring = () => {
                         os: ''
                       });
                     }}
-                    className="px-4 py-2 bg-blue-600 text-white rounded"
+                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
                   >
                     Bezárás
                   </button>
