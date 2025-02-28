@@ -15,7 +15,6 @@ import SharedProjectView from './SharedProjectView';
 import InvoiceManager from './InvoiceManager';
 import AccountingManager from './AccountingManager';
 import HostingManager from './HostingManager';
-import ServerMonitoring from './ServerMonitoring'; // Import ServerMonitoring component
 
 const App = () => {
   const PrivateRoute = ({ children }) => {
@@ -142,14 +141,7 @@ const App = () => {
           </PrivateRoute>
         }
       />
-      <Route
-  path="/infrastructure/monitoring"
-  element={
-    <PrivateRoute>
-      <ServerMonitoring />
-    </PrivateRoute>
-  }
-/>
+
       <Route path="*" element={<Navigate to="/magic-login" />} />
       <Route path="/shared-project/:token" element={<SharedProjectView />} />
     </Routes>
