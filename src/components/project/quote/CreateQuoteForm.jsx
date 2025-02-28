@@ -42,6 +42,11 @@ const CreateQuoteForm = ({ client, project: initialProject, onClose, onSuccess }
     };
   };
 
+  // Get currency from selected project or default to EUR
+  const getCurrency = () => {
+    return selectedProject?.financial?.currency || 'EUR';
+  };
+
   // Initialize state once
   const [quoteData, setQuoteData] = useState({
     client: mergeClientData(client),
@@ -70,6 +75,7 @@ const CreateQuoteForm = ({ client, project: initialProject, onClose, onSuccess }
           return;
         }
 
+        console.log('Projektek lekérése...');
         const response = await fetch('/api/projects', {
           method: 'GET',
           headers: {
@@ -78,14 +84,16 @@ const CreateQuoteForm = ({ client, project: initialProject, onClose, onSuccess }
         });
 
         if (!response.ok) {
-          throw new Error('Nem sikerült lekérni a projekteket');
+          throw new Error(`Nem sikerült lekérni a projekteket: ${response.status} ${response.statusText}`);
         }
 
         const data = await response.json();
+        console.log(`${data.length} projekt betöltve`);
         setProjects(data || []);
         setLoadingProjects(false);
       } catch (error) {
         console.error('Hiba a projektek lekérésekor:', error);
+        setError(`Nem sikerült betölteni a projekteket: ${error.message}`);
         setLoadingProjects(false);
       }
     };
@@ -326,11 +334,17 @@ const CreateQuoteForm = ({ client, project: initialProject, onClose, onSuccess }
     }
   };
 
+  // Pénzformátum segédfüggvény
+  const formatCurrency = (amount) => {
+    const currency = getCurrency();
+    return `${amount.toLocaleString('hu-HU', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} ${currency}`;
+  };
+
   // Projekt keresés
   const [projectSearch, setProjectSearch] = useState('');
   const filteredProjects = projectSearch
     ? projects.filter(p => 
-        p.name.toLowerCase().includes(projectSearch.toLowerCase()) ||
+        p.name?.toLowerCase().includes(projectSearch.toLowerCase()) ||
         p.client?.name?.toLowerCase().includes(projectSearch.toLowerCase())
       )
     : projects;
@@ -346,6 +360,7 @@ const CreateQuoteForm = ({ client, project: initialProject, onClose, onSuccess }
             <button
               onClick={onClose}
               className="text-gray-500 hover:text-gray-700"
+              aria-label="Bezárás"
             >
               <X className="h-6 w-6" />
             </button>
@@ -406,6 +421,7 @@ const CreateQuoteForm = ({ client, project: initialProject, onClose, onSuccess }
                     <p><span className="font-medium">Név:</span> {selectedProject.name}</p>
                     <p><span className="font-medium">Ügyfél:</span> {selectedProject.client?.name || 'Nincs megadva'}</p>
                     <p><span className="font-medium">Státusz:</span> {selectedProject.status || 'Nincs megadva'}</p>
+                    <p><span className="font-medium">Pénznem:</span> {selectedProject.financial?.currency || 'EUR'}</p>
                   </div>
                 </div>
               )}
@@ -637,7 +653,7 @@ const CreateQuoteForm = ({ client, project: initialProject, onClose, onSuccess }
                           />
                         </td>
                         <td className="px-3 py-2 text-right font-medium">
-                          {(item.total || 0).toLocaleString('hu-HU', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} Ft
+                          {formatCurrency(item.total || 0)}
                         </td>
                         <td className="px-3 py-2 text-center">
                           <button
@@ -656,21 +672,21 @@ const CreateQuoteForm = ({ client, project: initialProject, onClose, onSuccess }
                     <tr className="bg-gray-50">
                       <td colSpan="4" className="px-3 py-2 text-right font-medium">Részösszeg:</td>
                       <td className="px-3 py-2 text-right font-medium">
-                        {(quoteData.subtotal || 0).toLocaleString('hu-HU', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} Ft
+                        {formatCurrency(quoteData.subtotal || 0)}
                       </td>
                       <td></td>
                     </tr>
                     <tr className="bg-gray-50">
                       <td colSpan="4" className="px-3 py-2 text-right font-medium">ÁFA ({quoteData.vat || 0}%):</td>
                       <td className="px-3 py-2 text-right font-medium">
-                        {((quoteData.totalAmount || 0) - (quoteData.subtotal || 0)).toLocaleString('hu-HU', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} Ft
+                        {formatCurrency((quoteData.totalAmount || 0) - (quoteData.subtotal || 0))}
                       </td>
                       <td></td>
                     </tr>
                     <tr className="bg-gray-50">
                       <td colSpan="4" className="px-3 py-2 text-right text-lg font-bold">Végösszeg:</td>
                       <td className="px-3 py-2 text-right text-lg font-bold">
-                        {(quoteData.totalAmount || 0).toLocaleString('hu-HU', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} Ft
+                        {formatCurrency(quoteData.totalAmount || 0)}
                       </td>
                       <td></td>
                     </tr>
