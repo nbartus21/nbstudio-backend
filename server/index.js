@@ -14,7 +14,6 @@ import projectRoutes from './routes/projects.js';
 import domainRoutes from './routes/domains.js';
 import serverRoutes from './routes/servers.js';
 import licenseRoutes from './routes/licenses.js';
-import monitoringRoutes from './routes/monitoring.js';
 import authMiddleware from './middleware/auth.js';
 import authRoutes from './routes/auth.js';
 import notificationRoutes from './routes/notifications.js';
@@ -191,7 +190,6 @@ app.use('/api/posts', async (req, res, next) => {
 });
 // Projects publikus végpontok
 app.use('/api/public/projects', validateApiKey, projectRoutes);
-app.use('/api', monitoringRoutes);
 
 // Auth routes
 app.use('/api/auth', authRoutes);
