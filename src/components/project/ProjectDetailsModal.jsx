@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { FileText, Plus, ChevronDown } from 'lucide-react';
-import CreateQuoteForm from './quote/CreateQuoteForm'; // Ezt majd létrehozzuk
-import QuoteStatusBadge from './quote/QuoteStatusBadge'; // Ezt majd létrehozzuk
+import CreateQuoteForm from './quote/CreateQuoteForm.jsx'; // Ezt majd létrehozzuk
+import QuoteStatusBadge from './quote/QuoteStatusBadge.jsx'; // Ezt majd létrehozzuk
 
 const ProjectDetailsModal = ({ project, onUpdate, onClose, onSave, quotes = [] }) => {
   const [showQuoteForm, setShowQuoteForm] = useState(false);
