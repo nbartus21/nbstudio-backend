@@ -903,7 +903,7 @@ collect_system_info() {
   
   # Top processek
   TOP_PROCESSES=\$(ps aux --sort=-%cpu | head -n 6 | tail -n 5 | awk '{printf "{\\"pid\\":%s,\\"user\\":\\"%s\\",\\"cpu\\":%s,\\"memory\\":%s,\\"name\\":\\"%s\\"},", $2, $1, $3, $4, $11}')
-  TOP_PROCESSES="[${TOP_PROCESSES%,}]"
+  TOP_PROCESSES="[${TOP_PROCESSES%}]"
   
   # JSON formázás
   SYSTEM_INFO="{
