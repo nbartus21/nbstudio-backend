@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { X, Plus, Save, Send } from 'lucide-react';
 
 const CreateQuoteForm = ({ client, project, onClose, onSuccess }) => {
@@ -39,6 +39,7 @@ const CreateQuoteForm = ({ client, project, onClose, onSuccess }) => {
     };
   };
 
+  // Initialize state once
   const [quoteData, setQuoteData] = useState({
     client: mergeClientData(client),
     items: [
@@ -53,22 +54,17 @@ const CreateQuoteForm = ({ client, project, onClose, onSuccess }) => {
     projectId: project?._id || null
   });
 
-  // Számítások frissítése, amikor az adatok változnak
-  useEffect(() => {
-    calculateTotals();
-  }, [quoteData.items, quoteData.vat]);
-
-  // Tételek összértékének kiszámítása
-  const calculateTotals = () => {
+  // Memoize the calculation function to prevent recreating it on each render
+  const calculateTotals = useCallback(() => {
     if (!Array.isArray(quoteData.items) || quoteData.items.length === 0) {
-      setQuoteData(prev => ({
-        ...prev,
+      return {
+        items: quoteData.items || [],
         subtotal: 0,
         totalAmount: 0
-      }));
-      return;
+      };
     }
 
+    // Create new items array with calculated totals
     const items = quoteData.items.map(item => {
       const quantity = parseFloat(item.quantity) || 0;
       const unitPrice = parseFloat(item.unitPrice) || 0;
@@ -85,17 +81,32 @@ const CreateQuoteForm = ({ client, project, onClose, onSuccess }) => {
       };
     });
 
-    const subtotal = items.reduce((sum, item) => sum + item.total, 0);
+    // Calculate subtotal and total
+    const subtotal = items.reduce((sum, item) => sum + (item.total || 0), 0);
     const vat = parseFloat(quoteData.vat) || 0;
     const totalAmount = subtotal * (1 + vat / 100);
 
-    setQuoteData(prev => ({
-      ...prev,
-      items,
-      subtotal,
-      totalAmount
-    }));
-  };
+    return { items, subtotal, totalAmount };
+  }, [quoteData.items, quoteData.vat]);
+
+  // Process calculations without infinite update loop
+  useEffect(() => {
+    const { items, subtotal, totalAmount } = calculateTotals();
+    
+    // Only update if values actually changed to prevent infinite loop
+    if (
+      JSON.stringify(items) !== JSON.stringify(quoteData.items) ||
+      subtotal !== quoteData.subtotal ||
+      totalAmount !== quoteData.totalAmount
+    ) {
+      setQuoteData(prev => ({
+        ...prev,
+        items,
+        subtotal,
+        totalAmount
+      }));
+    }
+  }, [calculateTotals, quoteData.items, quoteData.subtotal, quoteData.totalAmount]);
 
   // Új tétel hozzáadása
   const handleAddItem = () => {
@@ -198,12 +209,18 @@ const CreateQuoteForm = ({ client, project, onClose, onSuccess }) => {
         status
       };
 
+      // Get the token from localStorage
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('Nincs autentikációs token');
+      }
+
       // API hívás
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': localStorage.getItem('token') || '' // JWT token a backend auth middleware-hez
+          'Authorization': `Bearer ${token}`  // Add 'Bearer ' prefix for JWT tokens
         },
         body: JSON.stringify(dataToSend)
       });
