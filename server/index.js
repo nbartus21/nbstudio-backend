@@ -23,7 +23,6 @@ import hostingRoutes from './routes/hosting.js';
 import Post from './models/Post.js';
 
 
-
 dotenv.config();
 
 const app = express();
