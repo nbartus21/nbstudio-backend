@@ -16,6 +16,7 @@ import InvoiceManager from './InvoiceManager';
 import AccountingManager from './AccountingManager';
 import HostingManager from './HostingManager';
 
+
 const App = () => {
   const PrivateRoute = ({ children }) => {
     const isAuthenticated = sessionStorage.getItem('isAuthenticated') === 'true';
@@ -125,14 +126,7 @@ const App = () => {
           </PrivateRoute>
         }
       />
-            <Route
-  path="/infrastructure/monitoring"
-  element={
-    <PrivateRoute>
-      <ServerMonitoring />
-    </PrivateRoute>
-  }
-/>
+
       <Route
         path="/hosting"
         element={
