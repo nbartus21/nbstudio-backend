@@ -1,4 +1,5 @@
-// árajánlat modell (MongoDB séma)
+import mongoose from 'mongoose';
+
 const quoteSchema = new mongoose.Schema({
     quoteNumber: {
       type: String,
@@ -94,4 +95,5 @@ const quoteSchema = new mongoose.Schema({
   
   const Quote = mongoose.model('Quote', quoteSchema);
   
-  module.exports = Quote;
+  // Changed from CommonJS export to ES Module export
+  export default Quote;
