@@ -44,6 +44,15 @@ const projectSchema = new mongoose.Schema({
     totalBilled: { type: Number, default: 0 },
     currency: { type: String, default: 'EUR' }
   },
+  // Árajánlatok kezelése - ÚJ
+  quotes: [{ 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'Quote' 
+  }],
+  quoteAccepted: { 
+    type: Boolean, 
+    default: false 
+  },
   // Számlák
   invoices: [{
     number: String,
@@ -95,22 +104,21 @@ const projectSchema = new mongoose.Schema({
       default: 'általános'
     }
   }],
-//fajlok feltoltese
-files: [{
-  name: String,
-  size: Number,
-  type: String,
-  uploadedAt: { type: Date, default: Date.now },
-  content: String, // Base64 ou URL
-  uploadedBy: String
-}],
-
-// Comentários
-comments: [{
-  text: String,
-  author: String,
-  timestamp: { type: Date, default: Date.now }
-}],
+  // Fájlok feltöltése
+  files: [{
+    name: String,
+    size: Number,
+    type: String,
+    uploadedAt: { type: Date, default: Date.now },
+    content: String, // Base64 ou URL
+    uploadedBy: String
+  }],
+  // Kommentek
+  comments: [{
+    text: String,
+    author: String,
+    timestamp: { type: Date, default: Date.now }
+  }],
   // Időbélyegek
   startDate: { type: Date, default: Date.now },
   expectedEndDate: Date,
@@ -141,7 +149,5 @@ projectSchema.pre('save', function(next) {
   this.updatedAt = new Date();
   next();
 });
-
-
 
 export default mongoose.model('Project', projectSchema);
