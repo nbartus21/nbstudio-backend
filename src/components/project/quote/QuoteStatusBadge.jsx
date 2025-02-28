@@ -1,68 +1,47 @@
 import React from 'react';
-import { 
-  FileText, 
-  Send, 
-  Clock, 
-  CheckCircle, 
-  XCircle, 
-  AlertTriangle 
-} from 'lucide-react';
 
 const QuoteStatusBadge = ({ status, className = '' }) => {
-  // Státuszhoz tartozó színek és ikonok
-  const statusConfig = {
-    piszkozat: {
-      bg: 'bg-gray-100',
-      text: 'text-gray-800',
-      icon: FileText,
-      label: 'Piszkozat'
-    },
-    elküldve: {
-      bg: 'bg-blue-100',
-      text: 'text-blue-800',
-      icon: Send,
-      label: 'Elküldve'
-    },
-    visszaigazolásra_vár: {
-      bg: 'bg-yellow-100',
-      text: 'text-yellow-800',
-      icon: Clock,
-      label: 'Visszaigazolásra vár'
-    },
-    elfogadva: {
-      bg: 'bg-green-100',
-      text: 'text-green-800',
-      icon: CheckCircle,
-      label: 'Elfogadva'
-    },
-    elutasítva: {
-      bg: 'bg-red-100',
-      text: 'text-red-800',
-      icon: XCircle,
-      label: 'Elutasítva'
-    },
-    lejárt: {
-      bg: 'bg-orange-100',
-      text: 'text-orange-800',
-      icon: AlertTriangle,
-      label: 'Lejárt'
+  const getStatusStyle = () => {
+    switch (status) {
+      case 'piszkozat':
+        return 'bg-gray-100 text-gray-800';
+      case 'elküldve':
+        return 'bg-blue-100 text-blue-800';
+      case 'visszaigazolásra_vár':
+        return 'bg-purple-100 text-purple-800';
+      case 'elfogadva':
+        return 'bg-green-100 text-green-800';
+      case 'elutasítva':
+        return 'bg-red-100 text-red-800';
+      case 'lejárt':
+        return 'bg-yellow-100 text-yellow-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
     }
   };
 
-  // Ha nincs megfelelő konfig a státuszhoz, akkor alapértelmezett értékek
-  const config = statusConfig[status] || {
-    bg: 'bg-gray-100',
-    text: 'text-gray-800',
-    icon: FileText,
-    label: status || 'Ismeretlen'
+  const getStatusText = () => {
+    switch (status) {
+      case 'piszkozat':
+        return 'Piszkozat';
+      case 'elküldve':
+        return 'Elküldve';
+      case 'visszaigazolásra_vár':
+        return 'Visszaigazolásra vár';
+      case 'elfogadva':
+        return 'Elfogadva';
+      case 'elutasítva':
+        return 'Elutasítva';
+      case 'lejárt':
+        return 'Lejárt';
+      default:
+        return status;
+    }
   };
 
-  const Icon = config.icon;
-
   return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${config.bg} ${config.text} ${className}`}>
-      <Icon className="h-3.5 w-3.5 mr-1" />
-      {config.label}
+    <span className={`px-2 py-1 text-xs rounded-full ${getStatusStyle()} ${className}`}>
+      {getStatusText()}
     </span>
   );
 };
