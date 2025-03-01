@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { X, Plus, Save, Send, Search } from 'lucide-react';
 
+// API kulcs a .env fájlból
+const API_KEY = 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0';
+
 const CreateQuoteForm = ({ client, project: initialProject, onClose, onSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -67,19 +70,13 @@ const CreateQuoteForm = ({ client, project: initialProject, onClose, onSuccess }
     const fetchProjects = async () => {
       try {
         setLoadingProjects(true);
-        const token = localStorage.getItem('token');
-        
-        if (!token) {
-          console.error('Nincs autentikációs token a projektek lekéréséhez');
-          setLoadingProjects(false);
-          return;
-        }
+        console.log('Projektek lekérése API kulccsal...');
 
-        console.log('Projektek lekérése...');
         const response = await fetch('/api/projects', {
           method: 'GET',
           headers: {
-            'Authorization': `Bearer ${token}`
+            'Content-Type': 'application/json',
+            'X-API-Key': API_KEY
           }
         });
 
@@ -88,7 +85,7 @@ const CreateQuoteForm = ({ client, project: initialProject, onClose, onSuccess }
         }
 
         const data = await response.json();
-        console.log(`${data.length} projekt betöltve`);
+        console.log(`${data.length} projekt betöltve sikeresen`);
         setProjects(data || []);
         setLoadingProjects(false);
       } catch (error) {
@@ -297,20 +294,14 @@ const CreateQuoteForm = ({ client, project: initialProject, onClose, onSuccess }
         status
       };
 
-      // Get the token from localStorage
-      const token = localStorage.getItem('token');
-      if (!token) {
-        throw new Error('Nincs autentikációs token');
-      }
+      console.log('Árajánlat küldése API kulccsal:', endpoint);
 
-      console.log('Árajánlat küldése:', endpoint, dataToSend);
-
-      // API hívás
+      // API hívás X-API-Key headerrel
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`  // Add 'Bearer ' prefix for JWT tokens
+          'X-API-Key': API_KEY
         },
         body: JSON.stringify(dataToSend)
       });
