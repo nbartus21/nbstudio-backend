@@ -1,30 +1,16 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { X, Plus, Save, Send, Search, Bug, AlertTriangle } from 'lucide-react';
+import { X, Plus, Save, Send, Search } from 'lucide-react';
 
-// ======= DEBUG MÓD =======
-// Ez a komponens az eredeti verzió részletes debugging funkcionalitással kiegészítve
-// Az összes API hívás és minden lépés naplózva van
+// API kulcs a .env fájlból vagy közvetlen beágyazás
+const API_KEY = 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0';
 
 const CreateQuoteForm = ({ client, project: initialProject, onClose, onSuccess }) => {
-  // Alap állapotok
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [projects, setProjects] = useState([]);
   const [loadingProjects, setLoadingProjects] = useState(false);
   const [selectedProject, setSelectedProject] = useState(initialProject || null);
   
-  // Debug állapotok
-  const [debugMode, setDebugMode] = useState(true);
-  const [debugLogs, setDebugLogs] = useState([]);
-  const [apiKey, setApiKey] = useState(
-    localStorage.getItem('debug_api_key') || 
-    'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0'
-  );
-  const [baseUrl, setBaseUrl] = useState(
-    localStorage.getItem('debug_base_url') || 
-    ''  // Üres string a relatív útvonalakhoz
-  );
-
   // Ensure client object has the expected structure with default values
   const initialClient = {
     name: '',
@@ -39,32 +25,6 @@ const CreateQuoteForm = ({ client, project: initialProject, onClose, onSuccess }
       country: 'Magyarország'
     }
   };
-
-  // DEBUG: Log hozzáadása
-  const addLog = (message, type = 'info', data = null) => {
-    if (!debugMode) return;
-    
-    const log = {
-      id: Date.now(),
-      timestamp: new Date().toISOString(),
-      message,
-      type,
-      data
-    };
-    
-    console.log(`[${log.type.toUpperCase()}] ${log.message}`, log.data);
-    setDebugLogs(prev => [log, ...prev].slice(0, 100));
-  };
-
-  // DEBUG: API kulcs mentése
-  useEffect(() => {
-    localStorage.setItem('debug_api_key', apiKey);
-  }, [apiKey]);
-
-  // DEBUG: Base URL mentése
-  useEffect(() => {
-    localStorage.setItem('debug_base_url', baseUrl);
-  }, [baseUrl]);
 
   // Safely merge provided client with default structure
   const mergeClientData = (providedClient) => {
@@ -85,21 +45,25 @@ const CreateQuoteForm = ({ client, project: initialProject, onClose, onSuccess }
     };
   };
 
-  // Get headers with JWT token
-  const getAuthHeaders = () => {
-    // Alap headers minden kéréshez
+  // Get JWT token from localStorage
+  const getJwtToken = () => {
+    return localStorage.getItem('token');
+  };
+
+  // Prepare headers with best available authentication method
+  const getHeaders = () => {
     const headers = {
       'Content-Type': 'application/json',
-      'X-API-Key': apiKey
     };
     
-    // Ha van JWT token, azt is hozzáadjuk
-    const token = localStorage.getItem('token');
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
+    const jwtToken = getJwtToken();
+    if (jwtToken) {
+      headers['Authorization'] = `Bearer ${jwtToken}`;
     }
     
-    addLog('Auth headers előkészítve', 'debug', headers);
+    // Add API key as backup/alternative auth method
+    headers['X-API-Key'] = API_KEY;
+    
     return headers;
   };
 
@@ -123,104 +87,76 @@ const CreateQuoteForm = ({ client, project: initialProject, onClose, onSuccess }
     projectId: initialProject?._id || null
   });
 
-  // DEBUG: Manuális projekt lekérés
-  const manualFetchProjects = async (endpoint) => {
-    setLoadingProjects(true);
-    setError(null);
-    
-    const url = `${baseUrl}${endpoint}`;
-    addLog(`Manuális projekt lekérés: ${url}`, 'debug');
-    
-    try {
-      const headers = getAuthHeaders();
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: headers
-      });
-      
-      addLog(`Válasz státusz: ${response.status}`, response.ok ? 'success' : 'error');
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        addLog(`API hiba: ${errorText}`, 'error');
-        throw new Error(`Nem sikerült lekérni a projekteket: ${response.status} - ${errorText}`);
-      }
-      
-      const data = await response.json();
-      addLog(`${data.length} projekt betöltve`, 'success', data);
-      setProjects(data || []);
-      setError(null);
-    } catch (error) {
-      addLog(`Hiba a projektek lekérésekor: ${error.message}`, 'error');
-      setError(`Hiba a projektek lekérésekor: ${error.message}`);
-    } finally {
-      setLoadingProjects(false);
-    }
-  };
-
-  // Fetch projects
+  // Fetch projects with multiple authentication attempts
   useEffect(() => {
     const fetchProjects = async () => {
       setLoadingProjects(true);
       setError(null);
       
-      addLog('Projektek lekérése', 'info');
-      
+      // Try different API endpoints with different auth methods
       const endpointsToTry = [
-        { url: '/api/projects', name: 'Védett API' },
-        { url: '/api/public/projects', name: 'Publikus API' }
+        { url: '/api/projects', authType: 'JWT' },
+        { url: '/api/public/projects', authType: 'API_KEY' }
       ];
       
+      let success = false;
+
       for (const endpoint of endpointsToTry) {
         try {
-          const url = `${baseUrl}${endpoint.url}`;
-          addLog(`Próbálkozás: ${endpoint.name} (${url})`, 'debug');
+          console.log(`Projektek lekérése: ${endpoint.url} (${endpoint.authType})`);
           
-          const headers = getAuthHeaders();
+          const headers = {};
           
-          addLog('Kérés indítása...', 'debug', { url, headers });
-          const response = await fetch(url, {
+          if (endpoint.authType === 'JWT') {
+            const token = getJwtToken();
+            if (!token) {
+              console.log('JWT token nem található, skipping...');
+              continue;
+            }
+            headers['Authorization'] = `Bearer ${token}`;
+          } else if (endpoint.authType === 'API_KEY') {
+            headers['X-API-Key'] = API_KEY;
+          }
+          
+          headers['Content-Type'] = 'application/json';
+          
+          const response = await fetch(endpoint.url, {
             method: 'GET',
-            headers
+            headers: headers
           });
           
-          addLog(`Válasz státusz: ${response.status}`, response.ok ? 'success' : 'warning');
+          console.log(`Response status: ${response.status}`);
           
           if (!response.ok) {
             const errorText = await response.text();
-            addLog(`${endpoint.name} hiba: ${errorText}`, 'warning');
-            continue; // Próbáljuk a következő végpontot
+            console.error(`API hiba (${endpoint.url}):`, response.status, errorText);
+            throw new Error(`Nem sikerült lekérni a projekteket: ${response.status} - ${errorText}`);
           }
           
           const data = await response.json();
-          addLog(`${data.length} projekt betöltve a(z) ${endpoint.name} végpontról`, 'success');
+          console.log(`${data.length} projekt betöltve sikeresen`);
           setProjects(data || []);
-          setLoadingProjects(false);
-          return; // Sikeres lekérés, kilépés
+          success = true;
+          break; // Exit the loop if successful
         } catch (error) {
-          addLog(`Hiba a(z) ${endpoint.name} végponttal: ${error.message}`, 'error');
-          // Folytatjuk a következő végponttal
+          console.error(`Hiba a projektek lekérésekor (${endpoint.url}):`, error);
+          // Continue to next endpoint if this one failed
         }
       }
       
-      // Ha idáig eljutottunk, akkor egyik végpont sem működött
-      addLog('Egyik végpont sem működött', 'error');
-      setError('Nem sikerült betölteni a projekteket. Próbálja meg manuálisan a gombokkal.');
+      if (!success) {
+        setError('Nem sikerült betölteni a projekteket. Ellenőrizze a hálózati kapcsolatot vagy jelentkezzen be újra.');
+      }
+      
       setLoadingProjects(false);
     };
 
-    if (debugMode) {
-      addLog('Automatikus lekérés debug módban kikapcsolva', 'info');
-      // Debug módban nem töltjük be automatikusan
-    } else {
-      fetchProjects();
-    }
-  }, [baseUrl, debugMode]);
+    fetchProjects();
+  }, []);
 
   // Ha nincs kezdeti projekt, de van kiválasztott, akkor frissítsük a quoteData-t
   useEffect(() => {
     if (selectedProject && selectedProject._id !== quoteData.projectId) {
-      addLog(`Projekt kiválasztva: ${selectedProject.name}`, 'info');
       setQuoteData(prev => ({
         ...prev,
         projectId: selectedProject._id
@@ -233,7 +169,6 @@ const CreateQuoteForm = ({ client, project: initialProject, onClose, onSuccess }
     const projectId = e.target.value;
     
     if (!projectId || projectId === "null") {
-      addLog('Projekt kiválasztás törölve', 'info');
       setSelectedProject(null);
       setQuoteData(prev => ({
         ...prev,
@@ -243,12 +178,10 @@ const CreateQuoteForm = ({ client, project: initialProject, onClose, onSuccess }
     }
 
     const selected = projects.find(p => p._id === projectId);
-    addLog(`Projekt kiválasztva: ${selected?.name || projectId}`, 'info');
     setSelectedProject(selected || null);
     
     // Ha van ügyfél adat a projektben, használjuk azt
     if (selected && selected.client) {
-      addLog('Ügyfél adatok átvéve a projektből', 'info');
       setQuoteData(prev => ({
         ...prev,
         projectId: selected._id,
@@ -318,7 +251,6 @@ const CreateQuoteForm = ({ client, project: initialProject, onClose, onSuccess }
 
   // Új tétel hozzáadása
   const handleAddItem = () => {
-    addLog('Új tétel hozzáadása', 'info');
     setQuoteData(prev => ({
       ...prev,
       items: [...prev.items, { description: '', quantity: 1, unitPrice: 0, discount: 0, total: 0 }]
@@ -328,11 +260,9 @@ const CreateQuoteForm = ({ client, project: initialProject, onClose, onSuccess }
   // Tétel törlése
   const handleRemoveItem = (index) => {
     if (quoteData.items.length === 1) {
-      addLog('Nem lehet az utolsó tételt törölni', 'warning');
       return; // Legalább egy tételt meg kell hagyni
     }
     
-    addLog(`Tétel törlése: #${index + 1}`, 'info');
     setQuoteData(prev => ({
       ...prev,
       items: prev.items.filter((_, i) => i !== index)
@@ -380,94 +310,11 @@ const CreateQuoteForm = ({ client, project: initialProject, onClose, onSuccess }
     }));
   };
 
-  // DEBUG: Manuális árajánlat küldés
-  const manualSubmitQuote = async (endpoint, isDraft = false) => {
-    setLoading(true);
-    setError(null);
-
-    const url = `${baseUrl}${endpoint}`;
-    addLog(`Manuális árajánlat küldés: ${url}`, 'debug');
-    
-    try {
-      // Hiányzó adatok ellenőrzése
-      if (!quoteData.client.name || !quoteData.client.email) {
-        throw new Error('Az ügyfél neve és e-mail címe kötelező!');
-      }
-
-      if (quoteData.items.some(item => !item.description || parseFloat(item.quantity) <= 0)) {
-        throw new Error('Minden tételnél adjon meg leírást és pozitív mennyiséget!');
-      }
-
-      // Ensure client address is properly structured
-      const clientData = {
-        ...quoteData.client,
-        address: quoteData.client.address || {
-          street: '',
-          city: '',
-          postalCode: '',
-          country: 'Magyarország'
-        }
-      };
-
-      // Árajánlat státusz beállítása
-      const status = isDraft ? 'piszkozat' : 'elküldve';
-      const dataToSend = {
-        ...quoteData,
-        client: clientData,
-        status
-      };
-
-      const headers = getAuthHeaders();
-      addLog('Kérés indítása...', 'debug', { 
-        url, 
-        method: 'POST',
-        headers,
-        body: JSON.stringify(dataToSend)
-      });
-
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: headers,
-        body: JSON.stringify(dataToSend)
-      });
-      
-      addLog(`Válasz státusz: ${response.status}`, response.ok ? 'success' : 'error');
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        addLog(`API hiba: ${errorText}`, 'error');
-        throw new Error(`Nem sikerült létrehozni az árajánlatot: ${response.status} - ${errorText}`);
-      }
-      
-      const responseData = await response.json();
-      addLog('Árajánlat sikeresen létrehozva', 'success', responseData);
-      
-      if (onSuccess) {
-        onSuccess(responseData);
-      }
-      
-      setLoading(false);
-      onClose();
-    } catch (error) {
-      addLog(`Hiba az árajánlat mentésekor: ${error.message}`, 'error');
-      setError(error.message);
-      setLoading(false);
-    }
-  };
-
   // Árajánlat mentése és elküldése
   const handleSubmit = async (e, isDraft = false) => {
     e.preventDefault();
-    
-    if (debugMode) {
-      addLog('Figyelem: Debug módban a Mentés/Küldés gomb nem indít automatikus kérést. Használja a manuális gombok egyikét.', 'warning');
-      setError('Debug módban kérjük használja a manuális küldés gombok egyikét!');
-      return;
-    }
-    
     setLoading(true);
     setError(null);
-    addLog(`Árajánlat ${isDraft ? 'piszkozatként mentése' : 'küldése'}`, 'info');
 
     try {
       // Hiányzó adatok ellenőrzése
@@ -501,12 +348,12 @@ const CreateQuoteForm = ({ client, project: initialProject, onClose, onSuccess }
       // Try different API endpoints with different auth methods
       const endpointsToTry = quoteData.projectId 
         ? [
-            { url: `/api/projects/${quoteData.projectId}/quotes`, name: 'Projekt védett API' },
-            { url: `/api/public/projects/${quoteData.projectId}/quotes`, name: 'Projekt publikus API' }
+            { url: `/api/projects/${quoteData.projectId}/quotes`, authType: 'JWT' },
+            { url: `/api/public/projects/${quoteData.projectId}/quotes`, authType: 'API_KEY' }
           ]
         : [
-            { url: '/api/quotes', name: 'Védett API' },
-            { url: '/api/public/quotes', name: 'Publikus API' }
+            { url: '/api/quotes', authType: 'JWT' },
+            { url: '/api/public/quotes', authType: 'API_KEY' }
           ];
           
       let success = false;
@@ -514,44 +361,49 @@ const CreateQuoteForm = ({ client, project: initialProject, onClose, onSuccess }
 
       for (const endpoint of endpointsToTry) {
         try {
-          const url = `${baseUrl}${endpoint.url}`;
-          addLog(`Próbálkozás: ${endpoint.name} (${url})`, 'debug');
+          console.log(`Árajánlat küldése: ${endpoint.url} (${endpoint.authType})`);
           
-          const headers = getAuthHeaders();
+          const headers = {};
           
-          addLog('Kérés indítása...', 'debug', { 
-            url, 
-            method: 'POST',
-            headers,
-            body: JSON.stringify(dataToSend)
-          });
+          if (endpoint.authType === 'JWT') {
+            const token = getJwtToken();
+            if (!token) {
+              console.log('JWT token nem található, skipping...');
+              continue;
+            }
+            headers['Authorization'] = `Bearer ${token}`;
+          } else if (endpoint.authType === 'API_KEY') {
+            headers['X-API-Key'] = API_KEY;
+          }
           
-          const response = await fetch(url, {
+          headers['Content-Type'] = 'application/json';
+          
+          const response = await fetch(endpoint.url, {
             method: 'POST',
             headers: headers,
             body: JSON.stringify(dataToSend)
           });
           
-          addLog(`Válasz státusz: ${response.status}`, response.ok ? 'success' : 'warning');
+          console.log(`Response status: ${response.status}`);
           
           if (!response.ok) {
             const errorText = await response.text();
-            addLog(`${endpoint.name} hiba: ${errorText}`, 'warning');
-            continue; // Próbáljuk a következő végpontot
+            console.error(`API hiba (${endpoint.url}):`, response.status, errorText);
+            throw new Error(`Nem sikerült létrehozni az árajánlatot: ${response.status} - ${errorText}`);
           }
           
           responseData = await response.json();
-          addLog(`Árajánlat sikeresen létrehozva a(z) ${endpoint.name} végponton`, 'success', responseData);
+          console.log('Árajánlat sikeresen létrehozva:', responseData);
           success = true;
-          break; // Sikeres küldés, kilépés
+          break; // Exit the loop if successful
         } catch (error) {
-          addLog(`Hiba a(z) ${endpoint.name} végponttal: ${error.message}`, 'error');
-          // Folytatjuk a következő végponttal
+          console.error(`Hiba az árajánlat létrehozásakor (${endpoint.url}):`, error);
+          // Continue to next endpoint if this one failed
         }
       }
       
       if (!success) {
-        throw new Error('Nem sikerült létrehozni az árajánlatot egyik végponton sem. Próbálja meg manuálisan, vagy ellenőrizze a kapcsolatot.');
+        throw new Error('Nem sikerült létrehozni az árajánlatot. Ellenőrizze a hálózati kapcsolatot vagy jelentkezzen be újra.');
       }
 
       if (onSuccess && responseData) {
@@ -561,8 +413,8 @@ const CreateQuoteForm = ({ client, project: initialProject, onClose, onSuccess }
       setLoading(false);
       onClose();
     } catch (error) {
-      addLog(`Hiba az árajánlat mentésekor: ${error.message}`, 'error');
-      setError(error.message);
+      console.error('Hiba az árajánlat létrehozásakor:', error);
+      setError(error.message || 'Ismeretlen hiba történt');
       setLoading(false);
     }
   };
@@ -584,20 +436,12 @@ const CreateQuoteForm = ({ client, project: initialProject, onClose, onSuccess }
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg w-full max-w-5xl max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         <div className="p-6">
           <div className="flex justify-between items-center mb-6">
-            <div className="flex items-center">
-              <h2 className="text-xl font-semibold mr-3">
-                {selectedProject ? `Új árajánlat készítése: ${selectedProject.name}` : 'Új árajánlat készítése'}
-              </h2>
-              {debugMode && (
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                  <Bug className="h-3 w-3 mr-1" />
-                  Debug mód
-                </span>
-              )}
-            </div>
+            <h2 className="text-xl font-semibold">
+              {selectedProject ? `Új árajánlat készítése: ${selectedProject.name}` : 'Új árajánlat készítése'}
+            </h2>
             <button
               onClick={onClose}
               className="text-gray-500 hover:text-gray-700"
@@ -607,143 +451,9 @@ const CreateQuoteForm = ({ client, project: initialProject, onClose, onSuccess }
             </button>
           </div>
 
-          {/* Debug panel */}
-          {debugMode && (
-            <div className="mb-6 p-4 bg-gray-100 border border-gray-300 rounded-lg">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="font-medium text-gray-700 flex items-center">
-                  <Bug className="h-4 w-4 mr-1" />
-                  Debug Panel
-                </h3>
-                <button
-                  onClick={() => setDebugMode(false)}
-                  className="px-2 py-1 text-xs text-gray-700 bg-white border border-gray-300 rounded"
-                >
-                  Kikapcsolás
-                </button>
-              </div>
-              
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    API kulcs
-                  </label>
-                  <input
-                    type="text"
-                    value={apiKey}
-                    onChange={(e) => setApiKey(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                    placeholder="X-API-Key fejléc értéke"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Base URL (üresen hagyva relatív)
-                  </label>
-                  <input
-                    type="text"
-                    value={baseUrl}
-                    onChange={(e) => setBaseUrl(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                    placeholder="pl. https://admin.nb-studio.net"
-                  />
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 mb-4">
-                <button
-                  type="button"
-                  onClick={() => manualFetchProjects('/api/projects')}
-                  className="px-3 py-2 text-xs font-medium text-white bg-blue-600 rounded-md"
-                  disabled={loadingProjects}
-                >
-                  {loadingProjects ? 'Betöltés...' : 'Projektek lekérése (Védett)'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => manualFetchProjects('/api/public/projects')}
-                  className="px-3 py-2 text-xs font-medium text-white bg-green-600 rounded-md"
-                  disabled={loadingProjects}
-                >
-                  {loadingProjects ? 'Betöltés...' : 'Projektek lekérése (Publikus)'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const token = localStorage.getItem('token');
-                    addLog(`JWT token: ${token || 'Nincs token'}`, 'info');
-                    setError(token ? `JWT token: ${token}` : 'Nincs JWT token a localStorage-ban!');
-                  }}
-                  className="px-3 py-2 text-xs font-medium text-white bg-purple-600 rounded-md"
-                >
-                  JWT token ellenőrzése
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    addLog('Debug logok törlése', 'info');
-                    setDebugLogs([]);
-                  }}
-                  className="px-3 py-2 text-xs font-medium text-white bg-gray-600 rounded-md"
-                >
-                  Logok törlése
-                </button>
-              </div>
-              
-              <div className="mb-4">
-                <h4 className="text-sm font-medium text-gray-700 mb-1">Manuális árajánlat küldés</h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => manualSubmitQuote(quoteData.projectId ? 
-                      `/api/projects/${quoteData.projectId}/quotes` : 
-                      '/api/quotes',
-                    false)}
-                    className="px-3 py-2 text-xs font-medium text-white bg-blue-600 rounded-md"
-                    disabled={loading}
-                  >
-                    {loading ? 'Küldés...' : 'Küldés (Védett API)'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => manualSubmitQuote(quoteData.projectId ? 
-                      `/api/public/projects/${quoteData.projectId}/quotes` : 
-                      '/api/public/quotes',
-                    false)}
-                    className="px-3 py-2 text-xs font-medium text-white bg-green-600 rounded-md"
-                    disabled={loading}
-                  >
-                    {loading ? 'Küldés...' : 'Küldés (Publikus API)'}
-                  </button>
-                </div>
-              </div>
-              
-              <div className="bg-black bg-opacity-90 text-white p-3 rounded-md overflow-y-auto max-h-36 text-xs font-mono">
-                {debugLogs.length === 0 ? (
-                  <div className="text-gray-400">Még nincs log bejegyzés...</div>
-                ) : (
-                  debugLogs.map(log => (
-                    <div 
-                      key={log.id} 
-                      className={`mb-1 ${
-                        log.type === 'error' ? 'text-red-400' : 
-                        log.type === 'warning' ? 'text-yellow-400' : 
-                        log.type === 'success' ? 'text-green-400' : 
-                        'text-gray-200'
-                      }`}
-                    >
-                      <span className="text-gray-500">[{log.timestamp.split('T')[1].split('.')[0]}]</span> {log.message}
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          )}
-
           {error && (
-            <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded flex items-start">
-              <AlertTriangle className="h-5 w-5 mr-2 flex-shrink-0 mt-0.5" />
-              <div>{error}</div>
+            <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
+              {error}
             </div>
           )}
 
@@ -786,11 +496,6 @@ const CreateQuoteForm = ({ client, project: initialProject, onClose, onSuccess }
                 </select>
                 {loadingProjects && (
                   <p className="mt-1 text-sm text-gray-500">Projektek betöltése...</p>
-                )}
-                {projects.length === 0 && !loadingProjects && (
-                  <p className="mt-1 text-sm text-red-500">
-                    Nincsenek projektek betöltve. Használja a debug panelt a manuális lekéréshez!
-                  </p>
                 )}
               </div>
               
