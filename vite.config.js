@@ -7,7 +7,8 @@ export default defineConfig({
     proxy: {
       '/api': {
         target: 'https://admin.nb-studio.net:5001',
-        changeOrigin: true
+        changeOrigin: true,
+        secure: false  // Ez a fontos új sor
       }
     }
   }

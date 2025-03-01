@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { X, Plus, Save, Send, Search } from 'lucide-react';
 
-// API kulcs a .env fájlból
+// API kulcs a .env fájlból vagy közvetlen beágyazás
 const API_KEY = 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0';
 
 const CreateQuoteForm = ({ client, project: initialProject, onClose, onSuccess }) => {
@@ -65,14 +65,15 @@ const CreateQuoteForm = ({ client, project: initialProject, onClose, onSuccess }
     projectId: initialProject?._id || null
   });
 
-  // Projektek lekérése
+  // Projektek lekérése - most közvetlenül a backend szerverhez
   useEffect(() => {
     const fetchProjects = async () => {
       try {
         setLoadingProjects(true);
         console.log('Projektek lekérése API kulccsal...');
 
-        const response = await fetch('/api/projects', {
+        // Közvetlen hívás a backend szerverhez a megfelelő fejlécekkel
+        const response = await fetch('/api/public/projects', {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -80,8 +81,12 @@ const CreateQuoteForm = ({ client, project: initialProject, onClose, onSuccess }
           }
         });
 
+        console.log('Response status:', response.status);
+        
         if (!response.ok) {
-          throw new Error(`Nem sikerült lekérni a projekteket: ${response.status} ${response.statusText}`);
+          const errorText = await response.text();
+          console.error('API hiba:', response.status, errorText);
+          throw new Error(`Nem sikerült lekérni a projekteket: ${response.status} - ${errorText}`);
         }
 
         const data = await response.json();
@@ -282,9 +287,10 @@ const CreateQuoteForm = ({ client, project: initialProject, onClose, onSuccess }
       };
 
       // API végpont (attól függően, hogy van-e projekt)
+      // Most a public ágat használjuk
       const endpoint = quoteData.projectId 
-        ? `/api/projects/${quoteData.projectId}/quotes`
-        : '/api/quotes';
+        ? `/api/public/projects/${quoteData.projectId}/quotes`
+        : `/api/public/quotes`;
 
       // Árajánlat státusz beállítása
       const status = isDraft ? 'piszkozat' : 'elküldve';
@@ -306,11 +312,13 @@ const CreateQuoteForm = ({ client, project: initialProject, onClose, onSuccess }
         body: JSON.stringify(dataToSend)
       });
       
-      const data = await response.json();
-
       if (!response.ok) {
-        throw new Error(data.message || 'Nem sikerült létrehozni az árajánlatot');
+        const errorText = await response.text();
+        console.error('Hiba a küldés során:', response.status, errorText);
+        throw new Error(`Nem sikerült létrehozni az árajánlatot: ${response.status} - ${errorText}`);
       }
+
+      const data = await response.json();
 
       if (onSuccess) {
         onSuccess(data);
