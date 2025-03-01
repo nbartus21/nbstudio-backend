@@ -45,6 +45,28 @@ const CreateQuoteForm = ({ client, project: initialProject, onClose, onSuccess }
     };
   };
 
+  // Get JWT token from localStorage
+  const getJwtToken = () => {
+    return localStorage.getItem('token');
+  };
+
+  // Prepare headers with best available authentication method
+  const getHeaders = () => {
+    const headers = {
+      'Content-Type': 'application/json',
+    };
+    
+    const jwtToken = getJwtToken();
+    if (jwtToken) {
+      headers['Authorization'] = `Bearer ${jwtToken}`;
+    }
+    
+    // Add API key as backup/alternative auth method
+    headers['X-API-Key'] = API_KEY;
+    
+    return headers;
+  };
+
   // Get currency from selected project or default to EUR
   const getCurrency = () => {
     return selectedProject?.financial?.currency || 'EUR';
@@ -65,39 +87,68 @@ const CreateQuoteForm = ({ client, project: initialProject, onClose, onSuccess }
     projectId: initialProject?._id || null
   });
 
-  // Projektek lekérése - most közvetlenül a backend szerverhez
+  // Fetch projects with multiple authentication attempts
   useEffect(() => {
     const fetchProjects = async () => {
-      try {
-        setLoadingProjects(true);
-        console.log('Projektek lekérése API kulccsal...');
+      setLoadingProjects(true);
+      setError(null);
+      
+      // Try different API endpoints with different auth methods
+      const endpointsToTry = [
+        { url: '/api/projects', authType: 'JWT' },
+        { url: '/api/public/projects', authType: 'API_KEY' }
+      ];
+      
+      let success = false;
 
-        // Közvetlen hívás a backend szerverhez a megfelelő fejlécekkel
-        const response = await fetch('/api/public/projects', {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-API-Key': API_KEY
+      for (const endpoint of endpointsToTry) {
+        try {
+          console.log(`Projektek lekérése: ${endpoint.url} (${endpoint.authType})`);
+          
+          const headers = {};
+          
+          if (endpoint.authType === 'JWT') {
+            const token = getJwtToken();
+            if (!token) {
+              console.log('JWT token nem található, skipping...');
+              continue;
+            }
+            headers['Authorization'] = `Bearer ${token}`;
+          } else if (endpoint.authType === 'API_KEY') {
+            headers['X-API-Key'] = API_KEY;
           }
-        });
-
-        console.log('Response status:', response.status);
-        
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error('API hiba:', response.status, errorText);
-          throw new Error(`Nem sikerült lekérni a projekteket: ${response.status} - ${errorText}`);
+          
+          headers['Content-Type'] = 'application/json';
+          
+          const response = await fetch(endpoint.url, {
+            method: 'GET',
+            headers: headers
+          });
+          
+          console.log(`Response status: ${response.status}`);
+          
+          if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`API hiba (${endpoint.url}):`, response.status, errorText);
+            throw new Error(`Nem sikerült lekérni a projekteket: ${response.status} - ${errorText}`);
+          }
+          
+          const data = await response.json();
+          console.log(`${data.length} projekt betöltve sikeresen`);
+          setProjects(data || []);
+          success = true;
+          break; // Exit the loop if successful
+        } catch (error) {
+          console.error(`Hiba a projektek lekérésekor (${endpoint.url}):`, error);
+          // Continue to next endpoint if this one failed
         }
-
-        const data = await response.json();
-        console.log(`${data.length} projekt betöltve sikeresen`);
-        setProjects(data || []);
-        setLoadingProjects(false);
-      } catch (error) {
-        console.error('Hiba a projektek lekérésekor:', error);
-        setError(`Nem sikerült betölteni a projekteket: ${error.message}`);
-        setLoadingProjects(false);
       }
+      
+      if (!success) {
+        setError('Nem sikerült betölteni a projekteket. Ellenőrizze a hálózati kapcsolatot vagy jelentkezzen be újra.');
+      }
+      
+      setLoadingProjects(false);
     };
 
     fetchProjects();
@@ -286,12 +337,6 @@ const CreateQuoteForm = ({ client, project: initialProject, onClose, onSuccess }
         }
       };
 
-      // API végpont (attól függően, hogy van-e projekt)
-      // Most a public ágat használjuk
-      const endpoint = quoteData.projectId 
-        ? `/api/public/projects/${quoteData.projectId}/quotes`
-        : `/api/public/quotes`;
-
       // Árajánlat státusz beállítása
       const status = isDraft ? 'piszkozat' : 'elküldve';
       const dataToSend = {
@@ -300,28 +345,69 @@ const CreateQuoteForm = ({ client, project: initialProject, onClose, onSuccess }
         status
       };
 
-      console.log('Árajánlat küldése API kulccsal:', endpoint);
+      // Try different API endpoints with different auth methods
+      const endpointsToTry = quoteData.projectId 
+        ? [
+            { url: `/api/projects/${quoteData.projectId}/quotes`, authType: 'JWT' },
+            { url: `/api/public/projects/${quoteData.projectId}/quotes`, authType: 'API_KEY' }
+          ]
+        : [
+            { url: '/api/quotes', authType: 'JWT' },
+            { url: '/api/public/quotes', authType: 'API_KEY' }
+          ];
+          
+      let success = false;
+      let responseData = null;
 
-      // API hívás X-API-Key headerrel
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-API-Key': API_KEY
-        },
-        body: JSON.stringify(dataToSend)
-      });
+      for (const endpoint of endpointsToTry) {
+        try {
+          console.log(`Árajánlat küldése: ${endpoint.url} (${endpoint.authType})`);
+          
+          const headers = {};
+          
+          if (endpoint.authType === 'JWT') {
+            const token = getJwtToken();
+            if (!token) {
+              console.log('JWT token nem található, skipping...');
+              continue;
+            }
+            headers['Authorization'] = `Bearer ${token}`;
+          } else if (endpoint.authType === 'API_KEY') {
+            headers['X-API-Key'] = API_KEY;
+          }
+          
+          headers['Content-Type'] = 'application/json';
+          
+          const response = await fetch(endpoint.url, {
+            method: 'POST',
+            headers: headers,
+            body: JSON.stringify(dataToSend)
+          });
+          
+          console.log(`Response status: ${response.status}`);
+          
+          if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`API hiba (${endpoint.url}):`, response.status, errorText);
+            throw new Error(`Nem sikerült létrehozni az árajánlatot: ${response.status} - ${errorText}`);
+          }
+          
+          responseData = await response.json();
+          console.log('Árajánlat sikeresen létrehozva:', responseData);
+          success = true;
+          break; // Exit the loop if successful
+        } catch (error) {
+          console.error(`Hiba az árajánlat létrehozásakor (${endpoint.url}):`, error);
+          // Continue to next endpoint if this one failed
+        }
+      }
       
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Hiba a küldés során:', response.status, errorText);
-        throw new Error(`Nem sikerült létrehozni az árajánlatot: ${response.status} - ${errorText}`);
+      if (!success) {
+        throw new Error('Nem sikerült létrehozni az árajánlatot. Ellenőrizze a hálózati kapcsolatot vagy jelentkezzen be újra.');
       }
 
-      const data = await response.json();
-
-      if (onSuccess) {
-        onSuccess(data);
+      if (onSuccess && responseData) {
+        onSuccess(responseData);
       }
       
       setLoading(false);
