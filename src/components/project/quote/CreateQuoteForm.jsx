@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { X, Plus, Save, Send, Search } from 'lucide-react';
 
-// API kulcs a .env fájlból vagy közvetlen beágyazás
-const API_KEY = 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0';
+// API kulcs a környezeti változókból vagy közvetlen beágyazás
+const API_KEY = import.meta.env.VITE_PUBLIC_API_KEY || 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0';
 
 const CreateQuoteForm = ({ client, project: initialProject, onClose, onSuccess }) => {
   const [loading, setLoading] = useState(false);
@@ -51,18 +51,16 @@ const CreateQuoteForm = ({ client, project: initialProject, onClose, onSuccess }
   };
 
   // Prepare headers with best available authentication method
-  const getHeaders = () => {
+  const getAuthHeaders = () => {
     const headers = {
       'Content-Type': 'application/json',
+      'X-API-Key': API_KEY // Mindig küldjük az API kulcsot
     };
     
     const jwtToken = getJwtToken();
     if (jwtToken) {
       headers['Authorization'] = `Bearer ${jwtToken}`;
     }
-    
-    // Add API key as backup/alternative auth method
-    headers['X-API-Key'] = API_KEY;
     
     return headers;
   };
@@ -87,68 +85,51 @@ const CreateQuoteForm = ({ client, project: initialProject, onClose, onSuccess }
     projectId: initialProject?._id || null
   });
 
-  // Fetch projects with multiple authentication attempts
+  // Fetch projects
   useEffect(() => {
     const fetchProjects = async () => {
       setLoadingProjects(true);
       setError(null);
       
-      // Try different API endpoints with different auth methods
-      const endpointsToTry = [
-        { url: '/api/projects', authType: 'JWT' },
-        { url: '/api/public/projects', authType: 'API_KEY' }
-      ];
-      
-      let success = false;
-
-      for (const endpoint of endpointsToTry) {
+      try {
+        // Először a védett végpontot próbáljuk
+        const headers = getAuthHeaders();
+        console.log('Projektek lekérése, fejlécek:', { ...headers, 'Authorization': headers.Authorization ? 'Bearer [redacted]' : undefined });
+        
+        // Elsőként a védett végpontot próbáljuk
+        let response;
         try {
-          console.log(`Projektek lekérése: ${endpoint.url} (${endpoint.authType})`);
-          
-          const headers = {};
-          
-          if (endpoint.authType === 'JWT') {
-            const token = getJwtToken();
-            if (!token) {
-              console.log('JWT token nem található, skipping...');
-              continue;
-            }
-            headers['Authorization'] = `Bearer ${token}`;
-          } else if (endpoint.authType === 'API_KEY') {
-            headers['X-API-Key'] = API_KEY;
-          }
-          
-          headers['Content-Type'] = 'application/json';
-          
-          const response = await fetch(endpoint.url, {
+          response = await fetch('/api/projects', {
             method: 'GET',
             headers: headers
           });
           
-          console.log(`Response status: ${response.status}`);
+          if (!response.ok) {
+            throw new Error(`Védett végpont nem elérhető, HTTP ${response.status}`);
+          }
+        } catch (error) {
+          console.log('Hiba a védett végponton:', error.message);
+          
+          // Ha a védett végpont nem működött, próbáljuk a publikus végpontot
+          response = await fetch('/api/public/projects', {
+            method: 'GET',
+            headers: headers
+          });
           
           if (!response.ok) {
-            const errorText = await response.text();
-            console.error(`API hiba (${endpoint.url}):`, response.status, errorText);
-            throw new Error(`Nem sikerült lekérni a projekteket: ${response.status} - ${errorText}`);
+            throw new Error(`Publikus végpont nem elérhető, HTTP ${response.status}`);
           }
-          
-          const data = await response.json();
-          console.log(`${data.length} projekt betöltve sikeresen`);
-          setProjects(data || []);
-          success = true;
-          break; // Exit the loop if successful
-        } catch (error) {
-          console.error(`Hiba a projektek lekérésekor (${endpoint.url}):`, error);
-          // Continue to next endpoint if this one failed
         }
+        
+        const data = await response.json();
+        console.log(`${data.length} projekt betöltve sikeresen`);
+        setProjects(data || []);
+      } catch (error) {
+        console.error('Hiba a projektek lekérésekor:', error);
+        setError('Nem sikerült betölteni a projekteket. Kérjük, ellenőrizze a hálózati kapcsolatot vagy jelentkezzen be újra.');
+      } finally {
+        setLoadingProjects(false);
       }
-      
-      if (!success) {
-        setError('Nem sikerült betölteni a projekteket. Ellenőrizze a hálózati kapcsolatot vagy jelentkezzen be újra.');
-      }
-      
-      setLoadingProjects(false);
     };
 
     fetchProjects();
@@ -345,68 +326,55 @@ const CreateQuoteForm = ({ client, project: initialProject, onClose, onSuccess }
         status
       };
 
-      // Try different API endpoints with different auth methods
-      const endpointsToTry = quoteData.projectId 
-        ? [
-            { url: `/api/projects/${quoteData.projectId}/quotes`, authType: 'JWT' },
-            { url: `/api/public/projects/${quoteData.projectId}/quotes`, authType: 'API_KEY' }
-          ]
-        : [
-            { url: '/api/quotes', authType: 'JWT' },
-            { url: '/api/public/quotes', authType: 'API_KEY' }
-          ];
-          
-      let success = false;
-      let responseData = null;
+      const headers = getAuthHeaders();
+      console.log('Árajánlat küldése, fejlécek:', { ...headers, 'Authorization': headers.Authorization ? 'Bearer [redacted]' : undefined });
 
-      for (const endpoint of endpointsToTry) {
-        try {
-          console.log(`Árajánlat küldése: ${endpoint.url} (${endpoint.authType})`);
-          
-          const headers = {};
-          
-          if (endpoint.authType === 'JWT') {
-            const token = getJwtToken();
-            if (!token) {
-              console.log('JWT token nem található, skipping...');
-              continue;
-            }
-            headers['Authorization'] = `Bearer ${token}`;
-          } else if (endpoint.authType === 'API_KEY') {
-            headers['X-API-Key'] = API_KEY;
-          }
-          
-          headers['Content-Type'] = 'application/json';
-          
-          const response = await fetch(endpoint.url, {
-            method: 'POST',
-            headers: headers,
-            body: JSON.stringify(dataToSend)
-          });
-          
-          console.log(`Response status: ${response.status}`);
-          
-          if (!response.ok) {
-            const errorText = await response.text();
-            console.error(`API hiba (${endpoint.url}):`, response.status, errorText);
-            throw new Error(`Nem sikerült létrehozni az árajánlatot: ${response.status} - ${errorText}`);
-          }
-          
-          responseData = await response.json();
-          console.log('Árajánlat sikeresen létrehozva:', responseData);
-          success = true;
-          break; // Exit the loop if successful
-        } catch (error) {
-          console.error(`Hiba az árajánlat létrehozásakor (${endpoint.url}):`, error);
-          // Continue to next endpoint if this one failed
+      // Végpont kiválasztása projekttől függően
+      let endpoint = quoteData.projectId 
+        ? `/api/projects/${quoteData.projectId}/quotes` 
+        : '/api/quotes';
+      
+      // Először a védett végpontot próbáljuk
+      let response;
+      try {
+        console.log(`Védett végpont próbálása: ${endpoint}`);
+        response = await fetch(endpoint, {
+          method: 'POST',
+          headers: headers,
+          body: JSON.stringify(dataToSend)
+        });
+        
+        if (!response.ok) {
+          const errorBody = await response.text();
+          console.log(`Védett végpont hiba (${response.status}):`, errorBody);
+          throw new Error(`Védett végpont nem elérhető, HTTP ${response.status}`);
+        }
+      } catch (error) {
+        console.log('Védett végpont hiba:', error.message);
+        
+        // Ha a védett végpont nem működött, próbáljuk a publikus végpontot
+        const publicEndpoint = quoteData.projectId 
+          ? `/api/public/projects/${quoteData.projectId}/quotes` 
+          : '/api/public/quotes';
+        
+        console.log(`Publikus végpont próbálása: ${publicEndpoint}`);
+        response = await fetch(publicEndpoint, {
+          method: 'POST',
+          headers: headers,
+          body: JSON.stringify(dataToSend)
+        });
+        
+        if (!response.ok) {
+          const errorBody = await response.text();
+          console.log(`Publikus végpont hiba (${response.status}):`, errorBody);
+          throw new Error(`Nem sikerült létrehozni az árajánlatot. Státusz: ${response.status}`);
         }
       }
       
-      if (!success) {
-        throw new Error('Nem sikerült létrehozni az árajánlatot. Ellenőrizze a hálózati kapcsolatot vagy jelentkezzen be újra.');
-      }
+      const responseData = await response.json();
+      console.log('Árajánlat sikeresen létrehozva:', responseData);
 
-      if (onSuccess && responseData) {
+      if (onSuccess) {
         onSuccess(responseData);
       }
       
@@ -496,6 +464,12 @@ const CreateQuoteForm = ({ client, project: initialProject, onClose, onSuccess }
                 </select>
                 {loadingProjects && (
                   <p className="mt-1 text-sm text-gray-500">Projektek betöltése...</p>
+                )}
+
+                {projects.length === 0 && !loadingProjects && (
+                  <p className="mt-1 text-sm text-red-500">
+                    Nincsenek betöltött projektek. Ellenőrizze a kapcsolatot vagy a bejelentkezést.
+                  </p>
                 )}
               </div>
               

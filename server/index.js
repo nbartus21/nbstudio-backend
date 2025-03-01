@@ -322,7 +322,7 @@ app.use('/api/posts', async (req, res, next) => {
 });
 // Projects publikus végpontok
 app.use('/api/public/projects', validateApiKey, projectRoutes);
-app.use('/api', quoteRoutes); // a védett végpontokhoz
+app.use('/api/public/quotes', validateApiKey, quoteRoutes);
 
 // Auth routes
 app.use('/api/auth', authRoutes);
@@ -332,7 +332,6 @@ app.use('/api', authMiddleware);
 app.use('/api', postRoutes);
 app.use('/api', contactRoutes);
 app.use('/api', calculatorRoutes);
-app.use('/api', projectRoutes);
 app.use('/api', domainRoutes);
 app.use('/api', serverRoutes);
 app.use('/api', licenseRoutes);
@@ -341,6 +340,9 @@ app.use('/api/accounting', accountingRoutes);
 app.use('/api', hostingRoutes);
 app.use('/api', filesRoutes);
 app.use('/api', commentsRoutes);
+app.use('/api', quoteRoutes); // a védett végpontokhoz
+app.use('/api', projectRoutes); // védett végpontok
+
 
 // Alap route teszteléshez
 app.get('/', (req, res) => {
