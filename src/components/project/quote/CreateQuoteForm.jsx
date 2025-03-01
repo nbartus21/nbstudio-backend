@@ -1,5 +1,5 @@
-import React, { useState, useCallback } from 'react';
-import { X, Plus, Save, Send } from 'lucide-react';
+import React, { useState, useCallback, useEffect } from 'react';
+import { X, Plus, Save, Send, Mail } from 'lucide-react';
 
 // API kulcs a közvetlen hozzáféréshez
 const API_KEY = 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0';
@@ -9,6 +9,13 @@ const CreateQuoteForm = ({ onClose, onSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [successData, setSuccessData] = useState(null);
+  const [showEmailForm, setShowEmailForm] = useState(false);
+  const [emailData, setEmailData] = useState({
+    to: '',
+    subject: 'Új árajánlat az Ön számára',
+    message: ''
+  });
+  const [emailStatus, setEmailStatus] = useState(null);
   
   // Kezdeti ügyfél adatok
   const initialClient = {
@@ -80,17 +87,16 @@ const CreateQuoteForm = ({ onClose, onSuccess }) => {
     return { items, subtotal, totalAmount };
   }, [quoteData.items, quoteData.vat]);
 
-  // Frissítjük a számításokat
-  const updateCalculations = () => {
-    const { items, subtotal, totalAmount } = calculateTotals();
+  // Frissítjük a számításokat amikor változik a vat vagy currency
+  useEffect(() => {
+    const { subtotal, totalAmount } = calculateTotals();
     
     setQuoteData(prev => ({
       ...prev,
-      items,
       subtotal,
       totalAmount
     }));
-  };
+  }, [quoteData.vat, quoteData.currency, calculateTotals]);
 
   // Ügyfél adatok módosítása
   const handleClientChange = (field, value) => {
@@ -98,6 +104,14 @@ const CreateQuoteForm = ({ onClose, onSuccess }) => {
       ...prev,
       client: { ...prev.client, [field]: value }
     }));
+    
+    // Ha az email mező változik, frissítjük az emailData.to mezőt is
+    if (field === 'email') {
+      setEmailData(prev => ({
+        ...prev,
+        to: value
+      }));
+    }
   };
 
   // Ügyfél cím adatok módosítása
@@ -120,11 +134,6 @@ const CreateQuoteForm = ({ onClose, onSuccess }) => {
       ...prev,
       [field]: value
     }));
-    
-    // Ha a vat vagy currency változik, frissítsük a számításokat
-    if (field === 'vat' || field === 'currency') {
-      setTimeout(updateCalculations, 0);
-    }
   };
 
   // Tétel hozzáadása
@@ -139,27 +148,67 @@ const CreateQuoteForm = ({ onClose, onSuccess }) => {
   const handleRemoveItem = (index) => {
     if (quoteData.items.length <= 1) return;
     
-    setQuoteData(prev => ({
-      ...prev,
-      items: prev.items.filter((_, i) => i !== index)
-    }));
-    
-    // Frissítjük a számításokat
-    setTimeout(updateCalculations, 0);
+    setQuoteData(prev => {
+      const newItems = [...prev.items];
+      newItems.splice(index, 1);
+      
+      // Frissítsük az összeget a tétel eltávolítása után
+      const { subtotal, totalAmount } = calculateTotals();
+      
+      return {
+        ...prev,
+        items: newItems,
+        subtotal,
+        totalAmount
+      };
+    });
   };
 
   // Tétel módosítása
   const handleItemChange = (index, field, value) => {
+    // A fő probléma javítása: Megakadályozzuk, hogy a calculateTotals újra felülírja a tételeket
     setQuoteData(prev => {
       const newItems = [...prev.items];
       if (newItems[index]) {
-        newItems[index] = { ...newItems[index], [field]: value };
+        // Itt megőrizzük a description értéket a számítási módosítások során
+        newItems[index] = { 
+          ...newItems[index], 
+          [field]: value 
+        };
       }
-      return { ...prev, items: newItems };
+      
+      // A számításokat manuálisan végezzük csak a kiválasztott tételre
+      if (field === 'quantity' || field === 'unitPrice' || field === 'discount') {
+        const item = newItems[index];
+        const quantity = field === 'quantity' ? parseFloat(value) || 0 : parseFloat(item.quantity) || 0;
+        const unitPrice = field === 'unitPrice' ? parseFloat(value) || 0 : parseFloat(item.unitPrice) || 0;
+        const discount = field === 'discount' ? parseFloat(value) || 0 : parseFloat(item.discount) || 0;
+        const discountMultiplier = 1 - discount / 100;
+        const total = quantity * unitPrice * discountMultiplier;
+        
+        newItems[index].quantity = quantity;
+        newItems[index].unitPrice = unitPrice;
+        newItems[index].discount = discount;
+        newItems[index].total = total;
+        
+        // Újraszámoljuk az összegeket
+        const subtotal = newItems.reduce((sum, item) => sum + (item.total || 0), 0);
+        const vat = parseFloat(prev.vat) || 0;
+        const totalAmount = subtotal * (1 + vat / 100);
+        
+        return {
+          ...prev,
+          items: newItems,
+          subtotal,
+          totalAmount
+        };
+      }
+      
+      return {
+        ...prev,
+        items: newItems
+      };
     });
-    
-    // Frissítjük a számításokat
-    setTimeout(updateCalculations, 0);
   };
 
   // Árajánlat beküldése
@@ -219,12 +268,46 @@ const CreateQuoteForm = ({ onClose, onSuccess }) => {
       console.log('Árajánlat sikeresen létrehozva:', responseData);
       
       // Sikeres létrehozás, mentem a megosztási adatokat
-      setSuccessData({
+      const newSuccessData = {
         quoteNumber: responseData.quoteNumber || 'N/A',
         shareLink: responseData.shareLink || `${window.location.origin}/shared-quote/${responseData.shareToken}`,
         sharePin: responseData.sharePin || '123456',
-        totalAmount: formatCurrency(responseData.totalAmount || quoteData.totalAmount)
-      });
+        totalAmount: formatCurrency(responseData.totalAmount || quoteData.totalAmount),
+        quoteId: responseData._id || responseData.id
+      };
+      
+      setSuccessData(newSuccessData);
+      
+      // Email adatok előkészítése
+      setEmailData(prev => ({
+        ...prev,
+        to: quoteData.client.email,
+        subject: `Új árajánlat: ${responseData.quoteNumber || 'Árajánlat'}`,
+        message: `
+Tisztelt ${quoteData.client.name}!
+
+Örömmel küldjük az árajánlatunkat Önnek. Az árajánlat részleteit az alábbi linken tekintheti meg:
+${newSuccessData.shareLink}
+
+PIN kód az árajánlat megtekintéséhez: ${newSuccessData.sharePin}
+
+Az árajánlatban foglalt szolgáltatások:
+${quoteData.items.map(item => `- ${item.description}: ${item.quantity} × ${formatCurrency(item.unitPrice)}`).join('\n')}
+
+Végösszeg: ${formatCurrency(quoteData.totalAmount)}
+Érvényesség: ${new Date(quoteData.validUntil).toLocaleDateString('hu-HU')}
+
+${quoteData.notes}
+
+Várjuk mielőbbi visszajelzését!
+
+Üdvözlettel,
+NB Studio Csapata
+        `
+      }));
+      
+      // Automatikusan megjelenítjük az email form-ot
+      setShowEmailForm(true);
 
       if (onSuccess) {
         onSuccess(responseData);
@@ -238,11 +321,55 @@ const CreateQuoteForm = ({ onClose, onSuccess }) => {
     }
   };
 
+  // Email küldése
+  const sendEmail = async (e) => {
+    e.preventDefault();
+    setEmailStatus(null);
+    setLoading(true);
+    
+    try {
+      // Email küldés API hívás
+      const response = await fetch(`${API_URL}/api/public/quotes/${successData.quoteId}/send-email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-API-Key': API_KEY
+        },
+        body: JSON.stringify({
+          email: emailData.to,
+          subject: emailData.subject,
+          message: emailData.message
+        })
+      });
+      
+      if (!response.ok) {
+        const errorBody = await response.text();
+        console.error('Email küldési hiba:', errorBody);
+        throw new Error(`Email küldés sikertelen (${response.status}): ${response.statusText}`);
+      }
+      
+      // Sikeres email küldés
+      setEmailStatus({
+        success: true,
+        message: `Email sikeresen elküldve a következő címre: ${emailData.to}`
+      });
+      
+    } catch (error) {
+      console.error('Hiba az email küldése során:', error);
+      setEmailStatus({
+        success: false,
+        message: error.message || 'Ismeretlen hiba történt az email küldése során'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Ha sikeresen létrejött az árajánlat, megjelenítjük a visszaigazolást
   if (successData) {
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div className="bg-white rounded-lg w-full max-w-md p-6">
+        <div className="bg-white rounded-lg w-full max-w-2xl p-6">
           <div className="text-center mb-6">
             <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -276,17 +403,88 @@ const CreateQuoteForm = ({ onClose, onSuccess }) => {
                 </div>
               </div>
             </div>
-            
-            <div className="text-sm text-gray-600">
-              <p>Az ügyfél a linken megtekintheti az árajánlatot és elfogadhatja vagy elutasíthatja azt a PIN kód segítségével.</p>
-              <p className="mt-2">Elfogadás esetén automatikusan létrehozásra kerül a projektje az árajánlat adatai alapján.</p>
-            </div>
           </div>
+          
+          {/* Email küldési űrlap */}
+          {showEmailForm ? (
+            <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+              <h3 className="text-lg font-medium mb-3 flex items-center">
+                <Mail className="mr-2 h-5 w-5 text-blue-500" />
+                Email küldése az ügyfélnek
+              </h3>
+              
+              {emailStatus && (
+                <div className={`mb-4 p-3 rounded ${emailStatus.success ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                  {emailStatus.message}
+                </div>
+              )}
+              
+              <form onSubmit={sendEmail}>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Címzett</label>
+                    <input
+                      type="email"
+                      value={emailData.to}
+                      onChange={(e) => setEmailData(prev => ({ ...prev, to: e.target.value }))}
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                      required
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Tárgy</label>
+                    <input
+                      type="text"
+                      value={emailData.subject}
+                      onChange={(e) => setEmailData(prev => ({ ...prev, subject: e.target.value }))}
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                      required
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Üzenet</label>
+                    <textarea
+                      value={emailData.message}
+                      onChange={(e) => setEmailData(prev => ({ ...prev, message: e.target.value }))}
+                      rows={10}
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                      required
+                    ></textarea>
+                  </div>
+                  
+                  <div className="flex justify-end space-x-3 pt-3">
+                    {!emailStatus?.success && (
+                      <button
+                        type="submit"
+                        className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                        disabled={loading}
+                      >
+                        <Send className="mr-2 h-4 w-4" />
+                        {loading ? 'Küldés...' : 'Email küldése'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </form>
+            </div>
+          ) : (
+            <div className="flex justify-center space-x-3 mb-4">
+              <button
+                onClick={() => setShowEmailForm(true)}
+                className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                <Mail className="mr-2 h-4 w-4" />
+                Email küldése az ügyfélnek
+              </button>
+            </div>
+          )}
           
           <div className="flex justify-center">
             <button
               onClick={onClose}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
             >
               Bezárás
             </button>
@@ -603,7 +801,7 @@ const CreateQuoteForm = ({ onClose, onSuccess }) => {
             {/* Info üzenet */}
             <div className="mb-6 p-4 bg-blue-50 text-blue-800 rounded-lg text-sm">
               <p>
-                <strong>Megjegyzés:</strong> Az árajánlat elfogadása után automatikusan létrehozásra kerül egy projekt az árajánlat adatai alapján.
+                <strong>Megjegyzés:</strong> Az árajánlat létrehozása után lehetőséged lesz értesítő emailt küldeni az ügyfélnek a megosztási linkkel és PIN kóddal.
               </p>
             </div>
             
