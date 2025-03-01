@@ -49,11 +49,12 @@ app.use(cors({
     'http://38.242.208.190',
     'https://www.nb-studio.net',
     'http://localhost:5173',
+    '*',
     'http://localhost:3000'
   ],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key'],
-  credentials: true,
+  credentials: false,
   optionsSuccessStatus: 200
 }));
 
