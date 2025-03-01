@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { X, Plus, Save, Send, Search } from 'lucide-react';
 
-// API kulcs a környezeti változókból vagy közvetlen beágyazás
-const API_KEY = import.meta.env.VITE_PUBLIC_API_KEY || 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0';
+// KULCSFONTOSSÁGÚ BEÁLLÍTÁS: API kulcs közvetlen beállítása
+const API_KEY = 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0';
 
 const CreateQuoteForm = ({ client, project: initialProject, onClose, onSuccess }) => {
   const [loading, setLoading] = useState(false);
@@ -45,26 +45,6 @@ const CreateQuoteForm = ({ client, project: initialProject, onClose, onSuccess }
     };
   };
 
-  // Get JWT token from localStorage
-  const getJwtToken = () => {
-    return localStorage.getItem('token');
-  };
-
-  // Prepare headers with best available authentication method
-  const getAuthHeaders = () => {
-    const headers = {
-      'Content-Type': 'application/json',
-      'X-API-Key': API_KEY // Mindig küldjük az API kulcsot
-    };
-    
-    const jwtToken = getJwtToken();
-    if (jwtToken) {
-      headers['Authorization'] = `Bearer ${jwtToken}`;
-    }
-    
-    return headers;
-  };
-
   // Get currency from selected project or default to EUR
   const getCurrency = () => {
     return selectedProject?.financial?.currency || 'EUR';
@@ -85,40 +65,57 @@ const CreateQuoteForm = ({ client, project: initialProject, onClose, onSuccess }
     projectId: initialProject?._id || null
   });
 
-  // Fetch projects
+  // Manuális bejelentkezés próbálása
+  const tryLogin = async () => {
+    try {
+      // Admin bejelentkezés
+      const loginResponse = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-API-Key': API_KEY
+        },
+        body: JSON.stringify({
+          // Alapértelmezett admin adatok, ezeket módosítsd a valós értékekre
+          email: 'admin@example.com',
+          password: 'your_password_here'
+        })
+      });
+      
+      if (loginResponse.ok) {
+        const { token } = await loginResponse.json();
+        localStorage.setItem('token', token);
+        console.log('Bejelentkezés sikeres, token mentve');
+        return true;
+      } else {
+        console.error('Bejelentkezés sikertelen:', await loginResponse.text());
+        return false;
+      }
+    } catch (error) {
+      console.error('Hiba a bejelentkezés során:', error);
+      return false;
+    }
+  };
+
+  // Fetch projects but ONLY using direct frontend-backend API path
   useEffect(() => {
     const fetchProjects = async () => {
       setLoadingProjects(true);
       setError(null);
       
       try {
-        // Először a védett végpontot próbáljuk
-        const headers = getAuthHeaders();
-        console.log('Projektek lekérése, fejlécek:', { ...headers, 'Authorization': headers.Authorization ? 'Bearer [redacted]' : undefined });
+        // KÖZVETLENÜL hívjuk a backend szervert a teljes URL-lel
+        // Ne használjunk relatív útvonalakat és a proxy-t
+        const response = await fetch('https://admin.nb-studio.net:5001/api/public/projects', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-API-Key': API_KEY
+          }
+        });
         
-        // Elsőként a védett végpontot próbáljuk
-        let response;
-        try {
-          response = await fetch('/api/projects', {
-            method: 'GET',
-            headers: headers
-          });
-          
-          if (!response.ok) {
-            throw new Error(`Védett végpont nem elérhető, HTTP ${response.status}`);
-          }
-        } catch (error) {
-          console.log('Hiba a védett végponton:', error.message);
-          
-          // Ha a védett végpont nem működött, próbáljuk a publikus végpontot
-          response = await fetch('/api/public/projects', {
-            method: 'GET',
-            headers: headers
-          });
-          
-          if (!response.ok) {
-            throw new Error(`Publikus végpont nem elérhető, HTTP ${response.status}`);
-          }
+        if (!response.ok) {
+          throw new Error(`Projektek lekérése sikertelen: ${response.status} ${response.statusText}`);
         }
         
         const data = await response.json();
@@ -126,7 +123,34 @@ const CreateQuoteForm = ({ client, project: initialProject, onClose, onSuccess }
         setProjects(data || []);
       } catch (error) {
         console.error('Hiba a projektek lekérésekor:', error);
-        setError('Nem sikerült betölteni a projekteket. Kérjük, ellenőrizze a hálózati kapcsolatot vagy jelentkezzen be újra.');
+        setError(`Nem sikerült betölteni a projekteket: ${error.message}`);
+        
+        // Ha hiba történt, próbáljunk bejelentkezni és újra lekérni
+        const loginSuccess = await tryLogin();
+        if (loginSuccess) {
+          try {
+            // Újrapróbálkozás JWT tokennel
+            const token = localStorage.getItem('token');
+            const response = await fetch('https://admin.nb-studio.net:5001/api/projects', {
+              method: 'GET',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              }
+            });
+            
+            if (!response.ok) {
+              throw new Error(`JWT token sem működik: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            console.log(`${data.length} projekt betöltve sikeresen JWT tokennel`);
+            setProjects(data || []);
+          } catch (err) {
+            console.error('JWT tokennel sem sikerült:', err);
+            setError(`JWT tokennel sem sikerült: ${err.message}`);
+          }
+        }
       } finally {
         setLoadingProjects(false);
       }
@@ -326,49 +350,26 @@ const CreateQuoteForm = ({ client, project: initialProject, onClose, onSuccess }
         status
       };
 
-      const headers = getAuthHeaders();
-      console.log('Árajánlat küldése, fejlécek:', { ...headers, 'Authorization': headers.Authorization ? 'Bearer [redacted]' : undefined });
-
-      // Végpont kiválasztása projekttől függően
-      let endpoint = quoteData.projectId 
-        ? `/api/projects/${quoteData.projectId}/quotes` 
-        : '/api/quotes';
+      // KÖZVETLENÜL hívjuk a backend szervert a teljes URL-lel
+      const endpoint = quoteData.projectId 
+        ? `https://admin.nb-studio.net:5001/api/public/projects/${quoteData.projectId}/quotes` 
+        : 'https://admin.nb-studio.net:5001/api/public/quotes';
       
-      // Először a védett végpontot próbáljuk
-      let response;
-      try {
-        console.log(`Védett végpont próbálása: ${endpoint}`);
-        response = await fetch(endpoint, {
-          method: 'POST',
-          headers: headers,
-          body: JSON.stringify(dataToSend)
-        });
-        
-        if (!response.ok) {
-          const errorBody = await response.text();
-          console.log(`Védett végpont hiba (${response.status}):`, errorBody);
-          throw new Error(`Védett végpont nem elérhető, HTTP ${response.status}`);
-        }
-      } catch (error) {
-        console.log('Védett végpont hiba:', error.message);
-        
-        // Ha a védett végpont nem működött, próbáljuk a publikus végpontot
-        const publicEndpoint = quoteData.projectId 
-          ? `/api/public/projects/${quoteData.projectId}/quotes` 
-          : '/api/public/quotes';
-        
-        console.log(`Publikus végpont próbálása: ${publicEndpoint}`);
-        response = await fetch(publicEndpoint, {
-          method: 'POST',
-          headers: headers,
-          body: JSON.stringify(dataToSend)
-        });
-        
-        if (!response.ok) {
-          const errorBody = await response.text();
-          console.log(`Publikus végpont hiba (${response.status}):`, errorBody);
-          throw new Error(`Nem sikerült létrehozni az árajánlatot. Státusz: ${response.status}`);
-        }
+      console.log('Árajánlat küldése:', endpoint);
+      
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-API-Key': API_KEY
+        },
+        body: JSON.stringify(dataToSend)
+      });
+      
+      if (!response.ok) {
+        const errorBody = await response.text();
+        console.error('API hiba válasz:', errorBody);
+        throw new Error(`Árajánlat küldése sikertelen: ${response.status} ${response.statusText}`);
       }
       
       const responseData = await response.json();
@@ -384,6 +385,45 @@ const CreateQuoteForm = ({ client, project: initialProject, onClose, onSuccess }
       console.error('Hiba az árajánlat létrehozásakor:', error);
       setError(error.message || 'Ismeretlen hiba történt');
       setLoading(false);
+      
+      // Ha API kulcs nem működik, próbáljunk bejelentkezni és JWT tokent használni
+      const loginSuccess = await tryLogin();
+      if (loginSuccess) {
+        try {
+          // Újra próbáljuk JWT tokennel
+          const token = localStorage.getItem('token');
+          const endpoint = quoteData.projectId 
+            ? `https://admin.nb-studio.net:5001/api/projects/${quoteData.projectId}/quotes` 
+            : 'https://admin.nb-studio.net:5001/api/quotes';
+            
+          const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(dataToSend)
+          });
+          
+          if (!response.ok) {
+            throw new Error(`JWT tokennel sem sikerült: ${response.status}`);
+          }
+          
+          const responseData = await response.json();
+          console.log('Árajánlat sikeresen létrehozva JWT tokennel:', responseData);
+          
+          if (onSuccess) {
+            onSuccess(responseData);
+          }
+          
+          setLoading(false);
+          onClose();
+        } catch (err) {
+          console.error('JWT tokennel sem sikerült:', err);
+          setError(`Egyik módszerrel sem sikerült: ${err.message}`);
+          setLoading(false);
+        }
+      }
     }
   };
 
@@ -422,6 +462,14 @@ const CreateQuoteForm = ({ client, project: initialProject, onClose, onSuccess }
           {error && (
             <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
               {error}
+              <div className="mt-2">
+                <button 
+                  onClick={tryLogin} 
+                  className="px-3 py-1 bg-blue-600 text-white rounded text-sm"
+                >
+                  Bejelentkezés próbálása
+                </button>
+              </div>
             </div>
           )}
 
@@ -468,7 +516,7 @@ const CreateQuoteForm = ({ client, project: initialProject, onClose, onSuccess }
 
                 {projects.length === 0 && !loadingProjects && (
                   <p className="mt-1 text-sm text-red-500">
-                    Nincsenek betöltött projektek. Ellenőrizze a kapcsolatot vagy a bejelentkezést.
+                    Nincsenek betöltött projektek.
                   </p>
                 )}
               </div>
