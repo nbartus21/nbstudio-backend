@@ -1,17 +1,16 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { X, Plus, Save, Send, Search } from 'lucide-react';
+import React, { useState, useCallback } from 'react';
+import { X, Plus, Save, Send } from 'lucide-react';
 
-// KULCSFONTOSSÁGÚ BEÁLLÍTÁS: API kulcs közvetlen beállítása
+// API kulcs a közvetlen hozzáféréshez
 const API_KEY = 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0';
+const API_URL = 'https://admin.nb-studio.net:5001';
 
-const CreateQuoteForm = ({ client, project: initialProject, onClose, onSuccess }) => {
+const CreateQuoteForm = ({ onClose, onSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [projects, setProjects] = useState([]);
-  const [loadingProjects, setLoadingProjects] = useState(false);
-  const [selectedProject, setSelectedProject] = useState(initialProject || null);
+  const [successData, setSuccessData] = useState(null);
   
-  // Ensure client object has the expected structure with default values
+  // Kezdeti ügyfél adatok
   const initialClient = {
     name: '',
     email: '',
@@ -26,33 +25,9 @@ const CreateQuoteForm = ({ client, project: initialProject, onClose, onSuccess }
     }
   };
 
-  // Safely merge provided client with default structure
-  const mergeClientData = (providedClient) => {
-    if (!providedClient) return initialClient;
-    
-    return {
-      name: providedClient.name || '',
-      email: providedClient.email || '',
-      phone: providedClient.phone || '',
-      companyName: providedClient.companyName || '',
-      taxNumber: providedClient.taxNumber || '',
-      address: {
-        street: providedClient.address?.street || '',
-        city: providedClient.address?.city || '',
-        postalCode: providedClient.address?.postalCode || '',
-        country: providedClient.address?.country || 'Magyarország'
-      }
-    };
-  };
-
-  // Get currency from selected project or default to EUR
-  const getCurrency = () => {
-    return selectedProject?.financial?.currency || 'EUR';
-  };
-
-  // Initialize state once
+  // Árajánlat alapadatok
   const [quoteData, setQuoteData] = useState({
-    client: mergeClientData(client),
+    client: initialClient,
     items: [
       { description: '', quantity: 1, unitPrice: 0, discount: 0, total: 0 }
     ],
@@ -60,147 +35,17 @@ const CreateQuoteForm = ({ client, project: initialProject, onClose, onSuccess }
     subtotal: 0,
     totalAmount: 0,
     paymentTerms: 'Fizetés 8 napon belül banki átutalással',
-    notes: 'Az árajánlat 30 napig érvényes.',
+    notes: 'Az árajánlat 30 napig érvényes. Elfogadás után létrehozunk egy projektet az adatok alapján.',
     validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    projectId: initialProject?._id || null
+    currency: 'EUR'
   });
 
-  // Manuális bejelentkezés próbálása
-  const tryLogin = async () => {
-    try {
-      // Admin bejelentkezés
-      const loginResponse = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-API-Key': API_KEY
-        },
-        body: JSON.stringify({
-          // Alapértelmezett admin adatok, ezeket módosítsd a valós értékekre
-          email: 'admin@example.com',
-          password: 'your_password_here'
-        })
-      });
-      
-      if (loginResponse.ok) {
-        const { token } = await loginResponse.json();
-        localStorage.setItem('token', token);
-        console.log('Bejelentkezés sikeres, token mentve');
-        return true;
-      } else {
-        console.error('Bejelentkezés sikertelen:', await loginResponse.text());
-        return false;
-      }
-    } catch (error) {
-      console.error('Hiba a bejelentkezés során:', error);
-      return false;
-    }
+  // Pénzformátum segédfüggvény
+  const formatCurrency = (amount) => {
+    return `${amount.toLocaleString('hu-HU', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} ${quoteData.currency}`;
   };
 
-  // Fetch projects but ONLY using direct frontend-backend API path
-  useEffect(() => {
-    const fetchProjects = async () => {
-      setLoadingProjects(true);
-      setError(null);
-      
-      try {
-        // KÖZVETLENÜL hívjuk a backend szervert a teljes URL-lel
-        // Ne használjunk relatív útvonalakat és a proxy-t
-        const response = await fetch('https://admin.nb-studio.net:5001/api/public/projects', {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-API-Key': API_KEY
-          }
-        });
-        
-        if (!response.ok) {
-          throw new Error(`Projektek lekérése sikertelen: ${response.status} ${response.statusText}`);
-        }
-        
-        const data = await response.json();
-        console.log(`${data.length} projekt betöltve sikeresen`);
-        setProjects(data || []);
-      } catch (error) {
-        console.error('Hiba a projektek lekérésekor:', error);
-        setError(`Nem sikerült betölteni a projekteket: ${error.message}`);
-        
-        // Ha hiba történt, próbáljunk bejelentkezni és újra lekérni
-        const loginSuccess = await tryLogin();
-        if (loginSuccess) {
-          try {
-            // Újrapróbálkozás JWT tokennel
-            const token = localStorage.getItem('token');
-            const response = await fetch('https://admin.nb-studio.net:5001/api/projects', {
-              method: 'GET',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-              }
-            });
-            
-            if (!response.ok) {
-              throw new Error(`JWT token sem működik: ${response.status}`);
-            }
-            
-            const data = await response.json();
-            console.log(`${data.length} projekt betöltve sikeresen JWT tokennel`);
-            setProjects(data || []);
-          } catch (err) {
-            console.error('JWT tokennel sem sikerült:', err);
-            setError(`JWT tokennel sem sikerült: ${err.message}`);
-          }
-        }
-      } finally {
-        setLoadingProjects(false);
-      }
-    };
-
-    fetchProjects();
-  }, []);
-
-  // Ha nincs kezdeti projekt, de van kiválasztott, akkor frissítsük a quoteData-t
-  useEffect(() => {
-    if (selectedProject && selectedProject._id !== quoteData.projectId) {
-      setQuoteData(prev => ({
-        ...prev,
-        projectId: selectedProject._id
-      }));
-    }
-  }, [selectedProject, quoteData.projectId]);
-
-  // Projekt kiválasztása
-  const handleProjectSelect = (e) => {
-    const projectId = e.target.value;
-    
-    if (!projectId || projectId === "null") {
-      setSelectedProject(null);
-      setQuoteData(prev => ({
-        ...prev,
-        projectId: null
-      }));
-      return;
-    }
-
-    const selected = projects.find(p => p._id === projectId);
-    setSelectedProject(selected || null);
-    
-    // Ha van ügyfél adat a projektben, használjuk azt
-    if (selected && selected.client) {
-      setQuoteData(prev => ({
-        ...prev,
-        projectId: selected._id,
-        client: mergeClientData(selected.client)
-      }));
-    } else {
-      setQuoteData(prev => ({
-        ...prev,
-        projectId: selected?._id || null
-      }));
-    }
-  };
-
-  // Memoize the calculation function to prevent recreating it on each render
+  // Számítások a tételekhez és összegekhez
   const calculateTotals = useCallback(() => {
     if (!Array.isArray(quoteData.items) || quoteData.items.length === 0) {
       return {
@@ -235,26 +80,54 @@ const CreateQuoteForm = ({ client, project: initialProject, onClose, onSuccess }
     return { items, subtotal, totalAmount };
   }, [quoteData.items, quoteData.vat]);
 
-  // Process calculations without infinite update loop
-  useEffect(() => {
+  // Frissítjük a számításokat
+  const updateCalculations = () => {
     const { items, subtotal, totalAmount } = calculateTotals();
     
-    // Only update if values actually changed to prevent infinite loop
-    if (
-      JSON.stringify(items) !== JSON.stringify(quoteData.items) ||
-      subtotal !== quoteData.subtotal ||
-      totalAmount !== quoteData.totalAmount
-    ) {
-      setQuoteData(prev => ({
-        ...prev,
-        items,
-        subtotal,
-        totalAmount
-      }));
-    }
-  }, [calculateTotals, quoteData.items, quoteData.subtotal, quoteData.totalAmount]);
+    setQuoteData(prev => ({
+      ...prev,
+      items,
+      subtotal,
+      totalAmount
+    }));
+  };
 
-  // Új tétel hozzáadása
+  // Ügyfél adatok módosítása
+  const handleClientChange = (field, value) => {
+    setQuoteData(prev => ({
+      ...prev,
+      client: { ...prev.client, [field]: value }
+    }));
+  };
+
+  // Ügyfél cím adatok módosítása
+  const handleAddressChange = (field, value) => {
+    setQuoteData(prev => ({
+      ...prev,
+      client: { 
+        ...prev.client, 
+        address: { 
+          ...(prev.client.address || {}),
+          [field]: value 
+        }
+      }
+    }));
+  };
+
+  // Általános mezők módosítása
+  const handleChange = (field, value) => {
+    setQuoteData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+    
+    // Ha a vat vagy currency változik, frissítsük a számításokat
+    if (field === 'vat' || field === 'currency') {
+      setTimeout(updateCalculations, 0);
+    }
+  };
+
+  // Tétel hozzáadása
   const handleAddItem = () => {
     setQuoteData(prev => ({
       ...prev,
@@ -264,17 +137,18 @@ const CreateQuoteForm = ({ client, project: initialProject, onClose, onSuccess }
 
   // Tétel törlése
   const handleRemoveItem = (index) => {
-    if (quoteData.items.length === 1) {
-      return; // Legalább egy tételt meg kell hagyni
-    }
+    if (quoteData.items.length <= 1) return;
     
     setQuoteData(prev => ({
       ...prev,
       items: prev.items.filter((_, i) => i !== index)
     }));
+    
+    // Frissítjük a számításokat
+    setTimeout(updateCalculations, 0);
   };
 
-  // Tétel adatainak módosítása
+  // Tétel módosítása
   const handleItemChange = (index, field, value) => {
     setQuoteData(prev => {
       const newItems = [...prev.items];
@@ -283,46 +157,20 @@ const CreateQuoteForm = ({ client, project: initialProject, onClose, onSuccess }
       }
       return { ...prev, items: newItems };
     });
+    
+    // Frissítjük a számításokat
+    setTimeout(updateCalculations, 0);
   };
 
-  // Ügyfél adatainak módosítása
-  const handleClientChange = (field, value) => {
-    setQuoteData(prev => ({
-      ...prev,
-      client: { ...prev.client, [field]: value }
-    }));
-  };
-
-  // Ügyfél címadatainak módosítása
-  const handleAddressChange = (field, value) => {
-    setQuoteData(prev => ({
-      ...prev,
-      client: { 
-        ...prev.client, 
-        address: { 
-          ...(prev.client.address || {}), // Ensure address exists
-          [field]: value 
-        }
-      }
-    }));
-  };
-
-  // Általános adatok módosítása
-  const handleChange = (field, value) => {
-    setQuoteData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
-
-  // Árajánlat mentése és elküldése
+  // Árajánlat beküldése
   const handleSubmit = async (e, isDraft = false) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setSuccessData(null);
 
     try {
-      // Hiányzó adatok ellenőrzése
+      // Validáció
       if (!quoteData.client.name || !quoteData.client.email) {
         throw new Error('Az ügyfél neve és e-mail címe kötelező!');
       }
@@ -331,7 +179,7 @@ const CreateQuoteForm = ({ client, project: initialProject, onClose, onSuccess }
         throw new Error('Minden tételnél adjon meg leírást és pozitív mennyiséget!');
       }
 
-      // Ensure client address is properly structured
+      // Strukturált címadatok
       const clientData = {
         ...quoteData.client,
         address: quoteData.client.address || {
@@ -347,17 +195,12 @@ const CreateQuoteForm = ({ client, project: initialProject, onClose, onSuccess }
       const dataToSend = {
         ...quoteData,
         client: clientData,
-        status
+        status,
+        createProject: true // Jelezzük, hogy projektet is létrehozzon elfogadás után
       };
 
-      // KÖZVETLENÜL hívjuk a backend szervert a teljes URL-lel
-      const endpoint = quoteData.projectId 
-        ? `https://admin.nb-studio.net:5001/api/public/projects/${quoteData.projectId}/quotes` 
-        : 'https://admin.nb-studio.net:5001/api/public/quotes';
-      
-      console.log('Árajánlat küldése:', endpoint);
-      
-      const response = await fetch(endpoint, {
+      // KÖZVETLENÜL hívjuk a publikus API végpontot
+      const response = await fetch(`${API_URL}/api/public/quotes`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -368,79 +211,90 @@ const CreateQuoteForm = ({ client, project: initialProject, onClose, onSuccess }
       
       if (!response.ok) {
         const errorBody = await response.text();
-        console.error('API hiba válasz:', errorBody);
-        throw new Error(`Árajánlat küldése sikertelen: ${response.status} ${response.statusText}`);
+        console.error('API válasz hiba:', errorBody);
+        throw new Error(`Árajánlat küldés sikertelen (${response.status}): ${response.statusText}`);
       }
       
       const responseData = await response.json();
       console.log('Árajánlat sikeresen létrehozva:', responseData);
+      
+      // Sikeres létrehozás, mentem a megosztási adatokat
+      setSuccessData({
+        quoteNumber: responseData.quoteNumber || 'N/A',
+        shareLink: responseData.shareLink || `${window.location.origin}/shared-quote/${responseData.shareToken}`,
+        sharePin: responseData.sharePin || '123456',
+        totalAmount: formatCurrency(responseData.totalAmount || quoteData.totalAmount)
+      });
 
       if (onSuccess) {
         onSuccess(responseData);
       }
       
       setLoading(false);
-      onClose();
     } catch (error) {
       console.error('Hiba az árajánlat létrehozásakor:', error);
       setError(error.message || 'Ismeretlen hiba történt');
       setLoading(false);
-      
-      // Ha API kulcs nem működik, próbáljunk bejelentkezni és JWT tokent használni
-      const loginSuccess = await tryLogin();
-      if (loginSuccess) {
-        try {
-          // Újra próbáljuk JWT tokennel
-          const token = localStorage.getItem('token');
-          const endpoint = quoteData.projectId 
-            ? `https://admin.nb-studio.net:5001/api/projects/${quoteData.projectId}/quotes` 
-            : 'https://admin.nb-studio.net:5001/api/quotes';
-            
-          const response = await fetch(endpoint, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify(dataToSend)
-          });
-          
-          if (!response.ok) {
-            throw new Error(`JWT tokennel sem sikerült: ${response.status}`);
-          }
-          
-          const responseData = await response.json();
-          console.log('Árajánlat sikeresen létrehozva JWT tokennel:', responseData);
-          
-          if (onSuccess) {
-            onSuccess(responseData);
-          }
-          
-          setLoading(false);
-          onClose();
-        } catch (err) {
-          console.error('JWT tokennel sem sikerült:', err);
-          setError(`Egyik módszerrel sem sikerült: ${err.message}`);
-          setLoading(false);
-        }
-      }
     }
   };
 
-  // Pénzformátum segédfüggvény
-  const formatCurrency = (amount) => {
-    const currency = getCurrency();
-    return `${amount.toLocaleString('hu-HU', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} ${currency}`;
-  };
-
-  // Projekt keresés
-  const [projectSearch, setProjectSearch] = useState('');
-  const filteredProjects = projectSearch
-    ? projects.filter(p => 
-        p.name?.toLowerCase().includes(projectSearch.toLowerCase()) ||
-        p.client?.name?.toLowerCase().includes(projectSearch.toLowerCase())
-      )
-    : projects;
+  // Ha sikeresen létrejött az árajánlat, megjelenítjük a visszaigazolást
+  if (successData) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="bg-white rounded-lg w-full max-w-md p-6">
+          <div className="text-center mb-6">
+            <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h2 className="text-2xl font-semibold mb-2">Árajánlat sikeresen létrehozva!</h2>
+            <p className="text-gray-600">Az árajánlat adatai:</p>
+          </div>
+          
+          <div className="space-y-4 mb-6">
+            <div className="p-4 bg-gray-50 rounded-lg">
+              <div className="grid grid-cols-3 gap-2">
+                <div className="text-sm text-gray-500">Árajánlat szám:</div>
+                <div className="col-span-2 font-medium">{successData.quoteNumber}</div>
+              </div>
+              
+              <div className="grid grid-cols-3 gap-2 mt-2">
+                <div className="text-sm text-gray-500">Összeg:</div>
+                <div className="col-span-2 font-medium">{successData.totalAmount}</div>
+              </div>
+              
+              <div className="mt-4 pt-4 border-t">
+                <p className="text-sm text-gray-600 mb-2">Megosztási link és PIN kód az ügyfél számára:</p>
+                <div className="p-3 bg-blue-50 rounded text-blue-800 break-all text-sm">
+                  {successData.shareLink}
+                </div>
+                <div className="mt-2 flex justify-between items-center">
+                  <span className="text-sm text-gray-500">PIN kód:</span>
+                  <span className="font-mono font-bold text-lg tracking-wider">{successData.sharePin}</span>
+                </div>
+              </div>
+            </div>
+            
+            <div className="text-sm text-gray-600">
+              <p>Az ügyfél a linken megtekintheti az árajánlatot és elfogadhatja vagy elutasíthatja azt a PIN kód segítségével.</p>
+              <p className="mt-2">Elfogadás esetén automatikusan létrehozásra kerül a projektje az árajánlat adatai alapján.</p>
+            </div>
+          </div>
+          
+          <div className="flex justify-center">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              Bezárás
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -448,7 +302,7 @@ const CreateQuoteForm = ({ client, project: initialProject, onClose, onSuccess }
         <div className="p-6">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-xl font-semibold">
-              {selectedProject ? `Új árajánlat készítése: ${selectedProject.name}` : 'Új árajánlat készítése'}
+              Új Árajánlat Létrehozása
             </h2>
             <button
               onClick={onClose}
@@ -462,78 +316,8 @@ const CreateQuoteForm = ({ client, project: initialProject, onClose, onSuccess }
           {error && (
             <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
               {error}
-              <div className="mt-2">
-                <button 
-                  onClick={tryLogin} 
-                  className="px-3 py-1 bg-blue-600 text-white rounded text-sm"
-                >
-                  Bejelentkezés próbálása
-                </button>
-              </div>
             </div>
           )}
-
-          {/* Projekt kiválasztás */}
-          <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-            <h3 className="font-medium text-gray-700 mb-3">Projekt kiválasztása</h3>
-            
-            <div className="flex items-center mb-3">
-              <div className="relative w-full">
-                <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                  <Search className="w-4 h-4 text-gray-500" />
-                </div>
-                <input
-                  type="text"
-                  value={projectSearch}
-                  onChange={(e) => setProjectSearch(e.target.value)}
-                  placeholder="Projekt keresése..."
-                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                />
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Projekt
-                </label>
-                <select
-                  value={selectedProject?._id || "null"}
-                  onChange={handleProjectSelect}
-                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                  disabled={loadingProjects}
-                >
-                  <option value="null">-- Projekttől független árajánlat --</option>
-                  {filteredProjects.map(project => (
-                    <option key={project._id} value={project._id}>
-                      {project.name} {project.client?.name ? `(${project.client.name})` : ''}
-                    </option>
-                  ))}
-                </select>
-                {loadingProjects && (
-                  <p className="mt-1 text-sm text-gray-500">Projektek betöltése...</p>
-                )}
-
-                {projects.length === 0 && !loadingProjects && (
-                  <p className="mt-1 text-sm text-red-500">
-                    Nincsenek betöltött projektek.
-                  </p>
-                )}
-              </div>
-              
-              {selectedProject && (
-                <div>
-                  <h4 className="text-sm font-medium text-gray-700 mb-1">Kiválasztott projekt adatai</h4>
-                  <div className="bg-white p-3 rounded border border-gray-200 text-sm">
-                    <p><span className="font-medium">Név:</span> {selectedProject.name}</p>
-                    <p><span className="font-medium">Ügyfél:</span> {selectedProject.client?.name || 'Nincs megadva'}</p>
-                    <p><span className="font-medium">Státusz:</span> {selectedProject.status || 'Nincs megadva'}</p>
-                    <p><span className="font-medium">Pénznem:</span> {selectedProject.financial?.currency || 'EUR'}</p>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
 
           <form onSubmit={(e) => handleSubmit(e, false)}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
@@ -650,16 +434,30 @@ const CreateQuoteForm = ({ client, project: initialProject, onClose, onSuccess }
                   />
                 </div>
                 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">ÁFA (%)</label>
-                  <input
-                    type="number"
-                    value={quoteData.vat || 27}
-                    onChange={(e) => handleChange('vat', parseFloat(e.target.value) || 0)}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                    min="0"
-                    max="100"
-                  />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">ÁFA (%)</label>
+                    <input
+                      type="number"
+                      value={quoteData.vat || 27}
+                      onChange={(e) => handleChange('vat', parseFloat(e.target.value) || 0)}
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                      min="0"
+                      max="100"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Pénznem</label>
+                    <select
+                      value={quoteData.currency || 'EUR'}
+                      onChange={(e) => handleChange('currency', e.target.value)}
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                    >
+                      <option value="EUR">EUR</option>
+                      <option value="HUF">HUF</option>
+                      <option value="USD">USD</option>
+                    </select>
+                  </div>
                 </div>
               </div>
             </div>
@@ -800,6 +598,13 @@ const CreateQuoteForm = ({ client, project: initialProject, onClose, onSuccess }
                   </tfoot>
                 </table>
               </div>
+            </div>
+            
+            {/* Info üzenet */}
+            <div className="mb-6 p-4 bg-blue-50 text-blue-800 rounded-lg text-sm">
+              <p>
+                <strong>Megjegyzés:</strong> Az árajánlat elfogadása után automatikusan létrehozásra kerül egy projekt az árajánlat adatai alapján.
+              </p>
             </div>
             
             {/* Gombok */}
