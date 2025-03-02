@@ -222,8 +222,8 @@ router.post('/projects/:id/share', async (req, res) => {
     // Token generálása
     const shareToken = uuidv4();
     
-    // Megosztási link generálása
-    const shareLink = `http://38.242.208.190:5173/shared-project/${shareToken}`;
+    // Megosztási link generálása - MÓDOSÍTVA, új domain-t használ
+    const shareLink = `https://project.nb-studio.net/shared-project/${shareToken}`;
     
     // Megosztási adatok mentése
     project.sharing = {

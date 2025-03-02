@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import https from 'https';
+import http from 'http';  // Új import a proxy-hoz
 import fs from 'fs';
 import Contact from './models/Contact.js';
 import Hosting from './models/Hosting.js';
@@ -43,6 +44,7 @@ app.use(cors({
     'https://admin.nb-studio.net',
     'https://nb-studio.net',
     'https://www.nb-studio.net',
+    'https://project.nb-studio.net',  // Új domain hozzáadva
     'http://38.242.208.190:5173',
     'http://38.242.208.190',
     'https://www.nb-studio.net',
@@ -223,16 +225,126 @@ app.use((err, req, res, next) => {
   res.status(500).json({ message: 'Something went wrong!' });
 });
 
-// MongoDB kapcsolódás és HTTPS szerver indítás
+// MongoDB kapcsolódás és API szerver indítás
 mongoose.connect(process.env.MONGO_URI)
   .then(() => {
     console.log('Connected to MongoDB');
+    // API szerver indítása
     https.createServer(options, app).listen(port, host, () => {
-      console.log(`Server running on https://${host}:${port}`);
+      console.log(`API Server running on https://${host}:${port}`);
     });
+    
+    // Project domain kezelése
+    setupProjectDomain();
   })
   .catch((error) => {
     console.error('MongoDB connection error:', error);
   });
+
+// Project domain kezelő funkció
+function setupProjectDomain() {
+  // Proxy alkalmazás a project.nb-studio.net domain-hez
+  const projectApp = express();
+  
+  // CORS beállítások a projekt alkalmazáshoz
+  projectApp.use(cors({
+    origin: '*',
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key'],
+    credentials: true
+  }));
+  
+  // Webhook support (socket.io, websocket)
+  projectApp.use('/socket.io', (req, res) => {
+    console.log('Proxying socket.io request');
+    proxyRequest(req, res, 'socket.io');
+  });
+  
+  // Proxy middleware, ami a HTTP kéréseket továbbítja a helyi 5173-as portra
+  projectApp.use((req, res) => {
+    console.log(`Proxying request to 5173: ${req.method} ${req.url}`);
+    proxyRequest(req, res);
+  });
+  
+  // Proxy funkció
+  function proxyRequest(req, res, path) {
+    const options = {
+      hostname: 'localhost',
+      port: 5173,
+      path: path ? `/${path}${req.url}` : req.url,
+      method: req.method,
+      headers: { ...req.headers }
+    };
+    
+    // Host header módosítása
+    options.headers.host = 'localhost:5173';
+    
+    const proxyReq = http.request(options, (proxyRes) => {
+      // Response headers
+      Object.keys(proxyRes.headers).forEach(key => {
+        res.setHeader(key, proxyRes.headers[key]);
+      });
+      
+      // Status code
+      res.statusCode = proxyRes.statusCode;
+      
+      // Pipe response
+      proxyRes.pipe(res);
+    });
+    
+    // Error handler
+    proxyReq.on('error', (err) => {
+      console.error('Proxy error:', err);
+      if (!res.headersSent) {
+        res.writeHead(502, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Proxy error', message: err.message }));
+      }
+    });
+    
+    // Ha van adat a kérésben, továbbítjuk
+    if (req.body) {
+      proxyReq.write(JSON.stringify(req.body));
+    }
+    
+    // Ha van adatfolyam (file upload, stb), továbbítjuk
+    if (req.readable) {
+      req.pipe(proxyReq);
+    } else {
+      proxyReq.end();
+    }
+  }
+  
+  // Project szerver indítása a 443-as porton
+  try {
+    // A port 3000-re állítjuk, hogy ne ütközzön a meglévő szerverrel
+    // Az iptables fogja átirányítani a 443-as port forgalmát
+    const projectPort = 5555;
+    
+    https.createServer(options, projectApp).listen(projectPort, host, () => {
+      console.log(`Project server running on https://${host}:${projectPort}`);
+      console.log('NOTE: Make sure to set up iptables rule to forward traffic from port 443 to 3000 for project.nb-studio.net');
+      console.log('Example command:');
+      console.log('iptables -t nat -A PREROUTING -p tcp -d project.nb-studio.net --dport 443 -j REDIRECT --to-port 3000');
+    });
+  } catch (error) {
+    console.error('Failed to start project server:', error);
+  }
+}
+
+// Frissítsük a megosztási link generálást a projektekben
+
+// Eredeti linkek módosítása a fájl végére került, mert ez a funkció
+// valószínűleg a routes/projects.js fájlban van.
+// Frissítenie kell a routes/projects.js fájlt a következő módosítással:
+/*
+const generateShareLink = (token) => {
+  // Régi:
+  // const shareLink = `http://38.242.208.190:5173/shared-project/${token}`;
+  
+  // Új:
+  const shareLink = `https://project.nb-studio.net/shared-project/${token}`;
+  return shareLink;
+};
+*/
 
 export default app;
