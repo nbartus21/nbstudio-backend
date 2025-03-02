@@ -16,10 +16,10 @@ import InvoiceManager from './InvoiceManager';
 import AccountingManager from './AccountingManager';
 import HostingManager from './HostingManager';
 
-// Import Quote management components
-import QuoteManagement from './quote/QuoteManagement';
-import QuoteDashboard from './quote/QuoteDashboard';
-import SharedQuoteView from './quote/SharedQuoteView';
+// Import Quote management components - adjust these paths based on your actual file structure
+import QuoteManagement from './project/quote/QuoteManagement';
+import QuoteDashboard from './project/quote/QuoteDashboard';
+import SharedQuoteView from './project/quote/SharedQuoteView';
 
 const App = () => {
   const PrivateRoute = ({ children }) => {
