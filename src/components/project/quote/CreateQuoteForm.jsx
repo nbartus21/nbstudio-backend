@@ -1,8 +1,8 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { X, Plus, Save, Send, Mail } from 'lucide-react';
+import { api } from '../../services/auth';
 
-// API kulcs a közvetlen hozzáféréshez
-const API_KEY = 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0';
+// API URL consistent with DomainManager
 const API_URL = 'https://admin.nb-studio.net:5001';
 
 const CreateQuoteForm = ({ onClose, onSuccess }) => {
@@ -248,23 +248,10 @@ const CreateQuoteForm = ({ onClose, onSuccess }) => {
         createProject: true // Jelezzük, hogy projektet is létrehozzon elfogadás után
       };
 
-      // KÖZVETLENÜL hívjuk a publikus API végpontot
-      const response = await fetch(`${API_URL}/api/public/quotes`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-API-Key': API_KEY
-        },
-        body: JSON.stringify(dataToSend)
-      });
-      
-      if (!response.ok) {
-        const errorBody = await response.text();
-        console.error('API válasz hiba:', errorBody);
-        throw new Error(`Árajánlat küldés sikertelen (${response.status}): ${response.statusText}`);
-      }
-      
+      // Használjuk az api objektumot a DomainManager-ből
+      const response = await api.post(`${API_URL}/api/quotes`, dataToSend);
       const responseData = await response.json();
+      
       console.log('Árajánlat sikeresen létrehozva:', responseData);
       
       // Sikeres létrehozás, mentem a megosztási adatokat
@@ -328,25 +315,12 @@ NB Studio Csapata
     setLoading(true);
     
     try {
-      // Email küldés API hívás
-      const response = await fetch(`${API_URL}/api/public/quotes/${successData.quoteId}/send-email`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-API-Key': API_KEY
-        },
-        body: JSON.stringify({
-          email: emailData.to,
-          subject: emailData.subject,
-          message: emailData.message
-        })
+      // Email küldés API hívás (autentikált végponttal)
+      const response = await api.post(`${API_URL}/api/quotes/${successData.quoteId}/send-email`, {
+        email: emailData.to,
+        subject: emailData.subject,
+        message: emailData.message
       });
-      
-      if (!response.ok) {
-        const errorBody = await response.text();
-        console.error('Email küldési hiba:', errorBody);
-        throw new Error(`Email küldés sikertelen (${response.status}): ${response.statusText}`);
-      }
       
       // Sikeres email küldés
       setEmailStatus({
