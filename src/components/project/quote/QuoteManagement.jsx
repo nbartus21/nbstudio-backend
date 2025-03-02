@@ -44,19 +44,39 @@ const QuoteManagement = () => {
     try {
       // Az api objektum használata az autentikált kéréshez
       const response = await api.get(`${API_URL}/api/quotes`);
-      const data = await response.json();
       
-      console.log('Árajánlatok sikeresen betöltve:', data);
+      // Ellenőrizzük, hogy a response rendben van-e
+      if (!response) {
+        throw new Error('Nincs válasz a szervertől');
+      }
       
-      // Rendezzük dátum szerint (legújabbak elöl)
-      const sortedQuotes = Array.isArray(data) 
-      ? data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-      : [];
-      
-      setQuotes(sortedQuotes);
+      // JSON adatok kinyerése
+      try {
+        const data = await response.json();
+        console.log('Árajánlatok sikeresen betöltve:', data);
+        
+        // Ellenőrizzük, hogy a data tömb-e
+        if (Array.isArray(data)) {
+          // Rendezzük dátum szerint (legújabbak elöl)
+          const sortedQuotes = [...data].sort((a, b) => {
+            if (!a.createdAt || !b.createdAt) return 0;
+            return new Date(b.createdAt) - new Date(a.createdAt);
+          });
+          
+          setQuotes(sortedQuotes);
+        } else {
+          setQuotes([]);
+          throw new Error('Érvénytelen válasz formátum - tömböt vártunk');
+        }
+      } catch (jsonError) {
+        console.error('Hiba a válasz JSON feldolgozása során:', jsonError);
+        setQuotes([]);
+        throw new Error('Nem sikerült feldolgozni a választ');
+      }
     } catch (error) {
       console.error('Hiba az árajánlatok lekérdezésekor:', error);
-      setError(error.message);
+      setError(error.message || 'Hiba az árajánlatok betöltésekor');
+      setQuotes([]);
     } finally {
       setLoading(false);
     }

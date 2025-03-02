@@ -42,17 +42,25 @@ const fetchAnalytics = async () => {
       // Az api objektum használata az autentikált kéréshez
       const response = await api.get(`${API_URL}/api/quotes/analytics`);
       
-      // Ha idáig eljutottunk, feldolgozzuk az adatokat
-      if (response) {
-        try {
-          const data = await response.json();
-          console.log('Analitika sikeresen betöltve:', data);
+      // Ellenőrizzük, hogy a response rendben van-e
+      if (!response) {
+        throw new Error('Nincs válasz a szervertől');
+      }
+      
+      // JSON adatok kinyerése
+      try {
+        const data = await response.json();
+        console.log('Analitika sikeresen betöltve:', data);
+        
+        // Ellenőrizzük, hogy a data megfelelő objektum-e
+        if (data && typeof data === 'object') {
           setAnalytics(data);
-        } catch (jsonError) {
-          console.error('Hiba a válasz JSON feldolgozásakor:', jsonError);
-          // Tesztadatok megjelenítése, ha a JSON feldolgozás nem sikerül
-          generateMockData();
+        } else {
+          throw new Error('Érvénytelen válasz formátum');
         }
+      } catch (jsonError) {
+        console.error('Hiba a válasz JSON feldolgozása során:', jsonError);
+        throw new Error('Nem sikerült feldolgozni a választ');
       }
     } catch (error) {
       console.error('Hiba az analitikai adatok lekérdezésekor:', error);

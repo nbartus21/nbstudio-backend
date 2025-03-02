@@ -9,7 +9,8 @@ import {
   deleteQuote,
   getQuoteByToken,
   clientQuoteAction,
-  generateInvoiceFromQuote
+  generateInvoiceFromQuote,
+  getQuotesAnalytics  // Új funkció importálása
 } from '../controllers/quoteController.js';
 
 const router = express.Router();
@@ -23,6 +24,9 @@ router.put('/quotes/:id', updateQuote);
 router.patch('/quotes/:id/status', updateQuoteStatus);
 router.delete('/quotes/:id', deleteQuote);
 router.post('/quotes/:id/invoice', generateInvoiceFromQuote);
+
+// Új analytics végpont
+router.get('/quotes/analytics', getQuotesAnalytics);
 
 // Projekthez kapcsolódó árajánlatok
 router.post('/projects/:projectId/quotes', createQuoteForProject);
