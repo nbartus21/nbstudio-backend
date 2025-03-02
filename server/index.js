@@ -45,6 +45,7 @@ app.use(cors({
     'https://nb-studio.net',
     'https://www.nb-studio.net',
     'https://project.nb-studio.net',  // Új domain hozzáadva
+    'https://project.nb-studio.net:5555',  // Új domain hozzáadva
     'http://38.242.208.190:5173',
     'http://38.242.208.190',
     'https://www.nb-studio.net',
