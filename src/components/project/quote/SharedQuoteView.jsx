@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
-import axios from 'axios';
-import QuoteDetailsView from './QuoteDetailsView.jsx';
-import QuoteStatusBadge from './QuoteStatusBadge.jsx';
-import { Loader } from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import { useParams } from "react-router-dom";
+import QuoteDetailsView from "./QuoteDetailsView.jsx";
+import QuoteStatusBadge from "./QuoteStatusBadge.jsx";
+import { Loader } from "lucide-react";
 
 const SharedQuoteView = () => {
   const { token } = useParams();
@@ -25,22 +24,32 @@ const SharedQuoteView = () => {
         setError('');
         
         // API kulcs a fejlécben (ezt a valós környezetben helyettesíteni kell)
-        const config = {
-          headers: {
-            'X-API-Key': process.env.REACT_APP_API_KEY || 'your-api-key-here'
-          }
+        const headers = {
+          'Content-Type': 'application/json',
+          'X-API-Key': process.env.REACT_APP_API_KEY || 'your-api-key-here'
         };
         
-        const response = await axios.get(`/api/public/quotes/${token}`, config);
-        setQuote(response.data);
+        // fetch használata axios helyett
+        const response = await fetch(`/api/public/quotes/${token}`, { headers });
+        
+        if (!response.ok) {
+          throw new Error(`Hiba a lekérdezés során: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        setQuote(data);
         
         // Ha van projektID, akkor lekérjük a projekt adatait is
-        if (response.data.projectId) {
+        if (data.projectId) {
           try {
-            const projectResponse = await axios.get(`/api/public/projects/${response.data.projectId}`, config);
-            setProject(projectResponse.data || {
-              financial: { currency: 'EUR' }
-            });
+            const projectResponse = await fetch(`/api/public/projects/${data.projectId}`, { headers });
+            
+            if (projectResponse.ok) {
+              const projectData = await projectResponse.json();
+              setProject(projectData || {
+                financial: { currency: 'EUR' }
+              });
+            }
           } catch (err) {
             console.warn('Nem sikerült a projekt adatait lekérni:', err);
           }
@@ -49,7 +58,7 @@ const SharedQuoteView = () => {
         setLoading(false);
       } catch (err) {
         console.error('Hiba az árajánlat lekérésekor:', err);
-        setError(err.response?.data?.message || 'Hiba történt az árajánlat betöltése során');
+        setError(err.message || 'Hiba történt az árajánlat betöltése során');
         setLoading(false);
       }
     };
