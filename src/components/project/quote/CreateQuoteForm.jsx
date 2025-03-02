@@ -228,6 +228,12 @@ const CreateQuoteForm = ({ onClose, onSuccess }) => {
         throw new Error('Minden tételnél adjon meg leírást és pozitív mennyiséget!');
       }
 
+      // Debug: Ellenőrizzük a token-t a küldés előtt
+      console.log('Árajánlat küldés előtti token ellenőrzés:');
+      const token = sessionStorage.getItem('token');
+      console.log('- Token létezik:', !!token);
+      console.log('- Token hossza:', token?.length || 0);
+
       // Strukturált címadatok
       const clientData = {
         ...quoteData.client,
@@ -248,10 +254,14 @@ const CreateQuoteForm = ({ onClose, onSuccess }) => {
         createProject: true // Jelezzük, hogy projektet is létrehozzon elfogadás után
       };
 
+      console.log('Árajánlat küldési adatok:', dataToSend);
+
       // Használjuk az api objektumot a DomainManager-ből
+      console.log('API post hívás kezdése:', `${API_URL}/api/quotes`);
       const response = await api.post(`${API_URL}/api/quotes`, dataToSend);
-      const responseData = await response.json();
+      console.log('API válasz success:', response.ok, 'status:', response.status);
       
+      const responseData = await response.json();
       console.log('Árajánlat sikeresen létrehozva:', responseData);
       
       // Sikeres létrehozás, mentem a megosztási adatokat
@@ -314,63 +324,104 @@ NB Studio Csapata
     setEmailStatus(null);
     setLoading(true);
     
-    console.log('Email küldés indítása...', {
-      to: emailData.to,
-      subject: emailData.subject,
-      messageLength: emailData.message.length,
-      quoteId: successData.quoteId
+    // Debug információk naplózása
+    console.log('Email küldés debug információk:');
+    console.log('- sessionStorage token létezik:', !!sessionStorage.getItem('token'));
+    console.log('- token hossza:', sessionStorage.getItem('token')?.length || 0);
+    console.log('- API URL:', `${API_URL}/api/quotes/${successData.quoteId}/send-email`);
+    console.log('- Email adatok:', {
+      email: emailData.to,
+      tárgy: emailData.subject,
+      üzenet_hossz: emailData.message.length
     });
     
     try {
-      // Email küldés API hívás (autentikált végponttal)
-      console.log(`API végpont meghívása: ${API_URL}/api/quotes/${successData.quoteId}/send-email`);
+      // Ellenőrizzük a tokennel kapcsolatos adatokat
+      const token = sessionStorage.getItem('token');
+      if (!token) {
+        console.error('Token hiányzik a sessionStorage-ból!');
+        throw new Error('Nincs bejelentkezési token - kérjük jelentkezzen be újra');
+      }
+
+      // Debug: Kiírjuk a tokent (biztonságosabb formában)
+      const tokenStart = token.substring(0, 10);
+      const tokenEnd = token.substring(token.length - 10);
+      console.log(`Token ellenőrzés: ${tokenStart}...${tokenEnd} (${token.length} karakter)`);
       
-      const response = await api.post(`${API_URL}/api/quotes/${successData.quoteId}/send-email`, {
+      // Email küldés API hívás (autentikált végponttal)
+      console.log('API hívás indítása...');
+      
+      // A request adatok kivizsgálása
+      const reqData = {
         email: emailData.to,
         subject: emailData.subject,
         message: emailData.message
-      });
+      };
+      console.log('Request adatok:', reqData);
+      
+      // Közvetlen fetch hívás az api wrapper helyett, hogy több kontrollt kapjunk
+      const headers = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      };
+      console.log('Request fejlécek:', headers);
+      
+      const fetchOptions = {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(reqData)
+      };
+      
+      // Hívjuk a fetch API-t közvetlenül
+      console.log('Fetch API hívás...');
+      const response = await fetch(`${API_URL}/api/quotes/${successData.quoteId}/send-email`, fetchOptions);
+      
+      console.log('API válasz státusz:', response.status, response.statusText);
+      console.log('API válasz fejlécek:', Object.fromEntries([...response.headers.entries()]));
       
       // Válasz ellenőrzése
-      let responseData;
+      const responseText = await response.text();
+      console.log('API válasz szöveg:', responseText);
+      
+      let responseData = null;
       try {
-        responseData = await response.json();
-        console.log('API válasz:', responseData);
+        if (responseText) {
+          responseData = JSON.parse(responseText);
+          console.log('API válasz JSON formában:', responseData);
+        }
       } catch (jsonError) {
-        console.log('Nem JSON válasz érkezett:', await response.text());
+        console.log('A válasz nem JSON formátumú:', jsonError);
+      }
+      
+      if (!response.ok) {
+        throw new Error(
+          (responseData && responseData.message) || 
+          `Hiba a szervertől: ${response.status} ${response.statusText}`
+        );
       }
       
       // Sikeres email küldés
-      console.log('Email küldés sikeres válasszal:', response.status);
+      console.log('Email küldés sikeres!');
       setEmailStatus({
         success: true,
         message: `Email sikeresen elküldve a következő címre: ${emailData.to}`,
-        details: responseData || {}
+        details: responseData || responseText
       });
       
     } catch (error) {
       // Részletes hibainformációk naplózása
-      console.error('Hiba az email küldése során:', error);
-      
-      let errorDetails = '';
-      if (error.response) {
-        try {
-          const errorBody = await error.response.json();
-          console.error('API hibaválasz részletei:', errorBody);
-          errorDetails = `API válaszhiba: ${JSON.stringify(errorBody)}`;
-        } catch (jsonError) {
-          console.error('Nem JSON hibaválasz:', await error.response.text());
-          errorDetails = `API válasz kód: ${error.response.status}`;
-        }
-      } else {
-        errorDetails = error.message || error.toString();
-        console.error('Általános hiba részletek:', errorDetails);
-      }
+      console.error('Email küldési hiba:', error);
+      console.error('Hiba típusa:', error.constructor.name);
+      console.error('Hiba részletek:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      });
       
       setEmailStatus({
         success: false,
-        message: `Hiba az email küldése során: ${error.message || 'Ismeretlen hiba'}`,
-        details: errorDetails
+        message: `Hiba az email küldése során: ${error.message || 'Ismeretlen hiba történt'}`,
+        details: error.stack || error.toString()
       });
     } finally {
       setLoading(false);
