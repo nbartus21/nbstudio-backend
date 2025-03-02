@@ -10,9 +10,9 @@ import {
   X,
   FileText
 } from 'lucide-react';
+import { api } from '../../services/auth'; // Importáljuk az api objektumot
 
-// API kulcs az autentikációhoz
-const API_KEY = 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0';
+// API URL beállítása
 const API_URL = 'https://admin.nb-studio.net:5001';
 
 const QuoteDashboard = () => {
@@ -32,24 +32,14 @@ const QuoteDashboard = () => {
     statusDistribution: []
   });
 
-  // Adatok lekérése a szerverről
+  // Adatok lekérése a szerverről az api objektummal
   const fetchAnalytics = async () => {
     setLoading(true);
     setError(null);
     
     try {
-      // Közvetlen API hívás
-      const response = await fetch(`${API_URL}/api/public/quotes/analytics`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-API-Key': API_KEY
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Elemzési adatok lekérése sikertelen: ${response.status}`);
-      }
+      // Az api objektum használata az autentikált kéréshez
+      const response = await api.get(`${API_URL}/api/quotes/analytics`);
       
       const data = await response.json();
       console.log('Analitika sikeresen betöltve:', data);
@@ -65,7 +55,7 @@ const QuoteDashboard = () => {
     }
   };
 
-  // Mock adatok generálása ha a szerver nincs kész
+  // Mock adatok generálása ha a szerver nem válaszol
   const generateMockData = () => {
     const mockData = {
       totalQuotes: 147,
