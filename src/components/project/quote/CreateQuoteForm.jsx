@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { X, Plus, Save, Send, Mail } from 'lucide-react';
-import { api } from '../../services/auth';
+import { api } from '../../../services/auth';
 
 // API URL consistent with DomainManager
 const API_URL = 'https://admin.nb-studio.net:5001';
