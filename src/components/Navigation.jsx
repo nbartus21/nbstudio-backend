@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   Bell, LogOut, Menu, X, ChevronDown, Settings, Search, 
-  User, HelpCircle, Home, Calendar, BookOpen, Globe, 
+  User, HelpCircle, Home, Calendar, BookOpen, 
   Server, Database, Calculator, Mail, FileText, Clock,
   DollarSign, PlusCircle
 } from 'lucide-react';
@@ -76,19 +76,21 @@ const Navigation = () => {
       icon: <Calendar size={18} />,
       items: [
         { path: "/projects", label: "Projekt kezelő", icon: <FileText size={16} /> },
+        { path: "/quotes", label: "Árajánlat kezelő", icon: <FileText size={16} /> }, // Ugyanazt az ikont használjuk
+        { path: "/quote-dashboard", label: "Árajánlat Dashboard", icon: <DollarSign size={16} /> },
         { path: "/invoices", label: "Számla Kezelő", icon: <DollarSign size={16} /> }
       ]
     },
-{
-  category: "Szolgáltatások",
-  items: [
-    { path: "/domains", label: "Domain Kezelő" },
-    { path: "/infrastructure", label: "Infrastruktúra Kezelő" },
-    { path: "/infrastructure/monitoring", label: "Szerver Monitoring" },
-    { path: "/hosting", label: "Hosting Kezelő" },
-    { path: "/accounting", label: "Könyvelés" }
-  ]
-}
+    {
+      category: "Szolgáltatások",
+      items: [
+        { path: "/domains", label: "Domain Kezelő" },
+        { path: "/infrastructure", label: "Infrastruktúra Kezelő" },
+        { path: "/infrastructure/monitoring", label: "Szerver Monitoring" },
+        { path: "/hosting", label: "Hosting Kezelő" },
+        { path: "/accounting", label: "Könyvelés" }
+      ]
+    }
   ];
 
   // Ellenőrzi, hogy az adott útvonal aktív-e
