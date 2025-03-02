@@ -10,7 +10,7 @@ import {
   X,
   FileText
 } from 'lucide-react';
-import { api } from '../../services/auth'; // Importáljuk az api objektumot
+import { api } from '../../../services/auth'; // Importáljuk az api objektumot
 
 // API URL beállítása
 const API_URL = 'https://admin.nb-studio.net:5001';
