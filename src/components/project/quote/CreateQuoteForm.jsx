@@ -314,25 +314,63 @@ NB Studio Csapata
     setEmailStatus(null);
     setLoading(true);
     
+    console.log('Email küldés indítása...', {
+      to: emailData.to,
+      subject: emailData.subject,
+      messageLength: emailData.message.length,
+      quoteId: successData.quoteId
+    });
+    
     try {
       // Email küldés API hívás (autentikált végponttal)
+      console.log(`API végpont meghívása: ${API_URL}/api/quotes/${successData.quoteId}/send-email`);
+      
       const response = await api.post(`${API_URL}/api/quotes/${successData.quoteId}/send-email`, {
         email: emailData.to,
         subject: emailData.subject,
         message: emailData.message
       });
       
+      // Válasz ellenőrzése
+      let responseData;
+      try {
+        responseData = await response.json();
+        console.log('API válasz:', responseData);
+      } catch (jsonError) {
+        console.log('Nem JSON válasz érkezett:', await response.text());
+      }
+      
       // Sikeres email küldés
+      console.log('Email küldés sikeres válasszal:', response.status);
       setEmailStatus({
         success: true,
-        message: `Email sikeresen elküldve a következő címre: ${emailData.to}`
+        message: `Email sikeresen elküldve a következő címre: ${emailData.to}`,
+        details: responseData || {}
       });
       
     } catch (error) {
+      // Részletes hibainformációk naplózása
       console.error('Hiba az email küldése során:', error);
+      
+      let errorDetails = '';
+      if (error.response) {
+        try {
+          const errorBody = await error.response.json();
+          console.error('API hibaválasz részletei:', errorBody);
+          errorDetails = `API válaszhiba: ${JSON.stringify(errorBody)}`;
+        } catch (jsonError) {
+          console.error('Nem JSON hibaválasz:', await error.response.text());
+          errorDetails = `API válasz kód: ${error.response.status}`;
+        }
+      } else {
+        errorDetails = error.message || error.toString();
+        console.error('Általános hiba részletek:', errorDetails);
+      }
+      
       setEmailStatus({
         success: false,
-        message: error.message || 'Ismeretlen hiba történt az email küldése során'
+        message: `Hiba az email küldése során: ${error.message || 'Ismeretlen hiba'}`,
+        details: errorDetails
       });
     } finally {
       setLoading(false);
@@ -389,7 +427,13 @@ NB Studio Csapata
               
               {emailStatus && (
                 <div className={`mb-4 p-3 rounded ${emailStatus.success ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                  {emailStatus.message}
+                  <p>{emailStatus.message}</p>
+                  {emailStatus.details && !emailStatus.success && (
+                    <div className="mt-2 text-xs font-mono overflow-x-auto max-h-24 overflow-y-auto bg-white bg-opacity-50 p-2 rounded">
+                      <p className="font-bold">Hibainformációk:</p>
+                      <pre>{typeof emailStatus.details === 'string' ? emailStatus.details : JSON.stringify(emailStatus.details, null, 2)}</pre>
+                    </div>
+                  )}
                 </div>
               )}
               
