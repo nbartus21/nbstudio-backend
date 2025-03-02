@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
-import QuoteDetailsView from '../components/quote/QuoteDetailsView.jsx';
-import QuoteStatusBadge from '../components/quote/QuoteStatusBadge.jsx';
+import QuoteDetailsView from './QuoteDetailsView.jsx';
+import QuoteStatusBadge from './QuoteStatusBadge.jsx';
 import { Loader } from 'lucide-react';
 
 const SharedQuoteView = () => {
