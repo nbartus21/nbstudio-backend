@@ -1,8 +1,11 @@
-import React, { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
-import QuoteDetailsView from "./QuoteDetailsView.jsx";
-import QuoteStatusBadge from "./QuoteStatusBadge.jsx";
-import { Loader } from "lucide-react";
+import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
+import QuoteDetailsView from './QuoteDetailsView.jsx';
+import QuoteStatusBadge from './QuoteStatusBadge.jsx';
+import { Loader } from 'lucide-react';
+
+// API URL beállítása
+const API_URL = 'https://admin.nb-studio.net:5001';
 
 const SharedQuoteView = () => {
   const { token } = useParams();
@@ -23,17 +26,17 @@ const SharedQuoteView = () => {
         setLoading(true);
         setError('');
         
-        // API kulcs a fejlécben (ezt a valós környezetben helyettesíteni kell)
-        const headers = {
-          'Content-Type': 'application/json',
-          'X-API-Key': process.env.REACT_APP_API_KEY || 'your-api-key-here'
-        };
-        
-        // fetch használata axios helyett
-        const response = await fetch(`/api/public/quotes/${token}`, { headers });
+        // Publikus végpont, nem igényel autentikációt
+        const response = await fetch(`${API_URL}/api/public/quotes/${token}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
         
         if (!response.ok) {
-          throw new Error(`Hiba a lekérdezés során: ${response.status}`);
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.message || `Hiba a kérés során: ${response.status}`);
         }
         
         const data = await response.json();
@@ -42,7 +45,12 @@ const SharedQuoteView = () => {
         // Ha van projektID, akkor lekérjük a projekt adatait is
         if (data.projectId) {
           try {
-            const projectResponse = await fetch(`/api/public/projects/${data.projectId}`, { headers });
+            const projectResponse = await fetch(`${API_URL}/api/public/projects/${data.projectId}`, {
+              method: 'GET',
+              headers: {
+                'Content-Type': 'application/json'
+              }
+            });
             
             if (projectResponse.ok) {
               const projectData = await projectResponse.json();

@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Download, Copy, CheckCircle, XCircle } from 'lucide-react';
 import QuoteStatusBadge from './QuoteStatusBadge.jsx';
-import axios from 'axios';
+import { api } from '../../../services/auth'; // Importáljuk az api objektumot
+
+// API URL beállítása
+const API_URL = 'https://admin.nb-studio.net:5001';
 
 const QuoteDetailsView = ({ quote, project, isClient = false, onClose, onStatusUpdate }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -30,18 +33,20 @@ const QuoteDetailsView = ({ quote, project, isClient = false, onClose, onStatusU
         data.reason = rejectionReason;
       }
 
-      const response = await axios.patch(`/api/quotes/${quote._id}/status`, data);
+      // Az api objektum használata
+      const response = await api.patch(`${API_URL}/api/quotes/${quote._id}/status`, data);
+      const responseData = await response.json();
       
       setSuccess(`Az árajánlat állapota sikeresen frissítve: ${newStatus}`);
-      if (onStatusUpdate && response.data) {
-        onStatusUpdate(response.data);
+      if (onStatusUpdate && responseData) {
+        onStatusUpdate(responseData);
       }
       
       setIsSubmitting(false);
       setShowRejectForm(false);
     } catch (err) {
       console.error('Hiba a státusz frissítésekor:', err);
-      setError(err.response?.data?.message || 'Hiba történt a művelet során');
+      setError(err.message || 'Hiba történt a művelet során');
       setIsSubmitting(false);
     }
   };
@@ -73,7 +78,20 @@ const QuoteDetailsView = ({ quote, project, isClient = false, onClose, onStatusU
         throw new Error('Érvénytelen árajánlat azonosító');
       }
 
-      await axios.post(`/api/public/quotes/${quote.shareToken}/action`, data);
+      // Itt használjuk az fetch-t közvetlenül, mivel ez egy publikus végpont
+      // ami nem igényel autentikációt, csak PIN kódot
+      const response = await fetch(`${API_URL}/api/public/quotes/${quote.shareToken}/action`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `Hiba a kérés során: ${response.status}`);
+      }
       
       const successMessage = action === 'accept' 
         ? 'Az árajánlatot sikeresen elfogadta!' 
@@ -95,7 +113,7 @@ const QuoteDetailsView = ({ quote, project, isClient = false, onClose, onStatusU
       setShowRejectForm(false);
     } catch (err) {
       console.error('Hiba az ügyfél művelet során:', err);
-      setError(err.response?.data?.message || 'Hiba történt a művelet során');
+      setError(err.message || 'Hiba történt a művelet során');
       setPinStatus('error');
       setIsSubmitting(false);
     }
@@ -117,16 +135,28 @@ const QuoteDetailsView = ({ quote, project, isClient = false, onClose, onStatusU
         throw new Error('Érvénytelen árajánlat azonosító');
       }
 
-      await axios.post(`/api/public/quotes/${quote.shareToken}/verify-pin`, {
-        pin: clientPin,
-        action: 'verify'
+      // Szintén publikus végpont, fetch használata
+      const response = await fetch(`${API_URL}/api/public/quotes/${quote.shareToken}/verify-pin`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          pin: clientPin,
+          action: 'verify'
+        })
       });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `Hiba a kérés során: ${response.status}`);
+      }
       
       setPinStatus('success');
       setIsSubmitting(false);
     } catch (err) {
       console.error('Hiba a PIN kód ellenőrzésekor:', err);
-      setError(err.response?.data?.message || 'Érvénytelen PIN kód');
+      setError(err.message || 'Érvénytelen PIN kód');
       setPinStatus('error');
       setIsSubmitting(false);
     }
@@ -312,7 +342,7 @@ const QuoteDetailsView = ({ quote, project, isClient = false, onClose, onStatusU
                     className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                     rows={3}
                     required
-                  />
+                  ></textarea>
                   <div className="mt-2 flex justify-end space-x-2">
                     <button
                       onClick={() => setShowRejectForm(false)}
@@ -379,7 +409,7 @@ const QuoteDetailsView = ({ quote, project, isClient = false, onClose, onStatusU
                   className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                   rows={3}
                   required
-                />
+                ></textarea>
                 <div className="mt-2 flex justify-end space-x-2">
                   <button
                     onClick={() => setShowRejectForm(false)}

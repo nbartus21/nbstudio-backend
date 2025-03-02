@@ -17,9 +17,9 @@ import {
   Eye
 } from 'lucide-react';
 import CreateQuoteForm from './CreateQuoteForm';
+import { api } from '../../services/auth'; // Importáljuk az api objektumot
 
-// API kulcs az autentikációhoz
-const API_KEY = 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0';
+// API URL beállítása
 const API_URL = 'https://admin.nb-studio.net:5001';
 
 const QuoteManagement = () => {
@@ -36,26 +36,16 @@ const QuoteManagement = () => {
   });
   const [copySuccess, setCopySuccess] = useState('');
 
-  // Árajánlatok lekérdezése a szervertől
+  // Árajánlatok lekérdezése a szervertől az api objektummal
   const fetchQuotes = async () => {
     setLoading(true);
     setError(null);
     
     try {
-      // Közvetlen API hívás
-      const response = await fetch(`${API_URL}/api/public/quotes`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-API-Key': API_KEY
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Árajánlatok lekérése sikertelen: ${response.status}`);
-      }
-      
+      // Az api objektum használata az autentikált kéréshez
+      const response = await api.get(`${API_URL}/api/quotes`);
       const data = await response.json();
+      
       console.log('Árajánlatok sikeresen betöltve:', data);
       
       // Rendezzük dátum szerint (legújabbak elöl)
@@ -202,17 +192,7 @@ const QuoteManagement = () => {
   const regenerateQuote = async (quoteId) => {
     setLoading(true);
     try {
-      const response = await fetch(`${API_URL}/api/public/quotes/${quoteId}/regenerate`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-API-Key': API_KEY
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error('Nem sikerült újragenerálni az árajánlatot');
-      }
+      await api.post(`${API_URL}/api/quotes/${quoteId}/regenerate`, {});
       
       // Frissítjük a listát
       fetchQuotes();
@@ -232,17 +212,7 @@ const QuoteManagement = () => {
     
     setLoading(true);
     try {
-      const response = await fetch(`${API_URL}/api/public/quotes/${quoteId}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-API-Key': API_KEY
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error('Nem sikerült törölni az árajánlatot');
-      }
+      await api.delete(`${API_URL}/api/quotes/${quoteId}`);
       
       // Frissítjük a listát
       fetchQuotes();
