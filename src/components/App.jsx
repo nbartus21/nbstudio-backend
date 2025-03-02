@@ -1,13 +1,13 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Navigation from './Navigation';
-import Dashboard from './Dashboard';
+import Dashboard from './Dashboard';  // Importáljuk a Dashboard komponenst
 import BlogAdmin from './BlogAdmin';
 import BlogCreator from './BlogCreator';
 import ContactAdmin from './ContactAdmin';
 import CalculatorAdmin from './CalculatorAdmin';
 import Login from './Login';
-import MagicLogin from './MagicLogin';
+import MagicLogin from './MagicLogin';  // Új Magic Link komponens importálása
 import ProjectManager from './ProjectManager';
 import DomainManager from './domain/DomainManager';
 import InfrastructureManager from './InfrastructureManager';
@@ -15,11 +15,7 @@ import SharedProjectView from './SharedProjectView';
 import InvoiceManager from './InvoiceManager';
 import AccountingManager from './AccountingManager';
 import HostingManager from './HostingManager';
-
-// Import Quote management components - adjust these paths based on your actual file structure
-import QuoteManagement from './project/quote/QuoteManagement';
-import QuoteDashboard from './project/quote/QuoteDashboard';
-import SharedQuoteView from './project/quote/SharedQuoteView';
+import ServerMonitoring from './ServerMonitoring'; // Import ServerMonitoring component
 
 const App = () => {
   const PrivateRoute = ({ children }) => {
@@ -40,7 +36,7 @@ const App = () => {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
-      <Route path="/magic-login" element={<MagicLogin />} />
+      <Route path="/magic-login" element={<MagicLogin />} />  {/* Új Magic Login route */}
       
       <Route
         path="/"
@@ -130,6 +126,14 @@ const App = () => {
           </PrivateRoute>
         }
       />
+            <Route
+  path="/infrastructure/monitoring"
+  element={
+    <PrivateRoute>
+      <ServerMonitoring />
+    </PrivateRoute>
+  }
+/>
       <Route
         path="/hosting"
         element={
@@ -138,30 +142,16 @@ const App = () => {
           </PrivateRoute>
         }
       />
-
-      {/* Quote Management Routes */}
       <Route
-        path="/quotes"
-        element={
-          <PrivateRoute>
-            <QuoteManagement />
-          </PrivateRoute>
-        }
-      />
-      <Route
-        path="/quote-dashboard"
-        element={
-          <PrivateRoute>
-            <QuoteDashboard />
-          </PrivateRoute>
-        }
-      />
-
-      {/* Public quote view route */}
-      <Route path="/shared-quote/:token" element={<SharedQuoteView />} />
-      <Route path="/shared-project/:token" element={<SharedProjectView />} />
-      
+  path="/infrastructure/monitoring"
+  element={
+    <PrivateRoute>
+      <ServerMonitoring />
+    </PrivateRoute>
+  }
+/>
       <Route path="*" element={<Navigate to="/magic-login" />} />
+      <Route path="/shared-project/:token" element={<SharedProjectView />} />
     </Routes>
   );
 };

@@ -23,9 +23,7 @@ import hostingRoutes from './routes/hosting.js';
 import Post from './models/Post.js';
 import filesRoutes from './routes/files.js';
 import commentsRoutes from './routes/comments.js';
-import quoteRoutes from './routes/quotes.js';
-import Quote from './models/Quote.js';
-
+import monitoringRoutes from './routes/monitoring.js';
 
 dotenv.config();
 
@@ -49,12 +47,11 @@ app.use(cors({
     'http://38.242.208.190',
     'https://www.nb-studio.net',
     'http://localhost:5173',
-    '*',
     'http://localhost:3000'
   ],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key'],
-  credentials: false,
+  credentials: true,
   optionsSuccessStatus: 200
 }));
 
@@ -180,134 +177,6 @@ publicRouter.post('/hosting/orders', validateApiKey, async (req, res) => {
   }
 });
 
-// Árajánlat publikus végpontok - ÚJ RÉSZ
-publicRouter.get('/quotes/:token', validateApiKey, async (req, res) => {
-  const { token } = req.params;
-  
-  try {
-    // Árajánlat lekérdezése token alapján
-    const quote = await Quote.findOne({ shareToken: token });
-    
-    if (!quote) {
-      return res.status(404).json({ message: 'Árajánlat nem található' });
-    }
-    
-    // Publikus adatok küldése
-    const publicQuoteData = {
-      quoteNumber: quote.quoteNumber,
-      client: quote.client,
-      items: quote.items,
-      subtotal: quote.subtotal,
-      vat: quote.vat,
-      totalAmount: quote.totalAmount,
-      status: quote.status,
-      paymentTerms: quote.paymentTerms,
-      notes: quote.notes,
-      validUntil: quote.validUntil,
-      createdAt: quote.createdAt,
-      requiresPin: true
-    };
-    
-    res.status(200).json(publicQuoteData);
-  } catch (error) {
-    console.error('Hiba az árajánlat lekérdezésekor:', error);
-    res.status(500).json({ message: 'Szerver hiba az árajánlat lekérdezésekor' });
-  }
-});
-
-publicRouter.post('/quotes/:token/action', validateApiKey, async (req, res) => {
-  const { token } = req.params;
-  const { pin, action, reason, notes } = req.body;
-  
-  // PIN kód és művelet ellenőrzése
-  if (!pin) {
-    return res.status(400).json({ message: 'PIN kód megadása kötelező' });
-  }
-  
-  if (!action || (action !== 'accept' && action !== 'reject' && action !== 'verify')) {
-    return res.status(400).json({ message: 'Érvénytelen művelet' });
-  }
-  
-  try {
-    const quote = await Quote.findOne({ shareToken: token });
-    
-    if (!quote) {
-      return res.status(404).json({ message: 'Árajánlat nem található' });
-    }
-    
-    // PIN kód ellenőrzése
-    if (quote.sharePin !== pin) {
-      return res.status(401).json({ message: 'Érvénytelen PIN kód' });
-    }
-    
-    // Csak ellenőrzés, akkor itt visszatérünk
-    if (action === 'verify') {
-      return res.status(200).json({ message: 'PIN kód ellenőrzése sikeres' });
-    }
-    
-    // Ellenőrizzük, hogy az árajánlat nem járt-e le
-    const now = new Date();
-    const validUntil = new Date(quote.validUntil);
-    
-    if (now > validUntil) {
-      // Frissítsük a státuszt lejártra, ha még nem tettük meg
-      if (quote.status !== 'lejárt') {
-        quote.status = 'lejárt';
-        await quote.save();
-      }
-      
-      return res.status(400).json({ message: 'Az árajánlat érvényessége lejárt' });
-    }
-    
-    // Művelet végrehajtása
-    let updateData = {};
-    let message = '';
-    
-    if (action === 'accept') {
-      updateData = {
-        status: 'elfogadva',
-        acceptedAt: now,
-        clientNotes: notes || '',
-        updatedAt: now
-      };
-      message = 'Árajánlat sikeresen elfogadva';
-      
-      // Ha projekthez van rendelve, akkor frissítjük a projekt státuszt
-      if (quote.projectId) {
-        await mongoose.model('Project').findByIdAndUpdate(
-          quote.projectId,
-          { $set: { quoteAccepted: true } }
-        );
-      }
-    } else if (action === 'reject') {
-      if (!reason) {
-        return res.status(400).json({ message: 'Elutasítás esetén az indoklás megadása kötelező' });
-      }
-      
-      updateData = {
-        status: 'elutasítva',
-        rejectedAt: now,
-        rejectionReason: reason,
-        clientNotes: notes || '',
-        updatedAt: now
-      };
-      message = 'Árajánlat elutasítva';
-    }
-    
-    // Árajánlat frissítése
-    const updatedQuote = await Quote.findByIdAndUpdate(
-      quote._id,
-      { $set: updateData },
-      { new: true }
-    );
-    
-    res.status(200).json({ message, quote: updatedQuote });
-  } catch (error) {
-    console.error('Hiba az árajánlat kezelésekor:', error);
-    res.status(500).json({ message: 'Szerver hiba az árajánlat kezelésekor' });
-  }
-});
-
 // Publikus végpontok regisztrálása
 app.use('/api/public', publicRouter);
 
@@ -322,7 +191,6 @@ app.use('/api/posts', async (req, res, next) => {
 });
 // Projects publikus végpontok
 app.use('/api/public/projects', validateApiKey, projectRoutes);
-app.use('/api/public/quotes', validateApiKey, quoteRoutes);
 
 // Auth routes
 app.use('/api/auth', authRoutes);
@@ -332,6 +200,7 @@ app.use('/api', authMiddleware);
 app.use('/api', postRoutes);
 app.use('/api', contactRoutes);
 app.use('/api', calculatorRoutes);
+app.use('/api', projectRoutes);
 app.use('/api', domainRoutes);
 app.use('/api', serverRoutes);
 app.use('/api', licenseRoutes);
@@ -340,8 +209,7 @@ app.use('/api/accounting', accountingRoutes);
 app.use('/api', hostingRoutes);
 app.use('/api', filesRoutes);
 app.use('/api', commentsRoutes);
-app.use('/api', quoteRoutes); // a védett végpontokhoz
-app.use('/api', projectRoutes); // védett végpontok
+app.use('/api', monitoringRoutes); // Monitoring API útvonalak
 
 
 // Alap route teszteléshez
