@@ -4,7 +4,7 @@ import {
   Bell, LogOut, Menu, X, ChevronDown, Settings, Search, 
   User, HelpCircle, Home, Calendar, BookOpen, Globe, 
   Server, Database, Calculator, Mail, FileText, Clock,
-  DollarSign, PlusCircle, FileText2
+  DollarSign, PlusCircle, File // Változtatás: FileText2 helyett File
 } from 'lucide-react';
 import NotificationsManager from './NotificationsManager';
 
@@ -76,7 +76,7 @@ const Navigation = () => {
       icon: <Calendar size={18} />,
       items: [
         { path: "/projects", label: "Projekt kezelő", icon: <FileText size={16} /> },
-        { path: "/quotes", label: "Árajánlat kezelő", icon: <FileText2 size={16} /> },
+        { path: "/quotes", label: "Árajánlat kezelő", icon: <File size={16} /> }, // File ikon használata
         { path: "/quote-dashboard", label: "Árajánlat Dashboard", icon: <DollarSign size={16} /> },
         { path: "/invoices", label: "Számla Kezelő", icon: <DollarSign size={16} /> }
       ]
