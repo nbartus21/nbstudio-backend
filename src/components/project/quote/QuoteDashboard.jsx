@@ -33,29 +33,30 @@ const QuoteDashboard = () => {
   });
 
   // Adatok lekérése a szerverről az api objektummal
-  const fetchAnalytics = async () => {
+// Adatok lekérése a szervertől az api objektummal
+const fetchAnalytics = async () => {
     setLoading(true);
     setError(null);
     
     try {
       // Az api objektum használata az autentikált kéréshez
-      try {
-        // Kísérlet a valódi API hívásra
-        const response = await api.get(`${API_URL}/api/quotes/analytics`);
-        const data = await response.json();
-        // Adatok feldolgozása...
-      } catch (error) {
-        console.error('Nem sikerült betölteni az analitikai adatokat:', error);
-        // Azonnal használd a mock adatokat hiba esetén
-        generateMockData();
+      const response = await api.get(`${API_URL}/api/quotes/analytics`);
+      
+      // Ha idáig eljutottunk, feldolgozzuk az adatokat
+      if (response) {
+        try {
+          const data = await response.json();
+          console.log('Analitika sikeresen betöltve:', data);
+          setAnalytics(data);
+        } catch (jsonError) {
+          console.error('Hiba a válasz JSON feldolgozásakor:', jsonError);
+          // Tesztadatok megjelenítése, ha a JSON feldolgozás nem sikerül
+          generateMockData();
+        }
       }
-            
-      const data = await response.json();
-      console.log('Analitika sikeresen betöltve:', data);
-      setAnalytics(data);
     } catch (error) {
       console.error('Hiba az analitikai adatok lekérdezésekor:', error);
-      setError(error.message);
+      setError(error.message || 'Szerver hiba az árajánlat lekérdezésekor');
       
       // Tesztadatok megjelenítése, ha a szerver nem válaszol
       generateMockData();
