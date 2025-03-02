@@ -322,22 +322,43 @@ NB Studio Csapata
     });
     
     try {
-      // Email küldés API hívás (autentikált végponttal)
+      // Email küldés közvetlen API hívással a MagicLogin mintájára
       console.log(`API végpont meghívása: ${API_URL}/api/quotes/${successData.quoteId}/send-email`);
       
-      const response = await api.post(`${API_URL}/api/quotes/${successData.quoteId}/send-email`, {
-        email: emailData.to,
-        subject: emailData.subject,
-        message: emailData.message
+      // Közvetlen fetch hívás használata, ahogy a MagicLogin komponensben
+      const response = await fetch(`${API_URL}/api/quotes/${successData.quoteId}/send-email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${sessionStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          email: emailData.to,
+          subject: emailData.subject,
+          message: emailData.message
+        })
       });
       
+      // Response teljes tartalmának naplózása
+      const responseText = await response.text();
+      console.log('API válasz szöveg:', responseText);
+      
       // Válasz ellenőrzése
-      let responseData;
+      let responseData = null;
       try {
-        responseData = await response.json();
-        console.log('API válasz:', responseData);
+        // Ha érvényes JSON volt a válasz
+        responseData = JSON.parse(responseText);
+        console.log('API válasz JSON:', responseData);
       } catch (jsonError) {
-        console.log('Nem JSON válasz érkezett:', await response.text());
+        console.log('Nem JSON válasz érkezett, marad szövegként');
+      }
+      
+      // Hibakezelés a válaszkód alapján
+      if (!response.ok) {
+        throw new Error(
+          responseData?.message || 
+          `Hiba a szervertől: ${response.status} ${response.statusText}`
+        );
       }
       
       // Sikeres email küldés
@@ -345,32 +366,17 @@ NB Studio Csapata
       setEmailStatus({
         success: true,
         message: `Email sikeresen elküldve a következő címre: ${emailData.to}`,
-        details: responseData || {}
+        details: responseData || responseText
       });
       
     } catch (error) {
       // Részletes hibainformációk naplózása
       console.error('Hiba az email küldése során:', error);
       
-      let errorDetails = '';
-      if (error.response) {
-        try {
-          const errorBody = await error.response.json();
-          console.error('API hibaválasz részletei:', errorBody);
-          errorDetails = `API válaszhiba: ${JSON.stringify(errorBody)}`;
-        } catch (jsonError) {
-          console.error('Nem JSON hibaválasz:', await error.response.text());
-          errorDetails = `API válasz kód: ${error.response.status}`;
-        }
-      } else {
-        errorDetails = error.message || error.toString();
-        console.error('Általános hiba részletek:', errorDetails);
-      }
-      
       setEmailStatus({
         success: false,
         message: `Hiba az email küldése során: ${error.message || 'Ismeretlen hiba'}`,
-        details: errorDetails
+        details: error.toString()
       });
     } finally {
       setLoading(false);
