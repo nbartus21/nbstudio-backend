@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Bar, Doughnut } from 'recharts';
+import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { 
   TrendingUp,
   TrendingDown,
@@ -7,7 +7,8 @@ import {
   CheckCircle,
   AlertTriangle,
   Calendar,
-  X
+  X,
+  FileText
 } from 'lucide-react';
 
 // API kulcs az autentikációhoz
