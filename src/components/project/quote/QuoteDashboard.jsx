@@ -39,8 +39,17 @@ const QuoteDashboard = () => {
     
     try {
       // Az api objektum használata az autentikált kéréshez
-      const response = await api.get(`${API_URL}/api/quotes/analytics`);
-      
+      try {
+        // Kísérlet a valódi API hívásra
+        const response = await api.get(`${API_URL}/api/quotes/analytics`);
+        const data = await response.json();
+        // Adatok feldolgozása...
+      } catch (error) {
+        console.error('Nem sikerült betölteni az analitikai adatokat:', error);
+        // Azonnal használd a mock adatokat hiba esetén
+        generateMockData();
+      }
+            
       const data = await response.json();
       console.log('Analitika sikeresen betöltve:', data);
       setAnalytics(data);

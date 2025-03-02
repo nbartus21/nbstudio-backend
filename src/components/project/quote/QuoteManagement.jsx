@@ -49,9 +49,9 @@ const QuoteManagement = () => {
       console.log('Árajánlatok sikeresen betöltve:', data);
       
       // Rendezzük dátum szerint (legújabbak elöl)
-      const sortedQuotes = data.sort((a, b) => 
-        new Date(b.createdAt) - new Date(a.createdAt)
-      );
+      const sortedQuotes = Array.isArray(data) 
+      ? data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      : [];
       
       setQuotes(sortedQuotes);
     } catch (error) {
