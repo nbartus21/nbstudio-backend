@@ -17,7 +17,7 @@ import {
   Eye
 } from 'lucide-react';
 import CreateQuoteForm from './CreateQuoteForm';
-import { api } from '../../services/auth'; // Importáljuk az api objektumot
+import { api } from '../../../services/auth';
 
 // API URL beállítása
 const API_URL = 'https://admin.nb-studio.net:5001';
