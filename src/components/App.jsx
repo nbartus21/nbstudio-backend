@@ -150,6 +150,14 @@ const App = () => {
     </PrivateRoute>
   }
 />
+<Route
+  path="/translation"
+  element={
+    <PrivateRoute>
+      <TranslationTool />
+    </PrivateRoute>
+  }
+/>
       <Route path="*" element={<Navigate to="/magic-login" />} />
       <Route path="/shared-project/:token" element={<SharedProjectView />} />
     </Routes>
