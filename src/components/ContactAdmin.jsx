@@ -143,7 +143,7 @@ const ContactAdmin = () => {
   const [analyzing, setAnalyzing] = useState(false);
   const [responseText, setResponseText] = useState('');
   const [sendingResponse, setSendingResponse] = useState(false);
-  const [viewMode, setViewMode] = useState('table'); // 'table' vagy 'cards'
+  const [viewMode, setViewMode] = useState('cards'); // 'table' vagy 'cards'
   const [starredContacts, setStarredContacts] = useState(new Set());
 
   // Kapcsolatok lekérése
