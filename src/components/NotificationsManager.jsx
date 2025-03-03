@@ -13,7 +13,10 @@ const NotificationsManager = () => {
   const dropdownRef = useRef(null);
 
   const API_URL = 'https://admin.nb-studio.net:5001/api';
-
+  
+  // Használjuk a localStorage-t az elolvasott értesítések tárolására
+  const readNotificationsKey = 'readNotifications';
+  
   useEffect(() => {
     // Click-en-kívül kezelő
     const handleClickOutside = (event) => {
@@ -26,6 +29,20 @@ const NotificationsManager = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Segédfüggvény az elolvasott értesítések kezeléséhez
+  const getReadNotifications = () => {
+    const stored = localStorage.getItem(readNotificationsKey);
+    return stored ? JSON.parse(stored) : [];
+  };
+
+  const saveReadNotification = (notificationId) => {
+    const readNotifications = getReadNotifications();
+    if (!readNotifications.includes(notificationId)) {
+      readNotifications.push(notificationId);
+      localStorage.setItem(readNotificationsKey, JSON.stringify(readNotifications));
+    }
+  };
+
   const fetchAllNotifications = async () => {
     try {
       setLoading(true);
@@ -36,10 +53,11 @@ const NotificationsManager = () => {
         api.get(`${API_URL}/servers`).then(res => res.json()),
         api.get(`${API_URL}/licenses`).then(res => res.json()),
         api.get(`${API_URL}/projects`).then(res => res.json()),
-        api.get(`${API_URL}/files`).then(res => res.json()).catch(() => []),   // Fájlok lekérése
-        api.get(`${API_URL}/comments`).then(res => res.json()).catch(() => []) // Hozzászólások lekérése
+        api.get(`${API_URL}/files`).then(res => res.json()).catch(() => []),
+        api.get(`${API_URL}/comments`).then(res => res.json()).catch(() => [])
       ]);
 
+      const readNotifications = getReadNotifications();
       const newNotifications = [];
 
       // Kapcsolat űrlapok értesítései
@@ -47,15 +65,18 @@ const NotificationsManager = () => {
         contacts
           .filter(contact => contact.status === 'new')
           .forEach(contact => {
-            newNotifications.push({
-              _id: `contact_${contact._id}`,
-              title: 'Új kapcsolatfelvétel',
-              message: `${contact.name} üzenetet küldött: ${contact.subject}`,
-              severity: 'info',
-              createdAt: contact.createdAt,
-              type: 'contact',
-              link: '/contacts'
-            });
+            const notificationId = `contact_${contact._id}`;
+            if (!readNotifications.includes(notificationId)) {
+              newNotifications.push({
+                _id: notificationId,
+                title: 'Új kapcsolatfelvétel',
+                message: `${contact.name} üzenetet küldött: ${contact.subject}`,
+                severity: 'info',
+                createdAt: contact.createdAt,
+                type: 'contact',
+                link: '/contacts'
+              });
+            }
           });
       }
 
@@ -64,15 +85,18 @@ const NotificationsManager = () => {
         calculators
           .filter(calc => calc.status === 'new')
           .forEach(calc => {
-            newNotifications.push({
-              _id: `calculator_${calc._id}`,
-              title: 'Új kalkulátor jelentkezés',
-              message: `Új ${calc.projectType} projektre érkezett kalkuláció`,
-              severity: 'info',
-              createdAt: calc.createdAt,
-              type: 'calculator',
-              link: '/calculator'
-            });
+            const notificationId = `calculator_${calc._id}`;
+            if (!readNotifications.includes(notificationId)) {
+              newNotifications.push({
+                _id: notificationId,
+                title: 'Új kalkulátor jelentkezés',
+                message: `Új ${calc.projectType} projektre érkezett kalkuláció`,
+                severity: 'info',
+                createdAt: calc.createdAt,
+                type: 'calculator',
+                link: '/calculator'
+              });
+            }
           });
       }
 
@@ -82,16 +106,20 @@ const NotificationsManager = () => {
           const daysUntilExpiry = Math.ceil(
             (new Date(domain.expiryDate) - new Date()) / (1000 * 60 * 60 * 24)
           );
+          
           if (daysUntilExpiry <= 30 && daysUntilExpiry > 0) {
-            newNotifications.push({
-              _id: `domain_${domain._id}`,
-              title: 'Domain lejárat',
-              message: `A ${domain.name} domain ${daysUntilExpiry} nap múlva lejár`,
-              severity: daysUntilExpiry <= 7 ? 'error' : 'warning',
-              createdAt: new Date().toISOString(),
-              type: 'domain',
-              link: '/domains'
-            });
+            const notificationId = `domain_${domain._id}_${daysUntilExpiry}`;
+            if (!readNotifications.includes(notificationId)) {
+              newNotifications.push({
+                _id: notificationId,
+                title: 'Domain lejárat',
+                message: `A ${domain.name} domain ${daysUntilExpiry} nap múlva lejár`,
+                severity: daysUntilExpiry <= 7 ? 'error' : 'warning',
+                createdAt: new Date().toISOString(),
+                type: 'domain',
+                link: '/domains'
+              });
+            }
           }
         });
       }
@@ -100,15 +128,18 @@ const NotificationsManager = () => {
       if (Array.isArray(servers)) {
         servers.forEach(server => {
           if (server.status === 'maintenance' || server.status === 'offline') {
-            newNotifications.push({
-              _id: `server_${server._id}`,
-              title: 'Szerver probléma',
-              message: `A ${server.name} szerver ${server.status === 'maintenance' ? 'karbantartás alatt' : 'offline'}`,
-              severity: 'error',
-              createdAt: server.updatedAt,
-              type: 'server',
-              link: '/infrastructure'
-            });
+            const notificationId = `server_${server._id}_${server.status}`;
+            if (!readNotifications.includes(notificationId)) {
+              newNotifications.push({
+                _id: notificationId,
+                title: 'Szerver probléma',
+                message: `A ${server.name} szerver ${server.status === 'maintenance' ? 'karbantartás alatt' : 'offline'}`,
+                severity: 'error',
+                createdAt: server.updatedAt,
+                type: 'server',
+                link: '/infrastructure'
+              });
+            }
           }
         });
       }
@@ -120,16 +151,20 @@ const NotificationsManager = () => {
             const daysUntilRenewal = Math.ceil(
               (new Date(license.renewal.nextRenewalDate) - new Date()) / (1000 * 60 * 60 * 24)
             );
+            
             if (daysUntilRenewal <= 30 && daysUntilRenewal > 0) {
-              newNotifications.push({
-                _id: `license_${license._id}`,
-                title: 'Licensz megújítás',
-                message: `A ${license.name} licensz ${daysUntilRenewal} nap múlva lejár`,
-                severity: daysUntilRenewal <= 7 ? 'warning' : 'info',
-                createdAt: new Date().toISOString(),
-                type: 'license',
-                link: '/infrastructure'
-              });
+              const notificationId = `license_${license._id}_${daysUntilRenewal}`;
+              if (!readNotifications.includes(notificationId)) {
+                newNotifications.push({
+                  _id: notificationId,
+                  title: 'Licensz megújítás',
+                  message: `A ${license.name} licensz ${daysUntilRenewal} nap múlva lejár`,
+                  severity: daysUntilRenewal <= 7 ? 'warning' : 'info',
+                  createdAt: new Date().toISOString(),
+                  type: 'license',
+                  link: '/infrastructure'
+                });
+              }
             }
           }
         });
@@ -141,18 +176,24 @@ const NotificationsManager = () => {
           const hasDelayedMilestones = (project.milestones || []).some(
             milestone => milestone.status === 'késedelmes'
           );
+          
           if (project.priority === 'magas' || hasDelayedMilestones) {
-            newNotifications.push({
-              _id: `project_${project._id}`,
-              title: 'Sürgős projekt',
-              message: hasDelayedMilestones 
-                ? `A "${project.name}" projektben késésben lévő milestone-ok vannak`
-                : `A "${project.name}" projekt magas prioritású`,
-              severity: 'warning',
-              createdAt: project.updatedAt,
-              type: 'project',
-              link: '/projects'
-            });
+            const notificationType = hasDelayedMilestones ? 'delayed' : 'priority';
+            const notificationId = `project_${project._id}_${notificationType}`;
+            
+            if (!readNotifications.includes(notificationId)) {
+              newNotifications.push({
+                _id: notificationId,
+                title: 'Sürgős projekt',
+                message: hasDelayedMilestones 
+                  ? `A "${project.name}" projektben késésben lévő milestone-ok vannak`
+                  : `A "${project.name}" projekt magas prioritású`,
+                severity: 'warning',
+                createdAt: project.updatedAt,
+                type: 'project',
+                link: '/projects'
+              });
+            }
           }
         });
       }
@@ -166,15 +207,18 @@ const NotificationsManager = () => {
         files
           .filter(file => new Date(file.uploadedAt) > oneDayAgo)
           .forEach(file => {
-            newNotifications.push({
-              _id: `file_${file._id}`,
-              title: 'Új fájl feltöltve',
-              message: `"${file.name}" fájl feltöltve a ${file.projectName || 'rendszerbe'}`,
-              severity: 'info',
-              createdAt: file.uploadedAt,
-              type: 'file',
-              link: '/files'
-            });
+            const notificationId = `file_${file._id}`;
+            if (!readNotifications.includes(notificationId)) {
+              newNotifications.push({
+                _id: notificationId,
+                title: 'Új fájl feltöltve',
+                message: `"${file.name}" fájl feltöltve a ${file.projectName || 'rendszerbe'}`,
+                severity: 'info',
+                createdAt: file.uploadedAt,
+                type: 'file',
+                link: '/files'
+              });
+            }
           });
       }
 
@@ -187,20 +231,24 @@ const NotificationsManager = () => {
         comments
           .filter(comment => new Date(comment.timestamp) > oneDayAgo)
           .forEach(comment => {
-            newNotifications.push({
-              _id: `comment_${comment.id}`,
-              title: 'Új hozzászólás',
-              message: `${comment.author} hozzászólt: "${comment.text.substring(0, 30)}${comment.text.length > 30 ? '...' : ''}"`,
-              severity: 'info',
-              createdAt: comment.timestamp,
-              type: 'comment',
-              link: '/comments'
-            });
+            const notificationId = `comment_${comment.id}`;
+            if (!readNotifications.includes(notificationId)) {
+              newNotifications.push({
+                _id: notificationId,
+                title: 'Új hozzászólás',
+                message: `${comment.author} hozzászólt: "${comment.text.substring(0, 30)}${comment.text.length > 30 ? '...' : ''}"`,
+                severity: 'info',
+                createdAt: comment.timestamp,
+                type: 'comment',
+                link: '/comments'
+              });
+            }
           });
       }
 
       // Rendezés dátum szerint
       newNotifications.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      
       // Értesítések mentése és számolása
       setNotifications(newNotifications);
       setUnreadCount(newNotifications.length);
@@ -208,10 +256,13 @@ const NotificationsManager = () => {
       // Értesítés küldése böngészőben, ha új értesítés érkezett
       if (newNotifications.length > 0 && 'Notification' in window && Notification.permission === 'granted') {
         const latestNotification = newNotifications[0];
-        new Notification('NB-Studio Admin', {
-          body: latestNotification.message,
-          icon: '/favicon.ico'
-        });
+        // Csak akkor küldünk értesítést, ha az elolvasottak között nem szerepel
+        if (!readNotifications.includes(latestNotification._id)) {
+          new Notification('NB-Studio Admin', {
+            body: latestNotification.message,
+            icon: '/favicon.ico'
+          });
+        }
       }
     } catch (error) {
       console.error('Error fetching notifications:', error);
@@ -227,11 +278,24 @@ const NotificationsManager = () => {
   }, []);
 
   const handleDismiss = (notificationId) => {
+    // Mentés az elolvasottakhoz
+    saveReadNotification(notificationId);
+    // Eltávolítás a megjelenítésből
     setNotifications(prev => prev.filter(n => n._id !== notificationId));
     setUnreadCount(prev => prev - 1);
   };
 
   const handleDismissAll = () => {
+    // Minden jelenlegi értesítés mentése az elolvasottakhoz
+    const readNotifications = getReadNotifications();
+    notifications.forEach(notification => {
+      if (!readNotifications.includes(notification._id)) {
+        readNotifications.push(notification._id);
+      }
+    });
+    localStorage.setItem(readNotificationsKey, JSON.stringify(readNotifications));
+    
+    // Értesítések törlése a megjelenítésből
     setNotifications([]);
     setUnreadCount(0);
   };
@@ -293,6 +357,11 @@ const NotificationsManager = () => {
     }
   };
 
+  // Frissítés indítása kézzel
+  const handleRefresh = () => {
+    fetchAllNotifications();
+  };
+
   return (
     <div className="relative" ref={dropdownRef}>
       <button
@@ -320,6 +389,12 @@ const NotificationsManager = () => {
                   Összes elrejtése
                 </button>
               )}
+              <button
+                onClick={handleRefresh}
+                className="text-sm text-gray-600 hover:text-gray-800"
+              >
+                Frissítés
+              </button>
             </div>
           </div>
           
@@ -407,6 +482,7 @@ const NotificationsManager = () => {
                   className="block border-b hover:bg-gray-50 cursor-pointer"
                   onClick={(e) => {
                     e.preventDefault();
+                    handleDismiss(notification._id); // Automatikusan eltávolítjuk, ha rákattintottak
                     if (notification.link) {
                       navigate(notification.link);
                       setIsOpen(false);
