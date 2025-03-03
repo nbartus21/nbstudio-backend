@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { categorizeMessage, generateResponseSuggestion, generateSummary, suggestTags } from '../services/deepseekService';
 import { api } from '../services/auth';
+import { Card, CardHeader, CardTitle, CardContent } from './Card'; // Importáljuk a Card komponenseket
 
 const API_URL = 'https://admin.nb-studio.net:5001/api';
 
@@ -22,107 +23,195 @@ const Modal = ({ isOpen, onClose, children }) => {
 // Filter komponens
 const Filters = ({ onFilterChange, filters, onResetFilters }) => {
   return (
-    <div className="bg-white p-4 rounded-lg shadow-sm mb-6">
-      <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg font-medium">Szűrők</h3>
+    <Card className="mb-6">
+      <CardHeader>
+        <div className="flex justify-between items-center">
+          <CardTitle>Szűrők</CardTitle>
+          {(filters.search || filters.status || filters.priority || filters.category) && (
+            <button
+              onClick={onResetFilters}
+              className="text-sm text-blue-600 hover:text-blue-800"
+            >
+              Szűrők törlése
+            </button>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Keresés</label>
+            <input
+              type="text"
+              placeholder="Üzenetek keresése..."
+              value={filters.search}
+              onChange={(e) => onFilterChange('search', e.target.value)}
+              className="w-full px-4 py-2 border rounded-md"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Állapot</label>
+            <select 
+              value={filters.status}
+              onChange={(e) => onFilterChange('status', e.target.value)}
+              className="w-full px-4 py-2 border rounded-md"
+            >
+              <option value="">Minden állapot</option>
+              <option value="new">Új</option>
+              <option value="in-progress">Folyamatban</option>
+              <option value="completed">Befejezett</option>
+            </select>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Prioritás</label>
+            <select 
+              value={filters.priority}
+              onChange={(e) => onFilterChange('priority', e.target.value)}
+              className="w-full px-4 py-2 border rounded-md"
+            >
+              <option value="">Minden prioritás</option>
+              <option value="high">Magas</option>
+              <option value="medium">Közepes</option>
+              <option value="low">Alacsony</option>
+            </select>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Kategória</label>
+            <select 
+              value={filters.category}
+              onChange={(e) => onFilterChange('category', e.target.value)}
+              className="w-full px-4 py-2 border rounded-md"
+            >
+              <option value="">Minden kategória</option>
+              <option value="support">Támogatás</option>
+              <option value="inquiry">Érdeklődés</option>
+              <option value="feedback">Visszajelzés</option>
+              <option value="complaint">Panasz</option>
+              <option value="other">Egyéb</option>
+            </select>
+          </div>
+        </div>
+        
+        {/* Aktív szűrők megjelenítése */}
         {(filters.search || filters.status || filters.priority || filters.category) && (
-          <button
-            onClick={onResetFilters}
-            className="text-sm text-blue-600 hover:text-blue-800"
-          >
-            Szűrők törlése
-          </button>
+          <div className="flex flex-wrap gap-2 mt-4 pt-3 border-t">
+            <span className="text-sm text-gray-500">Aktív szűrők:</span>
+            
+            {filters.search && (
+              <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs">
+                Keresés: {filters.search}
+              </span>
+            )}
+            
+            {filters.status && (
+              <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs">
+                Állapot: {filters.status === 'new' ? 'Új' : filters.status === 'in-progress' ? 'Folyamatban' : 'Befejezett'}
+              </span>
+            )}
+            
+            {filters.priority && (
+              <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs">
+                Prioritás: {filters.priority === 'high' ? 'Magas' : filters.priority === 'medium' ? 'Közepes' : 'Alacsony'}
+              </span>
+            )}
+            
+            {filters.category && (
+              <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded-full text-xs">
+                Kategória: {filters.category}
+              </span>
+            )}
+          </div>
         )}
-      </div>
+      </CardContent>
+    </Card>
+  );
+};
+
+// ContactCard komponens - használjuk a Card komponenst
+const ContactCard = ({ contact, onView, onDelete, onToggleStar, starredContacts }) => {
+  const priorityColors = {
+    high: 'bg-red-100 text-red-800',
+    medium: 'bg-yellow-100 text-yellow-800',
+    low: 'bg-green-100 text-green-800'
+  };
+
+  const statusColors = {
+    'new': 'bg-blue-100 text-blue-800',
+    'in-progress': 'bg-yellow-100 text-yellow-800',
+    'completed': 'bg-green-100 text-green-800'
+  };
+
+  return (
+    <Card className="hover:shadow-lg transition-shadow duration-200">
+      <CardHeader className="flex justify-between items-start">
+        <div className="flex items-start">
+          <button
+            onClick={() => onToggleStar(contact._id)}
+            className={`mr-2 ${starredContacts.has(contact._id) ? 'text-yellow-500' : 'text-gray-300 hover:text-yellow-500'}`}
+          >
+            <svg className="h-5 w-5" fill={starredContacts.has(contact._id) ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+            </svg>
+          </button>
+          <div>
+            <h3 className="font-medium">{contact.name}</h3>
+            <p className="text-sm text-gray-600">{contact.email}</p>
+          </div>
+        </div>
+        <span className={`px-2 py-1 rounded-full text-xs ${priorityColors[contact.priority || 'medium']}`}>
+          {contact.priority === 'high' ? 'Magas' : contact.priority === 'low' ? 'Alacsony' : 'Közepes'}
+        </span>
+      </CardHeader>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Keresés</label>
-          <input
-            type="text"
-            placeholder="Üzenetek keresése..."
-            value={filters.search}
-            onChange={(e) => onFilterChange('search', e.target.value)}
-            className="w-full px-4 py-2 border rounded-md"
-          />
-        </div>
-        
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Állapot</label>
-          <select 
-            value={filters.status}
-            onChange={(e) => onFilterChange('status', e.target.value)}
-            className="w-full px-4 py-2 border rounded-md"
-          >
-            <option value="">Minden állapot</option>
-            <option value="new">Új</option>
-            <option value="in-progress">Folyamatban</option>
-            <option value="completed">Befejezett</option>
-          </select>
-        </div>
-        
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Prioritás</label>
-          <select 
-            value={filters.priority}
-            onChange={(e) => onFilterChange('priority', e.target.value)}
-            className="w-full px-4 py-2 border rounded-md"
-          >
-            <option value="">Minden prioritás</option>
-            <option value="high">Magas</option>
-            <option value="medium">Közepes</option>
-            <option value="low">Alacsony</option>
-          </select>
-        </div>
-        
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Kategória</label>
-          <select 
-            value={filters.category}
-            onChange={(e) => onFilterChange('category', e.target.value)}
-            className="w-full px-4 py-2 border rounded-md"
-          >
-            <option value="">Minden kategória</option>
-            <option value="support">Támogatás</option>
-            <option value="inquiry">Érdeklődés</option>
-            <option value="feedback">Visszajelzés</option>
-            <option value="complaint">Panasz</option>
-            <option value="other">Egyéb</option>
-          </select>
-        </div>
-      </div>
+      <CardContent className="border-t border-b">
+        <p className="text-sm text-gray-600 line-clamp-3">{contact.message}</p>
+      </CardContent>
       
-      {/* Aktív szűrők megjelenítése */}
-      {(filters.search || filters.status || filters.priority || filters.category) && (
-        <div className="flex flex-wrap gap-2 mt-4 pt-3 border-t">
-          <span className="text-sm text-gray-500">Aktív szűrők:</span>
-          
-          {filters.search && (
-            <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs">
-              Keresés: {filters.search}
+      <CardContent>
+        <div className="flex justify-between items-center">
+          <div className="flex items-center">
+            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs ${statusColors[contact.status]}`}>
+              {contact.status === 'new' ? 'Új' : contact.status === 'in-progress' ? 'Folyamatban' : 'Befejezett'}
             </span>
-          )}
+            {contact.category && (
+              <span className="ml-2 px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-700">
+                {contact.category}
+              </span>
+            )}
+          </div>
           
-          {filters.status && (
-            <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs">
-              Állapot: {filters.status === 'new' ? 'Új' : filters.status === 'in-progress' ? 'Folyamatban' : 'Befejezett'}
-            </span>
-          )}
-          
-          {filters.priority && (
-            <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs">
-              Prioritás: {filters.priority === 'high' ? 'Magas' : filters.priority === 'medium' ? 'Közepes' : 'Alacsony'}
-            </span>
-          )}
-          
-          {filters.category && (
-            <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded-full text-xs">
-              Kategória: {filters.category}
-            </span>
-          )}
+          <div className="flex space-x-2">
+            <button
+              onClick={() => onView(contact)}
+              className="text-blue-600 hover:text-blue-800 p-1 rounded hover:bg-blue-50"
+              title="Megtekintés"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+            </button>
+            
+            <button
+              onClick={() => onDelete(contact._id)}
+              className="text-red-600 hover:text-red-800 p-1 rounded hover:bg-red-50"
+              title="Törlés"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </button>
+          </div>
         </div>
-      )}
-    </div>
+        
+        <div className="text-xs text-gray-500 mt-2 pt-2 border-t">
+          <span>{new Date(contact.createdAt).toLocaleString()}</span>
+        </div>
+      </CardContent>
+    </Card>
   );
 };
 
@@ -143,7 +232,7 @@ const ContactAdmin = () => {
   const [analyzing, setAnalyzing] = useState(false);
   const [responseText, setResponseText] = useState('');
   const [sendingResponse, setSendingResponse] = useState(false);
-  const [viewMode, setViewMode] = useState('cards'); // 'table' vagy 'cards'
+  const [viewMode, setViewMode] = useState('cards'); // Alapértelmezettként a kártya nézet
   const [starredContacts, setStarredContacts] = useState(new Set());
 
   // Kapcsolatok lekérése
@@ -403,25 +492,33 @@ const ContactAdmin = () => {
         
         {/* Statisztikák */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white shadow-sm rounded-lg p-4 border-l-4 border-blue-500">
-            <div className="text-sm text-gray-500">Összes üzenet</div>
-            <div className="text-2xl font-bold">{contacts.length}</div>
-          </div>
+          <Card className="border-l-4 border-blue-500">
+            <CardContent>
+              <div className="text-sm text-gray-500">Összes üzenet</div>
+              <div className="text-2xl font-bold">{contacts.length}</div>
+            </CardContent>
+          </Card>
           
-          <div className="bg-white shadow-sm rounded-lg p-4 border-l-4 border-green-500">
-            <div className="text-sm text-gray-500">Új üzenetek</div>
-            <div className="text-2xl font-bold">{contacts.filter(c => c.status === 'new').length}</div>
-          </div>
+          <Card className="border-l-4 border-green-500">
+            <CardContent>
+              <div className="text-sm text-gray-500">Új üzenetek</div>
+              <div className="text-2xl font-bold">{contacts.filter(c => c.status === 'new').length}</div>
+            </CardContent>
+          </Card>
           
-          <div className="bg-white shadow-sm rounded-lg p-4 border-l-4 border-yellow-500">
-            <div className="text-sm text-gray-500">Folyamatban</div>
-            <div className="text-2xl font-bold">{contacts.filter(c => c.status === 'in-progress').length}</div>
-          </div>
+          <Card className="border-l-4 border-yellow-500">
+            <CardContent>
+              <div className="text-sm text-gray-500">Folyamatban</div>
+              <div className="text-2xl font-bold">{contacts.filter(c => c.status === 'in-progress').length}</div>
+            </CardContent>
+          </Card>
           
-          <div className="bg-white shadow-sm rounded-lg p-4 border-l-4 border-red-500">
-            <div className="text-sm text-gray-500">Magas prioritású</div>
-            <div className="text-2xl font-bold">{contacts.filter(c => c.priority === 'high').length}</div>
-          </div>
+          <Card className="border-l-4 border-red-500">
+            <CardContent>
+              <div className="text-sm text-gray-500">Magas prioritású</div>
+              <div className="text-2xl font-bold">{contacts.filter(c => c.priority === 'high').length}</div>
+            </CardContent>
+          </Card>
         </div>
         
         <Filters 
@@ -435,27 +532,31 @@ const ContactAdmin = () => {
             <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
           </div>
         ) : error ? (
-          <div className="bg-red-100 text-red-700 p-4 rounded-lg mb-6">
-            <p>Hiba történt: {error}</p>
-            <button 
-              onClick={fetchContacts}
-              className="mt-2 px-4 py-2 bg-red-700 text-white rounded-md hover:bg-red-800"
-            >
-              Újrapróbálkozás
-            </button>
-          </div>
+          <Card className="bg-red-50 border-red-200 mb-6">
+            <CardContent>
+              <p className="text-red-700">Hiba történt: {error}</p>
+              <button 
+                onClick={fetchContacts}
+                className="mt-2 px-4 py-2 bg-red-700 text-white rounded-md hover:bg-red-800"
+              >
+                Újrapróbálkozás
+              </button>
+            </CardContent>
+          </Card>
         ) : filteredContacts.length === 0 ? (
-          <div className="bg-white p-12 rounded-lg shadow-sm text-center">
-            <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-            </svg>
-            <h3 className="mt-2 text-sm font-medium text-gray-900">Nincsenek megjeleníthető üzenetek</h3>
-            <p className="mt-1 text-sm text-gray-500">
-              {contacts.length === 0 
-                ? 'Még nem érkeztek kapcsolati üzenetek.' 
-                : 'Nincsenek a szűrési feltételeknek megfelelő üzenetek.'}
-            </p>
-          </div>
+          <Card className="text-center p-8">
+            <CardContent>
+              <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+              </svg>
+              <h3 className="mt-2 text-sm font-medium text-gray-900">Nincsenek megjeleníthető üzenetek</h3>
+              <p className="mt-1 text-sm text-gray-500">
+                {contacts.length === 0 
+                  ? 'Még nem érkeztek kapcsolati üzenetek.' 
+                  : 'Nincsenek a szűrési feltételeknek megfelelő üzenetek.'}
+              </p>
+            </CardContent>
+          </Card>
         ) : viewMode === 'table' ? (
           // Táblázat nézet
           <div className="overflow-x-auto">
@@ -536,74 +637,17 @@ const ContactAdmin = () => {
             </table>
           </div>
         ) : (
-          // Kártya nézet
+          // Kártya nézet - használjuk a ContactCard komponenst
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredContacts.map((contact) => (
-              <div key={contact._id} className="bg-white rounded-lg shadow-sm border p-4 hover:shadow-md">
-                <div className="flex justify-between items-start mb-2">
-                  <div className="flex items-start">
-                    <button
-                      onClick={() => toggleStarred(contact._id)}
-                      className={`mr-2 ${starredContacts.has(contact._id) ? 'text-yellow-500' : 'text-gray-300 hover:text-yellow-500'}`}
-                    >
-                      <svg className="h-5 w-5" fill={starredContacts.has(contact._id) ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-                      </svg>
-                    </button>
-                    <div>
-                      <h3 className="font-medium">{contact.name}</h3>
-                      <p className="text-sm text-gray-600">{contact.email}</p>
-                    </div>
-                  </div>
-                  <span className={`px-2 py-1 rounded-full text-xs ${priorityColors[contact.priority || 'medium']}`}>
-                    {contact.priority === 'high' ? 'Magas' : contact.priority === 'low' ? 'Alacsony' : 'Közepes'}
-                  </span>
-                </div>
-                
-                <div className="border-t border-b py-3 my-2">
-                  <p className="text-sm text-gray-600 line-clamp-3">{contact.message}</p>
-                </div>
-                
-                <div className="flex justify-between items-center mt-2">
-                  <div className="flex items-center">
-                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs ${statusColors[contact.status]}`}>
-                      {contact.status === 'new' ? 'Új' : contact.status === 'in-progress' ? 'Folyamatban' : 'Befejezett'}
-                      </span>
-                    {contact.category && (
-                      <span className="ml-2 px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-700">
-                        {contact.category}
-                      </span>
-                    )}
-                  </div>
-                  
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={() => handleViewMessage(contact)}
-                      className="text-blue-600 hover:text-blue-800 p-1 rounded hover:bg-blue-50"
-                      title="Megtekintés"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                      </svg>
-                    </button>
-                    
-                    <button
-                      onClick={() => handleDelete(contact._id)}
-                      className="text-red-600 hover:text-red-800 p-1 rounded hover:bg-red-50"
-                      title="Törlés"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-                
-                <div className="text-xs text-gray-500 mt-2 pt-2 border-t">
-                  <span>{new Date(contact.createdAt).toLocaleString()}</span>
-                </div>
-              </div>
+              <ContactCard 
+                key={contact._id} 
+                contact={contact} 
+                onView={handleViewMessage} 
+                onDelete={handleDelete} 
+                onToggleStar={toggleStarred}
+                starredContacts={starredContacts}
+              />
             ))}
           </div>
         )}
@@ -804,59 +848,67 @@ const ContactAdmin = () => {
                   </div>
                 ) : aiAnalysis ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="bg-gray-50 p-4 rounded-md border">
-                      <h4 className="text-sm font-medium text-gray-500 mb-2">Hangulatelemzés</h4>
-                      <p className={`capitalize ${
-                        aiAnalysis.sentiment === 'positive' ? 'text-green-600' :
-                        aiAnalysis.sentiment === 'negative' ? 'text-red-600' :
-                        'text-gray-600'
-                      }`}>
-                        {aiAnalysis.sentiment === 'positive' ? 'Pozitív' : 
-                         aiAnalysis.sentiment === 'negative' ? 'Negatív' : 'Semleges'}
-                      </p>
-                    </div>
+                    <Card className="bg-gray-50">
+                      <CardContent>
+                        <h4 className="text-sm font-medium text-gray-500 mb-2">Hangulatelemzés</h4>
+                        <p className={`capitalize ${
+                          aiAnalysis.sentiment === 'positive' ? 'text-green-600' :
+                          aiAnalysis.sentiment === 'negative' ? 'text-red-600' :
+                          'text-gray-600'
+                        }`}>
+                          {aiAnalysis.sentiment === 'positive' ? 'Pozitív' : 
+                           aiAnalysis.sentiment === 'negative' ? 'Negatív' : 'Semleges'}
+                        </p>
+                      </CardContent>
+                    </Card>
 
-                    <div className="bg-gray-50 p-4 rounded-md border">
-                      <h4 className="text-sm font-medium text-gray-500 mb-2">Javasolt kategória</h4>
-                      <p className="font-medium">
-                        {aiAnalysis.category === 'support' ? 'Támogatás' :
-                         aiAnalysis.category === 'inquiry' ? 'Érdeklődés' :
-                         aiAnalysis.category === 'feedback' ? 'Visszajelzés' :
-                         aiAnalysis.category === 'complaint' ? 'Panasz' : 'Egyéb'}
-                      </p>
-                    </div>
+                    <Card className="bg-gray-50">
+                      <CardContent>
+                        <h4 className="text-sm font-medium text-gray-500 mb-2">Javasolt kategória</h4>
+                        <p className="font-medium">
+                          {aiAnalysis.category === 'support' ? 'Támogatás' :
+                           aiAnalysis.category === 'inquiry' ? 'Érdeklődés' :
+                           aiAnalysis.category === 'feedback' ? 'Visszajelzés' :
+                           aiAnalysis.category === 'complaint' ? 'Panasz' : 'Egyéb'}
+                        </p>
+                      </CardContent>
+                    </Card>
 
-                    <div className="bg-gray-50 p-4 rounded-md border col-span-2">
-                      <h4 className="text-sm font-medium text-gray-500 mb-2">Összefoglaló</h4>
-                      <p className="mt-1">{aiAnalysis.summary}</p>
-                    </div>
+                    <Card className="bg-gray-50 col-span-2">
+                      <CardContent>
+                        <h4 className="text-sm font-medium text-gray-500 mb-2">Összefoglaló</h4>
+                        <p className="mt-1">{aiAnalysis.summary}</p>
+                      </CardContent>
+                    </Card>
 
-                    <div className="col-span-2 bg-gray-50 p-4 rounded-md border">
-                      <h4 className="text-sm font-medium text-gray-500 mb-2">Javasolt válasz</h4>
-                      <p className="whitespace-pre-wrap">{aiAnalysis.suggestedResponse}</p>
-                      <div className="mt-2 flex justify-end">
-                        <button
-                          onClick={() => {
-                            navigator.clipboard.writeText(aiAnalysis.suggestedResponse);
-                          }}
-                          className="text-sm text-blue-500 hover:text-blue-700 flex items-center"
-                        >
-                          <svg className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
-                          </svg>
-                          Másolás
-                        </button>
-                        <button
-                          onClick={() => setResponseText(aiAnalysis.suggestedResponse)}
-                          className="ml-3 text-sm text-blue-500 hover:text-blue-700 flex items-center"
-                        >
-                          <svg className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                          </svg>
-                          Használat válaszként
-                        </button>
-                      </div>
-                    </div>
+                    <Card className="bg-gray-50 col-span-2">
+                      <CardContent>
+                        <h4 className="text-sm font-medium text-gray-500 mb-2">Javasolt válasz</h4>
+                        <p className="whitespace-pre-wrap">{aiAnalysis.suggestedResponse}</p>
+                        <div className="mt-2 flex justify-end">
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(aiAnalysis.suggestedResponse);
+                            }}
+                            className="text-sm text-blue-500 hover:text-blue-700 flex items-center"
+                          >
+                            <svg className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                            </svg>
+                            Másolás
+                          </button>
+                          <button
+                            onClick={() => setResponseText(aiAnalysis.suggestedResponse)}
+                            className="ml-3 text-sm text-blue-500 hover:text-blue-700 flex items-center"
+                          >
+                            <svg className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                            </svg>
+                            Használat válaszként
+                          </button>
+                        </div>
+                      </CardContent>
+                    </Card>
                   </div>
                 ) : (
                   <div className="text-center py-8 text-gray-500">
@@ -869,15 +921,17 @@ const ContactAdmin = () => {
               {selectedContact.responseText && (
                 <div className="border-t pt-4">
                   <h3 className="text-lg font-medium mb-3">Előzmények</h3>
-                  <div className="bg-blue-50 p-4 rounded-md border border-blue-100">
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="text-sm font-medium text-blue-700">Válasz üzenet</h4>
-                      <span className="text-xs text-gray-500">
-                        {selectedContact.responseDate ? new Date(selectedContact.responseDate).toLocaleString() : ''}
-                      </span>
-                    </div>
-                    <p className="text-gray-800 whitespace-pre-wrap">{selectedContact.responseText}</p>
-                  </div>
+                  <Card className="bg-blue-50 border-blue-100">
+                    <CardContent>
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="text-sm font-medium text-blue-700">Válasz üzenet</h4>
+                        <span className="text-xs text-gray-500">
+                          {selectedContact.responseDate ? new Date(selectedContact.responseDate).toLocaleString() : ''}
+                        </span>
+                      </div>
+                      <p className="text-gray-800 whitespace-pre-wrap">{selectedContact.responseText}</p>
+                    </CardContent>
+                  </Card>
                 </div>
               )}
 
