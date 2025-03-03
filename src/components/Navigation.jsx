@@ -4,7 +4,7 @@ import {
   Bell, LogOut, Menu, X, ChevronDown, Settings, Search, 
   User, HelpCircle, Home, Calendar, BookOpen, Globe, 
   Server, Database, Calculator, Mail, FileText, Clock,
-  DollarSign, PlusCircle
+  DollarSign, PlusCircle, Languages
 } from 'lucide-react';
 import NotificationsManager from './NotificationsManager';
 
@@ -68,7 +68,8 @@ const Navigation = () => {
       icon: <User size={18} />,
       items: [
         { path: "/contacts", label: "Kapcsolatfelvételek", icon: <Mail size={16} /> },
-        { path: "/calculator", label: "Kalkulátor jelentkezések", icon: <Calculator size={16} /> }
+        { path: "/calculator", label: "Kalkulátor jelentkezések", icon: <Calculator size={16} /> },
+        { path: "/translation", label: "Fordítási Eszköz", icon: <Languages size={16} /> }
       ]
     },
     {
@@ -81,12 +82,13 @@ const Navigation = () => {
     },
     {
       category: "Szolgáltatások",
+      icon: <Server size={18} />,
       items: [
-        { path: "/domains", label: "Domain Kezelő" },
-        { path: "/infrastructure", label: "Infrastruktúra Kezelő" },
-        { path: "/infrastructure/monitoring", label: "Szerver Monitoring" },
-        { path: "/hosting", label: "Hosting Kezelő" },
-        { path: "/accounting", label: "Könyvelés" }
+        { path: "/domains", label: "Domain Kezelő", icon: <Globe size={16} /> },
+        { path: "/infrastructure", label: "Infrastruktúra Kezelő", icon: <Server size={16} /> },
+        { path: "/infrastructure/monitoring", label: "Szerver Monitoring", icon: <Database size={16} /> },
+        { path: "/hosting", label: "Hosting Kezelő", icon: <Database size={16} /> },
+        { path: "/accounting", label: "Könyvelés", icon: <DollarSign size={16} /> }
       ]
     }
   ];
