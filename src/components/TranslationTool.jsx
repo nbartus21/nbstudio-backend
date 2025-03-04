@@ -141,39 +141,11 @@ const TranslationTool = () => {
     ]);
   };
 
-  // Email formázási funkció
-  const formatAsEmail = (text, language) => {
+  // Email formázási funkció - javított verzió
+const formatAsEmail = (text, language) => {
     if (!text) return '';
     
-    // Aktuális dátum generálása a megfelelő nyelven
-    const today = new Date();
-    const dateOptions = { year: 'numeric', month: 'long', day: 'numeric' };
-    let dateStr;
-    
-    try {
-      dateStr = today.toLocaleDateString(getLanguageLocale(language), dateOptions);
-    } catch (e) {
-      dateStr = today.toLocaleDateString('en-US', dateOptions);
-    }
-    
-    // Tárgy sor hozzáadása
-    let subject = '';
-    switch (language) {
-      case 'hu':
-        subject = 'Tárgy: Válasz az Ön megkeresésére';
-        break;
-      case 'de':
-        subject = 'Betreff: Antwort auf Ihre Anfrage';
-        break;
-      case 'fr':
-        subject = 'Objet: Réponse à votre demande';
-        break;
-      default:
-        subject = 'Subject: Response to your inquiry';
-        break;
-    }
-    
-    // Köszöntés hozzáadása
+    // Megszólítás hozzáadása a megfelelő nyelven
     let greeting = '';
     switch (language) {
       case 'hu':
@@ -190,46 +162,58 @@ const TranslationTool = () => {
         break;
     }
     
-    // Aláírás hozzáadása
-    let signature = '';
-    switch (language) {
-      case 'hu':
-        signature = 'Üdvözlettel,\nNB Studio Csapata';
-        break;
-      case 'de':
-        signature = 'Mit freundlichen Grüßen,\nNB Studio Team';
-        break;
-      case 'fr':
-        signature = 'Cordialement,\nL\'équipe NB Studio';
-        break;
-      default:
-        signature = 'Best regards,\nNB Studio Team';
-        break;
+    // Intelligens tárgy sor generálása a szöveg tartalma alapján
+    let subject = generateSubject(text, language);
+    
+    // Szöveg előkészítése
+    let mainText = text.trim();
+    
+    // Összefűzzük a részeket - most már aláírás és dátum nélkül
+    return `Betreff: ${subject}\n\n${greeting}\n\n${mainText}`;
+  };
+  
+  // Tárgy sor intelligens generálása
+  const generateSubject = (text, language) => {
+    // A szöveg első 5-8 szavából generálunk tárgyat, 
+    // vagy az első mondatból, ha az rövidebb
+    const words = text.trim().split(/\s+/);
+    const firstSentence = text.trim().split(/[.!?]/, 1)[0].trim();
+    
+    let subject = '';
+    
+    if (firstSentence.length <= 60) {
+      // Ha az első mondat elég rövid, használjuk azt
+      subject = firstSentence;
+    } else {
+      // Egyébként vegyük az első 5-8 szót
+      const maxWords = Math.min(words.length, words.length > 15 ? 6 : 8);
+      subject = words.slice(0, maxWords).join(' ');
+      
+      // Biztosítsuk, hogy értelmes a vége - ne egy kötőszóval végződjön
+      const conjunctions = {
+        'hu': ['és', 'vagy', 'hogy', 'ha', 'de', 'mert'],
+        'de': ['und', 'oder', 'dass', 'wenn', 'aber', 'weil'],
+        'fr': ['et', 'ou', 'que', 'si', 'mais', 'car'],
+        'en': ['and', 'or', 'that', 'if', 'but', 'because']
+      };
+      
+      const currentLangConjunctions = conjunctions[language] || conjunctions['en'];
+      
+      // Ha kötőszóval végződik, vegyük le a végéről
+      const lastWord = subject.split(/\s+/).pop().toLowerCase();
+      if (currentLangConjunctions.includes(lastWord)) {
+        subject = subject.substring(0, subject.lastIndexOf(' '));
+      }
+      
+      // Ha túl hosszú, vágva + ...
+      if (subject.length > 60) {
+        subject = subject.substring(0, 57) + '...';
+      } else {
+        subject += '...';
+      }
     }
     
-    // Dátum és hely
-    let dateLocation = '';
-    switch (language) {
-      case 'hu':
-        dateLocation = `Budapest, ${dateStr}`;
-        break;
-      case 'de':
-        dateLocation = `Budapest, den ${dateStr}`;
-        break;
-      case 'fr':
-        dateLocation = `Budapest, le ${dateStr}`;
-        break;
-      default:
-        dateLocation = `Budapest, ${dateStr}`;
-        break;
-    }
-    
-    // Szöveg formázása
-    // Ellenőrizzük, hogy a szöveg tartalmaz-e már köszöntést és aláírást
-    let mainText = text;
-    
-    // Összefűzzük a részeket
-    return `${dateLocation}\n\n${subject}\n\n${greeting}\n\n${mainText}\n\n${signature}`;
+    return subject;
   };
   
   // Nyelvi kód konvertálása locale-ra
