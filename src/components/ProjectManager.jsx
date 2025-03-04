@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/auth';
-import ProjectCard from './ProjectCard';
+import ProjectCard from './project/ProjectCard'; // Hozzáadott import
 import ProjectFilters from './ProjectFilters';
 import ProjectGrid from './project/ProjectGrid';
 import ProjectList from './project/ProjectList';
@@ -40,6 +40,12 @@ const ProjectManager = () => {
     setTimeout(() => {
       setSuccessMessage('');
     }, 3000);
+  };
+
+  // Hozzászólás kezelése (admin válasz az ügyfélnek)
+  const handleReplyToComment = (reply) => {
+    setProjectComments(prev => [reply, ...prev]);
+    showSuccessMessage('Admin válasz sikeresen hozzáadva');
   };
 
   // Toggle expanded projects in accordion view
@@ -95,7 +101,15 @@ const ProjectManager = () => {
   // Fájl feltöltése
   const handleFileUpload = async (projectId, file) => {
     try {
-      const response = await api.post(`/api/projects/${projectId}/files`, file);
+      const fileData = {
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        content: file.content, // Base64 vagy URL
+        uploadedBy: 'Admin'
+      };
+      
+      const response = await api.post(`/api/projects/${projectId}/files`, fileData);
       
       if (response.ok) {
         const updatedProject = await response.json();
@@ -441,28 +455,6 @@ const ProjectManager = () => {
     setFilteredProjects(projects);
   }, [projects]);
 
-  // Itt rendereljük a projektjeket a ProjectCard komponenssel
-  const renderProjects = () => {
-    return filteredProjects.map(project => (
-      <ProjectCard
-        key={project._id}
-        project={project}
-        isAdmin={true}
-        onShare={setShowShareModal}
-        onNewInvoice={() => {
-          setSelectedProject(project);
-          setShowNewInvoiceForm(true);
-        }}
-        onViewDetails={() => setSelectedProject(project)}
-        onDelete={handleDelete}
-        onReplyToComment={handleSendComment}
-        onUploadFile={handleFileUpload} // Itt adjuk át a fájl feltöltő függvényt
-        onViewFile={handleViewFile}
-        onMarkAsRead={handleMarkAsRead}
-      />
-    ));
-  };
-
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -623,10 +615,53 @@ const ProjectManager = () => {
         </div>
       </div>
 
-      {/* Project cards - közvetlen megjelenítés, a nézetváltás helyett */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {renderProjects()}
-      </div>
+      {/* Project views based on selected view type */}
+      {viewType === 'grid' ? (
+        <ProjectGrid 
+          projects={filteredProjects}
+          activeShares={activeShares}
+          comments={projectComments}
+          files={projectFiles}
+          onShare={setShowShareModal}
+          onNewInvoice={(project) => {
+            setSelectedProject(project);
+            setShowNewInvoiceForm(true);
+          }}
+          onViewDetails={setSelectedProject}
+          onDelete={handleDelete}
+          onReplyToComment={handleSendComment}
+          onViewFile={handleViewFile}
+          onMarkAsRead={handleMarkAsRead}
+        />
+      ) : viewType === 'list' ? (
+        <ProjectList 
+          projects={filteredProjects}
+          activeShares={activeShares}
+          onShare={setShowShareModal}
+          onNewInvoice={(project) => {
+            setSelectedProject(project);
+            setShowNewInvoiceForm(true);
+          }}
+          onViewDetails={setSelectedProject}
+          onDelete={handleDelete}
+          onMarkAsRead={handleMarkAsRead}
+        />
+      ) : (
+        <ProjectAccordion 
+          projects={filteredProjects}
+          expandedProjects={expandedProjects}
+          activeShares={activeShares}
+          onToggleExpand={toggleExpand}
+          onShare={setShowShareModal}
+          onNewInvoice={(project) => {
+            setSelectedProject(project);
+            setShowNewInvoiceForm(true);
+          }}
+          onViewDetails={setSelectedProject}
+          onDelete={handleDelete}
+          onMarkAsRead={handleMarkAsRead}
+        />
+      )}
 
       {/* Modals */}
       {showNewInvoiceForm && (
