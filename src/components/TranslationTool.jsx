@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { translateContent } from '../services/deepseekService';
-import { api } from '../services/auth';
-import { Save, Copy, Clipboard, RotateCcw, Edit, Trash2, CheckCircle, FileText, Download, Upload } from 'lucide-react';
+import { AlertTriangle, Save, Copy, Clipboard, RotateCcw, Edit, Trash2, CheckCircle, FileText, Download, Upload } from 'lucide-react';
+import { debugLog } from './shared/utils';
 
 const API_URL = 'https://admin.nb-studio.net:5001/api';
+const API_KEY = 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0';
 
 const TranslationTool = () => {
   const [sourceText, setSourceText] = useState('');
@@ -33,39 +34,62 @@ const TranslationTool = () => {
 
   const fetchTemplates = async () => {
     try {
-      const response = await api.get(`${API_URL}/templates`);
-      if (response.ok) {
-        const data = await response.json();
-        setTemplates(data);
-      } else {
-        console.error('Failed to fetch templates');
-        // Alapértelmezett sablonok létrehozása, ha API még nincs implementálva
-        setTemplates([
-          {
-            _id: '1',
-            name: 'Üdvözlő email',
-            description: 'Új ügyfél üdvözlése',
-            sourceText: 'Tisztelt Ügyfelünk!\n\nKöszönjük megkeresését. Örömmel segítünk Önnek weboldala fejlesztésében.\n\nÜdvözlettel,\nNB Studio',
-            targetText: 'Sehr geehrter Kunde!\n\nVielen Dank für Ihre Anfrage. Wir helfen Ihnen gerne bei der Entwicklung Ihrer Website.\n\nMit freundlichen Grüßen,\nNB Studio',
-            sourceLanguage: 'hu',
-            targetLanguage: 'de',
-            category: 'email'
-          },
-          {
-            _id: '2',
-            name: 'Projekt státusz',
-            description: 'Projekt állapotának ismertetése',
-            sourceText: 'Tisztelt Partnerünk!\n\nEzúton tájékoztatjuk, hogy projektje a tervek szerint halad. A tervezett befejezési idő továbbra is [DÁTUM].\n\nÜdvözlettel,\nNB Studio',
-            targetText: 'Sehr geehrter Partner!\n\nHiermit informieren wir Sie, dass Ihr Projekt planmäßig voranschreitet. Der geplante Fertigstellungstermin bleibt weiterhin [DATUM].\n\nMit freundlichen Grüßen,\nNB Studio',
-            sourceLanguage: 'hu',
-            targetLanguage: 'de',
-            category: 'email'
+      debugLog('fetchTemplates', 'Fetching translation templates');
+      
+      // Itt használnánk a valódi API-t, ha már létezne a végpont
+      // A SharedProjectView mintájára direktben fetch-elünk az API-ból
+      try {
+        const response = await fetch(`${API_URL}/translation/templates`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-API-Key': API_KEY
           }
-        ]);
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          debugLog('fetchTemplates', 'Templates loaded successfully', { count: data.length });
+          setTemplates(data);
+        } else {
+          debugLog('fetchTemplates', 'API endpoint not available, using default templates');
+          // API végpont még nem létezik, használjunk alapértelmezett sablonokat
+          useDefaultTemplates();
+        }
+      } catch (apiError) {
+        debugLog('fetchTemplates', 'API error, using default templates', { error: apiError });
+        useDefaultTemplates();
       }
     } catch (error) {
-      console.error('Error fetching templates:', error);
+      debugLog('fetchTemplates', 'Error in template fetching', { error });
+      setError('Hiba történt a sablonok betöltése során: ' + error.message);
     }
+  };
+
+  // Alapértelmezett sablonok hozzáadása, ha az API még nem elérhető
+  const useDefaultTemplates = () => {
+    setTemplates([
+      {
+        _id: '1',
+        name: 'Üdvözlő email',
+        description: 'Új ügyfél üdvözlése',
+        sourceText: 'Tisztelt Ügyfelünk!\n\nKöszönjük megkeresését. Örömmel segítünk Önnek weboldala fejlesztésében.\n\nÜdvözlettel,\nNB Studio',
+        targetText: 'Sehr geehrter Kunde!\n\nVielen Dank für Ihre Anfrage. Wir helfen Ihnen gerne bei der Entwicklung Ihrer Website.\n\nMit freundlichen Grüßen,\nNB Studio',
+        sourceLanguage: 'hu',
+        targetLanguage: 'de',
+        category: 'email'
+      },
+      {
+        _id: '2',
+        name: 'Projekt státusz',
+        description: 'Projekt állapotának ismertetése',
+        sourceText: 'Tisztelt Partnerünk!\n\nEzúton tájékoztatjuk, hogy projektje a tervek szerint halad. A tervezett befejezési idő továbbra is [DÁTUM].\n\nÜdvözlettel,\nNB Studio',
+        targetText: 'Sehr geehrter Partner!\n\nHiermit informieren wir Sie, dass Ihr Projekt planmäßig voranschreitet. Der geplante Fertigstellungstermin bleibt weiterhin [DATUM].\n\nMit freundlichen Grüßen,\nNB Studio',
+        sourceLanguage: 'hu',
+        targetLanguage: 'de',
+        category: 'email'
+      }
+    ]);
   };
 
   // Fordítás végrehajtása
@@ -77,13 +101,20 @@ const TranslationTool = () => {
 
     setIsTranslating(true);
     setError(null);
+    debugLog('handleTranslate', 'Starting translation', {
+      sourceLanguage,
+      targetLanguage,
+      textLength: sourceText.length
+    });
     
     try {
       const translatedText = await translateContent(sourceText, sourceLanguage, targetLanguage);
       setTargetText(translatedText);
       setSuccess('A fordítás sikeresen elkészült!');
       setTimeout(() => setSuccess(null), 3000);
+      debugLog('handleTranslate', 'Translation completed successfully');
     } catch (err) {
+      debugLog('handleTranslate', 'Translation failed', { error: err });
       setError('Hiba történt a fordítás során: ' + err.message);
     } finally {
       setIsTranslating(false);
@@ -96,8 +127,10 @@ const TranslationTool = () => {
       () => {
         setSuccess('Szöveg másolva a vágólapra!');
         setTimeout(() => setSuccess(null), 3000);
+        debugLog('copyToClipboard', 'Text copied to clipboard', { textLength: text.length });
       },
-      () => {
+      (err) => {
+        debugLog('copyToClipboard', 'Failed to copy to clipboard', { error: err });
         setError('Nem sikerült másolni a vágólapra.');
       }
     );
@@ -118,26 +151,53 @@ const TranslationTool = () => {
       targetLanguage: targetLanguage
     };
 
+    debugLog('saveTemplate', 'Saving template', { templateName: templateData.name });
+
     try {
-      // Itt implementálható az API hívás, ha a backend készen áll
-      // const response = await api.post(`${API_URL}/templates`, templateData);
-      
-      // Ideiglenes megoldás (API nélkül)
-      setTemplates([...templates, {
-        _id: Date.now().toString(),
-        ...templateData
-      }]);
+      // Itt használnánk az API-t ha már implementálva lenne
+      try {
+        const response = await fetch(`${API_URL}/translation/templates`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-API-Key': API_KEY
+          },
+          body: JSON.stringify(templateData)
+        });
+        
+        if (response.ok) {
+          const savedTemplate = await response.json();
+          setTemplates([...templates, savedTemplate]);
+          debugLog('saveTemplate', 'Template saved via API', { templateId: savedTemplate._id });
+        } else {
+          // API végpont még nem elérhető, helyben mentsük el
+          debugLog('saveTemplate', 'API endpoint not available, saving locally');
+          setTemplates([...templates, {
+            _id: Date.now().toString(),
+            ...templateData
+          }]);
+        }
+      } catch (apiError) {
+        // API hiba esetén helyben mentsük el
+        debugLog('saveTemplate', 'API error, saving locally', { error: apiError });
+        setTemplates([...templates, {
+          _id: Date.now().toString(),
+          ...templateData
+        }]);
+      }
       
       setSuccess('Sablon sikeresen mentve!');
       setShowTemplateModal(false);
       setTimeout(() => setSuccess(null), 3000);
     } catch (error) {
+      debugLog('saveTemplate', 'Error saving template', { error });
       setError('Hiba történt a sablon mentése során: ' + error.message);
     }
   };
 
   // Sablon betöltése
   const loadTemplate = (template) => {
+    debugLog('loadTemplate', 'Loading template', { templateId: template._id, templateName: template.name });
     setSourceText(template.sourceText);
     setTargetText(template.targetText);
     setSourceLanguage(template.sourceLanguage);
@@ -151,22 +211,44 @@ const TranslationTool = () => {
   const deleteTemplate = async (templateId) => {
     if (!window.confirm('Biztosan törölni szeretné ezt a sablont?')) return;
 
+    debugLog('deleteTemplate', 'Deleting template', { templateId });
+
     try {
-      // Itt implementálható az API hívás, ha a backend készen áll
-      // const response = await api.delete(`${API_URL}/templates/${templateId}`);
-      
-      // Ideiglenes megoldás (API nélkül)
-      setTemplates(templates.filter(t => t._id !== templateId));
+      // Itt használnánk az API-t ha már implementálva lenne
+      try {
+        const response = await fetch(`${API_URL}/translation/templates/${templateId}`, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-API-Key': API_KEY
+          }
+        });
+        
+        if (response.ok) {
+          setTemplates(templates.filter(t => t._id !== templateId));
+          debugLog('deleteTemplate', 'Template deleted via API');
+        } else {
+          // API végpont még nem elérhető, helyben töröljük
+          debugLog('deleteTemplate', 'API endpoint not available, deleting locally');
+          setTemplates(templates.filter(t => t._id !== templateId));
+        }
+      } catch (apiError) {
+        // API hiba esetén helyben töröljük
+        debugLog('deleteTemplate', 'API error, deleting locally', { error: apiError });
+        setTemplates(templates.filter(t => t._id !== templateId));
+      }
       
       setSuccess('Sablon sikeresen törölve!');
       setTimeout(() => setSuccess(null), 3000);
     } catch (error) {
+      debugLog('deleteTemplate', 'Error deleting template', { error });
       setError('Hiba történt a sablon törlése során: ' + error.message);
     }
   };
 
   // Szöveg exportálása
   const exportTranslation = () => {
+    debugLog('exportTranslation', 'Exporting translation');
     const content = `Forrás (${sourceLanguage}):\n${sourceText}\n\nFordítás (${targetLanguage}):\n${targetText}`;
     const blob = new Blob([content], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
