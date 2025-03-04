@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/auth';
-import ProjectCard from './ProjectCard'; // Hozzáadott import
+import ProjectCard from './project/ProjectCard'; // Hozzáadott import
 import ProjectFilters from './ProjectFilters';
 import ProjectGrid from './project/ProjectGrid';
 import ProjectList from './project/ProjectList';
