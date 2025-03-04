@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { translateContent } from '../services/deepseekService';
-import { Eye, EyeOff, Save, Copy, Clipboard, RotateCcw, Edit, Trash2, CheckCircle, FileText, Download, Upload } from 'lucide-react';
+import { Eye, EyeOff, Save, Copy, Clipboard, RotateCcw, Edit, Trash2, CheckCircle, FileText, Download, Upload, Mail, AlertTriangle } from 'lucide-react';
 import { debugLog } from './shared/utils';
 
 const API_URL = 'https://admin.nb-studio.net:5001/api';
@@ -16,6 +16,7 @@ const TranslationTool = () => {
   const [templates, setTemplates] = useState([]);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [emailFormatting, setEmailFormatting] = useState(false);
   const [newTemplate, setNewTemplate] = useState({
     name: '',
     description: '',
@@ -140,6 +141,108 @@ const TranslationTool = () => {
     ]);
   };
 
+  // Email formázási funkció
+  const formatAsEmail = (text, language) => {
+    if (!text) return '';
+    
+    // Aktuális dátum generálása a megfelelő nyelven
+    const today = new Date();
+    const dateOptions = { year: 'numeric', month: 'long', day: 'numeric' };
+    let dateStr;
+    
+    try {
+      dateStr = today.toLocaleDateString(getLanguageLocale(language), dateOptions);
+    } catch (e) {
+      dateStr = today.toLocaleDateString('en-US', dateOptions);
+    }
+    
+    // Tárgy sor hozzáadása
+    let subject = '';
+    switch (language) {
+      case 'hu':
+        subject = 'Tárgy: Válasz az Ön megkeresésére';
+        break;
+      case 'de':
+        subject = 'Betreff: Antwort auf Ihre Anfrage';
+        break;
+      case 'fr':
+        subject = 'Objet: Réponse à votre demande';
+        break;
+      default:
+        subject = 'Subject: Response to your inquiry';
+        break;
+    }
+    
+    // Köszöntés hozzáadása
+    let greeting = '';
+    switch (language) {
+      case 'hu':
+        greeting = 'Tisztelt Ügyfelünk!';
+        break;
+      case 'de':
+        greeting = 'Sehr geehrter Kunde!';
+        break;
+      case 'fr':
+        greeting = 'Cher client,';
+        break;
+      default:
+        greeting = 'Dear Customer,';
+        break;
+    }
+    
+    // Aláírás hozzáadása
+    let signature = '';
+    switch (language) {
+      case 'hu':
+        signature = 'Üdvözlettel,\nNB Studio Csapata';
+        break;
+      case 'de':
+        signature = 'Mit freundlichen Grüßen,\nNB Studio Team';
+        break;
+      case 'fr':
+        signature = 'Cordialement,\nL\'équipe NB Studio';
+        break;
+      default:
+        signature = 'Best regards,\nNB Studio Team';
+        break;
+    }
+    
+    // Dátum és hely
+    let dateLocation = '';
+    switch (language) {
+      case 'hu':
+        dateLocation = `Budapest, ${dateStr}`;
+        break;
+      case 'de':
+        dateLocation = `Budapest, den ${dateStr}`;
+        break;
+      case 'fr':
+        dateLocation = `Budapest, le ${dateStr}`;
+        break;
+      default:
+        dateLocation = `Budapest, ${dateStr}`;
+        break;
+    }
+    
+    // Szöveg formázása
+    // Ellenőrizzük, hogy a szöveg tartalmaz-e már köszöntést és aláírást
+    let mainText = text;
+    
+    // Összefűzzük a részeket
+    return `${dateLocation}\n\n${subject}\n\n${greeting}\n\n${mainText}\n\n${signature}`;
+  };
+  
+  // Nyelvi kód konvertálása locale-ra
+  const getLanguageLocale = (langCode) => {
+    switch (langCode) {
+      case 'hu': return 'hu-HU';
+      case 'de': return 'de-DE';
+      case 'fr': return 'fr-FR';
+      case 'en': return 'en-US';
+      default: return 'en-US';
+    }
+  };
+
   // Fordítás végrehajtása
   const handleTranslate = async () => {
     if (!sourceText.trim()) {
@@ -152,11 +255,18 @@ const TranslationTool = () => {
     debugLog('handleTranslate', 'Starting translation', {
       sourceLanguage,
       targetLanguage,
-      textLength: sourceText.length
+      textLength: sourceText.length,
+      emailFormat: emailFormatting
     });
     
     try {
-      const translatedText = await translateContent(sourceText, sourceLanguage, targetLanguage);
+      let translatedText = await translateContent(sourceText, sourceLanguage, targetLanguage);
+      
+      // Ha email formázás be van kapcsolva, formázzuk a szöveget
+      if (emailFormatting) {
+        translatedText = formatAsEmail(translatedText, targetLanguage);
+      }
+      
       setTargetText(translatedText);
       setSuccess('A fordítás sikeresen elkészült!');
       setTimeout(() => setSuccess(null), 3000);
@@ -283,6 +393,19 @@ const TranslationTool = () => {
     URL.revokeObjectURL(url);
   };
 
+  // Szöveg formázása emailként
+  const formatEmailText = () => {
+    if (!targetText.trim()) {
+      setError('Nincs mit formázni. Kérjük, először fordítson le egy szöveget.');
+      return;
+    }
+    
+    const formattedText = formatAsEmail(targetText, targetLanguage);
+    setTargetText(formattedText);
+    setSuccess('Szöveg formázva email formátumban!');
+    setTimeout(() => setSuccess(null), 3000);
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="mb-6">
@@ -319,6 +442,7 @@ const TranslationTool = () => {
                 <option value="hu">Magyar</option>
                 <option value="de">Német</option>
                 <option value="en">Angol</option>
+                <option value="fr">Francia</option>
               </select>
             </div>
             <textarea
@@ -363,15 +487,31 @@ const TranslationTool = () => {
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-lg font-medium">Fordított szöveg</h2>
-              <select
-                value={targetLanguage}
-                onChange={(e) => setTargetLanguage(e.target.value)}
-                className="border rounded p-2"
-              >
-                <option value="de">Német</option>
-                <option value="hu">Magyar</option>
-                <option value="en">Angol</option>
-              </select>
+              <div className="flex items-center">
+                <select
+                  value={targetLanguage}
+                  onChange={(e) => setTargetLanguage(e.target.value)}
+                  className="border rounded p-2 mr-2"
+                >
+                  <option value="de">Német</option>
+                  <option value="hu">Magyar</option>
+                  <option value="en">Angol</option>
+                  <option value="fr">Francia</option>
+                </select>
+
+                <div className="flex items-center ml-4">
+                  <input
+                    id="emailFormat"
+                    type="checkbox"
+                    checked={emailFormatting}
+                    onChange={(e) => setEmailFormatting(e.target.checked)}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor="emailFormat" className="ml-2 text-sm text-gray-700">
+                    Email formátum
+                  </label>
+                </div>
+              </div>
             </div>
             <textarea
               value={targetText}
@@ -381,13 +521,23 @@ const TranslationTool = () => {
               placeholder="A fordítás itt jelenik meg..."
             ></textarea>
             <div className="flex justify-between mt-4">
-              <button
-                onClick={() => copyToClipboard(targetText)}
-                className="px-4 py-2 flex items-center text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
-              >
-                <Copy className="h-4 w-4 mr-2" />
-                Másolás
-              </button>
+              <div className="flex">
+                <button
+                  onClick={() => copyToClipboard(targetText)}
+                  className="px-4 py-2 flex items-center text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 mr-2"
+                >
+                  <Copy className="h-4 w-4 mr-2" />
+                  Másolás
+                </button>
+                <button
+                  onClick={formatEmailText}
+                  className="px-4 py-2 flex items-center text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
+                  title="Formázás email-ként"
+                >
+                  <Mail className="h-4 w-4 mr-2" />
+                  Email formázás
+                </button>
+              </div>
               <button
                 onClick={() => setShowTemplateModal(true)}
                 className="px-4 py-2 flex items-center bg-green-600 text-white rounded-lg hover:bg-green-700"
