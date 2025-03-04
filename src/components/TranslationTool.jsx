@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { translateContent } from '../services/deepseekService';
 import { AlertTriangle, Save, Copy, Clipboard, RotateCcw, Edit, Trash2, CheckCircle, FileText, Download, Upload } from 'lucide-react';
 import { debugLog } from './shared/utils';
+import { api } from '../services/auth';
 
 const API_URL = 'https://admin.nb-studio.net:5001/api';
-const API_KEY = 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0';
 
 const TranslationTool = () => {
   const [sourceText, setSourceText] = useState('');
@@ -36,33 +36,28 @@ const TranslationTool = () => {
     try {
       debugLog('fetchTemplates', 'Fetching translation templates');
       
-      // Itt használnánk a valódi API-t, ha már létezne a végpont
-      // A SharedProjectView mintájára direktben fetch-elünk az API-ból
-      try {
-        const response = await fetch(`${API_URL}/translation/templates`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-API-Key': API_KEY
-          }
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          debugLog('fetchTemplates', 'Templates loaded successfully', { count: data.length });
-          setTemplates(data);
+      // Az API szolgáltatást használjuk az autentikációhoz
+      const response = await api.get(`${API_URL}/translation/templates`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        debugLog('fetchTemplates', 'Templates loaded successfully', { count: data.length });
+        setTemplates(data);
+      } else {
+        // Ha 401-es hibát kapunk, akkor autentikációs hiba van
+        if (response.status === 401) {
+          debugLog('fetchTemplates', 'Authentication error', { status: response.status });
+          setError('Nincs megfelelő jogosultsága a sablonok megtekintéséhez. Kérjük, jelentkezzen be újra.');
         } else {
-          debugLog('fetchTemplates', 'API endpoint not available, using default templates');
+          debugLog('fetchTemplates', 'API error, using default templates', { status: response.status });
           // API végpont még nem létezik, használjunk alapértelmezett sablonokat
           useDefaultTemplates();
         }
-      } catch (apiError) {
-        debugLog('fetchTemplates', 'API error, using default templates', { error: apiError });
-        useDefaultTemplates();
       }
     } catch (error) {
       debugLog('fetchTemplates', 'Error in template fetching', { error });
       setError('Hiba történt a sablonok betöltése során: ' + error.message);
+      useDefaultTemplates();
     }
   };
 
@@ -154,44 +149,44 @@ const TranslationTool = () => {
     debugLog('saveTemplate', 'Saving template', { templateName: templateData.name });
 
     try {
-      // Itt használnánk az API-t ha már implementálva lenne
-      try {
-        const response = await fetch(`${API_URL}/translation/templates`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-API-Key': API_KEY
-          },
-          body: JSON.stringify(templateData)
-        });
-        
-        if (response.ok) {
-          const savedTemplate = await response.json();
-          setTemplates([...templates, savedTemplate]);
-          debugLog('saveTemplate', 'Template saved via API', { templateId: savedTemplate._id });
+      // Az API szolgáltatást használjuk az autentikációhoz
+      const response = await api.post(`${API_URL}/translation/templates`, templateData);
+      
+      if (response.ok) {
+        const savedTemplate = await response.json();
+        setTemplates([...templates, savedTemplate]);
+        debugLog('saveTemplate', 'Template saved via API', { templateId: savedTemplate._id });
+        setSuccess('Sablon sikeresen mentve!');
+        setShowTemplateModal(false);
+      } else {
+        // Ha 401-es hibát kapunk, akkor autentikációs hiba van
+        if (response.status === 401) {
+          debugLog('saveTemplate', 'Authentication error', { status: response.status });
+          setError('Nincs megfelelő jogosultsága a sablonok mentéséhez. Kérjük, jelentkezzen be újra.');
         } else {
-          // API végpont még nem elérhető, helyben mentsük el
-          debugLog('saveTemplate', 'API endpoint not available, saving locally');
+          debugLog('saveTemplate', 'API error', { status: response.status });
+          // API hiba esetén helyben mentsük el
           setTemplates([...templates, {
             _id: Date.now().toString(),
             ...templateData
           }]);
+          setSuccess('Sablon lokálisan mentve. (API kapcsolat nem elérhető)');
+          setShowTemplateModal(false);
         }
-      } catch (apiError) {
-        // API hiba esetén helyben mentsük el
-        debugLog('saveTemplate', 'API error, saving locally', { error: apiError });
-        setTemplates([...templates, {
-          _id: Date.now().toString(),
-          ...templateData
-        }]);
       }
-      
-      setSuccess('Sablon sikeresen mentve!');
-      setShowTemplateModal(false);
       setTimeout(() => setSuccess(null), 3000);
     } catch (error) {
       debugLog('saveTemplate', 'Error saving template', { error });
       setError('Hiba történt a sablon mentése során: ' + error.message);
+      
+      // Offline mentés
+      setTemplates([...templates, {
+        _id: Date.now().toString(),
+        ...templateData
+      }]);
+      setSuccess('Sablon lokálisan mentve. (Hiba a szerverrel való kommunikációban)');
+      setShowTemplateModal(false);
+      setTimeout(() => setSuccess(null), 3000);
     }
   };
 
@@ -214,35 +209,34 @@ const TranslationTool = () => {
     debugLog('deleteTemplate', 'Deleting template', { templateId });
 
     try {
-      // Itt használnánk az API-t ha már implementálva lenne
-      try {
-        const response = await fetch(`${API_URL}/translation/templates/${templateId}`, {
-          method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-API-Key': API_KEY
-          }
-        });
-        
-        if (response.ok) {
-          setTemplates(templates.filter(t => t._id !== templateId));
-          debugLog('deleteTemplate', 'Template deleted via API');
-        } else {
-          // API végpont még nem elérhető, helyben töröljük
-          debugLog('deleteTemplate', 'API endpoint not available, deleting locally');
-          setTemplates(templates.filter(t => t._id !== templateId));
-        }
-      } catch (apiError) {
-        // API hiba esetén helyben töröljük
-        debugLog('deleteTemplate', 'API error, deleting locally', { error: apiError });
-        setTemplates(templates.filter(t => t._id !== templateId));
-      }
+      // Az API szolgáltatást használjuk az autentikációhoz
+      const response = await api.delete(`${API_URL}/translation/templates/${templateId}`);
       
-      setSuccess('Sablon sikeresen törölve!');
+      if (response.ok) {
+        setTemplates(templates.filter(t => t._id !== templateId));
+        debugLog('deleteTemplate', 'Template deleted via API');
+        setSuccess('Sablon sikeresen törölve!');
+      } else {
+        // Ha 401-es hibát kapunk, akkor autentikációs hiba van
+        if (response.status === 401) {
+          debugLog('deleteTemplate', 'Authentication error', { status: response.status });
+          setError('Nincs megfelelő jogosultsága a sablonok törléséhez. Kérjük, jelentkezzen be újra.');
+        } else {
+          debugLog('deleteTemplate', 'API error', { status: response.status });
+          // API hiba esetén helyben töröljük
+          setTemplates(templates.filter(t => t._id !== templateId));
+          setSuccess('Sablon lokálisan törölve. (API kapcsolat nem elérhető)');
+        }
+      }
       setTimeout(() => setSuccess(null), 3000);
     } catch (error) {
       debugLog('deleteTemplate', 'Error deleting template', { error });
       setError('Hiba történt a sablon törlése során: ' + error.message);
+      
+      // Offline törlés
+      setTemplates(templates.filter(t => t._id !== templateId));
+      setSuccess('Sablon lokálisan törölve. (Hiba a szerverrel való kommunikációban)');
+      setTimeout(() => setSuccess(null), 3000);
     }
   };
 
