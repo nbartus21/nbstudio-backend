@@ -1,6 +1,7 @@
 import express from 'express';
 import Project from '../models/Project.js';
 import { v4 as uuidv4 } from 'uuid';
+import Notification from '../models/Notification.js';
 
 const router = express.Router();
 
@@ -343,12 +344,12 @@ router.get('/projects/:id/share', async (req, res) => {
   }
 });
 
-// Adicionar arquivo ao projeto
+// ÚJ: Fájl hozzáadása projekthez
 router.post('/projects/:id/files', async (req, res) => {
   try {
     const project = await Project.findById(req.params.id);
     if (!project) {
-      return res.status(404).json({ message: 'Projeto não encontrado' });
+      return res.status(404).json({ message: 'Projekt nem található' });
     }
     
     const fileData = req.body;
@@ -356,35 +357,79 @@ router.post('/projects/:id/files', async (req, res) => {
       project.files = [];
     }
     
-    project.files.push(fileData);
+    // Fájl hozzáadása
+    project.files.push({
+      ...fileData,
+      uploadedAt: new Date()
+    });
+    
+    // Frissítjük a fájl számlálókat
+    project.activityCounters.filesCount = project.files.length;
+    project.activityCounters.hasNewFiles = true;
+    project.activityCounters.lastFileAt = new Date();
+    
+    // Értesítés küldése az adminnak, ha ügyfél töltötte fel
+    if (fileData.uploadedBy !== 'Admin') {
+      await Notification.create({
+        userId: process.env.ADMIN_EMAIL || 'admin@example.com',
+        type: 'project',
+        title: 'Új fájl feltöltve',
+        message: `Új fájl (${fileData.name}) lett feltöltve a "${project.name}" projekthez.`,
+        severity: 'info',
+        link: `/projects/${project._id}`
+      });
+    }
+    
     await project.save();
     
     res.status(201).json(project);
   } catch (error) {
+    console.error('Hiba a fájl feltöltésekor:', error);
     res.status(500).json({ message: error.message });
   }
 });
 
-// Obter arquivos do projeto
+// ÚJ: Fájlok lekérése projekthez
 router.get('/projects/:id/files', async (req, res) => {
   try {
     const project = await Project.findById(req.params.id);
     if (!project) {
-      return res.status(404).json({ message: 'Projeto não encontrado' });
+      return res.status(404).json({ message: 'Projekt nem található' });
     }
     
     res.json(project.files || []);
   } catch (error) {
+    console.error('Hiba a fájlok lekérésekor:', error);
     res.status(500).json({ message: error.message });
   }
 });
 
-// Adicionar comentário
+// ÚJ: Fájl állapot frissítése (látott/olvasott)
+router.put('/projects/:id/files/reset-counters', async (req, res) => {
+  try {
+    const project = await Project.findById(req.params.id);
+    if (!project) {
+      return res.status(404).json({ message: 'Projekt nem található' });
+    }
+    
+    // Az admin jelezte, hogy látta az új fájlokat
+    project.activityCounters.hasNewFiles = false;
+    
+    await project.save();
+    
+    res.json({ message: 'Fájl számlálók sikeresen visszaállítva', project });
+  } catch (error) {
+    console.error('Hiba a fájl számlálók visszaállításakor:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// ÚJ: Hozzászólás hozzáadása projekthez
 router.post('/projects/:id/comments', async (req, res) => {
   try {
     const project = await Project.findById(req.params.id);
     if (!project) {
-      return res.status(404).json({ message: 'Projeto não encontrado' });
+      return res.status(404).json({ message: 'Projekt nem található' });
     }
     
     const commentData = req.body;
@@ -392,25 +437,115 @@ router.post('/projects/:id/comments', async (req, res) => {
       project.comments = [];
     }
     
-    project.comments.push(commentData);
+    // Hozzászólás hozzáadása
+    const newComment = {
+      ...commentData,
+      timestamp: new Date()
+    };
+    
+    project.comments.push(newComment);
+    
+    // Frissítjük a hozzászólás számlálókat
+    project.activityCounters.commentsCount = project.comments.length;
+    project.activityCounters.lastCommentAt = new Date();
+    
+    // Ha admin hozzászólás, akkor frissítjük az admin válasz időpontját és jelezzük, hogy nincs szükség válaszra
+    if (commentData.isAdminComment) {
+      project.activityCounters.lastAdminCommentAt = new Date();
+      project.activityCounters.adminResponseRequired = false;
+    } else {
+      // Ha ügyfél hozzászólás, akkor jelezzük, hogy adminisztrátori válasz szükséges
+      project.activityCounters.adminResponseRequired = true;
+      project.activityCounters.hasNewComments = true;
+      
+      // Értesítés küldése az adminnak
+      await Notification.create({
+        userId: process.env.ADMIN_EMAIL || 'admin@example.com',
+        type: 'project',
+        title: 'Új hozzászólás érkezett',
+        message: `Új hozzászólás érkezett a "${project.name}" projekthez: "${commentData.text.substring(0, 50)}${commentData.text.length > 50 ? '...' : ''}"`,
+        severity: 'info',
+        link: `/projects/${project._id}`
+      });
+    }
+    
     await project.save();
     
     res.status(201).json(project);
   } catch (error) {
+    console.error('Hiba a hozzászólás hozzáadásakor:', error);
     res.status(500).json({ message: error.message });
   }
 });
 
-// Obter comentários do projeto
+// ÚJ: Hozzászólások lekérése projekthez
 router.get('/projects/:id/comments', async (req, res) => {
   try {
     const project = await Project.findById(req.params.id);
     if (!project) {
-      return res.status(404).json({ message: 'Projeto não encontrado' });
+      return res.status(404).json({ message: 'Projekt nem található' });
     }
     
     res.json(project.comments || []);
   } catch (error) {
+    console.error('Hiba a hozzászólások lekérésekor:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// ÚJ: Hozzászólás állapot frissítése (látott/olvasott)
+router.put('/projects/:id/comments/reset-counters', async (req, res) => {
+  try {
+    const project = await Project.findById(req.params.id);
+    if (!project) {
+      return res.status(404).json({ message: 'Projekt nem található' });
+    }
+    
+    // Az admin jelezte, hogy látta az új hozzászólásokat
+    project.activityCounters.hasNewComments = false;
+    
+    await project.save();
+    
+    res.json({ message: 'Hozzászólás számlálók sikeresen visszaállítva', project });
+  } catch (error) {
+    console.error('Hiba a hozzászólás számlálók visszaállításakor:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// ÚJ: Projekt aktivitások lekérése
+router.get('/projects/:id/activity', async (req, res) => {
+  try {
+    const project = await Project.findById(req.params.id);
+    if (!project) {
+      return res.status(404).json({ message: 'Projekt nem található' });
+    }
+    
+    // Összegyűjtjük az összes aktivitást (fájlok és hozzászólások) időrendben
+    const activities = [
+      ...project.files.map(file => ({
+        type: 'file',
+        data: file,
+        timestamp: new Date(file.uploadedAt),
+        user: file.uploadedBy
+      })),
+      ...project.comments.map(comment => ({
+        type: 'comment',
+        data: comment,
+        timestamp: new Date(comment.timestamp),
+        user: comment.author,
+        isAdmin: comment.isAdminComment
+      }))
+    ].sort((a, b) => b.timestamp - a.timestamp);
+    
+    res.json({
+      activities,
+      counters: project.activityCounters,
+      hasUnreadActivity: project.activityCounters.hasNewComments || project.activityCounters.hasNewFiles,
+      needsAdminResponse: project.activityCounters.adminResponseRequired
+    });
+  } catch (error) {
+    console.error('Hiba a projekt aktivitások lekérésekor:', error);
     res.status(500).json({ message: error.message });
   }
 });

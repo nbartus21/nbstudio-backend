@@ -95,22 +95,37 @@ const projectSchema = new mongoose.Schema({
       default: 'általános'
     }
   }],
-//fajlok feltoltese
+// Fájlok feltöltése
 files: [{
   name: String,
   size: Number,
   type: String,
   uploadedAt: { type: Date, default: Date.now },
-  content: String, // Base64 ou URL
+  content: String, // Base64 vagy URL
   uploadedBy: String
 }],
 
-// Comentários
+// Hozzászólások
 comments: [{
   text: String,
   author: String,
-  timestamp: { type: Date, default: Date.now }
+  timestamp: { type: Date, default: Date.now },
+  isAdminComment: { type: Boolean, default: false },
+  replyTo: { type: String } // Válasz esetén a másik komment azonosítója
 }],
+
+  // Aktivitás számlálók
+  activityCounters: {
+    commentsCount: { type: Number, default: 0 },
+    filesCount: { type: Number, default: 0 },
+    hasNewComments: { type: Boolean, default: false },
+    hasNewFiles: { type: Boolean, default: false },
+    lastCommentAt: Date,
+    lastFileAt: Date,
+    lastAdminCommentAt: Date, // Adminisztrátori válasz időpontja
+    adminResponseRequired: { type: Boolean, default: false } // Jelzi, ha adminisztrátori választ igényel
+  },
+
   // Időbélyegek
   startDate: { type: Date, default: Date.now },
   expectedEndDate: Date,
@@ -139,9 +154,53 @@ comments: [{
 // Update timestamp middleware
 projectSchema.pre('save', function(next) {
   this.updatedAt = new Date();
+  
+  // Frissítjük a számlálókat
+  if (this.isModified('comments')) {
+    this.activityCounters.commentsCount = this.comments.length;
+    
+    // Ellenőrizzük, hogy van-e új (nem admin) hozzászólás, amire még nem válaszoltak
+    const nonAdminComments = this.comments.filter(c => !c.isAdminComment);
+    const adminComments = this.comments.filter(c => c.isAdminComment);
+    
+    if (nonAdminComments.length > 0) {
+      const lastNonAdminComment = nonAdminComments.sort((a, b) => 
+        new Date(b.timestamp) - new Date(a.timestamp)
+      )[0];
+      
+      if (adminComments.length > 0) {
+        const lastAdminComment = adminComments.sort((a, b) => 
+          new Date(b.timestamp) - new Date(a.timestamp)
+        )[0];
+        
+        // Ellenőrizzük, hogy az utolsó nem-admin hozzászólás után volt-e admin válasz
+        this.activityCounters.adminResponseRequired = new Date(lastNonAdminComment.timestamp) > new Date(lastAdminComment.timestamp);
+        this.activityCounters.lastAdminCommentAt = lastAdminComment.timestamp;
+      } else {
+        // Ha nincs admin hozzászólás, akkor válasz szükséges
+        this.activityCounters.adminResponseRequired = true;
+      }
+      
+      this.activityCounters.lastCommentAt = lastNonAdminComment.timestamp;
+      this.activityCounters.hasNewComments = true;
+    }
+  }
+  
+  if (this.isModified('files')) {
+    this.activityCounters.filesCount = this.files.length;
+    
+    if (this.files.length > 0) {
+      // Frissítjük az utolsó fájl dátumát
+      const lastFile = this.files.sort((a, b) => 
+        new Date(b.uploadedAt) - new Date(a.uploadedAt)
+      )[0];
+      
+      this.activityCounters.lastFileAt = lastFile.uploadedAt;
+      this.activityCounters.hasNewFiles = true;
+    }
+  }
+  
   next();
 });
-
-
 
 export default mongoose.model('Project', projectSchema);
