@@ -25,6 +25,7 @@ import Post from './models/Post.js';
 import filesRoutes from './routes/files.js';
 import commentsRoutes from './routes/comments.js';
 import monitoringRoutes from './routes/monitoring.js';
+import translationRoutes from './routes/translation.js'; // Import translation routes
 
 dotenv.config();
 
@@ -57,8 +58,6 @@ app.use(cors({
   credentials: true,
   optionsSuccessStatus: 200
 }));
-
-
 
 // Middleware-ek
 app.use(express.json());
@@ -213,7 +212,7 @@ app.use('/api', hostingRoutes);
 app.use('/api', filesRoutes);
 app.use('/api', commentsRoutes);
 app.use('/api', monitoringRoutes); // Monitoring API útvonalak
-
+app.use('/api/translation', translationRoutes); // Add translation routes
 
 // Alap route teszteléshez
 app.get('/', (req, res) => {
@@ -333,19 +332,5 @@ function setupProjectDomain() {
 }
 
 // Frissítsük a megosztási link generálást a projektekben
-
-// Eredeti linkek módosítása a fájl végére került, mert ez a funkció
-// valószínűleg a routes/projects.js fájlban van.
-// Frissítenie kell a routes/projects.js fájlt a következő módosítással:
-/*
-const generateShareLink = (token) => {
-  // Régi:
-  // const shareLink = `http://38.242.208.190:5173/shared-project/${token}`;
-  
-  // Új:
-  const shareLink = `https://project.nb-studio.net/shared-project/${token}`;
-  return shareLink;
-};
-*/
 
 export default app;
