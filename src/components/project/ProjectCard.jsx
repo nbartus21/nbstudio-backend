@@ -10,9 +10,9 @@ const ProjectCard = ({
   onViewDetails, 
   onDelete,
   onReplyToComment,
-  onUploadFile,
   onViewFile,
-  onMarkAsRead
+  onMarkAsRead,
+  onUploadFile // Új prop a fájl feltöltéséhez
 }) => {
   const [showActivityModal, setShowActivityModal] = useState(false);
   const [activeModalTab, setActiveModalTab] = useState('');
@@ -86,7 +86,7 @@ const ProjectCard = ({
           {project.status}
         </span>
         <span className="text-sm text-gray-500">
-          {new Date(project.createdAt).toLocaleDateString()}
+          {project.createdAt ? new Date(project.createdAt).toLocaleDateString() : ''}
         </span>
       </div>
       
@@ -143,7 +143,7 @@ const ProjectCard = ({
             </p>
             <p className="flex items-center text-blue-800">
               <span className="w-20">Lejárat:</span>
-              <span>{new Date(project.sharing.expiresAt).toLocaleDateString()}</span>
+              <span>{project.sharing.expiresAt ? new Date(project.sharing.expiresAt).toLocaleDateString() : 'N/A'}</span>
             </p>
             {project.sharing.isExpired && (
               <p className="text-red-600 font-medium">Lejárt megosztás</p>
@@ -186,15 +186,17 @@ const ProjectCard = ({
       )}
 
       {/* Aktivitás Modal */}
-      <ProjectActivityModal
-        project={project}
-        isOpen={showActivityModal}
-        onClose={() => setShowActivityModal(false)}
-        onSendComment={onReplyToComment}
-        onUploadFile={onUploadFile}
-        onMarkAsRead={onMarkAsRead}
-        initialTab={activeModalTab}
-      />
+      {showActivityModal && (
+        <ProjectActivityModal
+          project={project}
+          isOpen={showActivityModal}
+          onClose={() => setShowActivityModal(false)}
+          onSendComment={onReplyToComment}
+          onUploadFile={onUploadFile} // Átadjuk a függvényt a modálnak
+          onMarkAsRead={onMarkAsRead}
+          initialTab={activeModalTab}
+        />
+      )}
     </div>
   );
 };

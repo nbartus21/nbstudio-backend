@@ -7,9 +7,10 @@ const ProjectActivityModal = ({
   onClose, 
   onSendComment, 
   onUploadFile,
-  onMarkAsRead 
+  onMarkAsRead,
+  initialTab = 'comments'
 }) => {
-  const [activeTab, setActiveTab] = useState('comments');
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [newComment, setNewComment] = useState('');
   const [replyTo, setReplyTo] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
@@ -29,6 +30,8 @@ const ProjectActivityModal = ({
       // Ha admin válasz szükséges, nyissuk meg alapból a hozzászólások fület
       if (project?.activityCounters?.adminResponseRequired) {
         setActiveTab('comments');
+      } else {
+        setActiveTab(initialTab);
       }
     } else {
       setNewComment('');
@@ -36,11 +39,11 @@ const ProjectActivityModal = ({
       setSelectedFile(null);
       setFilePreview(null);
     }
-  }, [isOpen, project, onMarkAsRead]);
+  }, [isOpen, project, onMarkAsRead, initialTab]);
 
   // Hozzászólás küldése
   const handleSendComment = () => {
-    if (!newComment.trim()) return;
+    if (!newComment.trim() || !onSendComment) return;
 
     const commentData = {
       text: newComment,
@@ -75,7 +78,7 @@ const ProjectActivityModal = ({
 
   // Fájl feltöltése
   const handleUploadFile = () => {
-    if (!selectedFile) return;
+    if (!selectedFile || !onUploadFile) return;
 
     const reader = new FileReader();
     reader.onload = (event) => {
@@ -94,6 +97,7 @@ const ProjectActivityModal = ({
     reader.readAsDataURL(selectedFile);
   };
 
+  // Ha a modál nincs megnyitva, ne rendereljünk semmit
   if (!isOpen) return null;
 
   return (
@@ -206,46 +210,48 @@ const ProjectActivityModal = ({
           ) : (
             <div className="space-y-4">
               {/* Fájl feltöltő szekció */}
-              <div className="border rounded-lg p-4 bg-gray-50">
-                <h3 className="font-medium mb-3">Új fájl feltöltése</h3>
-                <div className="flex flex-col space-y-3">
-                  {filePreview && (
-                    <div className="border rounded p-2 bg-white">
-                      {filePreview.startsWith('data:image/') ? (
-                        <img 
-                          src={filePreview} 
-                          alt="Preview" 
-                          className="max-h-40 mx-auto"
-                        />
-                      ) : (
-                        <div className="flex items-center text-gray-700 p-2">
-                          <File className="h-5 w-5 mr-2" />
-                          <span>{selectedFile?.name}</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  
-                  <label className="flex items-center justify-center px-4 py-2 bg-white border border-gray-300 rounded-md cursor-pointer hover:bg-gray-50">
-                    <Paperclip className="h-5 w-5 mr-2 text-gray-500" />
-                    <span>Fájl kiválasztása</span>
-                    <input
-                      type="file"
-                      className="hidden"
-                      onChange={handleFileSelect}
-                    />
-                  </label>
-                  
-                  <button
-                    onClick={handleUploadFile}
-                    disabled={!selectedFile}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center"
-                  >
-                    <Upload className="h-5 w-5 mr-2" />
-                    Feltöltés
-                  </button>
+              {onUploadFile && (
+                <div className="border rounded-lg p-4 bg-gray-50">
+                  <h3 className="font-medium mb-3">Új fájl feltöltése</h3>
+                  <div className="flex flex-col space-y-3">
+                    {filePreview && (
+                      <div className="border rounded p-2 bg-white">
+                        {filePreview.startsWith('data:image/') ? (
+                          <img 
+                            src={filePreview} 
+                            alt="Preview" 
+                            className="max-h-40 mx-auto"
+                          />
+                        ) : (
+                          <div className="flex items-center text-gray-700 p-2">
+                            <File className="h-5 w-5 mr-2" />
+                            <span>{selectedFile?.name}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    
+                    <label className="flex items-center justify-center px-4 py-2 bg-white border border-gray-300 rounded-md cursor-pointer hover:bg-gray-50">
+                      <Paperclip className="h-5 w-5 mr-2 text-gray-500" />
+                      <span>Fájl kiválasztása</span>
+                      <input
+                        type="file"
+                        className="hidden"
+                        onChange={handleFileSelect}
+                      />
+                    </label>
+                    
+                    <button
+                      onClick={handleUploadFile}
+                      disabled={!selectedFile}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center"
+                    >
+                      <Upload className="h-5 w-5 mr-2" />
+                      Feltöltés
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
               
               {/* Fájl lista */}
               {files.length === 0 ? (
@@ -300,7 +306,7 @@ const ProjectActivityModal = ({
         </div>
 
         {/* Lábléc / Input mező (csak a hozzászólások fülnél) */}
-        {activeTab === 'comments' && (
+        {activeTab === 'comments' && onSendComment && (
           <div className="border-t p-4">
             {replyTo && (
               <div className="mb-2 p-2 bg-gray-100 rounded-lg flex justify-between items-center text-sm">
