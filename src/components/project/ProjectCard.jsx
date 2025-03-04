@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { MessageCircle, File, User, Reply, Bell, CheckCircle } from 'lucide-react';
+import ProjectActivityModal from './ProjectActivityModal'; // Módosítsd az elérési utat, ha szükséges
 
 const ProjectCard = ({ 
   project, 
@@ -8,16 +9,13 @@ const ProjectCard = ({
   onNewInvoice, 
   onViewDetails, 
   onDelete,
-  comments = [],
-  files = [],
   onReplyToComment,
+  onUploadFile,
   onViewFile,
   onMarkAsRead
 }) => {
-  const [showComments, setShowComments] = useState(false);
-  const [showFiles, setShowFiles] = useState(false);
-  const [newComment, setNewComment] = useState('');
-  const [replyTo, setReplyTo] = useState(null);
+  const [showActivityModal, setShowActivityModal] = useState(false);
+  const [activeModalTab, setActiveModalTab] = useState('');
 
   // Szöveg rövidítés
   const truncateDescription = (description, maxLength = 140) => {
@@ -36,26 +34,11 @@ const ProjectCard = ({
   // Kommentek és fájlok számlálóinak megjelenítése
   const commentsCount = hasActivityCounters ? project.activityCounters.commentsCount : (project.comments ? project.comments.length : 0);
   const filesCount = hasActivityCounters ? project.activityCounters.filesCount : (project.files ? project.files.length : 0);
-  
-  // Közvetlenül a projektből vesszük a kommenteket és fájlokat, ha rendelkezésre állnak
-  const projectComments = project.comments || comments.filter(comment => comment.projectId === project._id);
-  const projectFiles = project.files || files.filter(file => file.projectId === project._id);
 
-  // Admin válasz küldése
-  const handleSendReply = () => {
-    if (newComment.trim() && replyTo) {
-      onReplyToComment({
-        id: Date.now(),
-        text: newComment,
-        author: 'Admin',
-        timestamp: new Date().toISOString(),
-        projectId: project._id,
-        isAdminComment: true,
-        replyTo: replyTo.id
-      });
-      setNewComment('');
-      setReplyTo(null);
-    }
+  // Modal megnyitása
+  const openModal = (tab) => {
+    setActiveModalTab(tab);
+    setShowActivityModal(true);
   };
 
   // Olvasottnak jelölés
@@ -103,7 +86,7 @@ const ProjectCard = ({
           {project.status}
         </span>
         <span className="text-sm text-gray-500">
-          {project.date}
+          {new Date(project.createdAt).toLocaleDateString()}
         </span>
       </div>
       
@@ -111,7 +94,7 @@ const ProjectCard = ({
       <div className="flex justify-between mb-4">
         <div className="flex space-x-2">
           <button 
-            onClick={() => setShowComments(!showComments)}
+            onClick={() => openModal('comments')}
             className={`flex items-center ${hasNewComments ? 'text-red-600 font-medium' : 'text-gray-600'} hover:text-indigo-600`}
           >
             <MessageCircle className={`h-4 w-4 mr-1 ${hasNewComments ? 'text-red-600' : ''}`} />
@@ -124,7 +107,7 @@ const ProjectCard = ({
             )}
           </button>
           <button 
-            onClick={() => setShowFiles(!showFiles)}
+            onClick={() => openModal('files')}
             className={`flex items-center ${hasNewFiles ? 'text-red-600 font-medium' : 'text-gray-600'} hover:text-indigo-600`}
           >
             <File className={`h-4 w-4 mr-1 ${hasNewFiles ? 'text-red-600' : ''}`} />
@@ -138,109 +121,6 @@ const ProjectCard = ({
           </button>
         </div>
       </div>
-      
-      {/* Hozzászólások szekció */}
-      {showComments && (
-        <div className="mt-4 mb-6 bg-gray-50 p-4 rounded-lg">
-          <h4 className="font-medium mb-3">Hozzászólások</h4>
-          
-          {projectComments.length > 0 ? (
-            <div className="space-y-3 max-h-60 overflow-y-auto">
-              {projectComments.map(comment => (
-                <div key={comment.id || comment._id} className={`p-3 rounded-lg ${comment.isAdminComment ? 'bg-purple-50' : 'bg-white border border-gray-200'}`}>
-                  <div className="flex items-start">
-                    <div className={`h-8 w-8 rounded-full ${comment.isAdminComment ? 'bg-purple-100' : 'bg-green-100'} flex items-center justify-center mr-2`}>
-                      <span className={`font-bold ${comment.isAdminComment ? 'text-purple-800' : 'text-green-800'}`}>
-                        {comment.author && comment.author[0].toUpperCase()}
-                      </span>
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex justify-between items-center">
-                        <span className="font-medium">{comment.author}</span>
-                        <span className="text-xs text-gray-500">{new Date(comment.timestamp).toLocaleDateString()}</span>
-                      </div>
-                      <p className="text-sm mt-1">{comment.text}</p>
-                      
-                      {isAdmin && !comment.isAdminComment && (
-                        <button 
-                          onClick={() => setReplyTo(comment)}
-                          className="mt-1 text-xs text-indigo-600 hover:text-indigo-800 flex items-center"
-                        >
-                          <Reply className="h-3 w-3 mr-1" />
-                          Válasz
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  
-                  {replyTo && (replyTo.id === comment.id || replyTo._id === comment._id) && (
-                    <div className="mt-3 pl-10">
-                      <textarea
-                        value={newComment}
-                        onChange={(e) => setNewComment(e.target.value)}
-                        placeholder="Írja be az admin választ..."
-                        className="w-full p-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-purple-50"
-                        rows={2}
-                      />
-                      <div className="flex justify-end mt-2 space-x-2">
-                        <button 
-                          onClick={() => setReplyTo(null)}
-                          className="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded"
-                        >
-                          Mégse
-                        </button>
-                        <button 
-                          onClick={handleSendReply}
-                          className="text-xs px-2 py-1 bg-purple-600 text-white rounded"
-                          disabled={!newComment.trim()}
-                        >
-                          Válasz küldése
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-center text-gray-500 text-sm py-3">Nincsenek hozzászólások</p>
-          )}
-        </div>
-      )}
-      
-      {/* Fájlok szekció */}
-      {showFiles && (
-        <div className="mt-4 mb-6 bg-gray-50 p-4 rounded-lg">
-          <h4 className="font-medium mb-3">Fájlok</h4>
-          
-          {projectFiles.length > 0 ? (
-            <div className="space-y-2 max-h-60 overflow-y-auto">
-              {projectFiles.map(file => (
-                <div 
-                  key={file.id || file._id}
-                  className="flex items-center p-2 hover:bg-gray-100 rounded cursor-pointer"
-                  onClick={() => onViewFile && onViewFile(file)}
-                >
-                  <File className="h-4 w-4 mr-2 text-gray-500" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">{file.name}</p>
-                    <p className="text-xs text-gray-500">
-                      {new Date(file.uploadedAt).toLocaleDateString()} · 
-                      {file.uploadedBy === 'Admin' ? (
-                        <span className="text-purple-600 ml-1">Admin</span>
-                      ) : (
-                        <span className="text-green-600 ml-1">Ügyfél</span>
-                      )}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-center text-gray-500 text-sm py-3">Nincsenek feltöltött fájlok</p>
-          )}
-        </div>
-      )}
       
       {project.sharing && (
         <div className="mt-4 p-3 bg-blue-50 rounded-lg">
@@ -263,7 +143,7 @@ const ProjectCard = ({
             </p>
             <p className="flex items-center text-blue-800">
               <span className="w-20">Lejárat:</span>
-              <span>{project.sharing.expiryDate}</span>
+              <span>{new Date(project.sharing.expiresAt).toLocaleDateString()}</span>
             </p>
             {project.sharing.isExpired && (
               <p className="text-red-600 font-medium">Lejárt megosztás</p>
@@ -273,7 +153,7 @@ const ProjectCard = ({
       )}
       
       {isAdmin && (
-        <div className="space-y-2">
+        <div className="space-y-2 mt-4">
           <button
             onClick={() => onShare?.(project._id)}
             className={`w-full px-4 py-2 rounded ${
@@ -304,6 +184,17 @@ const ProjectCard = ({
           </button>
         </div>
       )}
+
+      {/* Aktivitás Modal */}
+      <ProjectActivityModal
+        project={project}
+        isOpen={showActivityModal}
+        onClose={() => setShowActivityModal(false)}
+        onSendComment={onReplyToComment}
+        onUploadFile={onUploadFile}
+        onMarkAsRead={onMarkAsRead}
+        initialTab={activeModalTab}
+      />
     </div>
   );
 };
