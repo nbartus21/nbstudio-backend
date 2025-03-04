@@ -26,6 +26,7 @@ import filesRoutes from './routes/files.js';
 import commentsRoutes from './routes/comments.js';
 import monitoringRoutes from './routes/monitoring.js';
 import translationRoutes from './routes/translation.js'; // Import translation routes
+import Note from './models/Note.js';
 
 dotenv.config();
 
