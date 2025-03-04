@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/auth';
-import ProjectCard from './project/ProjectCard'; // Hozzáadott import
 import ProjectFilters from './ProjectFilters';
 import ProjectGrid from './project/ProjectGrid';
 import ProjectList from './project/ProjectList';
@@ -30,10 +29,6 @@ const ProjectManager = () => {
     items: [{ description: '', quantity: 1, unitPrice: 0 }]
   });
 
-  // Nézet típusok: grid, list, accordion
-  const [viewType, setViewType] = useState('grid');
-  const [expandedProjects, setExpandedProjects] = useState({});
-
   // Sikeres művelet üzenet megjelenítése
   const showSuccessMessage = (message) => {
     setSuccessMessage(message);
@@ -48,6 +43,10 @@ const ProjectManager = () => {
     showSuccessMessage('Admin válasz sikeresen hozzáadva');
   };
 
+  // Nézet típusok: grid, list, accordion
+  const [viewType, setViewType] = useState('grid');
+  const [expandedProjects, setExpandedProjects] = useState({});
+
   // Toggle expanded projects in accordion view
   const toggleExpand = (projectId) => {
     setExpandedProjects(prev => ({
@@ -60,119 +59,14 @@ const ProjectManager = () => {
   const fetchProjects = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/api/projects');
+      const response = await api.get(`${API_URL}/projects`);
       const data = await response.json();
       setProjects(data);
+    } catch (error) {
+      console.error('Error fetching projects:', error);
+      setError(error.message);
+    } finally {
       setLoading(false);
-    } catch (error) {
-      console.error('Hiba a projektek betöltésekor:', error);
-      setError('Nem sikerült betölteni a projekteket');
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchProjects();
-  }, []);
-
-  // Hozzászólás küldése
-  const handleSendComment = async (projectId, comment) => {
-    try {
-      const response = await api.post(`/api/projects/${projectId}/comments`, comment);
-      
-      if (response.ok) {
-        const updatedProject = await response.json();
-        
-        // Frissítjük a projekteket
-        setProjects(prevProjects => 
-          prevProjects.map(p => p._id === projectId ? updatedProject : p)
-        );
-
-        showSuccessMessage('Hozzászólás sikeresen elküldve');
-      } else {
-        throw new Error('Hiba a hozzászólás küldésekor');
-      }
-    } catch (error) {
-      console.error('Hiba a hozzászólás küldésekor:', error);
-      setError('Nem sikerült elküldeni a hozzászólást');
-    }
-  };
-
-  // Fájl feltöltése
-  const handleFileUpload = async (projectId, file) => {
-    try {
-      const fileData = {
-        name: file.name,
-        size: file.size,
-        type: file.type,
-        content: file.content, // Base64 vagy URL
-        uploadedBy: 'Admin'
-      };
-      
-      const response = await api.post(`/api/projects/${projectId}/files`, fileData);
-      
-      if (response.ok) {
-        const updatedProject = await response.json();
-        
-        // Frissítjük a projekteket
-        setProjects(prevProjects => 
-          prevProjects.map(p => p._id === projectId ? updatedProject : p)
-        );
-
-        showSuccessMessage('Fájl sikeresen feltöltve');
-      } else {
-        throw new Error('Hiba a fájl feltöltésekor');
-      }
-    } catch (error) {
-      console.error('Hiba a fájl feltöltésekor:', error);
-      setError('Nem sikerült feltölteni a fájlt');
-    }
-  };
-  
-  // Aktivitások olvasottnak jelölése
-  const handleMarkAsRead = async (projectId) => {
-    try {
-      // Két párhuzamos kérés indítása
-      const [commentsResponse, filesResponse] = await Promise.all([
-        api.put(`/api/projects/${projectId}/comments/reset-counters`),
-        api.put(`/api/projects/${projectId}/files/reset-counters`)
-      ]);
-      
-      if (commentsResponse.ok && filesResponse.ok) {
-        // Az egyik válasz tartalmazza a frissített projektet
-        const updatedData = await commentsResponse.json();
-        const updatedProject = updatedData.project || updatedData;
-        
-        // Frissítjük a projekteket
-        setProjects(prevProjects => 
-          prevProjects.map(p => p._id === projectId ? updatedProject : p)
-        );
-
-        showSuccessMessage('Új aktivitások olvasottnak jelölve');
-      } else {
-        throw new Error('Hiba a számlálók visszaállításakor');
-      }
-    } catch (error) {
-      console.error('Hiba a számlálók visszaállításakor:', error);
-      setError('Nem sikerült olvasottnak jelölni az aktivitásokat');
-    }
-  };
-  
-  // Projekt aktivitások lekérése
-  const fetchProjectActivity = async (projectId) => {
-    try {
-      const response = await api.get(`/api/projects/${projectId}/activity`);
-      
-      if (response.ok) {
-        const activityData = await response.json();
-        return activityData;
-      } else {
-        throw new Error('Hiba az aktivitások lekérésekor');
-      }
-    } catch (error) {
-      console.error('Hiba az aktivitások lekérésekor:', error);
-      setError('Nem sikerült lekérni az aktivitásokat');
-      return null;
     }
   };
 
@@ -427,6 +321,11 @@ const ProjectManager = () => {
     setFilteredProjects(filtered);
   };
 
+  // Load initial data
+  useEffect(() => {
+    fetchProjects();
+  }, []);
+
   // Fetch share info for all projects
   useEffect(() => {
     const fetchAllShareInfo = async () => {
@@ -471,7 +370,7 @@ const ProjectManager = () => {
           {error}
         </div>
       )}
-
+      
       {/* Success message */}
       {successMessage && (
         <div className="mb-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded flex items-center">
@@ -629,9 +528,8 @@ const ProjectManager = () => {
           }}
           onViewDetails={setSelectedProject}
           onDelete={handleDelete}
-          onReplyToComment={handleSendComment}
+          onReplyToComment={handleReplyToComment}
           onViewFile={handleViewFile}
-          onMarkAsRead={handleMarkAsRead}
         />
       ) : viewType === 'list' ? (
         <ProjectList 
@@ -644,7 +542,6 @@ const ProjectManager = () => {
           }}
           onViewDetails={setSelectedProject}
           onDelete={handleDelete}
-          onMarkAsRead={handleMarkAsRead}
         />
       ) : (
         <ProjectAccordion 
@@ -659,7 +556,6 @@ const ProjectManager = () => {
           }}
           onViewDetails={setSelectedProject}
           onDelete={handleDelete}
-          onMarkAsRead={handleMarkAsRead}
         />
       )}
 
