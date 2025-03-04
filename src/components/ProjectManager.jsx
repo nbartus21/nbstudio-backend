@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/auth';
+import ProjectCard from './ProjectCard'; // Hozzáadott import
 import ProjectFilters from './ProjectFilters';
 import ProjectGrid from './project/ProjectGrid';
 import ProjectList from './project/ProjectList';
@@ -29,6 +30,10 @@ const ProjectManager = () => {
     items: [{ description: '', quantity: 1, unitPrice: 0 }]
   });
 
+  // Nézet típusok: grid, list, accordion
+  const [viewType, setViewType] = useState('grid');
+  const [expandedProjects, setExpandedProjects] = useState({});
+
   // Sikeres művelet üzenet megjelenítése
   const showSuccessMessage = (message) => {
     setSuccessMessage(message);
@@ -42,10 +47,6 @@ const ProjectManager = () => {
     setProjectComments(prev => [reply, ...prev]);
     showSuccessMessage('Admin válasz sikeresen hozzáadva');
   };
-
-  // Nézet típusok: grid, list, accordion
-  const [viewType, setViewType] = useState('grid');
-  const [expandedProjects, setExpandedProjects] = useState({});
 
   // Toggle expanded projects in accordion view
   const toggleExpand = (projectId) => {
@@ -86,6 +87,8 @@ const ProjectManager = () => {
         setProjects(prevProjects => 
           prevProjects.map(p => p._id === projectId ? updatedProject : p)
         );
+
+        showSuccessMessage('Hozzászólás sikeresen elküldve');
       } else {
         throw new Error('Hiba a hozzászólás küldésekor');
       }
@@ -115,6 +118,8 @@ const ProjectManager = () => {
         setProjects(prevProjects => 
           prevProjects.map(p => p._id === projectId ? updatedProject : p)
         );
+
+        showSuccessMessage('Fájl sikeresen feltöltve');
       } else {
         throw new Error('Hiba a fájl feltöltésekor');
       }
@@ -135,12 +140,15 @@ const ProjectManager = () => {
       
       if (commentsResponse.ok && filesResponse.ok) {
         // Az egyik válasz tartalmazza a frissített projektet
-        const updatedProject = await commentsResponse.json();
+        const updatedData = await commentsResponse.json();
+        const updatedProject = updatedData.project || updatedData;
         
         // Frissítjük a projekteket
         setProjects(prevProjects => 
-          prevProjects.map(p => p._id === projectId ? updatedProject.project : p)
+          prevProjects.map(p => p._id === projectId ? updatedProject : p)
         );
+
+        showSuccessMessage('Új aktivitások olvasottnak jelölve');
       } else {
         throw new Error('Hiba a számlálók visszaállításakor');
       }
@@ -166,24 +174,6 @@ const ProjectManager = () => {
       setError('Nem sikerült lekérni az aktivitásokat');
       return null;
     }
-  };
-
-  // Projektkártya render
-  const renderProjectCard = (project) => {
-    return (
-      <ProjectCard
-        key={project._id}
-        project={project}
-        isAdmin={true}
-        onShare={handleGenerateShareLink}
-        onNewInvoice={handleCreateInvoice}
-        onViewDetails={handleViewDetails}
-        onDelete={handleDeleteProject}
-        onReplyToComment={(comment) => handleSendComment(project._id, comment)}
-        onViewFile={handleViewFile}
-        onMarkAsRead={handleMarkAsRead}
-      />
-    );
   };
 
   // Generate share link
@@ -437,11 +427,6 @@ const ProjectManager = () => {
     setFilteredProjects(filtered);
   };
 
-  // Load initial data
-  useEffect(() => {
-    fetchProjects();
-  }, []);
-
   // Fetch share info for all projects
   useEffect(() => {
     const fetchAllShareInfo = async () => {
@@ -486,19 +471,6 @@ const ProjectManager = () => {
           {error}
         </div>
       )}
-      
-{/* Projektek listázása */}
-<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {loading ? (
-          <p>Betöltés...</p>
-        ) : error ? (
-          <p className="text-red-500">{error}</p>
-        ) : projects.length === 0 ? (
-          <p>Nincsenek projektek</p>
-        ) : (
-          projects.map(renderProjectCard)
-        )}
-      </div>
 
       {/* Success message */}
       {successMessage && (
@@ -657,8 +629,9 @@ const ProjectManager = () => {
           }}
           onViewDetails={setSelectedProject}
           onDelete={handleDelete}
-          onReplyToComment={handleReplyToComment}
+          onReplyToComment={handleSendComment}
           onViewFile={handleViewFile}
+          onMarkAsRead={handleMarkAsRead}
         />
       ) : viewType === 'list' ? (
         <ProjectList 
@@ -671,6 +644,7 @@ const ProjectManager = () => {
           }}
           onViewDetails={setSelectedProject}
           onDelete={handleDelete}
+          onMarkAsRead={handleMarkAsRead}
         />
       ) : (
         <ProjectAccordion 
@@ -685,6 +659,7 @@ const ProjectManager = () => {
           }}
           onViewDetails={setSelectedProject}
           onDelete={handleDelete}
+          onMarkAsRead={handleMarkAsRead}
         />
       )}
 
