@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { MessageCircle, File, User, Reply } from 'lucide-react';
+import { MessageCircle, File, User, Reply, Bell, CheckCircle } from 'lucide-react';
 
 const ProjectCard = ({ 
   project, 
@@ -11,7 +11,8 @@ const ProjectCard = ({
   comments = [],
   files = [],
   onReplyToComment,
-  onViewFile
+  onViewFile,
+  onMarkAsRead
 }) => {
   const [showComments, setShowComments] = useState(false);
   const [showFiles, setShowFiles] = useState(false);
@@ -26,9 +27,19 @@ const ProjectCard = ({
       : description;
   };
 
-  // Projekt-specifikus kommentek és fájlok szűrése
-  const projectComments = comments.filter(comment => comment.projectId === project._id);
-  const projectFiles = files.filter(file => file.projectId === project._id);
+  // Projekt adatok kiegészítése
+  const hasActivityCounters = project.activityCounters !== undefined;
+  const hasNewComments = hasActivityCounters && project.activityCounters.hasNewComments;
+  const hasNewFiles = hasActivityCounters && project.activityCounters.hasNewFiles;
+  const needsAdminResponse = hasActivityCounters && project.activityCounters.adminResponseRequired;
+  
+  // Kommentek és fájlok számlálóinak megjelenítése
+  const commentsCount = hasActivityCounters ? project.activityCounters.commentsCount : (project.comments ? project.comments.length : 0);
+  const filesCount = hasActivityCounters ? project.activityCounters.filesCount : (project.files ? project.files.length : 0);
+  
+  // Közvetlenül a projektből vesszük a kommenteket és fájlokat, ha rendelkezésre állnak
+  const projectComments = project.comments || comments.filter(comment => comment.projectId === project._id);
+  const projectFiles = project.files || files.filter(file => file.projectId === project._id);
 
   // Admin válasz küldése
   const handleSendReply = () => {
@@ -47,9 +58,38 @@ const ProjectCard = ({
     }
   };
 
+  // Olvasottnak jelölés
+  const handleMarkAsRead = (e) => {
+    e.stopPropagation();
+    if (onMarkAsRead) {
+      onMarkAsRead(project._id);
+    }
+  };
+
   return (
     <div className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow">
-      <h3 className="text-lg font-semibold mb-2">{project.name}</h3>
+      <h3 className="text-lg font-semibold mb-2 flex items-center justify-between">
+        <span>{project.name}</span>
+        {(hasNewComments || hasNewFiles || needsAdminResponse) && (
+          <div className="flex gap-1">
+            {needsAdminResponse && (
+              <span className="inline-flex items-center px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs font-medium">
+                Válasz szükséges
+              </span>
+            )}
+            {(hasNewComments || hasNewFiles) && (
+              <button 
+                onClick={handleMarkAsRead}
+                className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium"
+                title="Jelölés olvasottként"
+              >
+                <CheckCircle className="h-3 w-3 mr-1" />
+                Olvasottnak jelölés
+              </button>
+            )}
+          </div>
+        )}
+      </h3>
       <p className="text-gray-600 mb-4 h-20 overflow-hidden">
         {truncateDescription(project.description)}
       </p>
@@ -72,17 +112,29 @@ const ProjectCard = ({
         <div className="flex space-x-2">
           <button 
             onClick={() => setShowComments(!showComments)}
-            className="flex items-center text-gray-600 hover:text-indigo-600"
+            className={`flex items-center ${hasNewComments ? 'text-red-600 font-medium' : 'text-gray-600'} hover:text-indigo-600`}
           >
-            <MessageCircle className="h-4 w-4 mr-1" />
-            <span className="text-sm">{projectComments.length} Hozzászólás</span>
+            <MessageCircle className={`h-4 w-4 mr-1 ${hasNewComments ? 'text-red-600' : ''}`} />
+            <span className="text-sm">{commentsCount} Hozzászólás</span>
+            {hasNewComments && (
+              <span className="ml-1 flex h-2 w-2 relative">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+              </span>
+            )}
           </button>
           <button 
             onClick={() => setShowFiles(!showFiles)}
-            className="flex items-center text-gray-600 hover:text-indigo-600"
+            className={`flex items-center ${hasNewFiles ? 'text-red-600 font-medium' : 'text-gray-600'} hover:text-indigo-600`}
           >
-            <File className="h-4 w-4 mr-1" />
-            <span className="text-sm">{projectFiles.length} Fájl</span>
+            <File className={`h-4 w-4 mr-1 ${hasNewFiles ? 'text-red-600' : ''}`} />
+            <span className="text-sm">{filesCount} Fájl</span>
+            {hasNewFiles && (
+              <span className="ml-1 flex h-2 w-2 relative">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+              </span>
+            )}
           </button>
         </div>
       </div>
@@ -95,7 +147,7 @@ const ProjectCard = ({
           {projectComments.length > 0 ? (
             <div className="space-y-3 max-h-60 overflow-y-auto">
               {projectComments.map(comment => (
-                <div key={comment.id} className={`p-3 rounded-lg ${comment.isAdminComment ? 'bg-purple-50' : 'bg-white border border-gray-200'}`}>
+                <div key={comment.id || comment._id} className={`p-3 rounded-lg ${comment.isAdminComment ? 'bg-purple-50' : 'bg-white border border-gray-200'}`}>
                   <div className="flex items-start">
                     <div className={`h-8 w-8 rounded-full ${comment.isAdminComment ? 'bg-purple-100' : 'bg-green-100'} flex items-center justify-center mr-2`}>
                       <span className={`font-bold ${comment.isAdminComment ? 'text-purple-800' : 'text-green-800'}`}>
@@ -121,7 +173,7 @@ const ProjectCard = ({
                     </div>
                   </div>
                   
-                  {replyTo && replyTo.id === comment.id && (
+                  {replyTo && (replyTo.id === comment.id || replyTo._id === comment._id) && (
                     <div className="mt-3 pl-10">
                       <textarea
                         value={newComment}
@@ -165,7 +217,7 @@ const ProjectCard = ({
             <div className="space-y-2 max-h-60 overflow-y-auto">
               {projectFiles.map(file => (
                 <div 
-                  key={file.id}
+                  key={file.id || file._id}
                   className="flex items-center p-2 hover:bg-gray-100 rounded cursor-pointer"
                   onClick={() => onViewFile && onViewFile(file)}
                 >
