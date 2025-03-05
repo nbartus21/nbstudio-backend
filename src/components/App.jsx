@@ -17,6 +17,7 @@ import AccountingManager from './AccountingManager';
 import HostingManager from './HostingManager';
 import ServerMonitoring from './ServerMonitoring';
 import TranslationTool from './TranslationTool'; // Új komponens importálása
+import SupportTicketManager from './SupportTicketManager';
 
 const App = () => {
   const PrivateRoute = ({ children }) => {
