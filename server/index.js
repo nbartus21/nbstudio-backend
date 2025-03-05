@@ -3,8 +3,9 @@ import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import https from 'https';
-import http from 'http';  // Új import a proxy-hoz
+import http from 'http';  // Proxy és Socket.IO-hoz is szükséges
 import fs from 'fs';
+import { Server } from 'socket.io';  // Socket.IO importálása
 import Contact from './models/Contact.js';
 import Hosting from './models/Hosting.js';
 import HostingNotification from './models/HostingNotification.js';
@@ -25,7 +26,8 @@ import Post from './models/Post.js';
 import filesRoutes from './routes/files.js';
 import commentsRoutes from './routes/comments.js';
 import monitoringRoutes from './routes/monitoring.js';
-import translationRoutes from './routes/translation.js'; // Import translation routes
+import translationRoutes from './routes/translation.js';
+import supportTicketRouter, { setupEmailEndpoint, initializeSocketIO } from './routes/supportTickets.js'; // Support ticket router importálása
 import Note from './models/Note.js';
 
 dotenv.config();
@@ -33,6 +35,49 @@ dotenv.config();
 const app = express();
 const host = process.env.HOST || '0.0.0.0';
 const port = process.env.PORT || 5001;
+
+// HTTP szerver létrehozása Express app-ból Socket.IO-hoz
+const server = http.createServer(app);
+
+// Socket.IO inicializálása
+const io = new Server(server, {
+  cors: {
+    origin: [
+      'https://admin.nb-studio.net',
+      'https://nb-studio.net',
+      'https://www.nb-studio.net',
+      'https://project.nb-studio.net',
+      'http://38.242.208.190:5173',
+      'http://localhost:5173'
+    ],
+    methods: ['GET', 'POST'],
+    credentials: true
+  }
+});
+
+// Socket.IO kapcsolatok kezelése
+io.on('connection', (socket) => {
+  console.log('Kliens csatlakozott a Socket.IO-hoz:', socket.id);
+  
+  // Csatlakozás egy ticket-specifikus szobához
+  socket.on('joinTicket', (ticketId) => {
+    console.log(`${socket.id} csatlakozott a ticket_${ticketId} szobához`);
+    socket.join(`ticket_${ticketId}`);
+  });
+  
+  // Szoba elhagyása
+  socket.on('leaveTicket', (ticketId) => {
+    console.log(`${socket.id} elhagyta a ticket_${ticketId} szobát`);
+    socket.leave(`ticket_${ticketId}`);
+  });
+  
+  socket.on('disconnect', () => {
+    console.log('Kliens lecsatlakozott:', socket.id);
+  });
+});
+
+// Inicializáljuk a Socket.IO-t a supportTickets routerben
+initializeSocketIO(io);
 
 // SSL beállítások
 const options = {
@@ -198,6 +243,9 @@ app.use('/api/public/projects', validateApiKey, projectRoutes);
 // Auth routes
 app.use('/api/auth', authRoutes);
 
+// Email webhook végpont beállítása - ez nincs auth middleware mögött!
+setupEmailEndpoint(app);
+
 // VÉDETT VÉGPONTOK
 app.use('/api', authMiddleware);
 app.use('/api', postRoutes);
@@ -213,7 +261,8 @@ app.use('/api', hostingRoutes);
 app.use('/api', filesRoutes);
 app.use('/api', commentsRoutes);
 app.use('/api', monitoringRoutes); // Monitoring API útvonalak
-app.use('/api/translation', translationRoutes); // Add translation routes
+app.use('/api/translation', translationRoutes); // Translation routes
+app.use('/api/support', supportTicketRouter); // Support ticket API végpontok hozzáadása
 
 // Alap route teszteléshez
 app.get('/', (req, res) => {
@@ -230,9 +279,15 @@ app.use((err, req, res, next) => {
 mongoose.connect(process.env.MONGO_URI)
   .then(() => {
     console.log('Connected to MongoDB');
-    // API szerver indítása
+    
+    // API szerver indítása HTTPS-sel
     https.createServer(options, app).listen(port, host, () => {
       console.log(`API Server running on https://${host}:${port}`);
+    });
+    
+    // Socket.IO szerver indítása (HTTP szerveren) - ugyanazon a porton
+    server.listen(port + 1, host, () => {
+      console.log(`Socket.IO server running on http://${host}:${port + 1}`);
     });
     
     // Project domain kezelése
@@ -317,7 +372,7 @@ function setupProjectDomain() {
   
   // Project szerver indítása a 443-as porton
   try {
-    // A port 3000-re állítjuk, hogy ne ütközzön a meglévő szerverrel
+    // A port 5555-re állítjuk, hogy ne ütközzön a meglévő szerverrel
     // Az iptables fogja átirányítani a 443-as port forgalmát
     const projectPort = 5555;
     
@@ -325,13 +380,11 @@ function setupProjectDomain() {
       console.log(`Project server running on https://${host}:${projectPort}`);
       console.log('NOTE: Make sure to set up iptables rule to forward traffic from port 443 to 3000 for project.nb-studio.net');
       console.log('Example command:');
-      console.log('iptables -t nat -A PREROUTING -p tcp -d project.nb-studio.net --dport 443 -j REDIRECT --to-port 3000');
+      console.log('iptables -t nat -A PREROUTING -p tcp -d project.nb-studio.net --dport 443 -j REDIRECT --to-port 5555');
     });
   } catch (error) {
     console.error('Failed to start project server:', error);
   }
 }
-
-// Frissítsük a megosztási link generálást a projektekben
 
 export default app;
