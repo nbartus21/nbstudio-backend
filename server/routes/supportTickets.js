@@ -464,10 +464,10 @@ export function setupEmailEndpoint(app) {
         };
         
         await transporter.sendMail(mailOptions);
-      } catch (emailError) {
-        console.error('Hiba az automatikus válasz küldésekor:', emailError);
-        // Nem szakítjuk meg a folyamatot, ha az email küldés sikertelen
-      }
+    } catch (emailError) {
+      console.log('Email küldési hiba, de folytatjuk:', emailError.message);
+      // Folytatás hibák ellenére
+    }
       
       return res.status(201).json({ 
         success: true, 
