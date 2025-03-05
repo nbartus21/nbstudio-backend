@@ -117,17 +117,22 @@ router.post('/tickets', async (req, res) => {
     const savedTicket = await ticket.save();
     
     // Értesítés létrehozása
-    const notification = new Notification({
-      userId: process.env.ADMIN_EMAIL || 'admin@example.com',
-      type: 'ticket',
-      title: 'Új ticket létrehozva',
-      message: `Új ticket: ${ticket.subject}`,
-      severity: ticket.priority === 'urgent' ? 'error' : 
-               ticket.priority === 'high' ? 'warning' : 'info',
-      link: `/support/tickets/${savedTicket._id}`
-    });
-    
-    await notification.save();
+    try {
+      const notification = new Notification({
+        userId: process.env.ADMIN_EMAIL || 'admin@example.com',
+        type: 'ticket',
+        title: 'Új ticket létrehozva',
+        message: `Új ticket: ${ticket.subject}`,
+        severity: ticket.priority === 'urgent' ? 'error' : 
+                 ticket.priority === 'high' ? 'warning' : 'info',
+        link: `/support/tickets/${savedTicket._id}`
+      });
+      
+      await notification.save();
+      console.log('Értesítés elmentve új ticketről');
+    } catch (notificationError) {
+      console.error('Hiba az értesítés létrehozásakor, de folytatjuk:', notificationError.message);
+    }
     
     res.status(201).json(savedTicket);
   } catch (error) {
@@ -228,7 +233,14 @@ router.post('/tickets/:id/responses', async (req, res) => {
         } : {})
       };
       
-      await transporter.sendMail(mailOptions);
+      // Email küldést try-catch blokkba tesszük
+      try {
+        await transporter.sendMail(mailOptions);
+        console.log('Email sikeresen elküldve válaszként');
+      } catch (emailError) {
+        console.error('Hiba az email válasz küldésekor, de folytatjuk:', emailError.message);
+        // Folytatjuk a kódot hiba esetén is
+      }
     }
     
     await ticket.save();
@@ -353,17 +365,21 @@ export function setupEmailEndpoint(app) {
         await ticket.save();
         
         // Értesítés küldése
-        const notification = new Notification({
-          userId: process.env.ADMIN_EMAIL || 'admin@example.com',
-          type: 'ticket',
-          title: 'Új válasz egy ticketre',
-          message: `Ticket #${ticket._id.toString().slice(-6)}: Új válasz érkezett.`,
-          severity: ticket.priority === 'urgent' ? 'error' : 
-                  ticket.priority === 'high' ? 'warning' : 'info',
-          link: `/support/tickets/${ticket._id}`
-        });
-        
-        await notification.save();
+        try {
+          const notification = new Notification({
+            userId: process.env.ADMIN_EMAIL || 'admin@example.com',
+            type: 'ticket',
+            title: 'Új válasz egy ticketre',
+            message: `Ticket #${ticket._id.toString().slice(-6)}: Új válasz érkezett.`,
+            severity: ticket.priority === 'urgent' ? 'error' : 
+                    ticket.priority === 'high' ? 'warning' : 'info',
+            link: `/support/tickets/${ticket._id}`
+          });
+          
+          await notification.save();
+        } catch (notificationError) {
+          console.error('Hiba az értesítés létrehozásakor:', notificationError.message);
+        }
         
         // Socket.IO értesítés ha van új üzenet
         if (io) {
@@ -424,16 +440,20 @@ export function setupEmailEndpoint(app) {
       await newTicket.save();
       
       // Értesítés küldése
-      const notification = new Notification({
-        userId: process.env.ADMIN_EMAIL || 'admin@example.com',
-        type: 'ticket',
-        title: 'Új support ticket',
-        message: `Új ticket: ${subject || 'No Subject'}`,
-        severity: 'info',
-        link: `/support/tickets/${newTicket._id}`
-      });
-      
-      await notification.save();
+      try {
+        const notification = new Notification({
+          userId: process.env.ADMIN_EMAIL || 'admin@example.com',
+          type: 'ticket',
+          title: 'Új support ticket',
+          message: `Új ticket: ${subject || 'No Subject'}`,
+          severity: 'info',
+          link: `/support/tickets/${newTicket._id}`
+        });
+        
+        await notification.save();
+      } catch (notificationError) {
+        console.error('Hiba az értesítés létrehozásakor:', notificationError.message);
+      }
       
       // Socket.IO értesítés ha van új ticket
       if (io) {
@@ -464,10 +484,10 @@ export function setupEmailEndpoint(app) {
         };
         
         await transporter.sendMail(mailOptions);
-    } catch (emailError) {
-      console.log('Email küldési hiba, de folytatjuk:', emailError.message);
-      // Folytatás hibák ellenére
-    }
+      } catch (emailError) {
+        console.log('Email küldési hiba, de folytatjuk:', emailError.message);
+        // Folytatás hibák ellenére
+      }
       
       return res.status(201).json({ 
         success: true, 
