@@ -4,7 +4,7 @@ import {
   Bell, LogOut, Menu, X, ChevronDown, Settings, Search, 
   User, HelpCircle, Home, Calendar, BookOpen, Globe, 
   Server, Database, Calculator, Mail, FileText, Clock,
-  DollarSign, PlusCircle, Languages
+  DollarSign, PlusCircle, Languages, MessageCircle
 } from 'lucide-react';
 import NotificationsManager from './NotificationsManager';
 
