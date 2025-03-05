@@ -27,8 +27,6 @@ import commentsRoutes from './routes/comments.js';
 import monitoringRoutes from './routes/monitoring.js';
 import translationRoutes from './routes/translation.js'; // Import translation routes
 import Note from './models/Note.js';
-import { Server } from 'socket.io';
-import supportTicketRouter, { setupEmailEndpoint, initializeSocketIO } from './routes/supportTickets.js';
 
 dotenv.config();
 
@@ -233,47 +231,7 @@ mongoose.connect(process.env.MONGO_URI)
   .then(() => {
     console.log('Connected to MongoDB');
     // API szerver indítása
-    const server = http.createServer(app);
-    const io = new Server(server, {
-      cors: {
-        origin: ["https://admin.nb-studio.net", "http://38.242.208.190:5173", "http://localhost:5173"],
-        methods: ["GET", "POST"],
-        credentials: true
-      }
-    });
-
-    // Socket.IO kapcsolatok kezelése
-    io.on('connection', (socket) => {
-      console.log('Kliens csatlakozott:', socket.id);
-      
-      // Csatlakozás egy ticket-specifikus szobához
-      socket.on('joinTicket', (ticketId) => {
-        console.log(`${socket.id} csatlakozott a ticket_${ticketId} szobához`);
-        socket.join(`ticket_${ticketId}`);
-      });
-      
-      // Szoba elhagyása
-      socket.on('leaveTicket', (ticketId) => {
-        console.log(`${socket.id} elhagyta a ticket_${ticketId} szobát`);
-        socket.leave(`ticket_${ticketId}`);
-      });
-      
-      socket.on('disconnect', () => {
-        console.log('Kliens lecsatlakozott:', socket.id);
-      });
-    });
-
-    // Inicializáljuk a Socket.IO-t a supportTickets routerben
-    initializeSocketIO(io);
-
-    // API routes - Meglévő route-ok után add hozzá:
-    app.use('/api/support', supportTicketRouter);
-
-    // Email webhook végpont beállítása - ez nincs auth middleware mögött!
-    setupEmailEndpoint(app);
-
-    // A régi app.listen helyett:
-    server.listen(port, host, () => {
+    https.createServer(options, app).listen(port, host, () => {
       console.log(`API Server running on https://${host}:${port}`);
     });
     
