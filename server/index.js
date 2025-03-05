@@ -16,7 +16,7 @@ import projectRoutes from './routes/projects.js';
 import domainRoutes from './routes/domains.js';
 import serverRoutes from './routes/servers.js';
 import licenseRoutes from './routes/licenses.js';
-import authMiddleware, { apiKeyMiddleware } from './middleware/auth.js';
+import authMiddleware from './middleware/auth.js';
 import authRoutes from './routes/auth.js';
 import notificationRoutes from './routes/notifications.js';
 import Calculator from './models/Calculator.js';
@@ -56,6 +56,35 @@ const io = new Server(httpServer, {
     credentials: true
   }
 });
+
+// API Key validation middleware
+const validateApiKey = (req, res, next) => {
+  // Tároljuk az API kulcsot egy változóban, hogy konzisztens legyen
+  const apiKey = process.env.PUBLIC_API_KEY;
+  const receivedApiKey = req.headers['x-api-key'];
+  
+  console.log('API Key ellenőrzés:');
+  console.log('Beállított API kulcs:', apiKey ? 'Beállítva' : 'Nincs beállítva');
+  console.log('Kapott API kulcs:', receivedApiKey ? 'Kapott' : 'Nincs megadva');
+  
+  if (!apiKey) {
+    console.error('PUBLIC_API_KEY nincs beállítva a környezeti változókban!');
+    return res.status(500).json({ message: 'Szerver konfigurációs hiba' });
+  }
+  
+  if (!receivedApiKey) {
+    console.error('Nem érkezett API kulcs a kérésben');
+    return res.status(401).json({ message: 'API kulcs megadása kötelező' });
+  }
+
+  if (receivedApiKey === apiKey) {
+    console.log('API kulcs ellenőrzés sikeres');
+    next();
+  } else {
+    console.error('API kulcs ellenőrzés sikertelen');
+    res.status(401).json({ message: 'Érvénytelen API kulcs' });
+  }
+};
 
 // Pass Socket.IO to the support ticket router
 initializeSocketIO(io);
@@ -108,7 +137,7 @@ app.use(cors(corsOptions));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// Use the imported apiKeyMiddleware instead of defining it inline
+// Use the imported validateApiKey instead of defining it inline
 
 // Debug middleware (only in development)
 if (process.env.NODE_ENV !== 'production') {
@@ -122,7 +151,7 @@ if (process.env.NODE_ENV !== 'production') {
 const publicRouter = express.Router();
 
 // Contact form endpoint
-publicRouter.post('/contact', apiKeyMiddleware, async (req, res) => {
+publicRouter.post('/contact', validateApiKey, async (req, res) => {
   try {
     const { name, email, subject, message } = req.body;
     
@@ -155,7 +184,7 @@ publicRouter.post('/contact', apiKeyMiddleware, async (req, res) => {
 });
 
 // Calculator endpoint
-publicRouter.post('/calculators', apiKeyMiddleware, async (req, res) => {
+publicRouter.post('/calculators', validateApiKey, async (req, res) => {
   try {
     const calculator = new Calculator(req.body);
     await calculator.save();
@@ -173,7 +202,7 @@ publicRouter.post('/calculators', apiKeyMiddleware, async (req, res) => {
 });
 
 // Hosting order endpoint
-publicRouter.post('/hosting/orders', apiKeyMiddleware, async (req, res) => {
+publicRouter.post('/hosting/orders', validateApiKey, async (req, res) => {
   try {
     const order = new Hosting(req.body);
     await order.save();
@@ -217,7 +246,7 @@ app.get('/api/posts', async (req, res) => {
 });
 
 // Public project endpoints
-app.use('/api/public/projects', apiKeyMiddleware, projectRoutes);
+app.use('/api/public/projects', validateApiKey, projectRoutes);
 
 // Setup email webhook for support tickets
 setupEmailEndpoint(app);
