@@ -17,7 +17,6 @@ import AccountingManager from './AccountingManager';
 import HostingManager from './HostingManager';
 import ServerMonitoring from './ServerMonitoring';
 import TranslationTool from './TranslationTool'; // Új komponens importálása
-import SupportTicketManager from './SupportTicketManager';
 
 const App = () => {
   const PrivateRoute = ({ children }) => {
@@ -152,14 +151,6 @@ const App = () => {
           </PrivateRoute>
         }
       />
-      <Route
-  path="/support"
-  element={
-    <PrivateRoute>
-      <SupportTicketManager />
-    </PrivateRoute>
-  }
-/>
       <Route path="*" element={<Navigate to="/magic-login" />} />
       <Route path="/shared-project/:token" element={<SharedProjectView />} />
     </Routes>
