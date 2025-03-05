@@ -19,6 +19,13 @@ import ServerMonitoring from './ServerMonitoring';
 import TranslationTool from './TranslationTool'; // Új komponens importálása
 import SupportTicketManager from './SupportTicketManager';
 
+import { 
+  Bell, LogOut, Menu, X, ChevronDown, Settings, Search, 
+  User, HelpCircle, Home, Calendar, BookOpen, Globe, 
+  Server, Database, Calculator, Mail, FileText, Clock,
+  DollarSign, PlusCircle, Languages, MessageCircle
+} from 'lucide-react';
+
 const App = () => {
  const PrivateRoute = ({ children }) => {
    const isAuthenticated = sessionStorage.getItem('isAuthenticated') === 'true';
