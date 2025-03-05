@@ -83,11 +83,18 @@ const ProjectManager = () => {
       if (response.ok) {
         const updatedProject = await response.json();
         
-        // Frissítjük a projekteket
+        // Update projects with the newest data from backend
         setProjects(prevProjects => 
           prevProjects.map(p => p._id === projectId ? updatedProject : p)
         );
-
+  
+        // Also update projectComments state to immediately reflect in UI
+        setProjectComments(prevComments => [
+          // Add the new comment with projectId reference
+          { ...comment, projectId, timestamp: new Date().toISOString() },
+          ...prevComments
+        ]);
+  
         showSuccessMessage('Hozzászólás sikeresen elküldve');
       } else {
         throw new Error('Hiba a hozzászólás küldésekor');
@@ -105,7 +112,7 @@ const ProjectManager = () => {
         name: file.name,
         size: file.size,
         type: file.type,
-        content: file.content, // Base64 vagy URL
+        content: file.content, // Base64 format
         uploadedBy: 'Admin'
       };
       
@@ -114,11 +121,14 @@ const ProjectManager = () => {
       if (response.ok) {
         const updatedProject = await response.json();
         
-        // Frissítjük a projekteket
+        // Update projects with the newest data
         setProjects(prevProjects => 
           prevProjects.map(p => p._id === projectId ? updatedProject : p)
         );
-
+  
+        // Also update project files state if needed
+        setProjectFiles(prevFiles => [...prevFiles, { ...fileData, projectId }]);
+  
         showSuccessMessage('Fájl sikeresen feltöltve');
       } else {
         throw new Error('Hiba a fájl feltöltésekor');
@@ -618,21 +628,22 @@ const ProjectManager = () => {
       {/* Project views based on selected view type */}
       {viewType === 'grid' ? (
         <ProjectGrid 
-          projects={filteredProjects}
-          activeShares={activeShares}
-          comments={projectComments}
-          files={projectFiles}
-          onShare={setShowShareModal}
-          onNewInvoice={(project) => {
-            setSelectedProject(project);
-            setShowNewInvoiceForm(true);
-          }}
-          onViewDetails={setSelectedProject}
-          onDelete={handleDelete}
-          onReplyToComment={handleSendComment}
-          onViewFile={handleViewFile}
-          onMarkAsRead={handleMarkAsRead}
-        />
+  projects={filteredProjects}
+  activeShares={activeShares}
+  comments={projectComments}
+  files={projectFiles}
+  onShare={setShowShareModal}
+  onNewInvoice={(project) => {
+    setSelectedProject(project);
+    setShowNewInvoiceForm(true);
+  }}
+  onViewDetails={setSelectedProject}
+  onDelete={handleDelete}
+  onReplyToComment={handleSendComment}
+  onViewFile={handleViewFile}
+  onMarkAsRead={handleMarkAsRead}
+  onUploadFile={handleFileUpload}  // ADD THIS LINE
+/>
       ) : viewType === 'list' ? (
         <ProjectList 
           projects={filteredProjects}

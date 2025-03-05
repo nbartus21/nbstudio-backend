@@ -123,7 +123,7 @@ const ProjectActivityModal = ({
   // Fájl feltöltése
   const handleUploadFile = () => {
     if (!selectedFile) return;
-
+  
     // Szimuláljuk a feltöltési folyamatot
     setUploadStatus('uploading');
     let progress = 0;
@@ -143,7 +143,20 @@ const ProjectActivityModal = ({
             content: event.target.result, // Base64 formátum
             uploadedBy: 'Admin'
           };
-
+  
+          console.log('Calling onUploadFile with:', { 
+            projectId: project._id, 
+            fileName: fileData.name,
+            fileSize: fileData.size,
+            contentPreview: fileData.content.substring(0, 100) + '...'
+          });
+          
+          if (typeof onUploadFile !== 'function') {
+            console.error('onUploadFile is not a function!', onUploadFile);
+            setUploadStatus('error');
+            return;
+          }
+  
           onUploadFile(project._id, fileData);
           setUploadStatus('success');
           
@@ -159,6 +172,7 @@ const ProjectActivityModal = ({
       }
     }, 50);
   };
+  
 
   // Drag & Drop kezelése
   const handleDrag = (e) => {
