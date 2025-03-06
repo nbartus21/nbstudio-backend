@@ -52,164 +52,74 @@ router.post('/n8n-incoming-email-test', validateApiKey, (req, res) => {
   });
 
 // Email beküldési végpont N8N számára
+// Az eredeti végpontot módosítsd így
 router.post('/n8n-incoming-email', validateApiKey, async (req, res) => {
-  try {
-    console.log('Új bejövő email N8N-től');
-    
-    const { 
-      from, subject, text, html, 
-      to, cc, bcc, 
-      messageId, inReplyTo, references, threadId,
-      attachments
-    } = req.body;
-    
-    // Email cím és név kibontása
-    const fromParts = from.match(/^(?:(.+) )?<?([^>]+)>?$/);
-    const clientName = fromParts ? fromParts[1] || '' : '';
-    const clientEmail = fromParts ? fromParts[2] : from;
-    
-    // Ellenőrizzük, hogy válasz-e egy meglévő ticketre
-    let ticket;
-    
-    if (inReplyTo) {
-      // Keresünk ticket-et a válaszolt email ID alapján
-      ticket = await SupportTicket.findOne({
-        'emailData.messageId': inReplyTo
-      });
-      
-      // Ha nem találunk, próbáljuk a hivatkozások alapján
-      if (!ticket && references && references.length > 0) {
-        ticket = await SupportTicket.findOne({
-          'emailData.messageId': { $in: references }
-        });
-      }
-      
-      // Ha nem találunk és van threadId, próbáljuk a thread ID alapján
-      if (!ticket && threadId) {
-        ticket = await SupportTicket.findOne({
-          'emailData.threadId': threadId
-        });
-      }
-    }
-    
-    // Ha ez válasz egy meglévő ticketre
-    if (ticket) {
-      console.log('Ez válasz egy meglévő ticketre:', ticket._id);
-      
-      // Válasz hozzáadása
-      ticket.responses.push({
-        content: html || text || 'Üres üzenet',
-        from: clientEmail,
-        timestamp: new Date(),
-        isInternal: false,
-        attachments: attachments ? attachments.map(att => ({
-          filename: att.filename,
-          contentType: att.contentType,
-          size: att.size,
-          content: att.content,
-          url: att.url
-        })) : []
-      });
-      
-      // Státusz frissítése closed-ról pending-re, ha az ügyfél válaszol
-      if (ticket.status === 'closed' || ticket.status === 'resolved') {
-        ticket.status = 'pending';
-      }
-      
-      // Olvasatlannak jelölés
-      ticket.isRead = false;
-      ticket.updatedAt = new Date();
-      
-      await ticket.save();
-      
-      // Nem hozunk létre notification-t - elkerüljük a hibát
-      
-      return res.status(200).json({ 
-        success: true, 
-        message: 'Válasz sikeresen hozzáadva a tickethez',
-        ticketId: ticket._id
-      });
-    }
-    
-    // Ha ez új ticket
-    console.log('Új ticket létrehozása N8N-től');
-    
-    const newTicket = new SupportTicket({
-      subject: subject || 'No Subject',
-      content: html || text || 'Empty message',
-      status: 'new',
-      priority: 'medium', // Alapértelmezett
-      client: {
-        name: clientName,
-        email: clientEmail
-      },
-      emailData: {
-        messageId,
-        inReplyTo,
-        references: references || [],
-        threadId,
-        fromAddress: from,
-        toAddress: to,
-        ccAddress: cc || [],
-        bccAddress: bcc || []
-      },
-      source: 'email',
-      attachments: attachments ? attachments.map(att => ({
-        filename: att.filename,
-        contentType: att.contentType,
-        size: att.size,
-        content: att.content,
-        url: att.url
-      })) : []
-    });
-    
-    await newTicket.save();
-    
-    // Nem hozunk létre notification-t - elkerüljük a hibát
-    
-    // Automatikus válasz küldése
     try {
-      const mailOptions = {
-        from: `"NB Studio Support" <${process.env.CONTACT_SMTP_USER}>`,
-        to: clientEmail,
-        subject: `Re: ${subject || 'Your support request'} [#${newTicket._id.toString().slice(-6)}]`,
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2 style="color: #3B82F6;">NB Studio Support</h2>
-            <p>Tisztelt ${clientName || 'Ügyfelünk'}!</p>
-            <p>Köszönjük megkeresését! Ticket-jét rögzítettük rendszerünkben. Kollégáink hamarosan felveszik Önnel a kapcsolatot.</p>
-            <p>Ticket azonosító: #${newTicket._id.toString().slice(-6)}</p>
-            <p style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #eaeaea; font-size: 14px; color: #666;">
-              Ez egy automatikus értesítés. További kérdések esetén egyszerűen válaszoljon erre az e-mailre.
-            </p>
-          </div>
-        `,
-        headers: {
-          'In-Reply-To': messageId,
-          'References': messageId
-        }
-      };
+      console.log('1. Új bejövő email N8N-től - ellenőrzés kezdődik');
       
-      await transporter.sendMail(mailOptions);
-    } catch (emailError) {
-      console.log('Email küldési hiba, de folytatjuk:', emailError.message);
-      // Folytatás hibák ellenére
+      const { 
+        from, subject, text, html, 
+        to, cc, bcc, 
+        messageId, inReplyTo, references, threadId,
+        attachments
+      } = req.body;
+      
+      console.log('2. Email adatok sikeresen kiolvasva:', { from, subject });
+      
+      // Email cím és név kibontása
+      const fromParts = from ? from.match(/^(?:(.+) )?<?([^>]+)>?$/) : null;
+      const clientName = fromParts ? fromParts[1] || '' : '';
+      const clientEmail = fromParts ? fromParts[2] : from;
+      
+      console.log('3. Feladó feldolgozva:', { clientName, clientEmail });
+      
+      // Alapvető adatok ellenőrzése a ticket létrehozásához
+      if (!clientEmail || !subject) {
+        console.log('Hiányzó alapvető adatok:', { clientEmail, subject });
+        return res.status(400).json({
+          success: false,
+          message: 'Hiányzó kötelező mezők: feladó email és tárgy'
+        });
+      }
+      
+      console.log('4. Új ticket létrehozása egyszerűsített módban');
+      
+      // Egyszerűsített ticket létrehozás
+      const newTicket = new SupportTicket({
+        subject: subject || 'No Subject',
+        content: html || text || 'Empty message',
+        status: 'new',
+        priority: 'medium',
+        client: {
+          name: clientName,
+          email: clientEmail
+        },
+        source: 'email'
+      });
+      
+      console.log('5. Ticket objektum létrehozva, mentés előtt');
+      
+      await newTicket.save();
+      
+      console.log('6. Ticket sikeresen elmentve:', newTicket._id);
+      
+      // Automatikus válasz küldés mellőzve a tesztelés során
+      
+      return res.status(201).json({ 
+        success: true, 
+        message: 'Ticket sikeresen létrehozva',
+        ticketId: newTicket._id
+      });
+      
+    } catch (error) {
+      console.error('HIBA a feldolgozás során:', error);
+      res.status(500).json({ 
+        success: false,
+        message: 'Szerver hiba a feldolgozás során', 
+        error: error.message,
+        stack: error.stack  // Részletes hibajelentés a hibakereséshez
+      });
     }
-    
-    return res.status(201).json({ 
-      success: true, 
-      message: 'Ticket sikeresen létrehozva',
-      ticketId: newTicket._id
-    });
-    
-  } catch (error) {
-    console.error('Hiba az email feldolgozásakor:', error);
-    res.status(500).json({ 
-      success: false,
-      message: 'Szerver hiba a feldolgozás során', 
-      error: error.message 
-    });
-  }
-});
+  });
 
 export default router;
