@@ -30,6 +30,8 @@ import translationRoutes from './routes/translation.js';
 import notesRoutes from './routes/notes.js';
 import supportTicketRouter, { setupEmailEndpoint, initializeSocketIO } from './routes/supportTickets.js';
 import Note from './models/Note.js';
+import emailApiRouter from './routes/emailApi.js';
+
 
 dotenv.config();
 
@@ -247,6 +249,7 @@ app.get('/api/posts', async (req, res) => {
 
 // Public project endpoints
 app.use('/api/public/projects', validateApiKey, projectRoutes);
+app.use('/api/email', emailApiRouter);
 
 // Setup email webhook for support tickets
 setupEmailEndpoint(app);
