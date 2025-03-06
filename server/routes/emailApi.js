@@ -24,7 +24,7 @@ router.get('/test', (req, res) => {
     console.log('Email API teszt végpont meghívva');
     res.json({ message: 'Email API teszt végpont működik' });
   });
-  
+
 // API kulcs ellenőrző middleware
 const validateApiKey = (req, res, next) => {
   const apiKey = req.headers['x-api-key'];
@@ -39,6 +39,17 @@ const validateApiKey = (req, res, next) => {
   
   next();
 };
+
+// Egyszerűsített teszt POST végpont
+router.post('/n8n-incoming-email-test', validateApiKey, (req, res) => {
+    console.log('Egyszerű POST teszt meghívva');
+    console.log('Kapott adatok:', req.body);
+    res.json({ 
+      success: true, 
+      message: 'Teszt végpont működik',
+      receivedData: req.body
+    });
+  });
 
 // Email beküldési végpont N8N számára
 router.post('/n8n-incoming-email', validateApiKey, async (req, res) => {
