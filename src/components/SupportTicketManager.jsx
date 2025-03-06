@@ -5,7 +5,7 @@ import {
   Check, Clock, Paperclip, ArrowUp, Mail, Search,
   ChevronLeft, ChevronRight, Filter, X, Send, Download,
   Phone, MessageSquare, HelpCircle, Edit, Trash2, ExternalLink,
-  Plus, RefreshCw, Palette
+  Plus, RefreshCw
 } from 'lucide-react';
 
 // Formázó segédfüggvények
@@ -20,21 +20,6 @@ const formatDate = (dateString) => {
     minute: '2-digit'
   });
 };
-
-// Előre definiált színek a ticket címkékhez
-const LABEL_COLORS = [
-  { name: 'Piros', bg: 'bg-red-100', text: 'text-red-800', border: 'border-red-200', value: 'red' },
-  { name: 'Narancs', bg: 'bg-orange-100', text: 'text-orange-800', border: 'border-orange-200', value: 'orange' },
-  { name: 'Sárga', bg: 'bg-yellow-100', text: 'text-yellow-800', border: 'border-yellow-200', value: 'yellow' },
-  { name: 'Zöld', bg: 'bg-green-100', text: 'text-green-800', border: 'border-green-200', value: 'green' },
-  { name: 'Türkiz', bg: 'bg-teal-100', text: 'text-teal-800', border: 'border-teal-200', value: 'teal' },
-  { name: 'Kék', bg: 'bg-blue-100', text: 'text-blue-800', border: 'border-blue-200', value: 'blue' },
-  { name: 'Indigó', bg: 'bg-indigo-100', text: 'text-indigo-800', border: 'border-indigo-200', value: 'indigo' },
-  { name: 'Lila', bg: 'bg-purple-100', text: 'text-purple-800', border: 'border-purple-200', value: 'purple' },
-  { name: 'Rózsaszín', bg: 'bg-pink-100', text: 'text-pink-800', border: 'border-pink-200', value: 'pink' },
-  { name: 'Barna', bg: 'bg-amber-100', text: 'text-amber-800', border: 'border-amber-200', value: 'amber' },
-  { name: 'Szürke', bg: 'bg-gray-100', text: 'text-gray-800', border: 'border-gray-200', value: 'gray' }
-];
 
 const getStatusColor = (status) => {
   switch(status) {
@@ -57,13 +42,6 @@ const getPriorityColor = (priority) => {
   }
 };
 
-// Visszaadja a megfelelő színkódokat egy adott ticket-címke színhez
-const getLabelColorClasses = (colorValue) => {
-  const colorObj = LABEL_COLORS.find(c => c.value === colorValue);
-  if (!colorObj) return { bg: 'bg-gray-100', text: 'text-gray-800', border: 'border-gray-200' };
-  return { bg: colorObj.bg, text: colorObj.text, border: colorObj.border };
-};
-
 const getSourceIcon = (source) => {
   switch(source) {
     case 'email': return <Mail className="h-4 w-4" />;
@@ -73,80 +51,53 @@ const getSourceIcon = (source) => {
     default: return <HelpCircle className="h-4 w-4" />;
   }
 };
-
 // Main component
 const SupportTicketManager = () => {
-  const [tickets, setTickets] = useState([]);
-  const [selectedTicket, setSelectedTicket] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [response, setResponse] = useState('');
-  const [isInternalNote, setIsInternalNote] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
-  const [selectedAttachments, setSelectedAttachments] = useState([]);
-  const [pagination, setPagination] = useState({
-    page: 1,
-    limit: 20,
-    total: 0,
-    pages: 1
-  });
-  
-  // Új ticket címke szín beállítása
-  const [showColorPicker, setShowColorPicker] = useState(false);
-  const [selectedColor, setSelectedColor] = useState('');
-  const [labelText, setLabelText] = useState('');
-  
-  // New ticket form
-  const [showNewTicketForm, setShowNewTicketForm] = useState(false);
-  const [newTicket, setNewTicket] = useState({
-    subject: '',
-    content: '',
-    priority: 'medium',
-    client: {
-      name: '',
-      email: '',
-      phone: ''
-    },
-    labels: []
-  });
-  
-  // Filters
-  const [filters, setFilters] = useState({
-    status: '',
-    priority: '',
-    search: '',
-    assignedTo: '',
-    tag: '',
-    label: ''
-  });
-  
-  // Show filter panel
-  const [showFilters, setShowFilters] = useState(false);
-
-  // Refs
-  const colorPickerRef = useRef(null);
-  const fileInputRef = useRef(null);
-
-  // Load initial data
-  useEffect(() => {
-    fetchTickets();
-  }, [pagination.page, filters]);
-  
-  // Click outside handler for color picker
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (colorPickerRef.current && !colorPickerRef.current.contains(event.target)) {
-        setShowColorPicker(false);
-      }
-    }
+    const [tickets, setTickets] = useState([]);
+    const [selectedTicket, setSelectedTicket] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [response, setResponse] = useState('');
+    const [isInternalNote, setIsInternalNote] = useState(false);
+    const [successMessage, setSuccessMessage] = useState('');
+    const [selectedAttachments, setSelectedAttachments] = useState([]);
+    const [pagination, setPagination] = useState({
+      page: 1,
+      limit: 20,
+      total: 0,
+      pages: 1
+    });
     
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [colorPickerRef]);
+    // New ticket form
+    const [showNewTicketForm, setShowNewTicketForm] = useState(false);
+    const [newTicket, setNewTicket] = useState({
+      subject: '',
+      content: '',
+      priority: 'medium',
+      client: {
+        name: '',
+        email: '',
+        phone: ''
+      }
+    });
+    
+    // Filters
+    const [filters, setFilters] = useState({
+      status: '',
+      priority: '',
+      search: '',
+      assignedTo: '',
+      tag: ''
+    });
+    
+    // Show filter panel
+    const [showFilters, setShowFilters] = useState(false);
   
-  // Fetch tickets
+    // Load initial data
+    useEffect(() => {
+      fetchTickets();
+    }, [pagination.page, filters]);
+    // Fetch tickets
   const fetchTickets = async () => {
     try {
       setLoading(true);
@@ -158,7 +109,6 @@ const SupportTicketManager = () => {
       if (filters.search) queryParams.append('search', filters.search);
       if (filters.assignedTo) queryParams.append('assignedTo', filters.assignedTo);
       if (filters.tag) queryParams.append('tag', filters.tag);
-      if (filters.label) queryParams.append('label', filters.label);
       queryParams.append('page', pagination.page);
       queryParams.append('limit', pagination.limit);
       
@@ -202,7 +152,6 @@ const SupportTicketManager = () => {
     if (newPage < 1 || newPage > pagination.pages) return;
     setPagination(prev => ({ ...prev, page: newPage }));
   };
-  
   // Handle filter changes
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
@@ -216,8 +165,7 @@ const SupportTicketManager = () => {
       priority: '',
       search: '',
       assignedTo: '',
-      tag: '',
-      label: ''
+      tag: ''
     });
   };
   
@@ -243,8 +191,7 @@ const SupportTicketManager = () => {
           name: '',
           email: '',
           phone: ''
-        },
-        labels: []
+        }
       });
       
       // Refresh tickets and select the new one
@@ -261,8 +208,9 @@ const SupportTicketManager = () => {
       }, 3000);
     }
   };
-
-  // Handle file select
+  // Attach files
+  const fileInputRef = useRef(null);
+  
   const handleFileSelect = (e) => {
     const files = Array.from(e.target.files);
     if (!files.length) return;
@@ -332,7 +280,6 @@ const SupportTicketManager = () => {
       }, 3000);
     }
   };
-
   // Update ticket
   const updateTicket = async (updatedData) => {
     try {
@@ -384,60 +331,6 @@ const SupportTicketManager = () => {
       }, 3000);
     }
   };
-  
-  // Címke hozzáadása
-  const addLabel = () => {
-    if (!labelText.trim() || !selectedColor) return;
-    
-    const newLabel = {
-      text: labelText.trim(),
-      color: selectedColor
-    };
-    
-    if (selectedTicket) {
-      // Ha van kiválasztott ticket, ahhoz adjuk hozzá a címkét
-      const updatedLabels = [...(selectedTicket.labels || []), newLabel];
-      
-      updateTicket({
-        ...selectedTicket,
-        labels: updatedLabels
-      });
-    } else {
-      // Új ticket készítésekor a newTicket-hez adjuk
-      setNewTicket(prev => ({
-        ...prev,
-        labels: [...(prev.labels || []), newLabel]
-      }));
-    }
-    
-    // Mezők ürítése
-    setLabelText('');
-    setSelectedColor('');
-    setShowColorPicker(false);
-  };
-  
-  // Címke törlése
-  const removeLabel = (index) => {
-    if (selectedTicket) {
-      const updatedLabels = [...selectedTicket.labels];
-      updatedLabels.splice(index, 1);
-      
-      updateTicket({
-        ...selectedTicket,
-        labels: updatedLabels
-      });
-    } else {
-      setNewTicket(prev => {
-        const updatedLabels = [...prev.labels];
-        updatedLabels.splice(index, 1);
-        return {
-          ...prev,
-          labels: updatedLabels
-        };
-      });
-    }
-  };
-  
   // Rendering helpers
   const renderTicketList = () => {
     if (loading && tickets.length === 0) {
@@ -514,16 +407,6 @@ const SupportTicketManager = () => {
                         {ticket.attachments.length}
                       </span>
                     )}
-                    
-                    {/* Színes címkék megjelenítése */}
-                    {ticket.labels && ticket.labels.map((label, idx) => {
-                      const { bg, text, border } = getLabelColorClasses(label.color);
-                      return (
-                        <span key={idx} className={`px-2 py-0.5 text-xs rounded-full border ${bg} ${text} ${border}`}>
-                          {label.text}
-                        </span>
-                      );
-                    })}
                   </div>
                 </div>
               </div>
@@ -545,12 +428,12 @@ const SupportTicketManager = () => {
       </div>
     );
   };
-  
+  // Render pagination
   const renderPagination = () => {
-    if (tickets.length === 0 || pagination.pages <= 1) return null;
+    if (pagination.pages <= 1) return null;
     
     return (
-      <div className="flex items-center justify-between bg-white px-4 py-3 sm:px-6 mt-4 rounded-lg">
+      <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6 mt-4 rounded-lg">
         <div className="flex flex-1 justify-between sm:hidden">
           <button
             onClick={() => handlePageChange(pagination.page - 1)}
@@ -614,22 +497,22 @@ const SupportTicketManager = () => {
       </div>
     );
   };
-  
+  // Render ticket details
   const renderTicketDetails = () => {
     if (!selectedTicket) {
       return (
-        <div className="h-full flex flex-col items-center justify-center bg-gray-50 rounded-lg border border-gray-200 p-8">
+        <div className="bg-white rounded-lg border border-gray-200 p-6 h-full flex flex-col items-center justify-center text-center">
           <MessageCircle className="h-16 w-16 text-gray-300 mb-4" />
           <h3 className="text-lg font-semibold text-gray-600">Nincs kiválasztott ticket</h3>
-          <p className="text-gray-500 mt-1 text-center">Válasszon ki egy ticketet a bal oldali listából vagy hozzon létre egy újat.</p>
+          <p className="text-gray-500 mt-1">Válasszon ki egy ticketet a bal oldali listából</p>
         </div>
       );
     }
     
     return (
-      <div className="h-full flex flex-col bg-white rounded-lg border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded-lg border border-gray-200 h-full flex flex-col overflow-hidden">
         {/* Ticket header */}
-        <div className="p-4 border-b border-gray-200 bg-gray-50">
+        <div className="px-6 py-4 border-b border-gray-200">
           <div className="flex justify-between items-start">
             <div>
               <h2 className="text-xl font-semibold text-gray-900">{selectedTicket.subject}</h2>
@@ -640,522 +523,318 @@ const SupportTicketManager = () => {
                 <span>{formatDate(selectedTicket.createdAt)}</span>
               </div>
             </div>
-            <div className="flex space-x-2">
-              <button
-                onClick={() => {
-                  setSelectedTicket(null);
-                }}
-                className="px-2 py-1 text-gray-500 hover:text-gray-700 bg-white border border-gray-300 rounded"
-              >
-                Bezárás
-              </button>
-            </div>
-          </div>
-          
-          {/* Tags and labels */}
-          <div className="flex flex-wrap gap-2 mt-3">
-            <span className={`px-2 py-1 text-xs rounded-full border ${getStatusColor(selectedTicket.status)}`}>
-              {selectedTicket.status}
-            </span>
-            <span className={`px-2 py-1 text-xs rounded-full border ${getPriorityColor(selectedTicket.priority)}`}>
-              {selectedTicket.priority}
-            </span>
-            
-            {/* Színes címkék */}
-            {selectedTicket.labels && selectedTicket.labels.map((label, idx) => {
-              const { bg, text, border } = getLabelColorClasses(label.color);
-              return (
-                <div key={idx} className="flex items-center">
-                  <span className={`px-2 py-1 text-xs rounded-l-full border-y border-l ${bg} ${text} ${border}`}>
-                    {label.text}
-                  </span>
-                  <button
-                    onClick={() => removeLabel(idx)}
-                    className={`p-1 rounded-r-full border-y border-r ${bg} ${text} ${border} hover:bg-opacity-80`}
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </div>
-              );
-            })}
-            
-            {/* Címke hozzáadás gomb */}
-            <div className="relative">
-              <button
-                onClick={() => setShowColorPicker(!showColorPicker)}
-                className="flex items-center px-2 py-1 text-xs rounded-full border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
-              >
-                <Palette className="h-3 w-3 mr-1" />
-                Címke hozzáadása
-              </button>
-              
-              {/* Színválasztó panel */}
-              {showColorPicker && (
-                <div 
-                  ref={colorPickerRef}
-                  className="absolute right-0 mt-2 z-10 w-64 bg-white rounded-lg shadow-lg border border-gray-200 p-4"
+            <div className="flex items-center space-x-2">
+              <span className={`px-2.5 py-1 text-xs rounded-full border ${getStatusColor(selectedTicket.status)}`}>
+                {selectedTicket.status}
+              </span>
+              <span className={`px-2.5 py-1 text-xs rounded-full border ${getPriorityColor(selectedTicket.priority)}`}>
+                {selectedTicket.priority}
+              </span>
+              <div className="inline-flex rounded-md shadow-sm">
+                <button
+                  onClick={() => updateTicket({ status: 'closed' })}
+                  className="relative inline-flex items-center rounded-l-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
                 >
-                  <h4 className="font-medium text-gray-700 mb-2">Új címke hozzáadása</h4>
-                  
-                  <div className="mb-3">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Címke szövege
-                    </label>
-                    <input
-                      type="text"
-                      value={labelText}
-                      onChange={(e) => setLabelText(e.target.value)}
-                      placeholder="Címke neve"
-                      className="w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm"
-                    />
-                  </div>
-                  
-                  <div className="mb-3">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Címke színe
-                    </label>
-                    <div className="grid grid-cols-4 gap-2">
-                      {LABEL_COLORS.map((color) => (
-                        <button
-                          key={color.value}
-                          onClick={() => setSelectedColor(color.value)}
-                          className={`h-8 w-full ${color.bg} ${color.border} border rounded-md flex items-center justify-center ${
-                            selectedColor === color.value ? 'ring-2 ring-offset-2 ring-indigo-500' : ''
-                          }`}
-                          title={color.name}
-                        >
-                          {selectedColor === color.value && (
-                            <Check className="h-4 w-4 text-gray-800" />
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  
-                  <div className="flex justify-end mt-3">
-                    <button
-                      onClick={() => setShowColorPicker(false)}
-                      className="px-3 py-1.5 border border-gray-300 text-gray-700 text-sm rounded-md mr-2 hover:bg-gray-50"
-                    >
-                      Mégse
-                    </button>
-                    <button
-                      onClick={addLabel}
-                      disabled={!labelText.trim() || !selectedColor}
-                      className="px-3 py-1.5 bg-indigo-600 text-white text-sm rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      Hozzáadás
-                    </button>
-                  </div>
-                </div>
-              )}
+                  Lezár
+                </button>
+                <button
+                  onClick={() => setShowTicketForm(true)}
+                  className="relative -ml-px inline-flex items-center rounded-r-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+                >
+                  <Edit className="h-4 w-4" />
+                </button>
+              </div>
             </div>
           </div>
         </div>
         
         {/* Ticket content */}
-        <div className="p-4 bg-white border-b border-gray-200">
-          <div className="prose prose-sm max-w-none">
-            <p>{selectedTicket.content}</p>
+        <div className="flex-grow overflow-y-auto p-6">
+          {/* Original message */}
+          <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 mb-6">
+            <p className="whitespace-pre-line text-gray-700">{selectedTicket.content}</p>
+            
+            {/* Attachments */}
+            {selectedTicket.attachments && selectedTicket.attachments.length > 0 && (
+              <div className="mt-4 border-t border-gray-200 pt-4">
+                <h4 className="text-sm font-medium text-gray-700 mb-2">Csatolmányok:</h4>
+                <div className="flex flex-wrap gap-2">
+                  {selectedTicket.attachments.map((attachment, index) => (
+                    <div key={index} className="flex items-center bg-white p-2 rounded border border-gray-200">
+                      <Paperclip className="h-4 w-4 text-gray-500 mr-2" />
+                      <span className="text-sm text-gray-600 mr-2">{attachment.filename}</span>
+                      <button
+                        className="text-blue-600 hover:text-blue-800"
+                        onClick={() => downloadAttachment(attachment)}
+                      >
+                        <Download className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
           
-          {/* Csatolmányok megjelenítése */}
-          {selectedTicket.attachments && selectedTicket.attachments.length > 0 && (
-            <div className="mt-4 pt-4 border-t border-gray-200">
-              <h3 className="text-sm font-medium text-gray-700 mb-2">Csatolmányok</h3>
-              <div className="flex flex-wrap gap-2">
-                {selectedTicket.attachments.map((attachment, idx) => (
-                  <a
-                    key={idx}
-                    href={attachment.url || `data:${attachment.contentType};base64,${attachment.content}`}
-                    download={attachment.filename}
-                    className="flex items-center px-3 py-2 bg-gray-100 text-gray-800 rounded-md text-sm hover:bg-gray-200"
-                  >
-                    <Paperclip className="h-4 w-4 mr-2" />
-                    <span>{attachment.filename}</span>
-                    <Download className="h-4 w-4 ml-2 text-gray-500" />
-                  </a>
-                ))}
-              </div>
+          {/* Responses */}
+          {selectedTicket.responses && selectedTicket.responses.length > 0 && (
+            <div className="space-y-4">
+              <h3 className="font-medium text-gray-700 mb-2">Válaszok:</h3>
+              {selectedTicket.responses.map((resp, index) => (
+                <div 
+                  key={index} 
+                  className={`p-4 rounded-lg border ${
+                    resp.isInternal
+                      ? 'bg-yellow-50 border-yellow-200'
+                      : resp.isClient
+                        ? 'bg-gray-50 border-gray-200'
+                        : 'bg-blue-50 border-blue-200'
+                  }`}
+                >
+                  <div className="flex justify-between items-start mb-2">
+                    <div className="flex items-center">
+                      <span className="font-medium text-gray-700 mr-2">
+                        {resp.isInternal
+                          ? 'Belső jegyzet'
+                          : resp.isClient
+                            ? 'Ügyfél'
+                            : 'Ügyfélszolgálat'}
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        {formatDate(resp.createdAt)}
+                      </span>
+                    </div>
+                    {resp.isClient && (
+                      <button
+                        onClick={() => replyToClient(resp)}
+                        className="text-blue-600 hover:text-blue-800 text-sm flex items-center"
+                      >
+                        <ArrowUp className="h-3.5 w-3.5 mr-1" />
+                        Válasz
+                      </button>
+                    )}
+                  </div>
+                  <p className="whitespace-pre-line text-gray-700">{resp.content}</p>
+                  
+                  {/* Response attachments */}
+                  {resp.attachments && resp.attachments.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-gray-200">
+                      <div className="flex flex-wrap gap-2">
+                        {resp.attachments.map((attachment, attachIndex) => (
+                          <div key={attachIndex} className="flex items-center bg-white p-2 rounded border border-gray-200">
+                            <Paperclip className="h-4 w-4 text-gray-500 mr-2" />
+                            <span className="text-sm text-gray-600 mr-2">{attachment.filename}</span>
+                            <button
+                              className="text-blue-600 hover:text-blue-800"
+                              onClick={() => downloadAttachment(attachment)}
+                            >
+                              <Download className="h-4 w-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
           )}
         </div>
         
-        {/* Ticket válaszok */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {selectedTicket.responses && selectedTicket.responses.map((response, idx) => (
-            <div 
-              key={idx} 
-              className={`p-4 rounded-lg ${
-                response.isInternal 
-                  ? 'bg-yellow-50 border border-yellow-200' 
-                  : response.isFromClient 
-                    ? 'bg-blue-50 border border-blue-200' 
-                    : 'bg-green-50 border border-green-200'
-              }`}
-            >
-              <div className="flex justify-between items-start mb-2">
-                <div className="flex items-center">
-                  <div className={`h-8 w-8 rounded-full flex items-center justify-center mr-2 ${
-                    response.isInternal 
-                      ? 'bg-yellow-100 text-yellow-800' 
-                      : response.isFromClient 
-                        ? 'bg-blue-100 text-blue-800' 
-                        : 'bg-green-100 text-green-800'
-                  }`}>
-                    {response.isInternal ? (
-                      <Eye className="h-4 w-4" />
-                    ) : response.isFromClient ? (
-                      <User className="h-4 w-4" />
-                    ) : (
-                      <MessageCircle className="h-4 w-4" />
-                    )}
-                  </div>
-                  <div>
-                    <div className="font-medium">
-                      {response.isInternal ? 'Belső jegyzet' : response.isFromClient ? 'Ügyfél' : 'Támogatás'}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      {formatDate(response.createdAt)}
-                    </div>
-                  </div>
-                </div>
-                <div className="text-xs text-gray-500">
-                  {response.author || 'Admin'}
-                </div>
-              </div>
-              
-              <div className="prose prose-sm max-w-none">
-                <p>{response.content}</p>
-              </div>
-              
-              {/* Válasz csatolmányok */}
-              {response.attachments && response.attachments.length > 0 && (
-                <div className="mt-3 pt-3 border-t border-gray-200">
-                  <div className="flex flex-wrap gap-2">
-                    {response.attachments.map((attachment, idx) => (
-                      <a
-                        key={idx}
-                        href={attachment.url || `data:${attachment.contentType};base64,${attachment.content}`}
-                        download={attachment.filename}
-                        className="flex items-center px-2 py-1 bg-white border border-gray-200 text-gray-700 rounded text-sm hover:bg-gray-50"
-                      >
-                        <Paperclip className="h-3 w-3 mr-1.5" />
-                        <span>{attachment.filename}</span>
-                        <Download className="h-3 w-3 ml-1.5 text-gray-500" />
-                      </a>
-                    ))}
-                  </div>
-                </div>
-              )}
+        {/* Response form */}
+        <div className="border-t border-gray-200 p-4 bg-gray-50">
+          <div className="flex items-center mb-2">
+            <h3 className="text-sm font-medium text-gray-700">Válasz:</h3>
+            <div className="ml-auto flex items-center space-x-2">
+              <label className="flex items-center text-sm text-gray-600">
+                <input
+                  type="checkbox"
+                  checked={isInternalNote}
+                  onChange={(e) => setIsInternalNote(e.target.checked)}
+                  className="mr-1.5 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                />
+                Belső jegyzet
+              </label>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center text-sm text-blue-600 hover:text-blue-800"
+              >
+                <Paperclip className="h-4 w-4 mr-1" />
+                Csatolmány
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileSelect}
+                  className="hidden"
+                  multiple
+                />
+              </button>
             </div>
-          ))}
-        </div>
-        
-        {/* Válasz szerkesztő */}
-        <div className="p-4 border-t border-gray-200 bg-gray-50">
-          <div className="flex items-center mb-2 space-x-2">
-            <label className="inline-flex items-center">
-              <input
-                type="checkbox"
-                checked={isInternalNote}
-                onChange={() => setIsInternalNote(!isInternalNote)}
-                className="h-4 w-4 text-indigo-600 rounded border-gray-300"
-              />
-              <span className="ml-2 text-sm text-gray-700">Belső jegyzet (csak a támogatás látja)</span>
-            </label>
           </div>
           
-          <div className="mb-3">
+          {/* Selected attachments */}
+          {selectedAttachments.length > 0 && (
+            <div className="mb-3 flex flex-wrap gap-2">
+              {selectedAttachments.map((file, index) => (
+                <div key={index} className="bg-white rounded-md border border-gray-200 px-3 py-1 flex items-center">
+                  <span className="text-sm text-gray-700 truncate max-w-xs">{file.filename}</span>
+                  <button
+                    onClick={() => removeAttachment(index)}
+                    className="ml-2 text-gray-400 hover:text-red-500"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          
+          <div className="flex space-x-2">
             <textarea
               value={response}
               onChange={(e) => setResponse(e.target.value)}
-              placeholder={isInternalNote ? "Belső jegyzet hozzáadása..." : "Válasz írása..."}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+              placeholder="Írja be a választ..."
+              className="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none"
               rows={4}
             />
-          </div>
-          
-          {/* Csatolmányok listája */}
-          {selectedAttachments.length > 0 && (
-            <div className="mb-3">
-              <h3 className="text-sm font-medium text-gray-700 mb-2">Választott fájlok</h3>
-              <div className="flex flex-wrap gap-2">
-                {selectedAttachments.map((file, idx) => (
-                  <div key={idx} className="flex items-center px-3 py-1.5 bg-gray-100 text-gray-800 rounded-md text-sm">
-                    <Paperclip className="h-4 w-4 mr-1.5" />
-                    <span>{file.filename}</span>
-                    <button
-                      onClick={() => removeAttachment(idx)}
-                      className="ml-1.5 text-gray-500 hover:text-gray-700"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  </div>
-                ))}
-              </div>
+            <div className="flex flex-col justify-end">
+              <button
+                onClick={sendResponse}
+                disabled={!response.trim()}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+              >
+                <Send className="h-4 w-4 mr-2" />
+                Küldés
+              </button>
             </div>
-          )}
-          
-          <div className="flex justify-between">
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 flex items-center hover:bg-gray-50"
-            >
-              <Paperclip className="h-4 w-4 mr-2" />
-              Fájl csatolása
-            </button>
-            <input
-              type="file"
-              ref={fileInputRef}
-              className="hidden"
-              onChange={handleFileSelect}
-              multiple
-            />
-            
-            <button
-              onClick={sendResponse}
-              disabled={!response.trim()}
-              className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
-            >
-              <Send className="h-4 w-4 mr-2" />
-              {isInternalNote ? 'Jegyzet hozzáadása' : 'Válasz küldése'}
-            </button>
           </div>
         </div>
       </div>
     );
   };
-  
-  // Új ticket form
+  // Render new ticket form
   const renderNewTicketForm = () => {
-    if (!showNewTicketForm) return null;
-    
     return (
-      <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-          <div className="p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-semibold text-gray-900">Új Ticket Létrehozása</h2>
-              <button
-                onClick={() => setShowNewTicketForm(false)}
-                className="text-gray-400 hover:text-gray-500"
-              >
-                <X className="h-6 w-6" />
-              </button>
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-lg shadow-lg w-full max-w-2xl p-6">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold text-gray-800">Új Support Ticket</h2>
+            <button
+              onClick={() => setShowNewTicketForm(false)}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+          
+          <div className="space-y-4">
+            <div>
+              <label htmlFor="subject" className="block text-sm font-medium text-gray-700 mb-1">
+                Tárgy
+              </label>
+              <input
+                type="text"
+                id="subject"
+                className="block w-full rounded-md border border-gray-300 p-2.5 text-gray-900 focus:border-indigo-500 focus:ring-indigo-500"
+                value={newTicket.subject}
+                onChange={(e) => setNewTicket(prev => ({ ...prev, subject: e.target.value }))}
+              />
             </div>
             
-            <div className="space-y-4">
-              {/* Ügyfél adatok */}
+            <div>
+              <label htmlFor="priority" className="block text-sm font-medium text-gray-700 mb-1">
+                Prioritás
+              </label>
+              <select
+                id="priority"
+                className="block w-full rounded-md border border-gray-300 p-2.5 text-gray-900 focus:border-indigo-500 focus:ring-indigo-500"
+                value={newTicket.priority}
+                onChange={(e) => setNewTicket(prev => ({ ...prev, priority: e.target.value }))}
+              >
+                <option value="low">Alacsony</option>
+                <option value="medium">Közepes</option>
+                <option value="high">Magas</option>
+                <option value="urgent">Sürgős</option>
+              </select>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <h3 className="text-md font-medium text-gray-700 mb-2">Ügyfél adatok</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Név</label>
-                    <input
-                      type="text"
-                      value={newTicket.client.name}
-                      onChange={(e) => setNewTicket(prev => ({
-                        ...prev,
-                        client: {
-                          ...prev.client,
-                          name: e.target.value
-                        }
-                      }))}
-                      className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Email *</label>
-                    <input
-                      type="email"
-                      value={newTicket.client.email}
-                      onChange={(e) => setNewTicket(prev => ({
-                        ...prev,
-                        client: {
-                          ...prev.client,
-                          email: e.target.value
-                        }
-                      }))}
-                      className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Telefon</label>
-                    <input
-                      type="tel"
-                      value={newTicket.client.phone}
-                      onChange={(e) => setNewTicket(prev => ({
-                        ...prev,
-                        client: {
-                          ...prev.client,
-                          phone: e.target.value
-                        }
-                      }))}
-                      className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md"
-                    />
-                  </div>
-                </div>
+                <label htmlFor="clientName" className="block text-sm font-medium text-gray-700 mb-1">
+                  Ügyfél neve
+                </label>
+                <input
+                  type="text"
+                  id="clientName"
+                  className="block w-full rounded-md border border-gray-300 p-2.5 text-gray-900 focus:border-indigo-500 focus:ring-indigo-500"
+                  value={newTicket.client.name}
+                  onChange={(e) => setNewTicket(prev => ({ 
+                    ...prev, 
+                    client: { ...prev.client, name: e.target.value } 
+                  }))}
+                />
               </div>
               
-              {/* Ticket adatok */}
               <div>
-                <h3 className="text-md font-medium text-gray-700 mb-2">Ticket adatok</h3>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Tárgy *</label>
-                    <input
-                      type="text"
-                      value={newTicket.subject}
-                      onChange={(e) => setNewTicket(prev => ({
-                        ...prev,
-                        subject: e.target.value
-                      }))}
-                      className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md"
-                      required
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Tartalom *</label>
-                    <textarea
-                      value={newTicket.content}
-                      onChange={(e) => setNewTicket(prev => ({
-                        ...prev,
-                        content: e.target.value
-                      }))}
-                      className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md"
-                      rows={5}
-                      required
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Prioritás</label>
-                    <select
-                      value={newTicket.priority}
-                      onChange={(e) => setNewTicket(prev => ({
-                        ...prev,
-                        priority: e.target.value
-                      }))}
-                      className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md"
-                    >
-                      <option value="low">Alacsony</option>
-                      <option value="medium">Közepes</option>
-                      <option value="high">Magas</option>
-                      <option value="urgent">Sürgős</option>
-                    </select>
-                  </div>
-                  
-                  {/* Címkék */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Címkék</label>
-                    <div className="flex flex-wrap gap-2 mb-2">
-                      {newTicket.labels && newTicket.labels.map((label, idx) => {
-                        const { bg, text, border } = getLabelColorClasses(label.color);
-                        return (
-                          <div key={idx} className="flex items-center">
-                            <span className={`px-2 py-1 text-xs rounded-l-full border-y border-l ${bg} ${text} ${border}`}>
-                              {label.text}
-                            </span>
-                            <button
-                              onClick={() => removeLabel(idx)}
-                              className={`p-1 rounded-r-full border-y border-r ${bg} ${text} ${border} hover:bg-opacity-80`}
-                            >
-                              <X className="h-3 w-3" />
-                            </button>
-                          </div>
-                        );
-                      })}
-                    </div>
-                    
-                    <div className="relative">
-                      <button
-                        onClick={() => setShowColorPicker(!showColorPicker)}
-                        className="flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50"
-                      >
-                        <Palette className="h-4 w-4 mr-2" />
-                        Címke hozzáadása
-                      </button>
-                      
-                      {showColorPicker && (
-                        <div 
-                          ref={colorPickerRef}
-                          className="absolute left-0 mt-2 z-10 w-64 bg-white rounded-lg shadow-lg border border-gray-200 p-4"
-                        >
-                          <h4 className="font-medium text-gray-700 mb-2">Új címke hozzáadása</h4>
-                          
-                          <div className="mb-3">
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Címke szövege
-                            </label>
-                            <input
-                              type="text"
-                              value={labelText}
-                              onChange={(e) => setLabelText(e.target.value)}
-                              placeholder="Címke neve"
-                              className="w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm"
-                            />
-                          </div>
-                          
-                          <div className="mb-3">
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Címke színe
-                            </label>
-                            <div className="grid grid-cols-4 gap-2">
-                              {LABEL_COLORS.map((color) => (
-                                <button
-                                  key={color.value}
-                                  onClick={() => setSelectedColor(color.value)}
-                                  className={`h-8 w-full ${color.bg} ${color.border} border rounded-md flex items-center justify-center ${
-                                    selectedColor === color.value ? 'ring-2 ring-offset-2 ring-indigo-500' : ''
-                                  }`}
-                                  title={color.name}
-                                >
-                                  {selectedColor === color.value && (
-                                    <Check className="h-4 w-4 text-gray-800" />
-                                  )}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                          
-                          <div className="flex justify-end mt-3">
-                            <button
-                              onClick={() => setShowColorPicker(false)}
-                              className="px-3 py-1.5 border border-gray-300 text-gray-700 text-sm rounded-md mr-2 hover:bg-gray-50"
-                            >
-                              Mégse
-                            </button>
-                            <button
-                              onClick={addLabel}
-                              disabled={!labelText.trim() || !selectedColor}
-                              className="px-3 py-1.5 bg-indigo-600 text-white text-sm rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              Hozzáadás
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
+                <label htmlFor="clientEmail" className="block text-sm font-medium text-gray-700 mb-1">
+                  Ügyfél email (kötelező)
+                </label>
+                <input
+                  type="email"
+                  id="clientEmail"
+                  className="block w-full rounded-md border border-gray-300 p-2.5 text-gray-900 focus:border-indigo-500 focus:ring-indigo-500"
+                  value={newTicket.client.email}
+                  onChange={(e) => setNewTicket(prev => ({ 
+                    ...prev, 
+                    client: { ...prev.client, email: e.target.value } 
+                  }))}
+                />
               </div>
             </div>
             
-            <div className="mt-8 flex justify-end">
+            <div>
+              <label htmlFor="clientPhone" className="block text-sm font-medium text-gray-700 mb-1">
+                Ügyfél telefonszáma
+              </label>
+              <input
+                type="tel"
+                id="clientPhone"
+                className="block w-full rounded-md border border-gray-300 p-2.5 text-gray-900 focus:border-indigo-500 focus:ring-indigo-500"
+                value={newTicket.client.phone}
+                onChange={(e) => setNewTicket(prev => ({ 
+                  ...prev, 
+                  client: { ...prev.client, phone: e.target.value } 
+                }))}
+              />
+            </div>
+            
+            <div>
+              <label htmlFor="content" className="block text-sm font-medium text-gray-700 mb-1">
+                Üzenet (kötelező)
+              </label>
+              <textarea
+                id="content"
+                rows={5}
+                className="block w-full rounded-md border border-gray-300 p-2.5 text-gray-900 focus:border-indigo-500 focus:ring-indigo-500"
+                value={newTicket.content}
+                onChange={(e) => setNewTicket(prev => ({ ...prev, content: e.target.value }))}
+              />
+            </div>
+            
+            <div className="flex justify-end space-x-3 pt-4">
               <button
+                type="button"
                 onClick={() => setShowNewTicketForm(false)}
-                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md mr-3 hover:bg-gray-50"
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
               >
-                Mégse
+                Mégsem
               </button>
               <button
+                type="button"
                 onClick={createTicket}
                 className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
               >
-                Ticket létrehozása
+                Létrehozás
               </button>
             </div>
           </div>
@@ -1163,176 +842,153 @@ const SupportTicketManager = () => {
       </div>
     );
   };
-  
-  return (
-    <div className="min-h-full bg-gray-100 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="mb-8">
-          <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-bold text-gray-900">Support Ticket Kezelő</h1>
-            <div className="flex space-x-3">
-              <button
-                onClick={() => setShowFilters(!showFilters)}
-                className="flex items-center px-4 py-2 border border-gray-300 bg-white text-gray-700 rounded-md hover:bg-gray-50"
-              >
-                <Filter className="h-4 w-4 mr-2" />
-                Szűrők
-                {Object.values(filters).some(f => f) && (
-                  <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
-                    {Object.values(filters).filter(Boolean).length}
-                  </span>
-                )}
-              </button>
-              <button
-                onClick={() => setShowNewTicketForm(true)}
-                className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Új Ticket
-              </button>
-            </div>
+  // Render filters panel
+  const renderFiltersPanel = () => {
+    return (
+      <div className={`mb-6 bg-white rounded-lg border border-gray-200 p-4 ${showFilters ? '' : 'hidden'}`}>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">
+              Állapot
+            </label>
+            <select
+              id="status"
+              name="status"
+              value={filters.status}
+              onChange={handleFilterChange}
+              className="block w-full rounded-md border border-gray-300 p-2 text-gray-900 focus:border-indigo-500 focus:ring-indigo-500"
+            >
+              <option value="">Összes állapot</option>
+              <option value="new">Új</option>
+              <option value="open">Nyitott</option>
+              <option value="pending">Függőben lévő</option>
+              <option value="resolved">Megoldott</option>
+              <option value="closed">Lezárt</option>
+            </select>
           </div>
           
-          {showFilters && (
-            <div className="mt-4 p-4 bg-white rounded-lg border border-gray-200 shadow-sm">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Keresés
-                  </label>
-                  <div className="relative rounded-md shadow-sm">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <Search className="h-4 w-4 text-gray-400" />
-                    </div>
-                    <input
-                      type="text"
-                      name="search"
-                      value={filters.search}
-                      onChange={handleFilterChange}
-                      className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md"
-                      placeholder="Keresés..."
-                    />
-                  </div>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Állapot
-                  </label>
-                  <select
-                    name="status"
-                    value={filters.status}
-                    onChange={handleFilterChange}
-                    className="block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm"
-                  >
-                    <option value="">Összes állapot</option>
-                    <option value="new">Új</option>
-                    <option value="open">Nyitott</option>
-                    <option value="pending">Függőben</option>
-                    <option value="resolved">Megoldott</option>
-                    <option value="closed">Lezárt</option>
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Prioritás
-                  </label>
-                  <select
-                    name="priority"
-                    value={filters.priority}
-                    onChange={handleFilterChange}
-                    className="block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm"
-                  >
-                    <option value="">Összes prioritás</option>
-                    <option value="low">Alacsony</option>
-                    <option value="medium">Közepes</option>
-                    <option value="high">Magas</option>
-                    <option value="urgent">Sürgős</option>
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Címke
-                  </label>
-                  <select
-                    name="label"
-                    value={filters.label}
-                    onChange={handleFilterChange}
-                    className="block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm"
-                  >
-                    <option value="">Összes címke</option>
-                    {/* Itt jelennek meg a címkék, amit a szerverről betöltünk */}
-                    <option value="red">Piros címkék</option>
-                    <option value="blue">Kék címkék</option>
-                    <option value="green">Zöld címkék</option>
-                    <option value="yellow">Sárga címkék</option>
-                  </select>
-                </div>
+          <div>
+            <label htmlFor="priority" className="block text-sm font-medium text-gray-700 mb-1">
+              Prioritás
+            </label>
+            <select
+              id="priority"
+              name="priority"
+              value={filters.priority}
+              onChange={handleFilterChange}
+              className="block w-full rounded-md border border-gray-300 p-2 text-gray-900 focus:border-indigo-500 focus:ring-indigo-500"
+            >
+              <option value="">Összes prioritás</option>
+              <option value="low">Alacsony</option>
+              <option value="medium">Közepes</option>
+              <option value="high">Magas</option>
+              <option value="urgent">Sürgős</option>
+            </select>
+          </div>
+          
+          <div>
+            <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-1">
+              Keresés
+            </label>
+            <div className="relative rounded-md shadow-sm">
+              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                <Search className="h-4 w-4 text-gray-400" />
               </div>
-              
-              <div className="flex justify-end mt-4">
-                <button
-                  onClick={resetFilters}
-                  className="px-4 py-2 text-sm text-gray-700 hover:text-indigo-700"
-                >
-                  Szűrők törlése
-                </button>
-                <button
-                  onClick={() => setShowFilters(false)}
-                  className="ml-3 px-4 py-2 bg-indigo-600 text-white text-sm rounded-md hover:bg-indigo-700"
-                >
-                  Alkalmaz
-                </button>
-              </div>
+              <input
+                type="text"
+                id="search"
+                name="search"
+                value={filters.search}
+                onChange={handleFilterChange}
+                className="block w-full rounded-md border border-gray-300 pl-10 p-2.5 text-gray-900 focus:border-indigo-500 focus:ring-indigo-500"
+                placeholder="Keresés tárgy vagy tartalom alapján"
+              />
             </div>
-          )}
+          </div>
         </div>
         
-        {/* Error message */}
-        {error && (
-          <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-md flex items-center">
-            <AlertCircle className="h-5 w-5 mr-2" />
-            {error}
-          </div>
-        )}
-        
-        {/* Success message */}
-        {successMessage && (
-          <div className="mb-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded-md flex items-center">
-            <Check className="h-5 w-5 mr-2" />
-            {successMessage}
-          </div>
-        )}
-        
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-          {/* Left Panel - Ticket List */}
-          <div className="lg:col-span-2">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-medium text-gray-900">Ticketek</h2>
-              <button
-                onClick={fetchTickets}
-                className="flex items-center text-gray-600 hover:text-gray-800"
-              >
-                <RefreshCw className="h-4 w-4 mr-1" />
-                <span className="text-sm">Frissítés</span>
-              </button>
-            </div>
-            
-            {renderTicketList()}
-            {renderPagination()}
-          </div>
-          
-          {/* Right Panel - Ticket Details */}
-          <div className="lg:col-span-3">
-            {renderTicketDetails()}
-          </div>
+        <div className="flex justify-end mt-4">
+          <button
+            onClick={resetFilters}
+            className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900"
+          >
+            Szűrők törlése
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  // Main render
+  return (
+    <div className="container mx-auto px-4 py-8">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Support Ticketek</h1>
+        <div className="flex space-x-2">
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className={`px-4 py-2 rounded-md border text-sm font-medium ${
+              showFilters 
+                ? 'bg-indigo-100 text-indigo-700 border-indigo-300'
+                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+            }`}
+          >
+            <Filter className="h-4 w-4 inline mr-2" />
+            Szűrők
+          </button>
+          <button
+            onClick={() => setShowNewTicketForm(true)}
+            className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-sm font-medium shadow-sm"
+          >
+            <Plus className="h-4 w-4 inline mr-2" />
+            Új Ticket
+          </button>
         </div>
       </div>
       
-      {/* Modals */}
-      {renderNewTicketForm()}
+      {/* Error message */}
+      {error && (
+        <div className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg flex items-center">
+          <AlertCircle className="h-5 w-5 mr-2" />
+          {error}
+        </div>
+      )}
+      
+      {/* Success message */}
+      {successMessage && (
+        <div className="mb-6 p-4 bg-green-100 border border-green-400 text-green-700 rounded-lg flex items-center">
+          <Check className="h-5 w-5 mr-2" />
+          {successMessage}
+        </div>
+      )}
+      
+      {/* Filters panel */}
+      {renderFiltersPanel()}
+      
+      {/* Content grid */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="md:col-span-1">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-semibold text-gray-700">Ticketek</h2>
+            <button
+              onClick={fetchTickets}
+              className="text-indigo-600 hover:text-indigo-900"
+              title="Frissítés"
+            >
+              <RefreshCw className="h-5 w-5" />
+            </button>
+          </div>
+          {renderTicketList()}
+          {renderPagination()}
+        </div>
+        
+        <div className="md:col-span-2 h-[calc(100vh-320px)]">
+          {renderTicketDetails()}
+        </div>
+      </div>
+      
+      {/* New ticket modal */}
+      {showNewTicketForm && renderNewTicketForm()}
     </div>
   );
 };
