@@ -52,6 +52,7 @@ const io = new Server(httpServer, {
       'https://project.nb-studio.net',
       'http://38.242.208.190:5173',
       'http://localhost:5173',
+      '*',
       'http://localhost:3000'
     ],
     methods: ['GET', 'POST'],
