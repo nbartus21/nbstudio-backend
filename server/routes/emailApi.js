@@ -184,24 +184,4 @@ router.post('/n8n-incoming-email', validateApiKey, async (req, res) => {
   }
 });
 
-/**
- * CURL Import példa az n8n integrációhoz:
- * 
- * curl -X POST "https://admin.nb-studio.net:5001/api/email/n8n-incoming-email" \
- * -H "x-api-key: qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0" \
- * -H "Content-Type: application/json" \
- * -d '{
- *   "from": "{{ $json[0].from }}",
- *   "to": "{{ $json[0].to }}",
- *   "subject": "{{ $json[0].subject }}",
- *   "text": "{{ $json[0].text }}",
- *   "html": "{{ $json[0].html }}",
- *   "messageId": "{{ $json[0].messageId }}",
- *   "inReplyTo": {{ $json[0].inReplyTo ? JSON.stringify($json[0].inReplyTo) : "null" }},
- *   "references": {{ Array.isArray($json[0].references) ? JSON.stringify($json[0].references) : "[]" }},
- *   "threadId": {{ $json[0].threadId ? JSON.stringify($json[0].threadId) : "null" }},
- *   "attachments": {{ Array.isArray($json[0].attachments) ? JSON.stringify($json[0].attachments) : "[]" }}
- * }'
- */
-
 export default router;
