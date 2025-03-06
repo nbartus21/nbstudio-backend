@@ -120,7 +120,7 @@ router.post('/tickets', async (req, res) => {
     try {
       const notification = new Notification({
         userId: process.env.ADMIN_EMAIL || 'admin@example.com',
-        type: 'ticket',
+        type: 'custom',
         title: 'Új ticket létrehozva',
         message: `Új ticket: ${ticket.subject}`,
         severity: ticket.priority === 'urgent' ? 'error' : 
@@ -368,7 +368,7 @@ export function setupEmailEndpoint(app) {
         try {
           const notification = new Notification({
             userId: process.env.ADMIN_EMAIL || 'admin@example.com',
-            type: 'ticket',
+            type: 'custom',
             title: 'Új válasz egy ticketre',
             message: `Ticket #${ticket._id.toString().slice(-6)}: Új válasz érkezett.`,
             severity: ticket.priority === 'urgent' ? 'error' : 
@@ -443,7 +443,7 @@ export function setupEmailEndpoint(app) {
       try {
         const notification = new Notification({
           userId: process.env.ADMIN_EMAIL || 'admin@example.com',
-          type: 'ticket',
+          type: 'custom',
           title: 'Új support ticket',
           message: `Új ticket: ${subject || 'No Subject'}`,
           severity: 'info',
