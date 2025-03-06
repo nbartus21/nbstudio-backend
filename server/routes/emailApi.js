@@ -6,6 +6,8 @@ import dotenv from 'dotenv';
 dotenv.config();
 const router = express.Router();
 
+
+
 // Email transporter beállítása
 const transporter = nodemailer.createTransport({
   host: process.env.CONTACT_SMTP_HOST || process.env.SMTP_HOST,
@@ -17,6 +19,12 @@ const transporter = nodemailer.createTransport({
   }
 });
 
+
+router.get('/test', (req, res) => {
+    console.log('Email API teszt végpont meghívva');
+    res.json({ message: 'Email API teszt végpont működik' });
+  });
+  
 // API kulcs ellenőrző middleware
 const validateApiKey = (req, res, next) => {
   const apiKey = req.headers['x-api-key'];
