@@ -1,26 +1,9 @@
 import express from 'express';
 import SupportTicket from '../models/SupportTicket.js';
-import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
 
 dotenv.config();
 const router = express.Router();
-
-// Email transporter beállítása
-const transporter = nodemailer.createTransport({
-  host: process.env.CONTACT_SMTP_HOST || process.env.SMTP_HOST,
-  port: process.env.CONTACT_SMTP_PORT || process.env.SMTP_PORT,
-  secure: process.env.CONTACT_SMTP_SECURE === 'true',
-  auth: {
-    user: process.env.CONTACT_SMTP_USER || process.env.SMTP_USER,
-    pass: process.env.CONTACT_SMTP_PASS || process.env.SMTP_PASS
-  }
-});
-
-router.get('/test', (req, res) => {
-  console.log('Email API teszt végpont meghívva');
-  res.json({ message: 'Email API teszt végpont működik' });
-});
 
 // API kulcs ellenőrző middleware
 const validateApiKey = (req, res, next) => {
@@ -36,6 +19,12 @@ const validateApiKey = (req, res, next) => {
   
   next();
 };
+
+// Teszt végpont
+router.get('/test', (req, res) => {
+  console.log('Email API teszt végpont meghívva');
+  res.json({ message: 'Email API teszt végpont működik' });
+});
 
 // Egyszerűsített teszt POST végpont
 router.post('/n8n-incoming-email-test', validateApiKey, (req, res) => {
@@ -178,35 +167,6 @@ router.post('/n8n-incoming-email', validateApiKey, async (req, res) => {
     });
     
     await newTicket.save();
-    
-    // Automatikus válasz küldése
-    try {
-      const mailOptions = {
-        from: `"NB Studio Support" <${process.env.CONTACT_SMTP_USER}>`,
-        to: clientEmail,
-        subject: `Re: ${cleanValue(subject) || 'Your support request'} [#${newTicket._id.toString().slice(-6)}]`,
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2 style="color: #3B82F6;">NB Studio Support</h2>
-            <p>Tisztelt ${clientName || 'Ügyfelünk'}!</p>
-            <p>Köszönjük megkeresését! Ticket-jét rögzítettük rendszerünkben. Kollégáink hamarosan felveszik Önnel a kapcsolatot.</p>
-            <p>Ticket azonosító: #${newTicket._id.toString().slice(-6)}</p>
-            <p style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #eaeaea; font-size: 14px; color: #666;">
-              Ez egy automatikus értesítés. További kérdések esetén egyszerűen válaszoljon erre az e-mailre.
-            </p>
-          </div>
-        `,
-        headers: {
-          'In-Reply-To': messageId,
-          'References': messageId
-        }
-      };
-      
-      await transporter.sendMail(mailOptions);
-    } catch (emailError) {
-      console.log('Email küldési hiba, de folytatjuk:', emailError.message);
-      // Folytatás hibák ellenére
-    }
     
     return res.status(201).json({ 
       success: true, 
