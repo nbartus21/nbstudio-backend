@@ -26,11 +26,19 @@ const authMiddleware = (req, res, next) => {
 
 // Hozzáadni a fájl végéhez:
 export const apiKeyMiddleware = (req, res, next) => {
+  // Implement your API key validation logic here
   const apiKey = req.headers['x-api-key'];
-  if (!apiKey || apiKey !== process.env.PUBLIC_API_KEY) {
-    return res.status(401).json({ message: 'Érvénytelen API kulcs' });
+  
+  if (!apiKey) {
+    return res.status(401).json({ message: 'API key is required' });
   }
-  next();
+  
+  // Check if the API key is valid (customize this check)
+  if (apiKey === process.env.API_KEY) {
+    next();
+  } else {
+    res.status(401).json({ message: 'Invalid API key' });
+  }
 };
 
 export default authMiddleware;

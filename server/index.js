@@ -16,7 +16,7 @@ import projectRoutes from './routes/projects.js';
 import domainRoutes from './routes/domains.js';
 import serverRoutes from './routes/servers.js';
 import licenseRoutes from './routes/licenses.js';
-import authMiddleware from './middleware/auth.js';
+import authMiddleware, { apiKeyMiddleware } from './middleware/auth.js';
 import authRoutes from './routes/auth.js';
 import notificationRoutes from './routes/notifications.js';
 import Calculator from './models/Calculator.js';
