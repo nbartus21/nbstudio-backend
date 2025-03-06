@@ -26,24 +26,22 @@ router.get('/test', (req, res) => {
   res.json({ message: 'Email API teszt végpont működik' });
 });
 
-// Egyszerűsített teszt POST végpont
-router.post('/n8n-incoming-email-test', validateApiKey, (req, res) => {
-  console.log('Egyszerű POST teszt meghívva');
-  console.log('Kapott adatok:', req.body);
-  res.json({ 
-    success: true, 
-    message: 'Teszt végpont működik',
-    receivedData: req.body
-  });
-});
-
 // Segédfüggvény a template string-ek és változók kezelésére
 const cleanValue = (value) => {
   if (!value) return '';
-  // Ha a szöveg tartalmaz template változókat, akkor visszatérünk egy üres stringgel
-  if (typeof value === 'string' && (value.includes('{{') || value.includes('$json'))) {
-    return '';
+  
+  // Ha a szöveg tartalmaz template változókat, akkor azokat eltávolítjuk
+  if (typeof value === 'string') {
+    // Ha a teljes string egy template változó, akkor üres stringet adunk vissza
+    if (value.match(/^\{\{\s*\$json\.[a-zA-Z0-9_.]+\s*\}\}$/)) {
+      console.log(`Template változó észlelve: ${value} - Eltávolítva`);
+      return '';
+    }
+    
+    // Ha a szövegben vannak template változók, kivágjuk őket
+    return value.replace(/\{\{\s*\$json\.[a-zA-Z0-9_.]+\s*\}\}/g, '');
   }
+  
   return value;
 };
 
@@ -60,19 +58,33 @@ router.post('/n8n-incoming-email', validateApiKey, async (req, res) => {
       attachments
     } = req.body;
     
-    // Értékek tisztítása
+    // Értékek tisztítása és logolása
+    const cleanedSubject = cleanValue(subject);
     const cleanedHtml = cleanValue(html);
     const cleanedText = cleanValue(text);
     
-    console.log('Tisztított értékek:', {
-      html: cleanedHtml ? 'Van tartalom' : 'Nincs tartalom',
-      text: cleanedText ? 'Van tartalom' : 'Nincs tartalom'
+    console.log('Feldolgozott értékek:', {
+      subject: cleanedSubject || 'Nincs tárgy',
+      html: cleanedHtml ? 'Van HTML tartalom' : 'Nincs HTML tartalom',
+      text: cleanedText ? 'Van szöveges tartalom' : 'Nincs szöveges tartalom',
+      from: from || 'Nincs feladó'
     });
+    
+    // Ha nincs feladó, hiba
+    if (!from) {
+      console.error('Hiányzó feladó cím!');
+      return res.status(400).json({
+        success: false,
+        message: 'A feladó cím (from) megadása kötelező'
+      });
+    }
     
     // Email cím és név kibontása
     const fromParts = from.match(/^(?:(.+) )?<?([^>]+)>?$/);
     const clientName = fromParts ? fromParts[1] || '' : '';
     const clientEmail = fromParts ? fromParts[2] : from;
+    
+    console.log('Kibontott feladó adatok:', { clientName, clientEmail });
     
     // Ellenőrizzük, hogy válasz-e egy meglévő ticketre
     let ticket;
@@ -136,10 +148,10 @@ router.post('/n8n-incoming-email', validateApiKey, async (req, res) => {
     }
     
     // Ha ez új ticket
-    console.log('Új ticket létrehozása N8N-től');
+    console.log('Új ticket létrehozása');
     
     const newTicket = new SupportTicket({
-      subject: cleanValue(subject) || 'No Subject',
+      subject: cleanedSubject || 'No Subject',
       content: cleanedHtml || cleanedText || 'Empty message',
       status: 'new',
       priority: 'medium', // Alapértelmezett
@@ -168,6 +180,7 @@ router.post('/n8n-incoming-email', validateApiKey, async (req, res) => {
     });
     
     await newTicket.save();
+    console.log('Új ticket sikeresen létrehozva:', newTicket._id);
     
     return res.status(201).json({ 
       success: true, 
