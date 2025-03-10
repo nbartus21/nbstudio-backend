@@ -61,15 +61,24 @@ router.get('/tasks', async (req, res) => {
     }
     
     // Feladatok lekérése és sorrendbe állítása
+    // Javított sort, egyszerű rendezés dátum szerint növekvő sorrendben
     const tasks = await Task.find(query)
-      .sort({ dueDate: 1, priority: { high: 1, medium: 2, low: 3 } })
+      .sort({ dueDate: 1 })
       .lean();
     
     // Virtuális mező hozzáadása minden feladathoz
     const tasksWithIsOverdue = tasks.map(task => {
       const isOverdue = task.status !== 'completed' && new Date(task.dueDate) < new Date();
+      
+      // Prioritás alapján való utólagos rendezéshez:
+      // A feladatokat a prioritás alapján rendezzük fontossági sorrendbe 
+      // (ezt viszont már JavaScript-ben végezzük el, nem MongoDB szinten)
       return { ...task, isOverdue };
     });
+    
+    // Rendezzük a feladatokat prioritás szerint (magas prioritás legfelül)
+    const priorityOrder = { 'high': 0, 'medium': 1, 'low': 2 };
+    tasksWithIsOverdue.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
     
     res.json(tasksWithIsOverdue);
   } catch (error) {
@@ -277,7 +286,11 @@ router.get('/tasks/dashboard/today', async (req, res) => {
         $lt: tomorrow
       },
       status: 'pending'
-    }).sort({ priority: { high: 1, medium: 2, low: 3 } });
+    }).sort({ dueDate: 1 }).lean();
+    
+    // Rendezzük a feladatokat prioritás szerint
+    const priorityOrder = { 'high': 0, 'medium': 1, 'low': 2 };
+    tasks.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
     
     res.json(tasks);
   } catch (error) {
@@ -299,7 +312,11 @@ router.get('/tasks/dashboard/overdue', async (req, res) => {
       createdBy: req.userData.email,
       dueDate: { $lt: today },
       status: 'pending'
-    }).sort({ dueDate: 1 });
+    }).sort({ dueDate: 1 }).lean();
+    
+    // Rendezzük a feladatokat prioritás szerint
+    const priorityOrder = { 'high': 0, 'medium': 1, 'low': 2 };
+    tasks.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
     
     res.json(tasks);
   } catch (error) {
