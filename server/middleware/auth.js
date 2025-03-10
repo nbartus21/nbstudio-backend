@@ -1,56 +1,43 @@
-// middleware/auth.js
 import jwt from 'jsonwebtoken';
-import dotenv from 'dotenv';
 
-dotenv.config();
-
-// Auth middleware to protect routes
 const authMiddleware = (req, res, next) => {
+  // CORS preflight kérések átengedése
+  if (req.method === 'OPTIONS') {
+    return next();
+  }
+
   try {
-    // Get the token from the Authorization header
-    const authHeader = req.headers['authorization'];
+    // Token kinyerése a header-ből
+    const token = req.headers.authorization?.split(' ')[1];
     
-    if (!authHeader) {
-      console.error('Authorization header missing');
-      return res.status(401).json({ message: 'Authorization required' });
+    if (!token) {
+      return res.status(401).json({ message: 'Nincs autentikációs token' });
     }
-    
-    // Format should be: "Bearer token"
-    const parts = authHeader.split(' ');
-    
-    if (parts.length !== 2 || parts[0] !== 'Bearer') {
-      console.error('Invalid authorization format');
-      return res.status(401).json({ message: 'Invalid authorization format' });
-    }
-    
-    const token = parts[1];
-    
-    // Verify the token
+
+    // Token ellenőrzése
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.userData = decoded;
     
-    // Add user data to the request
-    req.userData = {
-      userId: decoded.userId,
-      email: decoded.email,
-      role: decoded.role || 'user'
-    };
-    
-    console.log('User authenticated:', req.userData.email);
-    
-    // Proceed to the route
     next();
   } catch (error) {
-    console.error('Authentication error:', error.message);
-    
-    if (error.name === 'TokenExpiredError') {
-      return res.status(401).json({ message: 'Token expired' });
-    }
-    
-    if (error.name === 'JsonWebTokenError') {
-      return res.status(401).json({ message: 'Invalid token' });
-    }
-    
-    return res.status(401).json({ message: 'Authentication failed' });
+    return res.status(401).json({ message: 'Érvénytelen token' });
+  }
+};
+
+// Hozzáadni a fájl végéhez:
+export const apiKeyMiddleware = (req, res, next) => {
+  // Implement your API key validation logic here
+  const apiKey = req.headers['x-api-key'];
+  
+  if (!apiKey) {
+    return res.status(401).json({ message: 'API key is required' });
+  }
+  
+  // Check if the API key is valid (customize this check)
+  if (apiKey === process.env.API_KEY) {
+    next();
+  } else {
+    res.status(401).json({ message: 'Invalid API key' });
   }
 };
 

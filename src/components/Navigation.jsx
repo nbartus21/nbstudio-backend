@@ -4,7 +4,7 @@ import {
   Bell, LogOut, Menu, X, ChevronDown, Settings, Search, 
   User, HelpCircle, Home, Calendar, BookOpen, Globe, 
   Server, Database, Calculator, Mail, FileText, Clock,
-  DollarSign, PlusCircle, Languages, MessageCircle, CheckSquare
+  DollarSign, PlusCircle, Languages, MessageCircle
 } from 'lucide-react';
 import NotificationsManager from './NotificationsManager';
 
@@ -86,7 +86,7 @@ const Navigation = () => {
       items: [
         { path: "/domains", label: "Domain Kezelő", icon: <Globe size={16} /> },
         { path: "/infrastructure", label: "Infrastruktúra Kezelő", icon: <Server size={16} /> },
-        { path: "/tasks", label: "Feladatkezelő", icon: <CheckSquare size={16} /> },
+        { path: "/infrastructure/monitoring", label: "Szerver Monitoring", icon: <Database size={16} /> },
         { path: "/hosting", label: "Hosting Kezelő", icon: <Database size={16} /> },
         { path: "/accounting", label: "Könyvelés", icon: <DollarSign size={16} /> },
         { path: "/support", label: "Support Ticketek", icon: <MessageCircle size={16} /> }
