@@ -244,31 +244,7 @@ app.use('/api/public', publicRouter);
 app.use('/api/tasks', tasksRoutes); // Add hozzá ezt a sort
 
 
-// Próba végpont - közvetlen index.js-ben
-app.get('/api/translation/tasks', (req, res) => {
-  console.log('Közvetlen feladat lekérés érkezett!');
-  res.json({ 
-    message: 'Sikeresen elérhető a feladat API',
-    tasks: [
-      { 
-        _id: '1', 
-        title: 'Teszt feladat', 
-        description: 'Ez egy teszt feladat',
-        dueDate: new Date(),
-        priority: 'medium',
-        status: 'active',
-        progress: 0,
-        updates: [],
-        createdAt: new Date()
-      }
-    ] 
-  });
-});
 
-// Teszt végpont az elérhetőség ellenőrzésére
-app.get('/api/test', (req, res) => {
-  res.json({ message: 'API teszt végpont működik' });
-});
 
 // Public blog posts endpoint (no auth required)
 app.get('/api/posts', async (req, res) => {
