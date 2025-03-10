@@ -91,38 +91,79 @@ const TaskManager = () => {
         return;
       }
       
+      if (!newTask.dueDate) {
+        setError('A határidő megadása kötelező!');
+        return;
+      }
+      
       setLoading(true);
       
-      // Valós API hívás
-      const response = await api.post('/api/tasks', newTask);
+      // Feladat adatok előkészítése
+      const taskData = {
+        title: newTask.title,
+        description: newTask.description || '',
+        dueDate: newTask.dueDate,
+        priority: newTask.priority || 'medium',
+        reminders: newTask.reminders || []
+      };
       
-      // Ellenőrizzük, hogy a válasz tartalmaz-e adatokat
-      if (response && response.data) {
-        setTasks(prev => [response.data, ...prev]);
-        setShowNewTaskForm(false);
-        setNewTask({
-          title: '',
-          description: '',
-          dueDate: new Date().toISOString().split('T')[0],
-          priority: 'medium',
-          reminders: []
-        });
+      console.log('Új feladat létrehozása:', taskData);
+      
+      // Valós API hívás - kibővített hibakezeléssel
+      try {
+        const response = await api.post('/api/tasks', taskData);
+        console.log('API válasz:', response);
         
-        setSuccessMessage('Feladat sikeresen létrehozva!');
-        setTimeout(() => {
-          setSuccessMessage('');
-        }, 3000);
-      } else {
-        setError('Hiányzó válasz adatok a szervertől');
+        // Ellenőrizzük, hogy a válasz tartalmaz-e adatokat
+        if (response && response.data && response.data._id) {
+          console.log('Feladat sikeresen létrehozva:', response.data._id);
+          
+          setTasks(prev => [response.data, ...prev]);
+          setShowNewTaskForm(false);
+          setNewTask({
+            title: '',
+            description: '',
+            dueDate: new Date().toISOString().split('T')[0],
+            priority: 'medium',
+            reminders: []
+          });
+          
+          setSuccessMessage('Feladat sikeresen létrehozva!');
+          setTimeout(() => {
+            setSuccessMessage('');
+          }, 3000);
+        } else {
+          console.error('Hiányzó válasz adatok:', response);
+          setError('Hiányzó válasz adatok a szervertől');
+          setTimeout(() => {
+            setError(null);
+          }, 3000);
+        }
+      } catch (apiError) {
+        console.error('API hívás közben hiba történt:', apiError);
+        // API válasz részletes hibainformációinak kibontása
+        if (apiError.response) {
+          // A szerver válaszolt, de nem 2xx-es státuszkóddal
+          console.error('Szerver válasz:', apiError.response.data);
+          setError(apiError.response.data.message || 'Szerver hiba történt');
+        } else if (apiError.request) {
+          // A kérés elküldve, de nem érkezett válasz
+          console.error('Nincs válasz a szervertől');
+          setError('Nincs válasz a szervertől. Ellenőrizd a kapcsolatot!');
+        } else {
+          // Hiba a kérés előkészítésében
+          console.error('Kérés előkészítési hiba:', apiError.message);
+          setError('Hiba a kérés előkészítésében: ' + apiError.message);
+        }
         setTimeout(() => {
           setError(null);
-        }, 3000);
+        }, 5000);
       }
       
       setLoading(false);
     } catch (error) {
-      console.error('Hiba a feladat létrehozásakor:', error);
-      setError('Nem sikerült létrehozni a feladatot');
+      console.error('Globális hiba a feladat létrehozásakor:', error);
+      setError('Nem sikerült létrehozni a feladatot: ' + error.message);
       setLoading(false);
       setTimeout(() => {
         setError(null);
