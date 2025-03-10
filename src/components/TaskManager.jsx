@@ -60,11 +60,22 @@ const TaskManager = () => {
       
       // Valós API hívás
       const response = await api.get(`/api/tasks?${queryParams.toString()}`);
-      setTasks(response.data);
+      
+      // Ellenőrizzük, hogy a válasz tartalmaz-e adatokat
+      if (response && response.data) {
+        setTasks(response.data);
+      } else {
+        // Ha nincs adat, akkor üres tömböt állítunk be
+        setTasks([]);
+        console.warn('A szerver nem adott vissza feladat adatokat');
+      }
+      
       setLoading(false);
     } catch (error) {
       console.error('Hiba a feladatok betöltésekor:', error);
       setError('Nem sikerült betölteni a feladatokat');
+      // Hiba esetén is tisztítsuk ki a tasks tömböt
+      setTasks([]);
       setLoading(false);
       setTimeout(() => {
         setError(null);
@@ -85,20 +96,28 @@ const TaskManager = () => {
       // Valós API hívás
       const response = await api.post('/api/tasks', newTask);
       
-      setTasks(prev => [response.data, ...prev]);
-      setShowNewTaskForm(false);
-      setNewTask({
-        title: '',
-        description: '',
-        dueDate: new Date().toISOString().split('T')[0],
-        priority: 'medium',
-        reminders: []
-      });
-      
-      setSuccessMessage('Feladat sikeresen létrehozva!');
-      setTimeout(() => {
-        setSuccessMessage('');
-      }, 3000);
+      // Ellenőrizzük, hogy a válasz tartalmaz-e adatokat
+      if (response && response.data) {
+        setTasks(prev => [response.data, ...prev]);
+        setShowNewTaskForm(false);
+        setNewTask({
+          title: '',
+          description: '',
+          dueDate: new Date().toISOString().split('T')[0],
+          priority: 'medium',
+          reminders: []
+        });
+        
+        setSuccessMessage('Feladat sikeresen létrehozva!');
+        setTimeout(() => {
+          setSuccessMessage('');
+        }, 3000);
+      } else {
+        setError('Hiányzó válasz adatok a szervertől');
+        setTimeout(() => {
+          setError(null);
+        }, 3000);
+      }
       
       setLoading(false);
     } catch (error) {
@@ -119,16 +138,24 @@ const TaskManager = () => {
       // Valós API hívás
       const response = await api.put(`/api/tasks/${taskId}/complete`);
       
-      setTasks(prev => 
-        prev.map(task => 
-          task._id === response.data._id ? response.data : task
-        )
-      );
-      
-      setSuccessMessage('Feladat sikeresen teljesítve!');
-      setTimeout(() => {
-        setSuccessMessage('');
-      }, 3000);
+      // Ellenőrizzük, hogy a válasz tartalmaz-e adatokat
+      if (response && response.data) {
+        setTasks(prev => 
+          prev.map(task => 
+            task._id === response.data._id ? response.data : task
+          )
+        );
+        
+        setSuccessMessage('Feladat sikeresen teljesítve!');
+        setTimeout(() => {
+          setSuccessMessage('');
+        }, 3000);
+      } else {
+        setError('Hiányzó válasz adatok a szervertől');
+        setTimeout(() => {
+          setError(null);
+        }, 3000);
+      }
       
       setLoading(false);
     } catch (error) {
@@ -289,11 +316,16 @@ const TaskManager = () => {
     let currentDate = new Date(startDate);
     
     for (let i = 0; i < numCells; i++) {
+      // Ellenőrizzük, hogy a tasks tömb létezik-e
+      const tasksForDay = tasks && Array.isArray(tasks) 
+        ? tasks.filter(task => task && task.dueDate && isSameDay(new Date(task.dueDate), currentDate))
+        : [];
+        
       cells.push({
         date: new Date(currentDate),
         isCurrentMonth: currentDate.getMonth() === month,
         isToday: isSameDay(currentDate, new Date()),
-        tasksForDay: tasks.filter(task => isSameDay(new Date(task.dueDate), currentDate))
+        tasksForDay
       });
       
       currentDate.setDate(currentDate.getDate() + 1);
@@ -339,6 +371,11 @@ const TaskManager = () => {
   
   // Feladatok rendezése határidő szerint az idővonalas nézethez
   const getTasksByDueDate = () => {
+    // Ellenőrizzük, hogy a tasks tömb létezik-e és valóban tömb-e
+    if (!tasks || !Array.isArray(tasks) || tasks.length === 0) {
+      return {};
+    }
+    
     const groupedTasks = {};
     
     // Mai nap
@@ -362,6 +399,9 @@ const TaskManager = () => {
     
     // Rendezés kategóriákba
     tasks.forEach(task => {
+      // Ellenőrizzük, hogy a task objektum és a dueDate létezik-e
+      if (!task || !task.dueDate) return;
+      
       const dueDate = new Date(task.dueDate);
       
       if (isSameDay(dueDate, today)) {
