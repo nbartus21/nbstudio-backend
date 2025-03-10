@@ -15,10 +15,9 @@ import SharedProjectView from './SharedProjectView';
 import InvoiceManager from './InvoiceManager';
 import AccountingManager from './AccountingManager';
 import HostingManager from './HostingManager';
-import ServerMonitoring from './ServerMonitoring';
 import TranslationTool from './TranslationTool'; // Új komponens importálása
 import SupportTicketManager from './SupportTicketManager';
-import QRLogin from './QRLogin';
+
 
 
 const App = () => {
@@ -139,13 +138,13 @@ const App = () => {
        }
      />
      <Route
-       path="/infrastructure/monitoring"
-       element={
-         <PrivateRoute>
-           <ServerMonitoring />
-         </PrivateRoute>
-       }
-     />
+        path="/tasks"
+        element={
+          <PrivateRoute>
+            <TaskManager />
+          </PrivateRoute>
+        }
+      />
      <Route
        path="/hosting"
        element={
@@ -162,7 +161,6 @@ const App = () => {
          </PrivateRoute>
        }
      />
-     <Route path="/qr-login" element={<QRLogin />} />
      <Route path="*" element={<Navigate to="/magic-login" />} />
      <Route path="/shared-project/:token" element={<SharedProjectView />} />
    </Routes>
