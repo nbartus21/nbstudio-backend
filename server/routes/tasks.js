@@ -1,6 +1,5 @@
 import express from 'express';
 import Task from '../models/Task.js';
-import Notification from '../models/Notification.js';
 import authMiddleware from '../middleware/auth.js';
 
 const router = express.Router();
@@ -12,6 +11,12 @@ router.use(authMiddleware);
 router.get('/tasks', async (req, res) => {
   try {
     const { status, priority, search, dateRange } = req.query;
+    
+    // Ellenőrizzük, hogy a req.userData létezik-e
+    if (!req.userData || !req.userData.email) {
+      console.error('Hiányzó felhasználói adat:', req.userData);
+      return res.status(401).json({ message: 'Hiányzó felhasználói adatok' });
+    }
     
     // Alap lekérdezés a felhasználó feladataira
     let query = { createdBy: req.userData.email };
@@ -28,7 +33,17 @@ router.get('/tasks', async (req, res) => {
     
     // Szöveg keresés
     if (search) {
-      query.$text = { $search: search };
+      // Szöveg keresés: vagy text index vagy regex használata
+      if (Task.schema.index && Task.schema.index.text) {
+        // Ha van text index a modellen
+        query.$text = { $search: search };
+      } else {
+        // Ha nincs text index, használjunk regex-et
+        query.$or = [
+          { title: { $regex: search, $options: 'i' } },
+          { description: { $regex: search, $options: 'i' } }
+        ];
+      }
     }
     
     // Dátum szűrés
@@ -60,11 +75,21 @@ router.get('/tasks', async (req, res) => {
       }
     }
     
-    // Feladatok lekérése és sorrendbe állítása - JAVÍTVA
-    // Itt használjuk a helyes MongoDB sort szintaxist
+    console.log('Feladatok lekérdezése a következő paraméterekkel:', {
+      email: req.userData.email,
+      status,
+      priority,
+      search,
+      dateRange
+    });
+    
+    // Feladatok lekérése és sorrendbe állítása - JAVÍTOTT VERZIÓ
+    // MongoDB helyes sort szintaxis
     const tasks = await Task.find(query)
       .sort({ dueDate: 1 }) // Először dátum szerint rendezzük
       .lean();
+    
+    console.log(`${tasks.length} feladat található`);
     
     // Virtuális mező hozzáadása minden feladathoz
     const tasksWithIsOverdue = tasks.map(task => {
@@ -97,6 +122,11 @@ router.get('/tasks', async (req, res) => {
 // Egy feladat lekérése
 router.get('/tasks/:id', async (req, res) => {
   try {
+    // Felhasználó ellenőrzése
+    if (!req.userData || !req.userData.email) {
+      return res.status(401).json({ message: 'Hiányzó felhasználói adatok' });
+    }
+    
     const task = await Task.findOne({ 
       _id: req.params.id,
       createdBy: req.userData.email
@@ -121,6 +151,13 @@ router.post('/tasks', async (req, res) => {
   try {
     const { title, description, dueDate, priority, reminders } = req.body;
     
+    // Felhasználó ellenőrzése
+    if (!req.userData || !req.userData.email) {
+      console.error('Hiányzó felhasználói adatok a feladat létrehozásánál:', req.userData);
+      return res.status(401).json({ message: 'Hiányzó felhasználói adatok' });
+    }
+    
+    // Alapvető validáció
     if (!title) {
       return res.status(400).json({ message: 'A feladat címe kötelező' });
     }
@@ -129,16 +166,26 @@ router.post('/tasks', async (req, res) => {
       return res.status(400).json({ message: 'A határidő megadása kötelező' });
     }
     
+    console.log('Feladat létrehozása:', {
+      title,
+      createdBy: req.userData.email,
+      dueDate,
+      priority: priority || 'medium'
+    });
+    
+    // Új feladat létrehozása
     const task = new Task({
       title,
-      description,
+      description: description || '',
       dueDate,
       priority: priority || 'medium',
       reminders: reminders || [],
       createdBy: req.userData.email
     });
     
+    // Feladat mentése
     const savedTask = await task.save();
+    console.log('Feladat sikeresen létrehozva:', savedTask._id);
     
     res.status(201).json(savedTask);
   } catch (error) {
@@ -155,10 +202,16 @@ router.put('/tasks/:id', async (req, res) => {
   try {
     const { title, description, dueDate, priority, reminders } = req.body;
     
+    // Felhasználó ellenőrzése
+    if (!req.userData || !req.userData.email) {
+      return res.status(401).json({ message: 'Hiányzó felhasználói adatok' });
+    }
+    
     if (!title) {
       return res.status(400).json({ message: 'A feladat címe kötelező' });
     }
     
+    // Feladat keresése
     const task = await Task.findOne({ 
       _id: req.params.id,
       createdBy: req.userData.email
@@ -184,6 +237,9 @@ router.put('/tasks/:id', async (req, res) => {
       task.reminders = reminders;
     }
     
+    // Automatikus updatedAt frissítés
+    task.updatedAt = new Date();
+    
     const updatedTask = await task.save();
     
     res.json(updatedTask);
@@ -199,6 +255,11 @@ router.put('/tasks/:id', async (req, res) => {
 // Feladat teljesítettnek jelölése
 router.put('/tasks/:id/complete', async (req, res) => {
   try {
+    // Felhasználó ellenőrzése
+    if (!req.userData || !req.userData.email) {
+      return res.status(401).json({ message: 'Hiányzó felhasználói adatok' });
+    }
+    
     const task = await Task.findOne({ 
       _id: req.params.id,
       createdBy: req.userData.email
@@ -210,6 +271,7 @@ router.put('/tasks/:id/complete', async (req, res) => {
     
     task.status = 'completed';
     task.completedAt = new Date();
+    task.updatedAt = new Date();
     
     const completedTask = await task.save();
     
@@ -226,6 +288,11 @@ router.put('/tasks/:id/complete', async (req, res) => {
 // Feladat visszaállítása függőbe
 router.put('/tasks/:id/reopen', async (req, res) => {
   try {
+    // Felhasználó ellenőrzése
+    if (!req.userData || !req.userData.email) {
+      return res.status(401).json({ message: 'Hiányzó felhasználói adatok' });
+    }
+    
     const task = await Task.findOne({ 
       _id: req.params.id,
       createdBy: req.userData.email
@@ -237,6 +304,7 @@ router.put('/tasks/:id/reopen', async (req, res) => {
     
     task.status = 'pending';
     task.completedAt = undefined;
+    task.updatedAt = new Date();
     
     const reopenedTask = await task.save();
     
@@ -253,6 +321,11 @@ router.put('/tasks/:id/reopen', async (req, res) => {
 // Feladat törlése
 router.delete('/tasks/:id', async (req, res) => {
   try {
+    // Felhasználó ellenőrzése
+    if (!req.userData || !req.userData.email) {
+      return res.status(401).json({ message: 'Hiányzó felhasználói adatok' });
+    }
+    
     const task = await Task.findOne({ 
       _id: req.params.id,
       createdBy: req.userData.email
@@ -277,6 +350,11 @@ router.delete('/tasks/:id', async (req, res) => {
 // Mai feladatok lekérése (dashboard widgethez)
 router.get('/tasks/dashboard/today', async (req, res) => {
   try {
+    // Felhasználó ellenőrzése
+    if (!req.userData || !req.userData.email) {
+      return res.status(401).json({ message: 'Hiányzó felhasználói adatok' });
+    }
+    
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
@@ -292,7 +370,7 @@ router.get('/tasks/dashboard/today', async (req, res) => {
       status: 'pending'
     }).sort({ dueDate: 1 }).lean();
     
-    // Prioritás szerint rendezzük
+    // Prioritás szerint rendezzük (JavaScript-ben)
     const priorityOrder = { 'high': 0, 'medium': 1, 'low': 2 };
     tasks.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
     
@@ -309,6 +387,11 @@ router.get('/tasks/dashboard/today', async (req, res) => {
 // Késésben lévő feladatok lekérése (dashboard widgethez)
 router.get('/tasks/dashboard/overdue', async (req, res) => {
   try {
+    // Felhasználó ellenőrzése
+    if (!req.userData || !req.userData.email) {
+      return res.status(401).json({ message: 'Hiányzó felhasználói adatok' });
+    }
+    
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
@@ -318,7 +401,7 @@ router.get('/tasks/dashboard/overdue', async (req, res) => {
       status: 'pending'
     }).sort({ dueDate: 1 }).lean();
     
-    // Prioritás szerint rendezzük
+    // Prioritás szerint rendezzük (JavaScript-ben)
     const priorityOrder = { 'high': 0, 'medium': 1, 'low': 2 };
     tasks.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
     
@@ -335,6 +418,11 @@ router.get('/tasks/dashboard/overdue', async (req, res) => {
 // Statisztikák lekérése (dashboard widgethez)
 router.get('/tasks/dashboard/stats', async (req, res) => {
   try {
+    // Felhasználó ellenőrzése
+    if (!req.userData || !req.userData.email) {
+      return res.status(401).json({ message: 'Hiányzó felhasználói adatok' });
+    }
+    
     const email = req.userData.email;
     
     // Mai dátum határok
