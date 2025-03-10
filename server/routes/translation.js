@@ -1,227 +1,198 @@
 import express from 'express';
-import Task from '../models/Task.js';
 import mongoose from 'mongoose';
+import Template from '../models/Template.js';
+import Note from '../models/Note.js';  // Import the Note model
 import authMiddleware from '../middleware/auth.js';
 
 const router = express.Router();
 
-// A router már védetté van téve az index.js-ben, így ezt elhagyjuk
+// Apply authentication middleware to all routes
+router.use(authMiddleware);
 
-// ============= FELADATOK VÉGPONTOK =============
-// Összes feladat lekérése
-router.get('/tasks', async (req, res) => {
-  try {
-    const tasks = await Task.find({ userId: req.userData.email })
-      .sort({ createdAt: -1 });
-    
-    res.json(tasks);
-  } catch (error) {
-    console.error('Error fetching tasks:', error);
-    res.status(500).json({ message: 'Hiba történt a feladatok lekérése során' });
-  }
-});
+// =========== TEMPLATES ROUTES ===========
 
-// Egy feladat lekérése
-router.get('/tasks/:id', async (req, res) => {
-  try {
-    const task = await Task.findOne({ 
-      _id: req.params.id,
-      userId: req.userData.email 
-    });
-    
-    if (!task) {
-      return res.status(404).json({ message: 'Feladat nem található' });
-    }
-    
-    res.json(task);
-  } catch (error) {
-    console.error('Error fetching task:', error);
-    res.status(500).json({ message: 'Hiba történt a feladat lekérése során' });
-  }
-});
-
-// Új feladat létrehozása
-router.post('/tasks', async (req, res) => {
-  try {
-    const task = new Task({
-      ...req.body,
-      userId: req.userData.email,
-      createdAt: new Date()
-    });
-    
-    const savedTask = await task.save();
-    res.status(201).json(savedTask);
-  } catch (error) {
-    console.error('Error creating task:', error);
-    res.status(400).json({ message: 'Hiba történt a feladat létrehozása során' });
-  }
-});
-
-// Feladat frissítése
-router.put('/tasks/:id', async (req, res) => {
-  try {
-    const task = await Task.findOne({ 
-      _id: req.params.id,
-      userId: req.userData.email 
-    });
-    
-    if (!task) {
-      return res.status(404).json({ message: 'Feladat nem található' });
-    }
-    
-    // Ha státusz completed-re változik, de nem volt eddig az
-    if (req.body.status === 'completed' && task.status !== 'completed') {
-      req.body.completedAt = new Date();
-      req.body.progress = 100;
-    }
-    // Ha completed-ről active-ra változik
-    else if (req.body.status === 'active' && task.status === 'completed') {
-      req.body.completedAt = undefined;
-    }
-    
-    const updatedTask = await Task.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true }
-    );
-    
-    res.json(updatedTask);
-  } catch (error) {
-    console.error('Error updating task:', error);
-    res.status(400).json({ message: 'Hiba történt a feladat módosítása során' });
-  }
-});
-
-// Feladat törlése
-router.delete('/tasks/:id', async (req, res) => {
-  try {
-    const task = await Task.findOneAndDelete({ 
-      _id: req.params.id,
-      userId: req.userData.email 
-    });
-    
-    if (!task) {
-      return res.status(404).json({ message: 'Feladat nem található' });
-    }
-    
-    res.json({ message: 'Feladat sikeresen törölve' });
-  } catch (error) {
-    console.error('Error deleting task:', error);
-    res.status(500).json({ message: 'Hiba történt a feladat törlése során' });
-  }
-});
-
-// Feladat frissítés (update) hozzáadása
-router.post('/tasks/:id/updates', async (req, res) => {
-  try {
-    const task = await Task.findOne({ 
-      _id: req.params.id,
-      userId: req.userData.email 
-    });
-    
-    if (!task) {
-      return res.status(404).json({ message: 'Feladat nem található' });
-    }
-    
-    const update = {
-      _id: new mongoose.Types.ObjectId(),
-      content: req.body.content,
-      progress: req.body.progress || task.progress,
-      createdAt: new Date()
-    };
-    
-    task.updates.push(update);
-    
-    // Ha a frissítés haladása nagyobb, mint a jelenlegi
-    if (update.progress > task.progress) {
-      task.progress = update.progress;
-    }
-    
-    // Ha a haladás 100%, a státuszt is frissítjük
-    if (update.progress >= 100 && task.status !== 'completed') {
-      task.status = 'completed';
-      task.completedAt = new Date();
-      task.progress = 100;
-    }
-    
-    await task.save();
-    res.json(task);
-  } catch (error) {
-    console.error('Error adding task update:', error);
-    res.status(400).json({ message: 'Hiba történt a feladat frissítésének hozzáadása során' });
-  }
-});
-
-// ============= SABLONOK VÉGPONTOK =============
-// Ezek a végpontok a meglévő sablon funkcionalitást szolgálják
-// Ha még nem léteznek a Template modell/adatbázis, alapértelmezett értékeket adunk vissza
-
-// Sablonok lekérése
+// Get all templates
 router.get('/templates', async (req, res) => {
   try {
-    // Ideális esetben: const templates = await Template.find({ userId: req.userData.email });
-
-    // Alapértelmezett sablonok, ha nincs Template modell
-    const templates = [
-      {
-        _id: '1',
-        name: 'Üdvözlő email',
-        description: 'Új ügyfél üdvözlése',
-        sourceText: 'Tisztelt Ügyfelünk!\n\nKöszönjük megkeresését. Örömmel segítünk Önnek weboldala fejlesztésében.\n\nÜdvözlettel,\nNB Studio',
-        targetText: 'Sehr geehrter Kunde!\n\nVielen Dank für Ihre Anfrage. Wir helfen Ihnen gerne bei der Entwicklung Ihrer Website.\n\nMit freundlichen Grüßen,\nNB Studio',
-        sourceLanguage: 'hu',
-        targetLanguage: 'de',
-        category: 'email',
-        userId: req.userData.email
-      }
-    ];
-    
+    const templates = await Template.find().sort({ updatedAt: -1 });
     res.json(templates);
   } catch (error) {
-    console.error('Error fetching templates:', error);
-    res.status(500).json({ message: 'Hiba történt a sablonok lekérése során' });
+    console.error('Error fetching translation templates:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
-// Új sablon mentése
+// Create new template
 router.post('/templates', async (req, res) => {
   try {
-    // Ideális esetben:
-    // const template = new Template({
-    //   ...req.body,
-    //   userId: req.userData.email
-    // });
-    // const savedTemplate = await template.save();
-    
-    // Mivel nincs Template modell, példa választ küldünk
-    const savedTemplate = {
-      _id: Date.now().toString(),
-      ...req.body,
-      userId: req.userData.email,
-      createdAt: new Date()
-    };
-    
+    const {
+      name,
+      description,
+      sourceText,
+      targetText,
+      sourceLanguage,
+      targetLanguage,
+      category
+    } = req.body;
+
+    if (!name || !sourceText || !targetText) {
+      return res.status(400).json({ message: 'Name, source text and target text are required' });
+    }
+
+    const template = new Template({
+      name,
+      description,
+      sourceText,
+      targetText,
+      sourceLanguage: sourceLanguage || 'hu',
+      targetLanguage: targetLanguage || 'de',
+      category: category || 'email',
+      createdBy: req.userData?.email || 'system'
+    });
+
+    const savedTemplate = await template.save();
     res.status(201).json(savedTemplate);
   } catch (error) {
-    console.error('Error saving template:', error);
-    res.status(400).json({ message: 'Hiba történt a sablon mentése során' });
+    console.error('Error creating template:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
-// Sablon törlése
+// Delete template
 router.delete('/templates/:id', async (req, res) => {
   try {
-    // Ideális esetben:
-    // const template = await Template.findOneAndDelete({
-    //   _id: req.params.id,
-    //   userId: req.userData.email
-    // });
+    const template = await Template.findById(req.params.id);
     
-    // Mivel nincs Template modell, csak sikeres választ küldünk
-    res.json({ message: 'Sablon sikeresen törölve' });
+    if (!template) {
+      return res.status(404).json({ message: 'Template not found' });
+    }
+    
+    await Template.deleteOne({ _id: req.params.id });
+    res.json({ message: 'Template removed' });
   } catch (error) {
     console.error('Error deleting template:', error);
-    res.status(500).json({ message: 'Hiba történt a sablon törlése során' });
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// =========== NOTES ROUTES ===========
+
+// Get all notes for the authenticated user
+router.get('/notes', async (req, res) => {
+  try {
+    const notes = await Note.find({ createdBy: req.userData.email }).sort({ updatedAt: -1 });
+    res.json(notes);
+  } catch (error) {
+    console.error('Error fetching notes:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Create new note
+router.post('/notes', async (req, res) => {
+  try {
+    const { title, content, tags, category } = req.body;
+
+    if (!title || !content) {
+      return res.status(400).json({ message: 'Title and content are required' });
+    }
+
+    // Process tags if they're provided as a string
+    let processedTags = tags;
+    if (typeof tags === 'string') {
+      processedTags = tags.split(',').map(tag => tag.trim()).filter(tag => tag);
+    }
+
+    const note = new Note({
+      title,
+      content,
+      tags: processedTags || [],
+      category: category || 'general',
+      createdBy: req.userData.email
+    });
+
+    const savedNote = await note.save();
+    res.status(201).json(savedNote);
+  } catch (error) {
+    console.error('Error creating note:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Get note by ID
+router.get('/notes/:id', async (req, res) => {
+  try {
+    const note = await Note.findOne({ 
+      _id: req.params.id,
+      createdBy: req.userData.email 
+    });
+    
+    if (!note) {
+      return res.status(404).json({ message: 'Note not found' });
+    }
+    
+    res.json(note);
+  } catch (error) {
+    console.error('Error fetching note:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Update note
+router.put('/notes/:id', async (req, res) => {
+  try {
+    const { title, content, tags, category } = req.body;
+
+    if (!title || !content) {
+      return res.status(400).json({ message: 'Title and content are required' });
+    }
+
+    // Process tags if they're provided as a string
+    let processedTags = tags;
+    if (typeof tags === 'string') {
+      processedTags = tags.split(',').map(tag => tag.trim()).filter(tag => tag);
+    }
+
+    const note = await Note.findOne({ 
+      _id: req.params.id,
+      createdBy: req.userData.email 
+    });
+    
+    if (!note) {
+      return res.status(404).json({ message: 'Note not found' });
+    }
+    
+    note.title = title;
+    note.content = content;
+    note.tags = processedTags || [];
+    note.category = category || 'general';
+    note.updatedAt = Date.now();
+
+    const updatedNote = await note.save();
+    res.json(updatedNote);
+  } catch (error) {
+    console.error('Error updating note:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Delete note
+router.delete('/notes/:id', async (req, res) => {
+  try {
+    const note = await Note.findOne({ 
+      _id: req.params.id,
+      createdBy: req.userData.email 
+    });
+    
+    if (!note) {
+      return res.status(404).json({ message: 'Note not found' });
+    }
+    
+    await Note.deleteOne({ _id: req.params.id });
+    res.json({ message: 'Note deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting note:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
 
