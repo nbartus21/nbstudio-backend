@@ -1,55 +1,56 @@
+// middleware/auth.js
 import jwt from 'jsonwebtoken';
+import dotenv from 'dotenv';
 
+dotenv.config();
+
+// Auth middleware to protect routes
 const authMiddleware = (req, res, next) => {
-  // CORS preflight kérések átengedése
-  if (req.method === 'OPTIONS') {
-    return next();
-  }
-
   try {
-    // Token kinyerése a header-ből
-    const token = req.headers.authorization?.split(' ')[1];
+    // Get the token from the Authorization header
+    const authHeader = req.headers['authorization'];
     
-    if (!token) {
-      console.log('Hiányzó autentikációs token');
-      return res.status(401).json({ message: 'Nincs autentikációs token' });
+    if (!authHeader) {
+      console.error('Authorization header missing');
+      return res.status(401).json({ message: 'Authorization required' });
     }
-
-    // Token ellenőrzése
+    
+    // Format should be: "Bearer token"
+    const parts = authHeader.split(' ');
+    
+    if (parts.length !== 2 || parts[0] !== 'Bearer') {
+      console.error('Invalid authorization format');
+      return res.status(401).json({ message: 'Invalid authorization format' });
+    }
+    
+    const token = parts[1];
+    
+    // Verify the token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
-    // Ellenőrizzük, hogy a decoded token tartalmazza-e az email mezőt
-    if (!decoded.email) {
-      console.log('Hiányzó email cím a tokenben', decoded);
-      return res.status(401).json({ message: 'Érvénytelen tokentartalom - hiányzó email cím' });
-    }
+    // Add user data to the request
+    req.userData = {
+      userId: decoded.userId,
+      email: decoded.email,
+      role: decoded.role || 'user'
+    };
     
-    req.userData = decoded;
-    console.log('Sikeres autentikáció:', req.userData.email);
+    console.log('User authenticated:', req.userData.email);
     
+    // Proceed to the route
     next();
   } catch (error) {
-    console.error('Token ellenőrzési hiba:', error.message);
-    return res.status(401).json({ message: 'Érvénytelen token' });
-  }
-};
-
-// API kulcs validáló middleware
-export const apiKeyMiddleware = (req, res, next) => {
-  const apiKey = req.headers['x-api-key'];
-  
-  if (!apiKey) {
-    console.log('Hiányzó API kulcs');
-    return res.status(401).json({ message: 'API kulcs megadása kötelező' });
-  }
-  
-  // API kulcs ellenőrzése
-  if (apiKey === process.env.API_KEY) {
-    console.log('Sikeres API kulcs autentikáció');
-    next();
-  } else {
-    console.error('Érvénytelen API kulcs');
-    res.status(401).json({ message: 'Érvénytelen API kulcs' });
+    console.error('Authentication error:', error.message);
+    
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({ message: 'Token expired' });
+    }
+    
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({ message: 'Invalid token' });
+    }
+    
+    return res.status(401).json({ message: 'Authentication failed' });
   }
 };
 

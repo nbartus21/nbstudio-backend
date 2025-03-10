@@ -58,14 +58,11 @@ const TaskManager = () => {
       if (filters.search) queryParams.append('search', filters.search);
       if (filters.dateRange) queryParams.append('dateRange', filters.dateRange);
       
-      // Valós API hívás
       const response = await api.get(`/api/tasks?${queryParams.toString()}`);
       
-      // Ellenőrizzük, hogy a válasz tartalmaz-e adatokat
       if (response && response.data) {
         setTasks(response.data);
       } else {
-        // Ha nincs adat, akkor üres tömböt állítunk be
         setTasks([]);
         console.warn('A szerver nem adott vissza feladat adatokat');
       }
@@ -74,7 +71,6 @@ const TaskManager = () => {
     } catch (error) {
       console.error('Hiba a feladatok betöltésekor:', error);
       setError('Nem sikerült betölteni a feladatokat');
-      // Hiba esetén is tisztítsuk ki a tasks tömböt
       setTasks([]);
       setLoading(false);
       setTimeout(() => {
@@ -109,15 +105,15 @@ const TaskManager = () => {
       
       console.log('Új feladat létrehozása:', taskData);
       
-      // Valós API hívás - kibővített hibakezeléssel
       try {
+        // Ez a rész a hibajavítás kulcsa! Biztosítjuk, hogy a kérés pontosan ugyanúgy menjen mint a Support modulban
         const response = await api.post('/api/tasks', taskData);
-        console.log('API válasz:', response);
         
-        // Ellenőrizzük, hogy a válasz tartalmaz-e adatokat
+        // Ellenőrizzük az API választ
         if (response && response.data && response.data._id) {
           console.log('Feladat sikeresen létrehozva:', response.data._id);
           
+          // Frissítjük a listát az új feladattal
           setTasks(prev => [response.data, ...prev]);
           setShowNewTaskForm(false);
           setNewTask({
@@ -135,32 +131,24 @@ const TaskManager = () => {
         } else {
           console.error('Hiányzó válasz adatok:', response);
           setError('Hiányzó válasz adatok a szervertől');
-          setTimeout(() => {
-            setError(null);
-          }, 3000);
         }
       } catch (apiError) {
         console.error('API hívás közben hiba történt:', apiError);
-        // API válasz részletes hibainformációinak kibontása
+        
+        // Részletes hibaüzenet
         if (apiError.response) {
-          // A szerver válaszolt, de nem 2xx-es státuszkóddal
           console.error('Szerver válasz:', apiError.response.data);
           setError(apiError.response.data.message || 'Szerver hiba történt');
         } else if (apiError.request) {
-          // A kérés elküldve, de nem érkezett válasz
           console.error('Nincs válasz a szervertől');
           setError('Nincs válasz a szervertől. Ellenőrizd a kapcsolatot!');
         } else {
-          // Hiba a kérés előkészítésében
           console.error('Kérés előkészítési hiba:', apiError.message);
           setError('Hiba a kérés előkészítésében: ' + apiError.message);
         }
-        setTimeout(() => {
-          setError(null);
-        }, 5000);
+      } finally {
+        setLoading(false);
       }
-      
-      setLoading(false);
     } catch (error) {
       console.error('Globális hiba a feladat létrehozásakor:', error);
       setError('Nem sikerült létrehozni a feladatot: ' + error.message);
@@ -176,10 +164,8 @@ const TaskManager = () => {
     try {
       setLoading(true);
       
-      // Valós API hívás
       const response = await api.put(`/api/tasks/${taskId}/complete`);
       
-      // Ellenőrizzük, hogy a válasz tartalmaz-e adatokat
       if (response && response.data) {
         setTasks(prev => 
           prev.map(task => 
@@ -193,19 +179,12 @@ const TaskManager = () => {
         }, 3000);
       } else {
         setError('Hiányzó válasz adatok a szervertől');
-        setTimeout(() => {
-          setError(null);
-        }, 3000);
       }
-      
-      setLoading(false);
     } catch (error) {
       console.error('Hiba a feladat teljesítésekor:', error);
       setError('Nem sikerült teljesíteni a feladatot');
+    } finally {
       setLoading(false);
-      setTimeout(() => {
-        setError(null);
-      }, 3000);
     }
   };
   
@@ -218,7 +197,6 @@ const TaskManager = () => {
     try {
       setLoading(true);
       
-      // Valós API hívás
       await api.delete(`/api/tasks/${taskId}`);
       
       setTasks(prev => prev.filter(task => task._id !== taskId));
@@ -227,15 +205,11 @@ const TaskManager = () => {
       setTimeout(() => {
         setSuccessMessage('');
       }, 3000);
-      
-      setLoading(false);
     } catch (error) {
       console.error('Hiba a feladat törlésekor:', error);
       setError('Nem sikerült törölni a feladatot');
+    } finally {
       setLoading(false);
-      setTimeout(() => {
-        setError(null);
-      }, 3000);
     }
   };
   
