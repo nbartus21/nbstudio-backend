@@ -9,6 +9,7 @@ import fs from 'fs';
 import Contact from './models/Contact.js';
 import Hosting from './models/Hosting.js';
 import HostingNotification from './models/HostingNotification.js';
+import Task from './models/Task.js';
 import postRoutes from './routes/posts.js';
 import contactRoutes from './routes/contacts.js';
 import calculatorRoutes from './routes/calculators.js';
