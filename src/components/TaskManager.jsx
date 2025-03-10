@@ -58,19 +58,10 @@ const TaskManager = () => {
       if (filters.search) queryParams.append('search', filters.search);
       if (filters.dateRange) queryParams.append('dateRange', filters.dateRange);
       
-      // Mivel még nincs API, statikusan töltjük be a feladatokat demóhoz
-      setTimeout(() => {
-        const mockTasks = getMockTasks(filters);
-        setTasks(mockTasks);
-        setLoading(false);
-      }, 500);
-      
-      /* Később implementálható API hívás:
+      // Valós API hívás
       const response = await api.get(`/api/tasks?${queryParams.toString()}`);
-      const data = await response.json();
-      setTasks(data);
+      setTasks(response.data);
       setLoading(false);
-      */
     } catch (error) {
       console.error('Hiba a feladatok betöltésekor:', error);
       setError('Nem sikerült betölteni a feladatokat');
@@ -81,144 +72,6 @@ const TaskManager = () => {
     }
   };
   
-  // Mock tasks a demóhoz
-  const getMockTasks = (activeFilters) => {
-    const allTasks = [
-      {
-        _id: '1',
-        title: 'Megbeszélés az ügyféllel',
-        description: 'A projekt követelményeinek átbeszélése',
-        status: 'pending',
-        priority: 'high',
-        dueDate: new Date().toISOString().split('T')[0], // ma
-        createdAt: new Date().toISOString(),
-        reminders: [
-          { time: '1 órával előtte', sent: false }
-        ]
-      },
-      {
-        _id: '2',
-        title: 'Kód felülvizsgálat',
-        description: 'A csapat által írt kód átnézése',
-        status: 'completed',
-        priority: 'medium',
-        dueDate: new Date().toISOString().split('T')[0], // ma
-        createdAt: new Date(Date.now() - 86400000).toISOString(), // tegnap
-        completedAt: new Date().toISOString(),
-        reminders: []
-      },
-      {
-        _id: '3',
-        title: 'Prezentáció készítése',
-        description: 'Bemutató anyag készítése a holnapi megbeszélésre',
-        status: 'pending',
-        priority: 'high',
-        dueDate: new Date(Date.now() + 86400000).toISOString().split('T')[0], // holnap
-        createdAt: new Date().toISOString(),
-        reminders: [
-          { time: '1 nappal előtte', sent: false }
-        ]
-      },
-      {
-        _id: '4',
-        title: 'Adatbázis migráció',
-        description: 'Adatok átköltöztetése az új rendszerbe',
-        status: 'pending',
-        priority: 'low',
-        dueDate: new Date(Date.now() + 172800000).toISOString().split('T')[0], // holnapután
-        createdAt: new Date().toISOString(),
-        reminders: []
-      },
-      {
-        _id: '5',
-        title: 'Dokumentáció írása',
-        description: 'Fejlesztői dokumentáció elkészítése',
-        status: 'pending',
-        priority: 'medium',
-        dueDate: new Date(Date.now() + 259200000).toISOString().split('T')[0], // 3 nap múlva
-        createdAt: new Date(Date.now() - 172800000).toISOString(), // 2 nappal ezelőtt
-        reminders: []
-      },
-      {
-        _id: '6',
-        title: 'Heti státuszjelentés',
-        description: 'Projekt előrehaladás összefoglalása',
-        status: 'pending',
-        priority: 'medium',
-        dueDate: new Date(Date.now() + 345600000).toISOString().split('T')[0], // 4 nap múlva
-        createdAt: new Date().toISOString(),
-        reminders: []
-      },
-      {
-        _id: '7',
-        title: 'Ügyfél visszajelzés összegzése',
-        description: 'A tesztelés során beérkezett visszajelzések feldolgozása',
-        status: 'pending',
-        priority: 'medium',
-        dueDate: new Date(Date.now() + 432000000).toISOString().split('T')[0], // 5 nap múlva
-        createdAt: new Date().toISOString(),
-        reminders: []
-      },
-      {
-        _id: '8',
-        title: 'Üzemeltetési terv elkészítése',
-        description: 'Az alkalmazás üzemeltetési tervének elkészítése',
-        status: 'pending',
-        priority: 'low',
-        dueDate: new Date(Date.now() + 518400000).toISOString().split('T')[0], // 6 nap múlva
-        createdAt: new Date().toISOString(),
-        reminders: []
-      }
-    ];
-    
-    // Szűrés
-    return allTasks.filter(task => {
-      // Keresés
-      if (
-        activeFilters.search && 
-        !task.title.toLowerCase().includes(activeFilters.search.toLowerCase()) &&
-        !task.description.toLowerCase().includes(activeFilters.search.toLowerCase())
-      ) {
-        return false;
-      }
-      
-      // Státusz
-      if (activeFilters.status && task.status !== activeFilters.status) {
-        return false;
-      }
-      
-      // Prioritás
-      if (activeFilters.priority && task.priority !== activeFilters.priority) {
-        return false;
-      }
-      
-      // Dátum szűrő
-      if (activeFilters.dateRange) {
-        const taskDate = new Date(task.dueDate);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        
-        const tomorrow = new Date(today);
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        
-        const nextWeek = new Date(today);
-        nextWeek.setDate(nextWeek.getDate() + 7);
-        
-        if (activeFilters.dateRange === 'today' && taskDate.getTime() !== today.getTime()) {
-          return false;
-        } else if (activeFilters.dateRange === 'tomorrow' && taskDate.getTime() !== tomorrow.getTime()) {
-          return false;
-        } else if (activeFilters.dateRange === 'week') {
-          if (taskDate < today || taskDate >= nextWeek) {
-            return false;
-          }
-        }
-      }
-      
-      return true;
-    });
-  };
-
   // Create task
   const createTask = async () => {
     try {
@@ -229,38 +82,10 @@ const TaskManager = () => {
       
       setLoading(true);
       
-      // Mivel még nincs API, csak szimulálunk
-      setTimeout(() => {
-        const taskWithId = {
-          ...newTask,
-          _id: Date.now().toString(),
-          status: 'pending',
-          createdAt: new Date().toISOString()
-        };
-        
-        setTasks(prev => [taskWithId, ...prev]);
-        setShowNewTaskForm(false);
-        setNewTask({
-          title: '',
-          description: '',
-          dueDate: new Date().toISOString().split('T')[0],
-          priority: 'medium',
-          reminders: []
-        });
-        
-        setSuccessMessage('Feladat sikeresen létrehozva!');
-        setTimeout(() => {
-          setSuccessMessage('');
-        }, 3000);
-        
-        setLoading(false);
-      }, 500);
-      
-      /* Később implementálható API hívás:
+      // Valós API hívás
       const response = await api.post('/api/tasks', newTask);
-      const data = await response.json();
       
-      setTasks(prev => [data, ...prev]);
+      setTasks(prev => [response.data, ...prev]);
       setShowNewTaskForm(false);
       setNewTask({
         title: '',
@@ -276,7 +101,6 @@ const TaskManager = () => {
       }, 3000);
       
       setLoading(false);
-      */
     } catch (error) {
       console.error('Hiba a feladat létrehozásakor:', error);
       setError('Nem sikerült létrehozni a feladatot');
@@ -292,35 +116,12 @@ const TaskManager = () => {
     try {
       setLoading(true);
       
-      // Mivel még nincs API, csak szimulálunk
-      setTimeout(() => {
-        setTasks(prev => 
-          prev.map(task => 
-            task._id === taskId 
-              ? { 
-                  ...task, 
-                  status: 'completed', 
-                  completedAt: new Date().toISOString() 
-                } 
-              : task
-          )
-        );
-        
-        setSuccessMessage('Feladat sikeresen teljesítve!');
-        setTimeout(() => {
-          setSuccessMessage('');
-        }, 3000);
-        
-        setLoading(false);
-      }, 300);
-      
-      /* Később implementálható API hívás:
+      // Valós API hívás
       const response = await api.put(`/api/tasks/${taskId}/complete`);
-      const updatedTask = await response.json();
       
       setTasks(prev => 
         prev.map(task => 
-          task._id === updatedTask._id ? updatedTask : task
+          task._id === response.data._id ? response.data : task
         )
       );
       
@@ -330,7 +131,6 @@ const TaskManager = () => {
       }, 3000);
       
       setLoading(false);
-      */
     } catch (error) {
       console.error('Hiba a feladat teljesítésekor:', error);
       setError('Nem sikerült teljesíteni a feladatot');
@@ -350,19 +150,7 @@ const TaskManager = () => {
     try {
       setLoading(true);
       
-      // Mivel még nincs API, csak szimulálunk
-      setTimeout(() => {
-        setTasks(prev => prev.filter(task => task._id !== taskId));
-        
-        setSuccessMessage('Feladat sikeresen törölve!');
-        setTimeout(() => {
-          setSuccessMessage('');
-        }, 3000);
-        
-        setLoading(false);
-      }, 300);
-      
-      /* Később implementálható API hívás:
+      // Valós API hívás
       await api.delete(`/api/tasks/${taskId}`);
       
       setTasks(prev => prev.filter(task => task._id !== taskId));
@@ -373,7 +161,6 @@ const TaskManager = () => {
       }, 3000);
       
       setLoading(false);
-      */
     } catch (error) {
       console.error('Hiba a feladat törlésekor:', error);
       setError('Nem sikerült törölni a feladatot');
