@@ -32,6 +32,7 @@ import notesRoutes from './routes/notes.js';
 import supportTicketRouter, { setupEmailEndpoint, initializeSocketIO } from './routes/supportTickets.js';
 import Note from './models/Note.js';
 import emailApiRouter from './routes/emailApi.js';
+import tasksRoutes from './routes/tasks.js';
 
 
 dotenv.config();
@@ -277,6 +278,7 @@ app.use('/api', monitoringRoutes);
 app.use('/api/translation', translationRoutes);
 app.use('/api/notes', notesRoutes);
 app.use('/api/support', supportTicketRouter); // Support ticket endpoints
+app.use('/api/tasks', tasksRoutes); // Add hozzá ezt a sort
 
 // Basic health check endpoint
 app.get('/', (req, res) => {
