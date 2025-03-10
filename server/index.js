@@ -239,6 +239,7 @@ publicRouter.post('/hosting/orders', validateApiKey, async (req, res) => {
 
 // Register public endpoints
 app.use('/api/public', publicRouter);
+app.use('/api/tasks', tasksRoutes); // Add hozzá ezt a sort
 
 // Public blog posts endpoint (no auth required)
 app.get('/api/posts', async (req, res) => {
@@ -253,7 +254,6 @@ app.get('/api/posts', async (req, res) => {
 // Public project endpoints
 app.use('/api/public/projects', validateApiKey, projectRoutes);
 app.use('/api/email', emailApiRouter);
-app.use('/api/tasks', tasksRoutes); // Add hozzá ezt a sort
 
 // Setup email webhook for support tickets
 setupEmailEndpoint(app);
