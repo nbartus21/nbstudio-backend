@@ -253,6 +253,7 @@ app.get('/api/posts', async (req, res) => {
 // Public project endpoints
 app.use('/api/public/projects', validateApiKey, projectRoutes);
 app.use('/api/email', emailApiRouter);
+app.use('/api/tasks', tasksRoutes); // Add hozzá ezt a sort
 
 // Setup email webhook for support tickets
 setupEmailEndpoint(app);
@@ -278,7 +279,6 @@ app.use('/api', monitoringRoutes);
 app.use('/api/translation', translationRoutes);
 app.use('/api/notes', notesRoutes);
 app.use('/api/support', supportTicketRouter); // Support ticket endpoints
-app.use('/api/tasks', tasksRoutes); // Add hozzá ezt a sort
 
 // Basic health check endpoint
 app.get('/', (req, res) => {
