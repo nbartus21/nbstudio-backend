@@ -17,6 +17,7 @@ import AccountingManager from './AccountingManager';
 import HostingManager from './HostingManager';
 import TranslationTool from './TranslationTool'; // Új komponens importálása
 import SupportTicketManager from './SupportTicketManager';
+import TaskManager from './TaskManager'; // Import a feladatkezelő komponens
 
 
 
