@@ -3,9 +3,7 @@ import { api } from '../services/auth';
 import { 
   Check, AlertCircle, Clock, Calendar, Trash2, 
   Plus, Bell, Edit, ChevronDown, ChevronUp, Filter, 
-  X, RefreshCw, List, Grid, CalendarDays, LayoutList,
-  ChevronLeft, ChevronRight, Calendar as CalendarIcon,
-  Clock as ClockIcon
+  X, RefreshCw
 } from 'lucide-react';
 
 const TaskManager = () => {
@@ -34,12 +32,6 @@ const TaskManager = () => {
   
   // Szűrőpanel megjelenítése
   const [showFilters, setShowFilters] = useState(false);
-  
-  // Nézet típus beállítása (lista vagy naptár)
-  const [viewType, setViewType] = useState('list');
-  
-  // Naptár hónap
-  const [currentMonth, setCurrentMonth] = useState(new Date());
 
   // Load initial data
   useEffect(() => {
@@ -137,36 +129,6 @@ const TaskManager = () => {
         priority: 'medium',
         dueDate: new Date(Date.now() + 259200000).toISOString().split('T')[0], // 3 nap múlva
         createdAt: new Date(Date.now() - 172800000).toISOString(), // 2 nappal ezelőtt
-        reminders: []
-      },
-      {
-        _id: '6',
-        title: 'Heti státuszjelentés',
-        description: 'Projekt előrehaladás összefoglalása',
-        status: 'pending',
-        priority: 'medium',
-        dueDate: new Date(Date.now() + 345600000).toISOString().split('T')[0], // 4 nap múlva
-        createdAt: new Date().toISOString(),
-        reminders: []
-      },
-      {
-        _id: '7',
-        title: 'Ügyfél visszajelzés összegzése',
-        description: 'A tesztelés során beérkezett visszajelzések feldolgozása',
-        status: 'pending',
-        priority: 'medium',
-        dueDate: new Date(Date.now() + 432000000).toISOString().split('T')[0], // 5 nap múlva
-        createdAt: new Date().toISOString(),
-        reminders: []
-      },
-      {
-        _id: '8',
-        title: 'Üzemeltetési terv elkészítése',
-        description: 'Az alkalmazás üzemeltetési tervének elkészítése',
-        status: 'pending',
-        priority: 'low',
-        dueDate: new Date(Date.now() + 518400000).toISOString().split('T')[0], // 6 nap múlva
-        createdAt: new Date().toISOString(),
         reminders: []
       }
     ];
@@ -477,135 +439,6 @@ const TaskManager = () => {
         return 'Ismeretlen';
     }
   };
-  
-  // Naptár generálása
-  const generateCalendar = (date) => {
-    const year = date.getFullYear();
-    const month = date.getMonth();
-    
-    // Hónap első napja
-    const firstDay = new Date(year, month, 1);
-    // Hónap utolsó napja
-    const lastDay = new Date(year, month + 1, 0);
-    
-    // A hónap első napjának a napja (0 vasárnap, 1 hétfő, stb.)
-    const firstDayOfWeek = firstDay.getDay() || 7; // 0 = vasárnap, 1-6 = hétfő-szombat, 7 = vasárnap Európai módon
-    
-    // A naptárban az első nap (előző hónap utolsó napjai is)
-    const startDate = new Date(year, month, 2 - firstDayOfWeek);
-    
-    // Cellák száma (6 sor, soronként 7 nap)
-    const numCells = 42;
-    
-    // Naptár cellák generálása
-    const cells = [];
-    let currentDate = new Date(startDate);
-    
-    for (let i = 0; i < numCells; i++) {
-      cells.push({
-        date: new Date(currentDate),
-        isCurrentMonth: currentDate.getMonth() === month,
-        isToday: isSameDay(currentDate, new Date()),
-        tasksForDay: tasks.filter(task => isSameDay(new Date(task.dueDate), currentDate))
-      });
-      
-      currentDate.setDate(currentDate.getDate() + 1);
-    }
-    
-    return cells;
-  };
-  
-  // Két dátum összehasonlítása (csak nap, hónap, év)
-  const isSameDay = (date1, date2) => {
-    return date1.getFullYear() === date2.getFullYear() &&
-           date1.getMonth() === date2.getMonth() &&
-           date1.getDate() === date2.getDate();
-  };
-  
-  // A hónap nevének lekérése
-  const getMonthName = (date) => {
-    return date.toLocaleString('hu-HU', { month: 'long', year: 'numeric' });
-  };
-  
-  // Előző hónap
-  const prevMonth = () => {
-    setCurrentMonth(prev => {
-      const date = new Date(prev);
-      date.setMonth(date.getMonth() - 1);
-      return date;
-    });
-  };
-  
-  // Következő hónap
-  const nextMonth = () => {
-    setCurrentMonth(prev => {
-      const date = new Date(prev);
-      date.setMonth(date.getMonth() + 1);
-      return date;
-    });
-  };
-  
-  // Mai napra ugrás
-  const goToToday = () => {
-    setCurrentMonth(new Date());
-  };
-  
-  // Feladatok rendezése határidő szerint az idővonalas nézethez
-  const getTasksByDueDate = () => {
-    const groupedTasks = {};
-    
-    // Mai nap
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    // Holnap
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    
-    // Ezen a héten (7 nap)
-    const nextWeek = new Date(today);
-    nextWeek.setDate(nextWeek.getDate() + 7);
-    
-    // Ezen a hónapban
-    const nextMonth = new Date(today);
-    nextMonth.setMonth(nextMonth.getMonth() + 1);
-    
-    // Később
-    const later = new Date(nextMonth);
-    
-    // Rendezés kategóriákba
-    tasks.forEach(task => {
-      const dueDate = new Date(task.dueDate);
-      
-      if (isSameDay(dueDate, today)) {
-        if (!groupedTasks['today']) groupedTasks['today'] = [];
-        groupedTasks['today'].push(task);
-      } else if (isSameDay(dueDate, tomorrow)) {
-        if (!groupedTasks['tomorrow']) groupedTasks['tomorrow'] = [];
-        groupedTasks['tomorrow'].push(task);
-      } else if (dueDate > today && dueDate < nextWeek) {
-        if (!groupedTasks['thisWeek']) groupedTasks['thisWeek'] = [];
-        groupedTasks['thisWeek'].push(task);
-      } else if (dueDate >= nextWeek && dueDate < nextMonth) {
-        if (!groupedTasks['thisMonth']) groupedTasks['thisMonth'] = [];
-        groupedTasks['thisMonth'].push(task);
-      } else if (dueDate >= nextMonth) {
-        if (!groupedTasks['later']) groupedTasks['later'] = [];
-        groupedTasks['later'].push(task);
-      } else if (dueDate < today) {
-        if (!groupedTasks['overdue']) groupedTasks['overdue'] = [];
-        groupedTasks['overdue'].push(task);
-      }
-    });
-    
-    return groupedTasks;
-  };
-  
-  // Naptár cellák
-  const calendarCells = generateCalendar(currentMonth);
-  
-  // Idővonalas nézet feladatai
-  const timelineTaskGroups = getTasksByDueDate();
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -629,32 +462,6 @@ const TaskManager = () => {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Feladatkezelő</h1>
         <div className="flex space-x-2">
-          {/* Nézet váltása */}
-          <div className="border border-gray-300 rounded-md flex overflow-hidden mr-2">
-            <button
-              onClick={() => setViewType('list')}
-              className={`p-2 ${
-                viewType === 'list' 
-                  ? 'bg-indigo-100 text-indigo-600 border-r border-gray-300' 
-                  : 'bg-white text-gray-600 hover:bg-gray-100 border-r border-gray-300'
-              }`}
-              title="Lista nézet"
-            >
-              <LayoutList className="h-5 w-5" />
-            </button>
-            <button
-              onClick={() => setViewType('calendar')}
-              className={`p-2 ${
-                viewType === 'calendar' 
-                  ? 'bg-indigo-100 text-indigo-600' 
-                  : 'bg-white text-gray-600 hover:bg-gray-100'
-              }`}
-              title="Naptár nézet"
-            >
-              <CalendarDays className="h-5 w-5" />
-            </button>
-          </div>
-          
           <button
             onClick={() => setShowFilters(!showFilters)}
             className={`p-2 rounded-md ${
@@ -766,397 +573,102 @@ const TaskManager = () => {
         </div>
       )}
 
-      {/* Main content with sidebar */}
-      <div className="flex flex-col lg:flex-row gap-6">
-        {/* Left sidebar - Timeline view */}
-        <div className="lg:w-1/4 bg-white rounded-lg border border-gray-200 p-4 h-fit">
-          <h3 className="text-lg font-semibold mb-4 flex items-center text-gray-800">
-            <ClockIcon className="h-5 w-5 mr-2 text-indigo-600" />
-            Idővonalas áttekintés
-          </h3>
-          
-          <div className="space-y-6">
-            {/* Lejárt feladatok */}
-            {timelineTaskGroups.overdue && timelineTaskGroups.overdue.length > 0 && (
-              <div>
-                <h4 className="text-sm font-medium text-red-700 flex items-center mb-2">
-                  <AlertCircle className="h-4 w-4 mr-1" />
-                  Lejárt ({timelineTaskGroups.overdue.length})
-                </h4>
-                <div className="space-y-2">
-                  {timelineTaskGroups.overdue.map(task => (
-                    <div 
-                      key={task._id} 
-                      className="p-2 border border-red-200 rounded bg-red-50 text-sm hover:bg-red-100 transition-colors"
+      {/* Task List */}
+      {loading && tasks.length === 0 ? (
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-indigo-500 border-t-transparent"></div>
+        </div>
+      ) : tasks.length === 0 ? (
+        <div className="text-center py-12 border border-gray-200 rounded-lg bg-gray-50">
+          <Check className="h-12 w-12 mx-auto text-gray-300 mb-4" />
+          <h3 className="text-lg font-semibold text-gray-600">Nincsenek feladatok</h3>
+          <p className="text-gray-500 mt-1">Nincs megjeleníthető feladat a kiválasztott szűrők alapján.</p>
+          {Object.values(filters).some(f => f) && (
+            <button
+              onClick={resetFilters}
+              className="mt-4 px-4 py-2 text-sm bg-white border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+            >
+              Szűrők törlése
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {tasks.map(task => (
+            <div 
+              key={task._id} 
+              className={`p-4 border ${
+                task.status === 'completed' 
+                  ? 'bg-gray-50 border-gray-200' 
+                  : 'bg-white border-gray-200 hover:border-indigo-300'
+              } rounded-lg shadow-sm transition-all duration-200`}
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex items-start space-x-4">
+                  {task.status === 'completed' ? (
+                    <button
+                      className="flex-shrink-0 h-6 w-6 rounded-full bg-green-100 border border-green-300 flex items-center justify-center mt-1"
+                      disabled
                     >
-                      <div className="flex items-start">
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-red-800 truncate">{task.title}</p>
-                          <div className="flex items-center mt-1">
-                            <span className={`px-1.5 py-0.5 text-xs rounded-full border ${getPriorityColor(task.priority)}`}>
-                              {getPriorityLabel(task.priority)}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-            
-            {/* Mai feladatok */}
-            {timelineTaskGroups.today && timelineTaskGroups.today.length > 0 && (
-              <div>
-                <h4 className="text-sm font-medium text-indigo-700 flex items-center mb-2">
-                  <Calendar className="h-4 w-4 mr-1" />
-                  Ma ({timelineTaskGroups.today.length})
-                </h4>
-                <div className="space-y-2">
-                  {timelineTaskGroups.today.map(task => (
-                    <div 
-                      key={task._id} 
-                      className={`p-2 border rounded text-sm transition-colors ${
-                        task.status === 'completed'
-                          ? 'border-gray-200 bg-gray-50 text-gray-500'
-                          : 'border-indigo-200 bg-indigo-50 hover:bg-indigo-100'
-                      }`}
+                      <Check className="h-4 w-4 text-green-600" />
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => completeTask(task._id)}
+                      className="flex-shrink-0 h-6 w-6 rounded-full bg-white border border-gray-300 hover:border-green-500 hover:bg-green-50 flex items-center justify-center mt-1 transition-colors"
+                      title="Feladat teljesítése"
                     >
-                      <div className="flex items-start">
-                        <div className="flex-1 min-w-0">
-                          <p className={`font-medium truncate ${
-                            task.status === 'completed' ? 'line-through text-gray-500' : 'text-gray-800'
-                          }`}>{task.title}</p>
-                          <div className="flex items-center mt-1">
-                            <span className={`px-1.5 py-0.5 text-xs rounded-full border ${getPriorityColor(task.priority)}`}>
-                              {getPriorityLabel(task.priority)}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-            
-            {/* Holnapi feladatok */}
-            {timelineTaskGroups.tomorrow && timelineTaskGroups.tomorrow.length > 0 && (
-              <div>
-                <h4 className="text-sm font-medium text-blue-700 flex items-center mb-2">
-                  <Calendar className="h-4 w-4 mr-1" />
-                  Holnap ({timelineTaskGroups.tomorrow.length})
-                </h4>
-                <div className="space-y-2">
-                  {timelineTaskGroups.tomorrow.map(task => (
-                    <div 
-                      key={task._id} 
-                      className="p-2 border border-blue-200 rounded bg-blue-50 text-sm hover:bg-blue-100 transition-colors"
-                    >
-                      <div className="flex items-start">
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-gray-800 truncate">{task.title}</p>
-                          <div className="flex items-center mt-1">
-                            <span className={`px-1.5 py-0.5 text-xs rounded-full border ${getPriorityColor(task.priority)}`}>
-                              {getPriorityLabel(task.priority)}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-            
-            {/* Ezen a héten */}
-            {timelineTaskGroups.thisWeek && timelineTaskGroups.thisWeek.length > 0 && (
-              <div>
-                <h4 className="text-sm font-medium text-purple-700 flex items-center mb-2">
-                  <Calendar className="h-4 w-4 mr-1" />
-                  Ezen a héten ({timelineTaskGroups.thisWeek.length})
-                </h4>
-                <div className="space-y-2">
-                  {timelineTaskGroups.thisWeek.map(task => (
-                    <div 
-                      key={task._id} 
-                      className="p-2 border border-purple-200 rounded bg-purple-50 text-sm hover:bg-purple-100 transition-colors"
-                    >
-                      <div className="flex items-start">
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-gray-800 truncate">{task.title}</p>
-                          <div className="flex items-center mt-1">
-                            <span className="text-xs text-gray-500 mr-2">{formatDate(task.dueDate)}</span>
-                            <span className={`px-1.5 py-0.5 text-xs rounded-full border ${getPriorityColor(task.priority)}`}>
-                              {getPriorityLabel(task.priority)}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-            
-            {/* Ezen a hónapban és később */}
-            {((timelineTaskGroups.thisMonth && timelineTaskGroups.thisMonth.length > 0) || 
-              (timelineTaskGroups.later && timelineTaskGroups.later.length > 0)) && (
-              <div>
-                <h4 className="text-sm font-medium text-gray-700 flex items-center mb-2">
-                  <Calendar className="h-4 w-4 mr-1" />
-                  Későbbi ({
-                    (timelineTaskGroups.thisMonth?.length || 0) + 
-                    (timelineTaskGroups.later?.length || 0)
-                  })
-                </h4>
-                <div className="space-y-2">
-                  {[...(timelineTaskGroups.thisMonth || []), ...(timelineTaskGroups.later || [])]
-                    .slice(0, 5) // Csak az első 5-öt mutatjuk
-                    .map(task => (
-                    <div 
-                      key={task._id} 
-                      className="p-2 border border-gray-200 rounded bg-gray-50 text-sm hover:bg-gray-100 transition-colors"
-                    >
-                      <div className="flex items-start">
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-gray-800 truncate">{task.title}</p>
-                          <div className="flex items-center mt-1">
-                            <span className="text-xs text-gray-500 mr-2">{formatDate(task.dueDate)}</span>
-                            <span className={`px-1.5 py-0.5 text-xs rounded-full border ${getPriorityColor(task.priority)}`}>
-                              {getPriorityLabel(task.priority)}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                  
-                  {/* Ha több mint 5 van, akkor "Több..." link */}
-                  {((timelineTaskGroups.thisMonth?.length || 0) + 
-                    (timelineTaskGroups.later?.length || 0)) > 5 && (
-                    <button 
-                      className="w-full text-center text-sm text-indigo-600 hover:text-indigo-800 py-1"
-                      onClick={() => setViewType('calendar')}
-                    >
-                      Mutass többet...
+                      <Check className="h-4 w-4 text-transparent hover:text-green-500" />
                     </button>
                   )}
-                </div>
-              </div>
-            )}
-            
-            {/* Ha nincs feladat */}
-            {Object.keys(timelineTaskGroups).length === 0 && (
-              <div className="text-center p-4 bg-gray-50 rounded-lg">
-                <p className="text-gray-500">Nincsenek feladatok</p>
-                <button
-                  onClick={() => setShowNewTaskForm(true)}
-                  className="mt-2 px-3 py-1 text-sm bg-indigo-600 text-white rounded hover:bg-indigo-700"
-                >
-                  + Új feladat
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-        
-        {/* Main content */}
-        <div className="lg:w-3/4">
-          {/* Naptár nézet */}
-          {viewType === 'calendar' && (
-            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-              {/* Naptár fejléc */}
-              <div className="p-4 border-b border-gray-200 flex justify-between items-center">
-                <h3 className="text-lg font-semibold text-gray-800">{getMonthName(currentMonth)}</h3>
-                <div className="flex items-center space-x-2">
-                  <button
-                    onClick={goToToday}
-                    className="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
-                  >
-                    Ma
-                  </button>
-                  <button
-                    onClick={prevMonth}
-                    className="p-1 rounded-full hover:bg-gray-100"
-                  >
-                    <ChevronLeft className="h-5 w-5 text-gray-600" />
-                  </button>
-                  <button
-                    onClick={nextMonth}
-                    className="p-1 rounded-full hover:bg-gray-100"
-                  >
-                    <ChevronRight className="h-5 w-5 text-gray-600" />
-                  </button>
-                </div>
-              </div>
-              
-              {/* Naptár grid */}
-              <div className="grid grid-cols-7 text-center text-xs text-gray-700 border-b border-gray-200">
-                <div className="py-2 font-medium">H</div>
-                <div className="py-2 font-medium">K</div>
-                <div className="py-2 font-medium">Sze</div>
-                <div className="py-2 font-medium">Cs</div>
-                <div className="py-2 font-medium">P</div>
-                <div className="py-2 font-medium">Szo</div>
-                <div className="py-2 font-medium">V</div>
-              </div>
-              
-              <div className="grid grid-cols-7 border-b border-gray-200">
-                {calendarCells.map((cell, i) => (
-                  <div 
-                    key={i} 
-                    className={`h-32 border-r border-b p-1 ${
-                      !cell.isCurrentMonth ? 'bg-gray-50' : ''
-                    } ${
-                      cell.isToday ? 'bg-blue-50' : ''
-                    } ${
-                      i % 7 === 6 ? 'border-r-0' : '' // remove right border on last column
-                    }`}
-                  >
-                    <div className="flex justify-between">
-                      <span className={`text-sm inline-flex items-center justify-center h-6 w-6 rounded-full ${
-                        cell.isToday
-                          ? 'bg-blue-600 text-white font-medium'
-                          : cell.isCurrentMonth
-                            ? 'text-gray-700'
-                            : 'text-gray-400'
+                  <div className="flex-1 min-w-0">
+                    <h3 className={`font-medium ${
+                      task.status === 'completed' 
+                        ? 'text-gray-500 line-through' 
+                        : 'text-gray-900'
+                    }`}>
+                      {task.title}
+                    </h3>
+                    {task.description && (
+                      <p className={`mt-1 text-sm ${
+                        task.status === 'completed' 
+                          ? 'text-gray-400' 
+                          : 'text-gray-600'
                       }`}>
-                        {cell.date.getDate()}
+                        {task.description}
+                      </p>
+                    )}
+                    <div className="flex flex-wrap items-center gap-2 mt-2">
+                      <span className={`px-2 py-0.5 text-xs rounded-full border ${getPriorityColor(task.priority)}`}>
+                        {getPriorityLabel(task.priority)}
                       </span>
-                      {cell.tasksForDay.length > 0 && (
-                        <span className="text-xs bg-indigo-100 text-indigo-800 px-1.5 py-0.5 rounded-full">
-                          {cell.tasksForDay.length}
+                      <span className="px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-800 border border-gray-200 flex items-center">
+                        <Calendar className="h-3 w-3 mr-1" />
+                        {formatDate(task.dueDate)}
+                      </span>
+                      {task.reminders && task.reminders.length > 0 && (
+                        <span className="px-2 py-0.5 text-xs rounded-full bg-purple-100 text-purple-800 border border-purple-200 flex items-center">
+                          <Bell className="h-3 w-3 mr-1" />
+                          {task.reminders.length} emlékeztető
                         </span>
                       )}
                     </div>
-                    
-                    <div className="mt-1 space-y-1 overflow-y-auto max-h-[80px] hide-scrollbar">
-                      {cell.tasksForDay.map(task => (
-                        <div 
-                          key={task._id}
-                          className={`text-xs p-1 rounded ${
-                            task.status === 'completed'
-                              ? 'bg-gray-100 text-gray-500 line-through'
-                              : task.priority === 'high'
-                                ? 'bg-red-100 text-red-800'
-                                : task.priority === 'medium'
-                                  ? 'bg-blue-100 text-blue-800'
-                                  : 'bg-green-100 text-green-800'
-                          }`}
-                        >
-                          <div className="truncate">{task.title}</div>
-                        </div>
-                      ))}
-                    </div>
                   </div>
-                ))}
+                </div>
+                <div className="flex items-center space-x-2 ml-4">
+                  <button
+                    onClick={() => deleteTask(task._id)}
+                    className="text-gray-400 hover:text-red-600 p-1 rounded hover:bg-gray-100 transition-colors"
+                    title="Feladat törlése"
+                  >
+                    <Trash2 className="h-5 w-5" />
+                  </button>
+                </div>
               </div>
             </div>
-          )}
-          
-          {/* Lista nézet */}
-          {viewType === 'list' && (
-            <>
-              {loading && tasks.length === 0 ? (
-                <div className="flex justify-center items-center h-64">
-                  <div className="animate-spin rounded-full h-12 w-12 border-4 border-indigo-500 border-t-transparent"></div>
-                </div>
-              ) : tasks.length === 0 ? (
-                <div className="text-center py-12 border border-gray-200 rounded-lg bg-gray-50">
-                  <Check className="h-12 w-12 mx-auto text-gray-300 mb-4" />
-                  <h3 className="text-lg font-semibold text-gray-600">Nincsenek feladatok</h3>
-                  <p className="text-gray-500 mt-1">Nincs megjeleníthető feladat a kiválasztott szűrők alapján.</p>
-                  {Object.values(filters).some(f => f) && (
-                    <button
-                      onClick={resetFilters}
-                      className="mt-4 px-4 py-2 text-sm bg-white border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
-                    >
-                      Szűrők törlése
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {tasks.map(task => (
-                    <div 
-                      key={task._id} 
-                      className={`p-4 border ${
-                        task.status === 'completed' 
-                          ? 'bg-gray-50 border-gray-200' 
-                          : 'bg-white border-gray-200 hover:border-indigo-300'
-                      } rounded-lg shadow-sm transition-all duration-200`}
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-start space-x-4">
-                          {task.status === 'completed' ? (
-                            <button
-                              className="flex-shrink-0 h-6 w-6 rounded-full bg-green-100 border border-green-300 flex items-center justify-center mt-1"
-                              disabled
-                            >
-                              <Check className="h-4 w-4 text-green-600" />
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => completeTask(task._id)}
-                              className="flex-shrink-0 h-6 w-6 rounded-full bg-white border border-gray-300 hover:border-green-500 hover:bg-green-50 flex items-center justify-center mt-1 transition-colors"
-                              title="Feladat teljesítése"
-                            >
-                              <Check className="h-4 w-4 text-transparent hover:text-green-500" />
-                            </button>
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <h3 className={`font-medium ${
-                              task.status === 'completed' 
-                                ? 'text-gray-500 line-through' 
-                                : 'text-gray-900'
-                            }`}>
-                              {task.title}
-                            </h3>
-                            {task.description && (
-                              <p className={`mt-1 text-sm ${
-                                task.status === 'completed' 
-                                  ? 'text-gray-400' 
-                                  : 'text-gray-600'
-                              }`}>
-                                {task.description}
-                              </p>
-                            )}
-                            <div className="flex flex-wrap items-center gap-2 mt-2">
-                              <span className={`px-2 py-0.5 text-xs rounded-full border ${getPriorityColor(task.priority)}`}>
-                                {getPriorityLabel(task.priority)}
-                              </span>
-                              <span className="px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-800 border border-gray-200 flex items-center">
-                                <Calendar className="h-3 w-3 mr-1" />
-                                {formatDate(task.dueDate)}
-                              </span>
-                              {task.reminders && task.reminders.length > 0 && (
-                                <span className="px-2 py-0.5 text-xs rounded-full bg-purple-100 text-purple-800 border border-purple-200 flex items-center">
-                                  <Bell className="h-3 w-3 mr-1" />
-                                  {task.reminders.length} emlékeztető
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex items-center space-x-2 ml-4">
-                          <button
-                            onClick={() => deleteTask(task._id)}
-                            className="text-gray-400 hover:text-red-600 p-1 rounded hover:bg-gray-100 transition-colors"
-                            title="Feladat törlése"
-                          >
-                            <Trash2 className="h-5 w-5" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </>
-          )}
+          ))}
         </div>
-      </div>
+      )}
 
       {/* New Task Modal */}
       {showNewTaskForm && (
@@ -1305,19 +817,6 @@ const TaskManager = () => {
           </div>
         </div>
       )}
-
-      {/* Style a görgetősáv elrejtéséhez */}
-      <style dangerouslySetInnerHTML={{
-        __html: `
-          .hide-scrollbar::-webkit-scrollbar {
-            display: none;
-          }
-          .hide-scrollbar {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
-          }
-        `
-      }} />
     </div>
   );
 };
