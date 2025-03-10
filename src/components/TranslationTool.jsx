@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { translateContent } from '../services/deepseekService';
-import { AlertTriangle, Save, Copy, Clipboard, RotateCcw, Edit, Trash2, CheckCircle, FileText, Download, Upload, BookOpen, Plus, X, Calendar, Tag, Search } from 'lucide-react';
+import { 
+  AlertTriangle, Save, Copy, Clipboard, RotateCcw, Edit, Trash2, CheckCircle, 
+  FileText, Download, Upload, BookOpen, Plus, X, Calendar, Tag, Search,
+  CheckSquare, Square, Clock, ListChecks, MoreHorizontal, ChevronDown, ChevronUp
+} from 'lucide-react';
 import { debugLog } from './shared/utils';
 import { api } from '../services/auth';
 
@@ -31,7 +35,7 @@ const TranslationTool = () => {
   // Notes management states
   const [notes, setNotes] = useState([]);
   const [filteredNotes, setFilteredNotes] = useState([]);
-  const [activeTab, setActiveTab] = useState('translation'); // 'translation' or 'notes'
+  const [activeTab, setActiveTab] = useState('translation'); // 'translation' or 'notes' or 'tasks'
   const [showNoteModal, setShowNoteModal] = useState(false);
   const [currentNote, setCurrentNote] = useState(null);
   const [noteSearch, setNoteSearch] = useState('');
@@ -44,10 +48,34 @@ const TranslationTool = () => {
     category: 'general'
   });
 
+  // Tasks management states
+  const [tasks, setTasks] = useState([]);
+  const [filteredTasks, setFilteredTasks] = useState([]);
+  const [showTaskModal, setShowTaskModal] = useState(false);
+  const [currentTask, setCurrentTask] = useState(null);
+  const [taskSearch, setTaskSearch] = useState('');
+  const [taskFilter, setTaskFilter] = useState('all'); // 'all', 'active', 'completed'
+  const [showingTaskDetails, setShowingTaskDetails] = useState({});
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
+  const [currentTaskUpdate, setCurrentTaskUpdate] = useState(null);
+  const [newTask, setNewTask] = useState({
+    title: '',
+    description: '',
+    dueDate: new Date().toISOString().split('T')[0],
+    priority: 'medium',
+    status: 'active',
+    updates: []
+  });
+  const [newUpdate, setNewUpdate] = useState({
+    content: '',
+    progress: 0
+  });
+
   // Sablonok betöltése
   useEffect(() => {
     fetchTemplates();
     fetchNotes();
+    fetchTasks();
   }, []);
 
   // Notes filtering
@@ -70,6 +98,43 @@ const TranslationTool = () => {
     
     setFilteredNotes(filtered);
   }, [notes, noteSearch, selectedTags]);
+
+  // Tasks filtering
+  useEffect(() => {
+    let filtered = [...tasks];
+    
+    // Apply search filter
+    if (taskSearch) {
+      filtered = filtered.filter(task => 
+        task.title.toLowerCase().includes(taskSearch.toLowerCase()) || 
+        task.description.toLowerCase().includes(taskSearch.toLowerCase())
+      );
+    }
+    
+    // Apply status filter
+    if (taskFilter !== 'all') {
+      filtered = filtered.filter(task => task.status === taskFilter);
+    }
+    
+    // Sort by due date and priority
+    filtered.sort((a, b) => {
+      // First sort by status (active tasks first)
+      if (a.status === 'active' && b.status !== 'active') return -1;
+      if (a.status !== 'active' && b.status === 'active') return 1;
+      
+      // Then sort by due date
+      const dateA = new Date(a.dueDate);
+      const dateB = new Date(b.dueDate);
+      if (dateA < dateB) return -1;
+      if (dateA > dateB) return 1;
+      
+      // Then by priority
+      const priorityOrder = { high: 0, medium: 1, low: 2 };
+      return priorityOrder[a.priority] - priorityOrder[b.priority];
+    });
+    
+    setFilteredTasks(filtered);
+  }, [tasks, taskSearch, taskFilter]);
 
   // Extract all unique tags from notes
   useEffect(() => {
@@ -138,6 +203,35 @@ const TranslationTool = () => {
     }
   };
 
+  const fetchTasks = async () => {
+    try {
+      debugLog('fetchTasks', 'Fetching tasks');
+      
+      // Try to get tasks from API
+      const response = await api.get(`${API_URL}/translation/tasks`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        debugLog('fetchTasks', 'Tasks loaded successfully', { count: data.length });
+        setTasks(data);
+        setFilteredTasks(data);
+      } else {
+        if (response.status === 401) {
+          debugLog('fetchTasks', 'Authentication error', { status: response.status });
+          setError('Nincs megfelelő jogosultsága a feladatok megtekintéséhez. Kérjük, jelentkezzen be újra.');
+        } else {
+          debugLog('fetchTasks', 'API error, using default tasks', { status: response.status });
+          // API endpoint might not exist yet, use sample tasks
+          useDefaultTasks();
+        }
+      }
+    } catch (error) {
+      debugLog('fetchTasks', 'Error in tasks fetching', { error });
+      setError('Hiba történt a feladatok betöltése során: ' + error.message);
+      useDefaultTasks();
+    }
+  };
+
   // Alapértelmezett sablonok hozzáadása, ha az API még nem elérhető
   const useDefaultTemplates = () => {
     setTemplates([
@@ -195,6 +289,76 @@ const TranslationTool = () => {
     
     setNotes(defaultNotes);
     setFilteredNotes(defaultNotes);
+  };
+
+  // Add default tasks if API is not available
+  const useDefaultTasks = () => {
+    const defaultTasks = [
+      {
+        _id: '1',
+        title: 'Weboldal fordítás befejezése',
+        description: 'A kezdőoldal és a kapcsolat oldal fordítását befejezni német nyelvre.',
+        dueDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        priority: 'high',
+        status: 'active',
+        progress: 50,
+        createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+        updates: [
+          {
+            _id: '1-1',
+            content: 'Kezdőoldal fordítása kész.',
+            progress: 50,
+            createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString()
+          }
+        ]
+      },
+      {
+        _id: '2',
+        title: 'Napi fordítási kvóta',
+        description: 'Legalább 2000 szó fordítása a dokumentációs anyagból.',
+        dueDate: new Date().toISOString().split('T')[0],
+        priority: 'medium',
+        status: 'active',
+        progress: 25,
+        createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+        updates: [
+          {
+            _id: '2-1',
+            content: 'Az első fejezet fordítása kész (500 szó).',
+            progress: 25,
+            createdAt: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString()
+          }
+        ]
+      },
+      {
+        _id: '3',
+        title: 'Projekt terminológiai adatbázis',
+        description: 'Összeállítani a projekt specifikus szakszavak listáját német-magyar fordítással.',
+        dueDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        priority: 'low',
+        status: 'completed',
+        progress: 100,
+        createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+        completedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+        updates: [
+          {
+            _id: '3-1',
+            content: 'Alap szakszavak összegyűjtve.',
+            progress: 60,
+            createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString()
+          },
+          {
+            _id: '3-2',
+            content: 'Adatbázis véglegesítve és megosztva a csapattal.',
+            progress: 100,
+            createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString()
+          }
+        ]
+      }
+    ];
+    
+    setTasks(defaultTasks);
+    setFilteredTasks(defaultTasks);
   };
 
   // Fordítás végrehajtása
@@ -395,6 +559,266 @@ const TranslationTool = () => {
     }
   };
 
+  // Save task
+  const saveTask = async () => {
+    if (!newTask.title) {
+      setError('Adjon meg címet a feladathoz!');
+      return;
+    }
+    
+    let taskData = {
+      ...newTask,
+      progress: currentTask ? currentTask.progress : 0,
+      createdAt: new Date().toISOString(),
+      updates: currentTask ? currentTask.updates : []
+    };
+    
+    if (currentTask) {
+      taskData._id = currentTask._id;
+      taskData.createdAt = currentTask.createdAt;
+      if (currentTask.status === 'completed' && taskData.status !== 'completed') {
+        // If task was completed and now is set to active, remove completedAt
+        delete taskData.completedAt;
+      } else if (currentTask.status !== 'completed' && taskData.status === 'completed') {
+        // If task is being completed now, add completedAt
+        taskData.completedAt = new Date().toISOString();
+        taskData.progress = 100;
+      } else if (currentTask.status === 'completed') {
+        // Keep completedAt if task remains completed
+        taskData.completedAt = currentTask.completedAt;
+      }
+    } else if (taskData.status === 'completed') {
+      // For new tasks that are marked as completed
+      taskData.completedAt = new Date().toISOString();
+      taskData.progress = 100;
+    }
+    
+    debugLog('saveTask', 'Saving task', { taskTitle: taskData.title });
+    
+    try {
+      // Try to save to API
+      const url = currentTask 
+        ? `${API_URL}/translation/tasks/${currentTask._id}` 
+        : `${API_URL}/translation/tasks`;
+      const method = currentTask ? 'put' : 'post';
+      
+      const response = await api[method](url, taskData);
+      
+      if (response.ok) {
+        const savedTask = await response.json();
+        if (currentTask) {
+          setTasks(tasks.map(task => task._id === currentTask._id ? savedTask : task));
+        } else {
+          setTasks([...tasks, savedTask]);
+        }
+        
+        debugLog('saveTask', 'Task saved via API', { taskId: savedTask._id });
+        setSuccess('Feladat sikeresen mentve!');
+        setShowTaskModal(false);
+        setCurrentTask(null);
+      } else {
+        if (response.status === 401) {
+          debugLog('saveTask', 'Authentication error', { status: response.status });
+          setError('Nincs megfelelő jogosultsága a feladatok mentéséhez. Kérjük, jelentkezzen be újra.');
+        } else {
+          debugLog('saveTask', 'API error', { status: response.status });
+          // Save locally if API fails
+          const newTaskWithId = {
+            ...taskData,
+            _id: currentTask ? currentTask._id : Date.now().toString()
+          };
+          
+          if (currentTask) {
+            setTasks(tasks.map(task => task._id === currentTask._id ? newTaskWithId : task));
+          } else {
+            setTasks([...tasks, newTaskWithId]);
+          }
+          
+          setSuccess('Feladat lokálisan mentve. (API kapcsolat nem elérhető)');
+          setShowTaskModal(false);
+          setCurrentTask(null);
+        }
+      }
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (error) {
+      debugLog('saveTask', 'Error saving task', { error });
+      setError('Hiba történt a feladat mentése során: ' + error.message);
+      
+      // Offline save
+      const newTaskWithId = {
+        ...taskData,
+        _id: currentTask ? currentTask._id : Date.now().toString()
+      };
+      
+      if (currentTask) {
+        setTasks(tasks.map(task => task._id === currentTask._id ? newTaskWithId : task));
+      } else {
+        setTasks([...tasks, newTaskWithId]);
+      }
+      
+      setSuccess('Feladat lokálisan mentve. (Hiba a szerverrel való kommunikációban)');
+      setShowTaskModal(false);
+      setCurrentTask(null);
+      setTimeout(() => setSuccess(null), 3000);
+    }
+  };
+
+  // Save task update
+  const saveTaskUpdate = async () => {
+    if (!newUpdate.content) {
+      setError('Adjon meg leírást a feladat frissítéséhez!');
+      return;
+    }
+    
+    if (!currentTaskUpdate) {
+      setError('Nem található a frissítendő feladat!');
+      return;
+    }
+    
+    const updateData = {
+      _id: Date.now().toString(),
+      content: newUpdate.content,
+      progress: parseInt(newUpdate.progress),
+      createdAt: new Date().toISOString()
+    };
+    
+    debugLog('saveTaskUpdate', 'Saving task update', { 
+      taskId: currentTaskUpdate._id,
+      progress: updateData.progress 
+    });
+    
+    try {
+      // Try to save to API
+      const url = `${API_URL}/translation/tasks/${currentTaskUpdate._id}/updates`;
+      const response = await api.post(url, updateData);
+      
+      if (response.ok) {
+        const updatedTask = await response.json();
+        setTasks(tasks.map(task => task._id === currentTaskUpdate._id ? updatedTask : task));
+        
+        debugLog('saveTaskUpdate', 'Task update saved via API', { taskId: updatedTask._id });
+        setSuccess('Feladat frissítés sikeresen mentve!');
+        setShowUpdateModal(false);
+        setCurrentTaskUpdate(null);
+        setNewUpdate({ content: '', progress: 0 });
+      } else {
+        if (response.status === 401) {
+          debugLog('saveTaskUpdate', 'Authentication error', { status: response.status });
+          setError('Nincs megfelelő jogosultsága a feladat frissítéséhez. Kérjük, jelentkezzen be újra.');
+        } else {
+          debugLog('saveTaskUpdate', 'API error', { status: response.status });
+          // Update locally if API fails
+          const taskToUpdate = tasks.find(task => task._id === currentTaskUpdate._id);
+          
+          if (taskToUpdate) {
+            const updatedTask = {
+              ...taskToUpdate,
+              updates: [...taskToUpdate.updates, updateData],
+              progress: updateData.progress > taskToUpdate.progress ? updateData.progress : taskToUpdate.progress
+            };
+            
+            // If progress is 100%, mark as completed
+            if (updateData.progress === 100 && updatedTask.status !== 'completed') {
+              updatedTask.status = 'completed';
+              updatedTask.completedAt = new Date().toISOString();
+            }
+            
+            setTasks(tasks.map(task => task._id === currentTaskUpdate._id ? updatedTask : task));
+            setSuccess('Feladat frissítés lokálisan mentve. (API kapcsolat nem elérhető)');
+            setShowUpdateModal(false);
+            setCurrentTaskUpdate(null);
+            setNewUpdate({ content: '', progress: 0 });
+          }
+        }
+      }
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (error) {
+      debugLog('saveTaskUpdate', 'Error saving task update', { error });
+      setError('Hiba történt a feladat frissítésének mentése során: ' + error.message);
+      
+      // Offline update
+      const taskToUpdate = tasks.find(task => task._id === currentTaskUpdate._id);
+      
+      if (taskToUpdate) {
+        const updatedTask = {
+          ...taskToUpdate,
+          updates: [...taskToUpdate.updates, updateData],
+          progress: updateData.progress > taskToUpdate.progress ? updateData.progress : taskToUpdate.progress
+        };
+        
+        // If progress is 100%, mark as completed
+        if (updateData.progress === 100 && updatedTask.status !== 'completed') {
+          updatedTask.status = 'completed';
+          updatedTask.completedAt = new Date().toISOString();
+        }
+        
+        setTasks(tasks.map(task => task._id === currentTaskUpdate._id ? updatedTask : task));
+        setSuccess('Feladat frissítés lokálisan mentve. (Hiba a szerverrel való kommunikációban)');
+        setShowUpdateModal(false);
+        setCurrentTaskUpdate(null);
+        setNewUpdate({ content: '', progress: 0 });
+      }
+      
+      setTimeout(() => setSuccess(null), 3000);
+    }
+  };
+
+  // Toggle task status
+  const toggleTaskStatus = async (taskId) => {
+    const taskToToggle = tasks.find(task => task._id === taskId);
+    if (!taskToToggle) return;
+    
+    const newStatus = taskToToggle.status === 'completed' ? 'active' : 'completed';
+    const updatedTask = {
+      ...taskToToggle,
+      status: newStatus,
+      progress: newStatus === 'completed' ? 100 : taskToToggle.progress
+    };
+    
+    // Add or remove completedAt
+    if (newStatus === 'completed') {
+      updatedTask.completedAt = new Date().toISOString();
+    } else {
+      delete updatedTask.completedAt;
+    }
+    
+    debugLog('toggleTaskStatus', 'Toggling task status', { 
+      taskId,
+      newStatus, 
+    });
+    
+    try {
+      // Try to update via API
+      const response = await api.put(`${API_URL}/translation/tasks/${taskId}`, updatedTask);
+      
+      if (response.ok) {
+        const savedTask = await response.json();
+        setTasks(tasks.map(task => task._id === taskId ? savedTask : task));
+        debugLog('toggleTaskStatus', 'Task status toggled via API');
+        setSuccess(`Feladat ${newStatus === 'completed' ? 'befejezve' : 'újranyitva'}!`);
+      } else {
+        if (response.status === 401) {
+          debugLog('toggleTaskStatus', 'Authentication error', { status: response.status });
+          setError('Nincs megfelelő jogosultsága a feladat státuszának módosításához. Kérjük, jelentkezzen be újra.');
+        } else {
+          debugLog('toggleTaskStatus', 'API error', { status: response.status });
+          // Update locally if API fails
+          setTasks(tasks.map(task => task._id === taskId ? updatedTask : task));
+          setSuccess(`Feladat ${newStatus === 'completed' ? 'befejezve' : 'újranyitva'}! (API kapcsolat nem elérhető)`);
+        }
+      }
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (error) {
+      debugLog('toggleTaskStatus', 'Error toggling task status', { error });
+      setError('Hiba történt a feladat státuszának módosítása során: ' + error.message);
+      
+      // Offline update
+      setTasks(tasks.map(task => task._id === taskId ? updatedTask : task));
+      setSuccess(`Feladat ${newStatus === 'completed' ? 'befejezve' : 'újranyitva'}! (Hiba a szerverrel való kommunikációban)`);
+      setTimeout(() => setSuccess(null), 3000);
+    }
+  };
+
   // Delete a note
   const deleteNote = async (noteId) => {
     if (!window.confirm('Biztosan törölni szeretné ezt a jegyzetet?')) return;
@@ -432,6 +856,43 @@ const TranslationTool = () => {
     }
   };
 
+  // Delete a task
+  const deleteTask = async (taskId) => {
+    if (!window.confirm('Biztosan törölni szeretné ezt a feladatot?')) return;
+    
+    debugLog('deleteTask', 'Deleting task', { taskId });
+    
+    try {
+      // Try to delete via API
+      const response = await api.delete(`${API_URL}/translation/tasks/${taskId}`);
+      
+      if (response.ok) {
+        setTasks(tasks.filter(task => task._id !== taskId));
+        debugLog('deleteTask', 'Task deleted via API');
+        setSuccess('Feladat sikeresen törölve!');
+      } else {
+        if (response.status === 401) {
+          debugLog('deleteTask', 'Authentication error', { status: response.status });
+          setError('Nincs megfelelő jogosultsága a feladatok törléséhez. Kérjük, jelentkezzen be újra.');
+        } else {
+          debugLog('deleteTask', 'API error', { status: response.status });
+          // Delete locally if API fails
+          setTasks(tasks.filter(task => task._id !== taskId));
+          setSuccess('Feladat lokálisan törölve. (API kapcsolat nem elérhető)');
+        }
+      }
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (error) {
+      debugLog('deleteTask', 'Error deleting task', { error });
+      setError('Hiba történt a feladat törlése során: ' + error.message);
+      
+      // Offline delete
+      setTasks(tasks.filter(task => task._id !== taskId));
+      setSuccess('Feladat lokálisan törölve. (Hiba a szerverrel való kommunikációban)');
+      setTimeout(() => setSuccess(null), 3000);
+    }
+  };
+
   // Edit a note
   const editNote = (note) => {
     setCurrentNote(note);
@@ -442,6 +903,19 @@ const TranslationTool = () => {
       category: note.category || 'general'
     });
     setShowNoteModal(true);
+  };
+
+  // Edit a task
+  const editTask = (task) => {
+    setCurrentTask(task);
+    setNewTask({
+      title: task.title,
+      description: task.description || '',
+      dueDate: task.dueDate || new Date().toISOString().split('T')[0],
+      priority: task.priority || 'medium',
+      status: task.status || 'active'
+    });
+    setShowTaskModal(true);
   };
 
   // Sablon betöltése
@@ -539,6 +1013,33 @@ const TranslationTool = () => {
     URL.revokeObjectURL(url);
   };
 
+  // Export all tasks
+  const exportAllTasks = () => {
+    debugLog('exportAllTasks', 'Exporting all tasks');
+    const content = tasks.map(task => {
+      let taskContent = `# ${task.title}\nPrioritás: ${getPriorityText(task.priority)}\nStátusz: ${getStatusText(task.status)}\nHatáridő: ${formatDate(task.dueDate)}\nHaladás: ${task.progress || 0}%\n\n${task.description || ''}\n\n`;
+      
+      if (task.updates && task.updates.length > 0) {
+        taskContent += `## Frissítések:\n\n`;
+        task.updates.forEach(update => {
+          taskContent += `- ${formatDate(update.createdAt)}: ${update.content} (${update.progress}%)\n`;
+        });
+      }
+      
+      return taskContent + '\n---\n\n';
+    }).join('');
+    
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `feladatok_${new Date().toISOString().slice(0, 10)}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   // Format date in a readable way
   const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -556,6 +1057,59 @@ const TranslationTool = () => {
     } else {
       setSelectedTags([...selectedTags, tag]);
     }
+  };
+
+  // Toggle task details visibility
+  const toggleTaskDetails = (taskId) => {
+    setShowingTaskDetails({
+      ...showingTaskDetails,
+      [taskId]: !showingTaskDetails[taskId]
+    });
+  };
+
+  // Get priority text and color
+  const getPriorityText = (priority) => {
+    switch (priority) {
+      case 'high': return 'Magas';
+      case 'medium': return 'Közepes';
+      case 'low': return 'Alacsony';
+      default: return 'Közepes';
+    }
+  };
+
+  const getPriorityColor = (priority) => {
+    switch (priority) {
+      case 'high': return 'text-red-600 bg-red-50 border-red-200';
+      case 'medium': return 'text-yellow-600 bg-yellow-50 border-yellow-200';
+      case 'low': return 'text-green-600 bg-green-50 border-green-200';
+      default: return 'text-yellow-600 bg-yellow-50 border-yellow-200';
+    }
+  };
+
+  // Get status text and color
+  const getStatusText = (status) => {
+    switch (status) {
+      case 'active': return 'Aktív';
+      case 'completed': return 'Befejezett';
+      default: return 'Aktív';
+    }
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'active': return 'text-blue-600 bg-blue-50 border-blue-200';
+      case 'completed': return 'text-green-600 bg-green-50 border-green-200';
+      default: return 'text-blue-600 bg-blue-50 border-blue-200';
+    }
+  };
+
+  // Calculate if a task is overdue
+  const isTaskOverdue = (task) => {
+    if (task.status === 'completed') return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const dueDate = new Date(task.dueDate);
+    return dueDate < today;
   };
 
   return (
@@ -601,6 +1155,16 @@ const TranslationTool = () => {
           }`}
         >
           Jegyzetek
+        </button>
+        <button
+          onClick={() => setActiveTab('tasks')}
+          className={`py-2 px-4 font-medium ${
+            activeTab === 'tasks'
+              ? 'border-b-2 border-blue-500 text-blue-600'
+              : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          Feladatok
         </button>
       </div>
 
@@ -954,6 +1518,278 @@ const TranslationTool = () => {
         </div>
       )}
 
+      {/* Tasks Tab */}
+      {activeTab === 'tasks' && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Left sidebar - filters and actions */}
+          <div className="space-y-4">
+            <div className="bg-white rounded-lg shadow p-4">
+              <h3 className="font-medium mb-3">Keresés és szűrés</h3>
+              <div className="space-y-3">
+                <div className="relative">
+                  <Search className="absolute left-3 top-3 text-gray-400 h-4 w-4" />
+                  <input
+                    type="text"
+                    value={taskSearch}
+                    onChange={(e) => setTaskSearch(e.target.value)}
+                    placeholder="Keresés feladatokban..."
+                    className="w-full pl-10 p-2 border rounded-lg"
+                  />
+                </div>
+                
+                <div>
+                  <h4 className="text-sm font-medium text-gray-700 mb-2">Státusz</h4>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => setTaskFilter('all')}
+                      className={`px-3 py-1 text-sm rounded-lg ${
+                        taskFilter === 'all'
+                          ? 'bg-blue-100 text-blue-800 border border-blue-300'
+                          : 'bg-gray-100 text-gray-800 border border-gray-200 hover:bg-gray-200'
+                      }`}
+                    >
+                      Összes
+                    </button>
+                    <button
+                      onClick={() => setTaskFilter('active')}
+                      className={`px-3 py-1 text-sm rounded-lg ${
+                        taskFilter === 'active'
+                          ? 'bg-blue-100 text-blue-800 border border-blue-300'
+                          : 'bg-gray-100 text-gray-800 border border-gray-200 hover:bg-gray-200'
+                      }`}
+                    >
+                      Aktív
+                    </button>
+                    <button
+                      onClick={() => setTaskFilter('completed')}
+                      className={`px-3 py-1 text-sm rounded-lg ${
+                        taskFilter === 'completed'
+                          ? 'bg-blue-100 text-blue-800 border border-blue-300'
+                          : 'bg-gray-100 text-gray-800 border border-gray-200 hover:bg-gray-200'
+                      }`}
+                    >
+                      Befejezett
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-white rounded-lg shadow p-4">
+              <h3 className="font-medium mb-3">Műveletek</h3>
+              <div className="space-y-2">
+                <button
+                  onClick={() => {
+                    setCurrentTask(null);
+                    setNewTask({
+                      title: '',
+                      description: '',
+                      dueDate: new Date().toISOString().split('T')[0],
+                      priority: 'medium',
+                      status: 'active'
+                    });
+                    setShowTaskModal(true);
+                  }}
+                  className="w-full px-4 py-2 flex items-center justify-center bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Új feladat
+                </button>
+                
+                <button
+                  onClick={exportAllTasks}
+                  className="w-full px-4 py-2 flex items-center justify-center border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Feladatok exportálása
+                </button>
+              </div>
+            </div>
+            
+            <div className="bg-white rounded-lg shadow p-4">
+              <h3 className="font-medium mb-3">Összesítés</h3>
+              <div className="space-y-2">
+                <div className="flex justify-between items-center py-1">
+                  <span className="text-sm text-gray-600">Összes feladat:</span>
+                  <span className="font-medium">{tasks.length}</span>
+                </div>
+                <div className="flex justify-between items-center py-1">
+                  <span className="text-sm text-gray-600">Aktív feladatok:</span>
+                  <span className="font-medium">{tasks.filter(t => t.status === 'active').length}</span>
+                </div>
+                <div className="flex justify-between items-center py-1">
+                  <span className="text-sm text-gray-600">Befejezett feladatok:</span>
+                  <span className="font-medium">{tasks.filter(t => t.status === 'completed').length}</span>
+                </div>
+                <div className="flex justify-between items-center py-1">
+                  <span className="text-sm text-gray-600">Mai határidők:</span>
+                  <span className="font-medium">{tasks.filter(t => 
+                    t.status === 'active' && 
+                    new Date(t.dueDate).toDateString() === new Date().toDateString()
+                  ).length}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Main content - tasks list */}
+          <div className="md:col-span-2">
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-medium">Feladatok ({filteredTasks.length})</h2>
+              </div>
+
+              {filteredTasks.length === 0 ? (
+                <div className="text-center p-6 text-gray-500">
+                  <ListChecks className="mx-auto h-12 w-12 text-gray-400 mb-2" />
+                  <p>Nincsenek feladatok</p>
+                  <p className="text-sm">Hozzon létre új feladatot a "+" gombbal</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {filteredTasks.map(task => (
+                    <div
+                      key={task._id}
+                      className={`border rounded-lg ${
+                        isTaskOverdue(task) ? 'border-red-300' : 'border-gray-200'
+                      } transition-colors`}
+                    >
+                      <div className="p-4">
+                        <div className="flex items-start">
+                          <button
+                            onClick={() => toggleTaskStatus(task._id)}
+                            className="mt-1 mr-3 flex-shrink-0"
+                          >
+                            {task.status === 'completed' ? (
+                              <CheckSquare className="h-5 w-5 text-green-500" />
+                            ) : (
+                              <Square className="h-5 w-5 text-gray-400" />
+                            )}
+                          </button>
+                          
+                          <div className="flex-1">
+                            <div className="flex justify-between items-start">
+                              <h3 className={`font-medium text-lg ${task.status === 'completed' ? 'line-through text-gray-500' : ''}`}>
+                                {task.title}
+                              </h3>
+                              <div className="flex space-x-2">
+                                <button
+                                  onClick={() => {
+                                    setCurrentTaskUpdate(task);
+                                    setNewUpdate({
+                                      content: '',
+                                      progress: task.progress || 0
+                                    });
+                                    setShowUpdateModal(true);
+                                  }}
+                                  className="p-1 text-purple-600 hover:bg-purple-50 rounded"
+                                  title="Frissítés hozzáadása"
+                                >
+                                  <Plus className="h-4 w-4" />
+                                </button>
+                                <button
+                                  onClick={() => editTask(task)}
+                                  className="p-1 text-blue-600 hover:bg-blue-50 rounded"
+                                  title="Szerkesztés"
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </button>
+                                <button
+                                  onClick={() => deleteTask(task._id)}
+                                  className="p-1 text-red-600 hover:bg-red-50 rounded"
+                                  title="Törlés"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </div>
+                            </div>
+                            
+                            <div className="flex flex-wrap gap-2 mt-2">
+                              <span className={`px-2 py-1 text-xs rounded-full border ${getPriorityColor(task.priority)}`}>
+                                {getPriorityText(task.priority)}
+                              </span>
+                              <span className={`px-2 py-1 text-xs rounded-full border ${getStatusColor(task.status)}`}>
+                                {getStatusText(task.status)}
+                              </span>
+                              <span className="px-2 py-1 text-xs rounded-full border text-gray-700 bg-gray-50 border-gray-200 flex items-center">
+                                <Clock className="h-3 w-3 mr-1" />
+                                {formatDate(task.dueDate)}
+                                {isTaskOverdue(task) && (
+                                  <span className="ml-1 text-red-600 font-medium">lejárt</span>
+                                )}
+                              </span>
+                            </div>
+                            
+                            {task.description && (
+                              <div className="mt-2 text-sm text-gray-700 whitespace-pre-line">
+                                {task.description.length > 100 && !showingTaskDetails[task._id] 
+                                  ? task.description.slice(0, 100) + '...' 
+                                  : task.description}
+                              </div>
+                            )}
+                            
+                            <div className="mt-3">
+                              <div className="flex items-center">
+                                <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+                                  <div 
+                                    className="h-2 bg-blue-500" 
+                                    style={{ width: `${task.progress || 0}%` }}
+                                  ></div>
+                                </div>
+                                <span className="ml-2 text-xs font-medium text-gray-700">{task.progress || 0}%</span>
+                              </div>
+                            </div>
+                            
+                            {(task.updates && task.updates.length > 0) && (
+                              <div className="mt-3">
+                                <button
+                                  onClick={() => toggleTaskDetails(task._id)}
+                                  className="flex items-center text-xs text-blue-600 hover:text-blue-800"
+                                >
+                                  {showingTaskDetails[task._id] ? (
+                                    <>
+                                      <ChevronUp className="h-3 w-3 mr-1" />
+                                      Elrejtés
+                                    </>
+                                  ) : (
+                                    <>
+                                      <ChevronDown className="h-3 w-3 mr-1" />
+                                      {task.updates.length} frissítés megtekintése
+                                    </>
+                                  )}
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Task updates */}
+                      {showingTaskDetails[task._id] && task.updates && task.updates.length > 0 && (
+                        <div className="border-t border-gray-200 p-4 bg-gray-50 rounded-b-lg">
+                          <h4 className="font-medium text-sm mb-2">Frissítések</h4>
+                          <div className="space-y-3">
+                            {task.updates.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).map(update => (
+                              <div key={update._id} className="text-sm">
+                                <div className="flex justify-between">
+                                  <span className="text-xs text-gray-500">{formatDate(update.createdAt)}</span>
+                                  <span className="text-xs font-medium">{update.progress}%</span>
+                                </div>
+                                <p className="mt-1">{update.content}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Sablon mentési modal */}
       {showTemplateModal && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-50 flex items-center justify-center p-4">
@@ -1099,6 +1935,180 @@ const TranslationTool = () => {
               </button>
               <button
                 onClick={saveNote}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                Mentés
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Task modal */}
+      {showTaskModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-medium">
+                {currentTask ? 'Feladat szerkesztése' : 'Új feladat'}
+              </h3>
+              <button
+                onClick={() => setShowTaskModal(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Cím</label>
+                <input
+                  type="text"
+                  value={newTask.title}
+                  onChange={(e) => setNewTask({...newTask, title: e.target.value})}
+                  className="w-full p-2 border rounded-lg"
+                  placeholder="Feladat címe..."
+                  required
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Leírás</label>
+                <textarea
+                  value={newTask.description}
+                  onChange={(e) => setNewTask({...newTask, description: e.target.value})}
+                  rows={4}
+                  className="w-full p-2 border rounded-lg"
+                  placeholder="Feladat részletes leírása..."
+                />
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Határidő</label>
+                  <input
+                    type="date"
+                    value={newTask.dueDate}
+                    onChange={(e) => setNewTask({...newTask, dueDate: e.target.value})}
+                    className="w-full p-2 border rounded-lg"
+                    min={new Date().toISOString().split('T')[0]}
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Prioritás</label>
+                  <select
+                    value={newTask.priority}
+                    onChange={(e) => setNewTask({...newTask, priority: e.target.value})}
+                    className="w-full p-2 border rounded-lg"
+                  >
+                    <option value="high">Magas</option>
+                    <option value="medium">Közepes</option>
+                    <option value="low">Alacsony</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Státusz</label>
+                <select
+                  value={newTask.status}
+                  onChange={(e) => setNewTask({...newTask, status: e.target.value})}
+                  className="w-full p-2 border rounded-lg"
+                >
+                  <option value="active">Aktív</option>
+                  <option value="completed">Befejezett</option>
+                </select>
+              </div>
+            </div>
+            
+            <div className="flex justify-end gap-2 mt-6">
+              <button
+                onClick={() => setShowTaskModal(false)}
+                className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                Mégse
+              </button>
+              <button
+                onClick={saveTask}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                Mentés
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Task update modal */}
+      {showUpdateModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg w-full max-w-md p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-medium">Feladat frissítése</h3>
+              <button
+                onClick={() => setShowUpdateModal(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm text-gray-600 mb-2">
+                  <span className="font-medium">Feladat:</span> {currentTaskUpdate?.title}
+                </p>
+                <p className="text-sm text-gray-600 mb-4">
+                  <span className="font-medium">Jelenlegi haladás:</span> {currentTaskUpdate?.progress || 0}%
+                </p>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Frissítés leírása</label>
+                <textarea
+                  value={newUpdate.content}
+                  onChange={(e) => setNewUpdate({...newUpdate, content: e.target.value})}
+                  rows={4}
+                  className="w-full p-2 border rounded-lg"
+                  placeholder="Írja le a feladat jelenlegi állapotát, az elért eredményeket..."
+                  required
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Haladás ({newUpdate.progress}%)
+                </label>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="5"
+                  value={newUpdate.progress}
+                  onChange={(e) => setNewUpdate({...newUpdate, progress: parseInt(e.target.value)})}
+                  className="w-full"
+                />
+                <div className="flex justify-between text-xs text-gray-500 mt-1">
+                  <span>0%</span>
+                  <span>25%</span>
+                  <span>50%</span>
+                  <span>75%</span>
+                  <span>100%</span>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex justify-end gap-2 mt-6">
+              <button
+                onClick={() => setShowUpdateModal(false)}
+                className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                Mégse
+              </button>
+              <button
+                onClick={saveTaskUpdate}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
               >
                 Mentés
