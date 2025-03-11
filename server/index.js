@@ -241,7 +241,6 @@ publicRouter.post('/hosting/orders', validateApiKey, async (req, res) => {
 
 // Register public endpoints
 app.use('/api/public', publicRouter);
-app.use('/api/translation/tasks', tasksRoutes);
 
 
 
@@ -283,6 +282,7 @@ app.use('/api', filesRoutes);
 app.use('/api', commentsRoutes);
 app.use('/api', monitoringRoutes);
 app.use('/api/translation', translationRoutes);
+app.use('/api/translation/tasks', tasksRoutes);
 app.use('/api/notes', notesRoutes);
 app.use('/api/support', supportTicketRouter); // Support ticket endpoints
 
