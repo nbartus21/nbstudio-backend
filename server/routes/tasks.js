@@ -1,22 +1,18 @@
 import express from 'express';
 import mongoose from 'mongoose';
 import Task from '../models/Task.js';
-import authMiddleware from '../middleware/auth.js';
 
 const router = express.Router();
 
-// Alkalmazzuk az authentikációs middleware-t a router összes útvonalára
-router.use(authMiddleware);
-
-// Összes feladat lekérése - VÉDETT
+// Összes feladat lekérése - NYILVÁNOS
 router.get('/', async (req, res) => {
   try {
-    console.log('Feladatok lekérése:', req.userData?.email);
-    // Csak a felhasználó saját feladatait adjuk vissza
-    const tasks = await Task.find({ userId: req.userData?.email })
+    console.log('Nyilvános feladatok lekérése');
+    // Egyszerű rendezési logika a hibák elkerülése érdekében
+    const tasks = await Task.find()
       .sort({ createdAt: -1 });
     
-    console.log(`${tasks.length} feladat található a felhasználóhoz`);
+    console.log(`${tasks.length} feladat található`);
     res.json(tasks);
   } catch (error) {
     console.error('Hiba a feladatok lekérésekor:', error);
@@ -24,14 +20,10 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Egy feladat lekérése - VÉDETT
+// Egy feladat lekérése - NYILVÁNOS
 router.get('/:id', async (req, res) => {
   try {
-    // Csak a felhasználó saját feladatát adja vissza
-    const task = await Task.findOne({ 
-      _id: req.params.id,
-      userId: req.userData?.email
-    });
+    const task = await Task.findById(req.params.id);
     
     if (!task) {
       return res.status(404).json({ message: 'Feladat nem található' });
@@ -44,10 +36,10 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// Új feladat létrehozása - VÉDETT
+// Új feladat létrehozása - NYILVÁNOS
 router.post('/', async (req, res) => {
   try {
-    console.log('Új feladat létrehozása. Felhasználó:', req.userData?.email);
+    console.log('Új feladat létrehozása nyilvánosan');
     console.log('Feladat adatok:', req.body);
     
     // Érvényesítés
@@ -55,14 +47,9 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ message: 'A feladat címe kötelező' });
     }
     
-    if (!req.body.dueDate) {
-      return res.status(400).json({ message: 'A feladat határideje kötelező' });
-    }
-    
-    // A felhasználó azonosítóját automatikusan hozzáadjuk
     const task = new Task({
       ...req.body,
-      userId: req.userData?.email
+      userId: req.body.userId || 'public-user' // Default érték, ha nincs userId
     });
     
     const savedTask = await task.save();
@@ -74,19 +61,15 @@ router.post('/', async (req, res) => {
   }
 });
 
-// Feladat frissítése - VÉDETT
+// Feladat frissítése - NYILVÁNOS
 router.put('/:id', async (req, res) => {
   try {
-    console.log('Feladat frissítése:', req.params.id);
+    console.log('Feladat frissítése nyilvánosan:', req.params.id);
     
-    // Ellenőrizzük, hogy a felhasználó saját feladatát frissíti-e
-    const task = await Task.findOne({ 
-      _id: req.params.id,
-      userId: req.userData?.email 
-    });
+    const task = await Task.findById(req.params.id);
     
     if (!task) {
-      return res.status(404).json({ message: 'Feladat nem található vagy nincs jogosultsága a módosításhoz' });
+      return res.status(404).json({ message: 'Feladat nem található' });
     }
     
     // Ha a státusz változik 'completed'-re
@@ -113,19 +96,15 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// Feladat törlése - VÉDETT
+// Feladat törlése - NYILVÁNOS
 router.delete('/:id', async (req, res) => {
   try {
-    console.log('Feladat törlése:', req.params.id);
+    console.log('Feladat törlése nyilvánosan:', req.params.id);
     
-    // Ellenőrizzük, hogy a felhasználó saját feladatát törli-e
-    const task = await Task.findOne({ 
-      _id: req.params.id,
-      userId: req.userData?.email 
-    });
+    const task = await Task.findById(req.params.id);
     
     if (!task) {
-      return res.status(404).json({ message: 'Feladat nem található vagy nincs jogosultsága a törléshez' });
+      return res.status(404).json({ message: 'Feladat nem található' });
     }
     
     await Task.deleteOne({ _id: req.params.id });
@@ -137,20 +116,16 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-// Feladat frissítés hozzáadása - VÉDETT
+// Feladat frissítés hozzáadása - NYILVÁNOS
 router.post('/:id/updates', async (req, res) => {
   try {
-    console.log('Frissítés hozzáadása a feladathoz:', req.params.id);
+    console.log('Frissítés hozzáadása a feladathoz nyilvánosan:', req.params.id);
     console.log('Frissítés adatok:', req.body);
     
-    // Ellenőrizzük, hogy a felhasználó saját feladatához ad-e frissítést
-    const task = await Task.findOne({ 
-      _id: req.params.id,
-      userId: req.userData?.email 
-    });
+    const task = await Task.findById(req.params.id);
     
     if (!task) {
-      return res.status(404).json({ message: 'Feladat nem található vagy nincs jogosultsága a módosításhoz' });
+      return res.status(404).json({ message: 'Feladat nem található' });
     }
     
     // Érvényesítés
