@@ -8,6 +8,10 @@ import {
   DollarSign, Users, MessageSquare, Bell, ArrowUp, ArrowDown,
   Calendar, Database, Shield, CreditCard, Archive, RefreshCw 
 } from 'lucide-react';
+import { api } from '../services/auth'; // Import api with authentication
+
+// Base API URL
+const API_URL = 'https://project.nb-studio.net/api';
 
 const AdminDashboard = () => {
   const [isLoading, setIsLoading] = useState(true);
@@ -37,36 +41,46 @@ const AdminDashboard = () => {
       setError(null);
       
       try {
+        // Use the api service with authentication
         // Fetch projects
-        const projectsResponse = await fetch('/api/projects');
-        if (!projectsResponse.ok) throw new Error('Failed to fetch projects');
+        const projectsResponse = await api.get(`${API_URL}/projects`);
+        if (!projectsResponse.ok) throw new Error(`Failed to fetch projects: ${projectsResponse.status}`);
         const projectsData = await projectsResponse.json();
         
         // Fetch support tickets
-        const ticketsResponse = await fetch('/api/support/tickets');
-        if (!ticketsResponse.ok) throw new Error('Failed to fetch tickets');
-        const ticketsData = await ticketsResponse.json();
+        const ticketsResponse = await api.get(`${API_URL}/support/tickets`);
+        let ticketsData = [];
+        if (ticketsResponse.ok) {
+          ticketsData = await ticketsResponse.json();
+        } else {
+          console.warn('Could not fetch tickets, using empty data');
+        }
         
         // Fetch tasks
-        const tasksResponse = await fetch('/api/tasks');
-        if (!tasksResponse.ok) throw new Error('Failed to fetch tasks');
-        const tasksData = await tasksResponse.json();
+        const tasksResponse = await api.get(`${API_URL}/tasks`);
+        let tasksData = [];
+        if (tasksResponse.ok) {
+          tasksData = await tasksResponse.json();
+        } else {
+          console.warn('Could not fetch tasks, using empty data');
+        }
         
         // Fetch domains
-        const domainsResponse = await fetch('/api/domains');
-        if (!domainsResponse.ok) throw new Error('Failed to fetch domains');
-        const domainsData = await domainsResponse.json();
+        const domainsResponse = await api.get(`${API_URL}/domains`);
+        let domainsData = [];
+        if (domainsResponse.ok) {
+          domainsData = await domainsResponse.json();
+        } else {
+          console.warn('Could not fetch domains, using empty data');
+        }
         
         // Fetch financial data (accounting transactions)
-        const financialResponse = await fetch('/api/transactions');
-        if (!financialResponse.ok) throw new Error('Failed to fetch financial data');
-        const financialData = await financialResponse.json();
-        
-        // Fetch statistics for summary
-        const statsResponse = await fetch('/api/statistics');
-        let statsData = {};
-        if (statsResponse.ok) {
-          statsData = await statsResponse.json();
+        const financialResponse = await api.get(`${API_URL}/transactions`);
+        let financialData = [];
+        if (financialResponse.ok) {
+          financialData = await financialResponse.json();
+        } else {
+          console.warn('Could not fetch financial data, using empty data');
         }
         
         // Process data for the dashboard
@@ -78,7 +92,7 @@ const AdminDashboard = () => {
         const activeProjects = projectsData.filter(project => project.status === 'aktív').length;
         
         // Process tickets data
-        const tickets = ticketsData.tickets || ticketsData;
+        const tickets = ticketsData.tickets || ticketsData || [];
         const newTickets = tickets.filter(ticket => ticket.status === 'new').length;
         const openTickets = tickets.filter(ticket => ticket.status === 'open').length;
         const pendingTickets = tickets.filter(ticket => ticket.status === 'pending').length;
@@ -89,6 +103,7 @@ const AdminDashboard = () => {
         // Process domains data
         const activeDomainsCount = domainsData.filter(domain => domain.status === 'active').length;
         const expiringSoonDomainsCount = domainsData.filter(domain => {
+          if (!domain.expiryDate) return false;
           const expiryDate = new Date(domain.expiryDate);
           return domain.status === 'active' && expiryDate <= thirtyDaysFromNow;
         }).length;
@@ -98,7 +113,7 @@ const AdminDashboard = () => {
         const paidInvoices = financialData.filter(
           transaction => transaction.type === 'income' && transaction.paymentStatus === 'paid'
         );
-        const totalRevenue = paidInvoices.reduce((sum, inv) => sum + inv.amount, 0);
+        const totalRevenue = paidInvoices.reduce((sum, inv) => sum + (inv.amount || 0), 0);
         
         // Calculate pending invoices
         const pendingInvoices = financialData.filter(
@@ -109,12 +124,12 @@ const AdminDashboard = () => {
         const last3Months = getLastMonths(3);
         const monthlyFinancialData = last3Months.map(month => {
           const monthlyRevenue = financialData
-            .filter(t => t.type === 'income' && new Date(t.date).getMonth() === month.index)
-            .reduce((sum, t) => sum + t.amount, 0);
+            .filter(t => t.type === 'income' && t.date && new Date(t.date).getMonth() === month.index)
+            .reduce((sum, t) => sum + (t.amount || 0), 0);
             
           const monthlyExpenses = financialData
-            .filter(t => t.type === 'expense' && new Date(t.date).getMonth() === month.index)
-            .reduce((sum, t) => sum + t.amount, 0);
+            .filter(t => t.type === 'expense' && t.date && new Date(t.date).getMonth() === month.index)
+            .reduce((sum, t) => sum + (t.amount || 0), 0);
             
           return {
             month: month.name,
@@ -139,7 +154,7 @@ const AdminDashboard = () => {
         
         // Add recent projects
         const recentProjects = projectsData
-          .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+          .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
           .slice(0, 2);
           
         recentProjects.forEach(project => {
@@ -147,47 +162,48 @@ const AdminDashboard = () => {
             type: 'project',
             action: 'created',
             name: project.name,
-            timestamp: project.createdAt
+            timestamp: project.createdAt || new Date().toISOString()
           });
         });
         
         // Add recent paid invoices
         const recentPaidInvoices = paidInvoices
-          .sort((a, b) => new Date(b.date) - new Date(a.date))
+          .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
           .slice(0, 2);
           
         recentPaidInvoices.forEach(invoice => {
           recentActivity.push({
             type: 'invoice',
             action: 'paid',
-            name: invoice.invoiceNumber || `INV-${invoice._id.slice(-6)}`,
+            name: invoice.invoiceNumber || (invoice._id ? `INV-${invoice._id.slice(-6)}` : 'Unknown'),
             amount: invoice.amount,
-            timestamp: invoice.date
+            timestamp: invoice.date || new Date().toISOString()
           });
         });
         
         // Add recently resolved tickets
         const resolvedTickets = tickets
           .filter(ticket => ticket.status === 'resolved')
-          .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
+          .sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0))
           .slice(0, 2);
           
         resolvedTickets.forEach(ticket => {
           recentActivity.push({
             type: 'ticket',
             action: 'resolved',
-            name: ticket.subject,
-            timestamp: ticket.updatedAt
+            name: ticket.subject || 'Unknown',
+            timestamp: ticket.updatedAt || new Date().toISOString()
           });
         });
         
         // Add recently renewed domains
         const recentlyRenewedDomains = domainsData
           .filter(domain => {
+            if (!domain.history) return false;
             const lastWeek = new Date();
             lastWeek.setDate(lastWeek.getDate() - 7);
             const history = domain.history || [];
-            return history.some(h => h.action === 'renew' && new Date(h.date) >= lastWeek);
+            return history.some(h => h.action === 'renew' && h.date && new Date(h.date) >= lastWeek);
           })
           .slice(0, 1);
           
@@ -196,12 +212,12 @@ const AdminDashboard = () => {
             type: 'domain',
             action: 'renewed',
             name: domain.name,
-            timestamp: domain.updatedAt
+            timestamp: domain.updatedAt || new Date().toISOString()
           });
         });
         
         // Sort all recent activity by timestamp
-        recentActivity.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        recentActivity.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
         
         // Prepare alerts
         const alerts = [];
@@ -209,6 +225,7 @@ const AdminDashboard = () => {
         // Add domain expiry alerts
         domainsData
           .filter(domain => {
+            if (!domain.expiryDate) return false;
             const expiryDate = new Date(domain.expiryDate);
             const twoWeeksFromNow = new Date();
             twoWeeksFromNow.setDate(now.getDate() + 14);
@@ -226,6 +243,7 @@ const AdminDashboard = () => {
         
         // Add ticket response alerts
         const oldPendingTickets = tickets.filter(ticket => {
+          if (!ticket.updatedAt && !ticket.createdAt) return false;
           const lastActivity = new Date(ticket.updatedAt || ticket.createdAt);
           const oneDayAgo = new Date();
           oneDayAgo.setDate(now.getDate() - 1);
@@ -318,14 +336,47 @@ const AdminDashboard = () => {
 
   // Format date
   const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleString('hu-HU', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    if (!dateString) return 'N/A';
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleString('hu-HU', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (e) {
+      console.error('Date formatting error:', e);
+      return 'Invalid date';
+    }
+  };
+
+  // Handle token refresh
+  const handleTokenRefresh = async () => {
+    try {
+      // Attempt to refresh the token
+      const refreshResponse = await fetch('/api/auth/refresh', {
+        method: 'POST',
+        credentials: 'include' // Include cookies
+      });
+      
+      if (refreshResponse.ok) {
+        // Reload the page to use the new token
+        window.location.reload();
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.error('Token refresh failed:', err);
+      return false;
+    }
+  };
+
+  // Handle auth error
+  const handleAuthError = () => {
+    // Redirect to login
+    window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname);
   };
 
   if (isLoading) {
@@ -344,12 +395,26 @@ const AdminDashboard = () => {
             <AlertCircle className="h-6 w-6 text-red-500 mr-2" />
             <p className="text-red-700">Az adatok betöltése sikertelen: {error}</p>
           </div>
-          <button 
-            onClick={() => window.location.reload()}
-            className="mt-2 bg-red-100 hover:bg-red-200 text-red-800 font-semibold py-2 px-4 rounded"
-          >
-            Újrapróbálkozás
-          </button>
+          <div className="mt-4 flex space-x-3">
+            <button 
+              onClick={() => window.location.reload()}
+              className="bg-red-100 hover:bg-red-200 text-red-800 font-semibold py-2 px-4 rounded"
+            >
+              Újrapróbálkozás
+            </button>
+            <button 
+              onClick={handleTokenRefresh}
+              className="bg-blue-100 hover:bg-blue-200 text-blue-800 font-semibold py-2 px-4 rounded"
+            >
+              Munkamenet frissítése
+            </button>
+            <button 
+              onClick={handleAuthError}
+              className="bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold py-2 px-4 rounded"
+            >
+              Bejelentkezés
+            </button>
+          </div>
         </div>
       </div>
     );
