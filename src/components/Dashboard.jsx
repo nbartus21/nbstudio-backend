@@ -11,7 +11,7 @@ import {
 import { api } from '../services/auth'; // Import api with authentication
 
 // Base API URL
-const API_URL = 'https://project.nb-studio.net/api';
+const API_URL = '/api'; // Use relative path - no need for full domain
 
 const AdminDashboard = () => {
   const [isLoading, setIsLoading] = useState(true);
@@ -41,46 +41,63 @@ const AdminDashboard = () => {
       setError(null);
       
       try {
-        // Use the api service with authentication
-        // Fetch projects
+        // Initialize data collection object
+        const data = {
+          projects: [],
+          tickets: [],
+          tasks: [],
+          domains: [],
+          financialData: []
+        };
+        
+        // Fetch projects - this is critical, so we don't catch errors here
         const projectsResponse = await api.get(`${API_URL}/projects`);
         if (!projectsResponse.ok) throw new Error(`Failed to fetch projects: ${projectsResponse.status}`);
-        const projectsData = await projectsResponse.json();
+        data.projects = await projectsResponse.json();
         
-        // Fetch support tickets
-        const ticketsResponse = await api.get(`${API_URL}/support/tickets`);
-        let ticketsData = [];
-        if (ticketsResponse.ok) {
-          ticketsData = await ticketsResponse.json();
-        } else {
-          console.warn('Could not fetch tickets, using empty data');
+        // Fetch other data with try/catch for each endpoint to prevent one failure from stopping everything
+        
+        // Try to fetch support tickets
+        try {
+          const ticketsResponse = await api.get(`${API_URL}/support/tickets`);
+          if (ticketsResponse.ok) {
+            const ticketsData = await ticketsResponse.json();
+            data.tickets = ticketsData.tickets || ticketsData || [];
+          }
+        } catch (err) {
+          console.warn('Could not fetch tickets:', err.message);
         }
         
-        // Fetch tasks
-        const tasksResponse = await api.get(`${API_URL}/tasks`);
-        let tasksData = [];
-        if (tasksResponse.ok) {
-          tasksData = await tasksResponse.json();
-        } else {
-          console.warn('Could not fetch tasks, using empty data');
+        // Tasks endpoint is returning 404 so we'll skip it based on the error logs
+        /* 
+        try {
+          const tasksResponse = await api.get(`${API_URL}/tasks`);
+          if (tasksResponse.ok) {
+            data.tasks = await tasksResponse.json();
+          }
+        } catch (err) {
+          console.warn('Could not fetch tasks:', err.message);
+        }
+        */
+        
+        // Try to fetch domains
+        try {
+          const domainsResponse = await api.get(`${API_URL}/domains`);
+          if (domainsResponse.ok) {
+            data.domains = await domainsResponse.json();
+          }
+        } catch (err) {
+          console.warn('Could not fetch domains:', err.message);
         }
         
-        // Fetch domains
-        const domainsResponse = await api.get(`${API_URL}/domains`);
-        let domainsData = [];
-        if (domainsResponse.ok) {
-          domainsData = await domainsResponse.json();
-        } else {
-          console.warn('Could not fetch domains, using empty data');
-        }
-        
-        // Fetch financial data (accounting transactions)
-        const financialResponse = await api.get(`${API_URL}/transactions`);
-        let financialData = [];
-        if (financialResponse.ok) {
-          financialData = await financialResponse.json();
-        } else {
-          console.warn('Could not fetch financial data, using empty data');
+        // Try to fetch financial data
+        try {
+          const financialResponse = await api.get(`${API_URL}/transactions`);
+          if (financialResponse.ok) {
+            data.financialData = await financialResponse.json();
+          }
+        } catch (err) {
+          console.warn('Could not fetch financial data:', err.message);
         }
         
         // Process data for the dashboard
@@ -89,20 +106,20 @@ const AdminDashboard = () => {
         thirtyDaysFromNow.setDate(now.getDate() + 30);
         
         // Process projects data
-        const activeProjects = projectsData.filter(project => project.status === 'aktív').length;
+        const activeProjects = data.projects.filter(project => project.status === 'aktív').length;
         
         // Process tickets data
-        const tickets = ticketsData.tickets || ticketsData || [];
+        const tickets = data.tickets;
         const newTickets = tickets.filter(ticket => ticket.status === 'new').length;
         const openTickets = tickets.filter(ticket => ticket.status === 'open').length;
         const pendingTickets = tickets.filter(ticket => ticket.status === 'pending').length;
         
-        // Process tasks data
-        const activeTasks = tasksData.filter(task => task.status === 'active').length;
+        // Process tasks data (not using this since the endpoint returns 404)
+        const activeTasks = 0;
         
         // Process domains data
-        const activeDomainsCount = domainsData.filter(domain => domain.status === 'active').length;
-        const expiringSoonDomainsCount = domainsData.filter(domain => {
+        const activeDomainsCount = data.domains.filter(domain => domain.status === 'active').length;
+        const expiringSoonDomainsCount = data.domains.filter(domain => {
           if (!domain.expiryDate) return false;
           const expiryDate = new Date(domain.expiryDate);
           return domain.status === 'active' && expiryDate <= thirtyDaysFromNow;
@@ -110,24 +127,24 @@ const AdminDashboard = () => {
         
         // Process financial data
         // Calculate total revenue
-        const paidInvoices = financialData.filter(
+        const paidInvoices = data.financialData.filter(
           transaction => transaction.type === 'income' && transaction.paymentStatus === 'paid'
         );
         const totalRevenue = paidInvoices.reduce((sum, inv) => sum + (inv.amount || 0), 0);
         
         // Calculate pending invoices
-        const pendingInvoices = financialData.filter(
+        const pendingInvoices = data.financialData.filter(
           transaction => transaction.type === 'income' && transaction.paymentStatus === 'pending'
         ).length;
         
         // Prepare monthly financial data (last 3 months)
         const last3Months = getLastMonths(3);
         const monthlyFinancialData = last3Months.map(month => {
-          const monthlyRevenue = financialData
+          const monthlyRevenue = data.financialData
             .filter(t => t.type === 'income' && t.date && new Date(t.date).getMonth() === month.index)
             .reduce((sum, t) => sum + (t.amount || 0), 0);
             
-          const monthlyExpenses = financialData
+          const monthlyExpenses = data.financialData
             .filter(t => t.type === 'expense' && t.date && new Date(t.date).getMonth() === month.index)
             .reduce((sum, t) => sum + (t.amount || 0), 0);
             
@@ -139,9 +156,9 @@ const AdminDashboard = () => {
         });
         
         // Prepare invoice status data
-        const paidCount = financialData.filter(t => t.type === 'income' && t.paymentStatus === 'paid').length;
-        const pendingCount = financialData.filter(t => t.type === 'income' && t.paymentStatus === 'pending').length;
-        const overdueCount = financialData.filter(t => t.type === 'income' && t.paymentStatus === 'overdue').length;
+        const paidCount = data.financialData.filter(t => t.type === 'income' && t.paymentStatus === 'paid').length;
+        const pendingCount = data.financialData.filter(t => t.type === 'income' && t.paymentStatus === 'pending').length;
+        const overdueCount = data.financialData.filter(t => t.type === 'income' && t.paymentStatus === 'overdue').length;
         
         const invoiceStatusData = [
           { name: 'Fizetve', value: paidCount },
@@ -153,7 +170,7 @@ const AdminDashboard = () => {
         const recentActivity = [];
         
         // Add recent projects
-        const recentProjects = projectsData
+        const recentProjects = data.projects
           .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
           .slice(0, 2);
           
@@ -197,7 +214,7 @@ const AdminDashboard = () => {
         });
         
         // Add recently renewed domains
-        const recentlyRenewedDomains = domainsData
+        const recentlyRenewedDomains = data.domains
           .filter(domain => {
             if (!domain.history) return false;
             const lastWeek = new Date();
@@ -223,7 +240,7 @@ const AdminDashboard = () => {
         const alerts = [];
         
         // Add domain expiry alerts
-        domainsData
+        data.domains
           .filter(domain => {
             if (!domain.expiryDate) return false;
             const expiryDate = new Date(domain.expiryDate);
@@ -675,24 +692,7 @@ const AdminDashboard = () => {
                 </div>
               </div>
               
-              <div className="p-4 bg-gray-50 rounded-lg col-span-2">
-                <div className="flex items-center mb-2">
-                  <CheckCircle className="h-5 w-5 text-indigo-600 mr-2" />
-                  <h3 className="font-medium">Feladatok</h3>
-                </div>
-                <div className="mt-2">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">Aktív feladatok</span>
-                    <span className="font-medium">{dashboardData.stats.activeTasks}</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2">
-                    <div 
-                      className="bg-indigo-600 h-2.5 rounded-full" 
-                      style={{ width: `${Math.min(100, dashboardData.stats.activeTasks * 5)}%` }}
-                    ></div>
-                  </div>
-                </div>
-              </div>
+              {/* Remove tasks section since endpoint is not available */}
             </div>
           </div>
         </div>
@@ -743,7 +743,7 @@ const AdminDashboard = () => {
       {/* Quick Actions */}
       <div className="bg-white rounded-lg shadow p-6">
         <h2 className="text-lg font-semibold mb-4">Gyors Műveletek</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
           <a href="/projects" className="flex flex-col items-center justify-center p-4 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors">
             <Archive className="h-6 w-6 text-indigo-600 mb-2" />
             <span className="text-sm font-medium text-indigo-700">Projektek</span>
@@ -762,11 +762,6 @@ const AdminDashboard = () => {
           <a href="/domains" className="flex flex-col items-center justify-center p-4 bg-yellow-50 rounded-lg hover:bg-yellow-100 transition-colors">
             <Globe className="h-6 w-6 text-yellow-600 mb-2" />
             <span className="text-sm font-medium text-yellow-700">Domain-ek</span>
-          </a>
-          
-          <a href="/tasks" className="flex flex-col items-center justify-center p-4 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors">
-            <CheckCircle className="h-6 w-6 text-purple-600 mb-2" />
-            <span className="text-sm font-medium text-purple-700">Feladatok</span>
           </a>
         </div>
       </div>
