@@ -157,12 +157,12 @@ const handleCreateInvoice = async (selectedProject, formData) => {
     console.log('Kapott űrlap adatok:', formData);
     
     // Ellenőrizzük, hogy az items tömb tartalmaz-e érvényes tételeket
-    if (!formData.items || formData.items.length === 0) {
+    if (!items || items.length === 0) {
       throw new Error('Legalább egy számlatétel megadása kötelező');
     }
     
     // Ellenőrizzük minden tétel érvényességét
-    const validItems = formData.items.map(item => {
+    const validItems = items.map(item => {
       // Ellenőrizzük, hogy a leírás nem üres
       if (!item.description || item.description.trim() === '') {
         throw new Error('A tétel leírása kötelező');
