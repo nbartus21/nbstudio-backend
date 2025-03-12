@@ -62,13 +62,16 @@ const BlogAdmin = () => {
 
   const fetchPosts = async () => {
     try {
+      console.log('Fetching posts from:', `${API_URL}/posts`);
       setLoading(true);
       const response = await api.get(`${API_URL}/posts`);
+      console.log('Response status:', response.status);
       const data = await response.json();
+      console.log('Received data:', data);
       setPosts(data);
     } catch (error) {
-      console.error('Hiba a bejegyzések betöltésekor:', error);
-      setError('Nem sikerült betölteni a blogbejegyzéseket. Kérjük, próbáld újra később.');
+      console.error('Error fetching posts:', error);
+      setError('Failed to load blog posts. Please try again later.');
     } finally {
       setLoading(false);
     }
