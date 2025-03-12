@@ -145,39 +145,92 @@ const NewInvoiceModal = ({
   };
 
   // Számla létrehozása
-  const handleCreateInvoice = () => {
-    // Validate the form first
-    if (!validateForm()) {
-      setFormError('Kérjük, javítsa a hibákat a folytatás előtt.');
-      return;
+// Az InvoiceManager.jsx handleCreateInvoice függvényének javított verziója
+
+const handleCreateInvoice = async (selectedProject, formData) => {
+  if (!selectedProject) {
+    setError('Nincs kiválasztott projekt!');
+    return;
+  }
+
+  try {
+    console.log('Kapott űrlap adatok:', formData);
+    
+    // Ellenőrizzük, hogy az items tömb tartalmaz-e érvényes tételeket
+    if (!formData.items || formData.items.length === 0) {
+      throw new Error('Legalább egy számlatétel megadása kötelező');
     }
     
-    setFormError(null);
+    // Ellenőrizzük minden tétel érvényességét
+    const validItems = formData.items.map(item => {
+      // Ellenőrizzük, hogy a leírás nem üres
+      if (!item.description || item.description.trim() === '') {
+        throw new Error('A tétel leírása kötelező');
+      }
+      
+      // Biztosítsuk, hogy számszerű értékek valóban számok legyenek
+      const quantity = parseFloat(item.quantity) || 0;
+      const unitPrice = parseFloat(item.unitPrice) || 0;
+      const total = quantity * unitPrice;
+      
+      return {
+        description: item.description.trim(),
+        quantity: quantity,
+        unitPrice: unitPrice,
+        total: total
+      };
+    });
     
-    // Clean and prepare the items data
-    const cleanItems = items.map(item => ({
-      description: item.description.trim(),
-      quantity: parseFloat(item.quantity),
-      unitPrice: parseFloat(item.unitPrice),
-      total: parseFloat(item.total)
-    }));
+    // Számítsuk ki a végösszeget a javított tételekből
+    const totalAmount = validItems.reduce((sum, item) => sum + item.total, 0);
     
-    // Számla adatok összeállítása
+    // Számla adatok összeállítása javított értékekkel
     const invoiceData = {
-      number: invoiceNumber,
+      number: formData.number,
       date: new Date(),
-      dueDate: new Date(dueDate),
-      items: cleanItems,
-      totalAmount: calculateTotal(),
+      items: validItems,
+      totalAmount: totalAmount,
+      paidAmount: 0,
       status: 'kiállított',
-      notes: notes?.trim() || ''
+      dueDate: new Date(formData.dueDate),
+      notes: formData.notes || ''
     };
     
-    // Debug logs to check the data
-    console.log('Sending invoice data:', JSON.stringify(invoiceData, null, 2));
+    console.log('Elküldendő számla adatok:', invoiceData);
     
-    onCreateInvoice(selectedProject, invoiceData);
-  };
+    const response = await api.post(
+      `/api/projects/${selectedProject._id}/invoices`,
+      invoiceData
+    );
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Nem sikerült létrehozni a számlát');
+    }
+
+    const updatedProject = await response.json();
+    
+    // Új számla hozzáadása a listához
+    const newlyCreatedInvoice = {
+      ...invoiceData,
+      _id: updatedProject.invoices[updatedProject.invoices.length - 1]._id,
+      projectId: selectedProject._id,
+      projectName: selectedProject.name,
+      clientName: selectedProject.client?.name || 'Ismeretlen ügyfél',
+      currency: selectedProject.financial?.currency || 'EUR'
+    };
+    
+    setInvoices(prev => [...prev, newlyCreatedInvoice]);
+
+    setShowNewInvoiceModal(false);
+    setNewInvoice({ items: [{ description: '', quantity: 1, unitPrice: 0 }] });
+    showMessage(setSuccessMessage, 'Számla sikeresen létrehozva');
+    
+  } catch (error) {
+    console.error('Hiba a számla létrehozásakor:', error);
+    setError(`Hiba történt a számla létrehozásakor: ${error.message}`);
+  }
+};
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
