@@ -143,7 +143,7 @@ const DomainManager = () => {
   }
 
   return (
-<div className="p-6 container mx-auto max-w-6xl">
+<div className="p-6 container mx-auto max-w-7xl">
       {/* Sikeres üzenet */}
       {successMessage && (
         <div className="mb-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded flex items-center">
