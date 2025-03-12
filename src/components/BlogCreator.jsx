@@ -99,7 +99,7 @@ const BlogPostCreator = () => {
   const handleTagsChange = (e) => {
     setPost(prev => ({
       ...prev,
-      tags: e.target.value.split(',').map(tag => tag.trim())
+      tags: e.target.value
     }));
   };
 
@@ -132,8 +132,10 @@ const BlogPostCreator = () => {
       setLoading(true);
       
       // Validate required fields
-      if (!post.title.hu || !post.content.hu || !post.excerpt.hu) {
-        throw new Error('A magyar cím, tartalom és kivonat kötelező!');
+      if (!post.title.hu || !post.content.hu || !post.excerpt.hu || 
+          !post.title.en || !post.content.en || !post.excerpt.en ||
+          !post.title.de || !post.content.de || !post.excerpt.de) {
+        throw new Error('Minden nyelven kötelező kitölteni a címet, tartalmat és kivonatot!');
       }
       
       if (!post.slug) {
@@ -141,9 +143,10 @@ const BlogPostCreator = () => {
       }
       
       // Convert tags to proper format
+      // Ensure tags is an array (even if empty)
       const formattedTags = typeof post.tags === 'string' 
-        ? post.tags.split(',').map(tag => tag.trim()) 
-        : post.tags;
+        ? post.tags.split(',').map(tag => tag.trim()).filter(tag => tag) 
+        : (Array.isArray(post.tags) ? post.tags : []);
       
       const postData = {
         ...post,
@@ -328,7 +331,7 @@ const BlogPostCreator = () => {
           <div className="mb-4">
             <label htmlFor={`title-${activeLanguage}`} className="block text-sm font-medium text-gray-700 mb-1">
               Cím ({activeLanguage === 'hu' ? 'magyar' : activeLanguage === 'de' ? 'német' : 'angol'})
-              {activeLanguage === 'hu' && <span className="text-red-500">*</span>}
+              <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
@@ -337,7 +340,7 @@ const BlogPostCreator = () => {
               onChange={(e) => handleInputChange(e, activeLanguage, 'title')}
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
               placeholder={activeLanguage === 'hu' ? 'A bejegyzés címe magyarul' : activeLanguage === 'de' ? 'Titel auf Deutsch' : 'Title in English'}
-              required={activeLanguage === 'hu'}
+              required={true}
             />
           </div>
 
@@ -354,7 +357,7 @@ const BlogPostCreator = () => {
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
               rows="2"
               placeholder={activeLanguage === 'hu' ? 'Rövid összefoglaló a bejegyzésről' : activeLanguage === 'de' ? 'Kurze Zusammenfassung' : 'Brief summary of the post'}
-              required={activeLanguage === 'hu'}
+              required={true}
             ></textarea>
           </div>
 
@@ -371,7 +374,7 @@ const BlogPostCreator = () => {
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
               rows="10"
               placeholder={activeLanguage === 'hu' ? 'A bejegyzés tartalma...' : activeLanguage === 'de' ? 'Inhalt des Beitrags...' : 'Post content...'}
-              required={activeLanguage === 'hu'}
+              required={true}
             ></textarea>
           </div>
 
