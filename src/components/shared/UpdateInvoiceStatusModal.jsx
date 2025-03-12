@@ -3,7 +3,7 @@ import {
   CheckCircle, XCircle, AlertCircle, Calendar, FileText, 
   DollarSign, X 
 } from 'lucide-react';
-import { formatShortDate } from '../utils';
+import { formatShortDate } from './utils';
 
 const UpdateInvoiceStatusModal = ({ invoice, onClose, onUpdateStatus }) => {
   const [selectedStatus, setSelectedStatus] = useState(invoice?.status || 'kiállított');
@@ -232,11 +232,7 @@ const UpdateInvoiceStatusModal = ({ invoice, onClose, onUpdateStatus }) => {
           <button
             type="button"
             onClick={handleSave}
-            className={`px-4 py-2 rounded-md shadow-sm text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 ${
-              selectedStatusInfo
-                ? `bg-${selectedStatusInfo.color}-600 hover:bg-${selectedStatusInfo.color}-700 focus:ring-${selectedStatusInfo.color}-500`
-                : 'bg-indigo-600 hover:bg-indigo-700 focus:ring-indigo-500'
-            }`}
+            className="px-4 py-2 rounded-md shadow-sm text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 bg-indigo-600 hover:bg-indigo-700"
           >
             Mentés
           </button>
