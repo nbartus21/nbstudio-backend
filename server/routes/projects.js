@@ -78,16 +78,35 @@ router.post('/projects/:id/invoices', async (req, res) => {
     // Tételek ellenőrzése
     for (const item of invoiceData.items) {
       console.log('Tétel ellenőrzése:', item);
-      if (!item.description || !item.quantity || !item.unitPrice) {
-        console.error('Hiányzó tétel adatok:', item);
-        return res.status(400).json({ message: 'Hiányzó számla tétel adatok' });
+      if (!item.description || !item.description.trim()) {
+        console.error('Hiányzó tétel leírás:', item);
+        return res.status(400).json({ message: 'Hiányzó számla tétel leírás' });
       }
+      
+      if (!item.quantity || isNaN(Number(item.quantity)) || Number(item.quantity) <= 0) {
+        console.error('Érvénytelen mennyiség:', item.quantity);
+        return res.status(400).json({ message: 'Érvénytelen számla tétel mennyiség' });
+      }
+      
+      if (isNaN(Number(item.unitPrice))) {
+        console.error('Érvénytelen egységár:', item.unitPrice);
+        return res.status(400).json({ message: 'Érvénytelen számla tétel egységár' });
+      }
+      
+      // Biztosítsuk, hogy a számértékek tényleg számok legyenek
+      item.quantity = Number(item.quantity);
+      item.unitPrice = Number(item.unitPrice);
+      item.total = item.quantity * item.unitPrice;
     }
+    
+    // Számoljuk újra a végösszeget az eredeti és a számított értékek egyeztetése érdekében
+    invoiceData.totalAmount = invoiceData.items.reduce((sum, item) => sum + item.total, 0);
 
     project.invoices.push(invoiceData);
     console.log('Számla hozzáadva a projekthez');
 
     // Teljes számlázott összeg újraszámolása
+    project.financial = project.financial || {};
     project.financial.totalBilled = project.invoices.reduce(
       (sum, invoice) => sum + (invoice.totalAmount || 0),
       0
@@ -101,6 +120,14 @@ router.post('/projects/:id/invoices', async (req, res) => {
   } catch (error) {
     console.error('Részletes hiba:', error);
     console.error('Hiba stack:', error.stack);
+    
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({
+        message: 'Számla validációs hiba',
+        error: error.message
+      });
+    }
+    
     res.status(500).json({
       message: 'Szerver hiba történt a számla létrehozásakor',
       error: error.message

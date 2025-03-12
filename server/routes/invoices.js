@@ -29,92 +29,33 @@ const invoiceSchema = new mongoose.Schema({
 
 const Invoice = mongoose.model('Invoice', invoiceSchema);
 
-// Számla hozzáadása projekthez
+// Új számla létrehozása projekthez
 router.post('/projects/:projectId/invoices', async (req, res) => {
-  console.log('Számla létrehozási kérés érkezett');
-  console.log('Projekt ID:', req.params.projectId);
-  console.log('Számla adatok:', req.body);
-
   try {
     const project = await Project.findById(req.params.projectId);
-    console.log('Megtalált projekt:', project ? 'Igen' : 'Nem');
-
     if (!project) {
-      console.error('Projekt nem található:', req.params.projectId);
       return res.status(404).json({ message: 'Projekt nem található' });
     }
 
-    if (!project.invoices) {
-      console.log('Invoices tömb inicializálása');
-      project.invoices = [];
-    }
+    // Számla adatok előkészítése
+    const invoiceData = {
+      ...req.body,
+      projectId: project._id
+    };
 
-    // Számla adatok validálása
-    const invoiceData = req.body;
-    console.log('Feldolgozandó számla adatok:', invoiceData);
+    // Számla létrehozása
+    const invoice = new Invoice(invoiceData);
+    await invoice.save();
 
-    if (!invoiceData.items || !Array.isArray(invoiceData.items)) {
-      console.error('Hibás számla tételek:', invoiceData.items);
-      return res.status(400).json({ message: 'Érvénytelen számla tételek' });
-    }
+    // Számla hozzáadása a projekthez
+    project.invoices = project.invoices || [];
+    project.invoices.push(invoice);
+    await project.save();
 
-    // Tételek ellenőrzése
-    for (const item of invoiceData.items) {
-      console.log('Tétel ellenőrzése:', item);
-      if (!item.description || !item.description.trim()) {
-        console.error('Hiányzó tétel leírás:', item);
-        return res.status(400).json({ message: 'Hiányzó számla tétel leírás' });
-      }
-      
-      if (!item.quantity || isNaN(Number(item.quantity)) || Number(item.quantity) <= 0) {
-        console.error('Érvénytelen mennyiség:', item.quantity);
-        return res.status(400).json({ message: 'Érvénytelen számla tétel mennyiség' });
-      }
-      
-      if (isNaN(Number(item.unitPrice))) {
-        console.error('Érvénytelen egységár:', item.unitPrice);
-        return res.status(400).json({ message: 'Érvénytelen számla tétel egységár' });
-      }
-      
-      // Biztosítsuk, hogy a számértékek tényleg számok legyenek
-      item.quantity = Number(item.quantity);
-      item.unitPrice = Number(item.unitPrice);
-      item.total = item.quantity * item.unitPrice;
-    }
-    
-    // Számoljuk újra a végösszeget az eredeti és a számított értékek egyeztetése érdekében
-    invoiceData.totalAmount = invoiceData.items.reduce((sum, item) => sum + item.total, 0);
-
-    project.invoices.push(invoiceData);
-    console.log('Számla hozzáadva a projekthez');
-
-    // Teljes számlázott összeg újraszámolása
-    project.financial = project.financial || {};
-    project.financial.totalBilled = project.invoices.reduce(
-      (sum, invoice) => sum + (invoice.totalAmount || 0),
-      0
-    );
-    console.log('Új teljes számlázott összeg:', project.financial.totalBilled);
-
-    const updatedProject = await project.save();
-    console.log('Projekt sikeresen mentve');
-
-    res.status(201).json(updatedProject);
+    res.status(201).json(project);
   } catch (error) {
-    console.error('Részletes hiba:', error);
-    console.error('Hiba stack:', error.stack);
-    
-    if (error.name === 'ValidationError') {
-      return res.status(400).json({
-        message: 'Számla validációs hiba',
-        error: error.message
-      });
-    }
-    
-    res.status(500).json({
-      message: 'Szerver hiba történt a számla létrehozásakor',
-      error: error.message
-    });
+    console.error('Hiba a számla létrehozásánál:', error);
+    res.status(500).json({ message: error.message });
   }
 });
 
