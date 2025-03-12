@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Plus, X, DollarSign, Trash2, CheckCircle, 
-  Calendar, Users, Briefcase
+  Calendar, Users, Briefcase, AlertCircle
 } from 'lucide-react';
 
 const NewInvoiceModal = ({ 
@@ -21,6 +21,7 @@ const NewInvoiceModal = ({
   );
   const [notes, setNotes] = useState('');
   const [errors, setErrors] = useState({});
+  const [formError, setFormError] = useState(null);
 
   // Alapértelmezett fizetési határidő (14 nap)
   useEffect(() => {
@@ -65,72 +66,115 @@ const NewInvoiceModal = ({
   // Tétel módosítása
   const handleItemChange = (index, field, value) => {
     const newItems = [...items];
-    newItems[index][field] = value;
+    
+    // Ensure numeric values are properly formatted as numbers
+    if (field === 'quantity' || field === 'unitPrice') {
+      newItems[index][field] = parseFloat(value) || 0;
+    } else {
+      newItems[index][field] = value;
+    }
     
     // Automatikus összeg számítás
     if (field === 'quantity' || field === 'unitPrice') {
-      newItems[index].total = newItems[index].quantity * newItems[index].unitPrice;
+      const quantity = parseFloat(newItems[index].quantity) || 0;
+      const unitPrice = parseFloat(newItems[index].unitPrice) || 0;
+      newItems[index].total = quantity * unitPrice;
     }
     
     setItems(newItems);
+    
+    // Clear any error for this field
+    if (errors[`item-${index}-${field}`]) {
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[`item-${index}-${field}`];
+        return newErrors;
+      });
+    }
   };
 
   // Végösszeg számítása
   const calculateTotal = () => {
-    return items.reduce((sum, item) => sum + (item.total || 0), 0);
+    return items.reduce((sum, item) => sum + (parseFloat(item.total) || 0), 0);
   };
 
-  // Számla létrehozása
-  const handleCreateInvoice = () => {
-    // Validáció
+  // Validate all inputs before submission
+  const validateForm = () => {
     const newErrors = {};
+    let isValid = true;
     
     if (!selectedProject) {
       newErrors.project = 'Válasszon ki egy projektet';
+      isValid = false;
     }
     
     if (!dueDate) {
       newErrors.dueDate = 'Adja meg a fizetési határidőt';
+      isValid = false;
     }
     
-    let hasItemErrors = false;
+    // Validate each item
     items.forEach((item, index) => {
-      if (!item.description.trim()) {
+      // Ensure description is not empty
+      if (!item.description || item.description.trim() === '') {
         newErrors[`item-${index}-description`] = 'A tétel leírása kötelező';
-        hasItemErrors = true;
+        isValid = false;
       }
       
-      if (item.quantity <= 0) {
+      // Ensure quantity is a positive number
+      if (!item.quantity || item.quantity <= 0) {
         newErrors[`item-${index}-quantity`] = 'A mennyiség pozitív szám kell, hogy legyen';
-        hasItemErrors = true;
+        isValid = false;
       }
       
-      if (item.unitPrice < 0) {
+      // Ensure unit price is a non-negative number
+      if (item.unitPrice < 0 || isNaN(item.unitPrice)) {
         newErrors[`item-${index}-unitPrice`] = 'Az egységár nem lehet negatív';
-        hasItemErrors = true;
+        isValid = false;
+      }
+      
+      // Ensure total is calculated
+      if (item.total <= 0 || isNaN(item.total)) {
+        newErrors[`item-${index}-total`] = 'Érvénytelen összeg';
+        isValid = false;
       }
     });
     
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
+    setErrors(newErrors);
+    return isValid;
+  };
+
+  // Számla létrehozása
+  const handleCreateInvoice = () => {
+    // Validate the form first
+    if (!validateForm()) {
+      setFormError('Kérjük, javítsa a hibákat a folytatás előtt.');
       return;
     }
+    
+    setFormError(null);
+    
+    // Clean and prepare the items data
+    const cleanItems = items.map(item => ({
+      description: item.description.trim(),
+      quantity: parseFloat(item.quantity),
+      unitPrice: parseFloat(item.unitPrice),
+      total: parseFloat(item.total)
+    }));
     
     // Számla adatok összeállítása
     const invoiceData = {
       number: invoiceNumber,
       date: new Date(),
       dueDate: new Date(dueDate),
-      items: items.map(item => ({
-        description: item.description,
-        quantity: parseFloat(item.quantity),
-        unitPrice: parseFloat(item.unitPrice),
-        total: parseFloat(item.quantity) * parseFloat(item.unitPrice)
-      })),
+      items: cleanItems,
       totalAmount: calculateTotal(),
       status: 'kiállított',
-      notes: notes
+      notes: notes?.trim() || ''
     };
+    
+    // Debug logs to check the data
+    console.log('Sending invoice data:', JSON.stringify(invoiceData, null, 2));
     
     onCreateInvoice(selectedProject, invoiceData);
   };
@@ -147,6 +191,13 @@ const NewInvoiceModal = ({
             <X className="h-6 w-6" />
           </button>
         </div>
+
+        {formError && (
+          <div className="mb-4 p-3 bg-red-100 border border-red-300 rounded-md flex items-center text-red-700">
+            <AlertCircle className="h-5 w-5 mr-2" />
+            {formError}
+          </div>
+        )}
 
         <div className="space-y-6">
           {/* Számla alapadatok */}
@@ -304,7 +355,7 @@ const NewInvoiceModal = ({
                       type="number"
                       placeholder="Mennyiség"
                       value={item.quantity}
-                      onChange={(e) => handleItemChange(index, 'quantity', parseFloat(e.target.value))}
+                      onChange={(e) => handleItemChange(index, 'quantity', e.target.value)}
                       className={`block w-full rounded-md ${
                         errors[`item-${index}-quantity`] 
                           ? 'border-red-300 focus:ring-red-500 focus:border-red-500' 
@@ -327,7 +378,7 @@ const NewInvoiceModal = ({
                         type="number"
                         placeholder="Ár"
                         value={item.unitPrice}
-                        onChange={(e) => handleItemChange(index, 'unitPrice', parseFloat(e.target.value))}
+                        onChange={(e) => handleItemChange(index, 'unitPrice', e.target.value)}
                         className={`pl-8 block w-full rounded-md ${
                           errors[`item-${index}-unitPrice`] 
                             ? 'border-red-300 focus:ring-red-500 focus:border-red-500' 
@@ -343,7 +394,10 @@ const NewInvoiceModal = ({
                   </div>
                   
                   <div className="col-span-1 flex items-center">
-                    <span className="font-medium">{(item.quantity * item.unitPrice).toFixed(2)}</span>
+                    <span className="font-medium">{(parseFloat(item.total) || 0).toFixed(2)}</span>
+                    {errors[`item-${index}-total`] && (
+                      <p className="mt-1 text-xs text-red-600">{errors[`item-${index}-total`]}</p>
+                    )}
                   </div>
                   
                   <div className="col-span-1 flex items-center justify-end">
@@ -391,7 +445,6 @@ const NewInvoiceModal = ({
               type="button"
               onClick={handleCreateInvoice}
               className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 flex items-center"
-              disabled={!selectedProject || items.some(item => !item.description || item.quantity <= 0)}
             >
               <CheckCircle className="h-5 w-5 mr-2" />
               Számla létrehozása
