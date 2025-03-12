@@ -62,21 +62,27 @@ const BlogAdmin = () => {
 
   const fetchPosts = async () => {
     try {
-      console.log('Fetching posts from:', `${API_URL}/posts`);
       setLoading(true);
       const response = await api.get(`${API_URL}/posts`);
-      console.log('Response status:', response.status);
       const data = await response.json();
-      console.log('Received data:', data);
-      setPosts(data);
+      
+      console.log('API válasz:', data); // Ellenőrizzük milyen adatokat kapunk
+      
+      if (!data || !Array.isArray(data)) {
+        console.error('Nem megfelelő API válasz formátum:', data);
+        setError('A szervertől érkező válasz nem megfelelő formátumú');
+        setPosts([]);
+      } else {
+        setPosts(data);
+      }
     } catch (error) {
       console.error('Error fetching posts:', error);
-      setError('Failed to load blog posts. Please try again later.');
+      setError(error.message);
     } finally {
       setLoading(false);
     }
   };
-
+  
   const handleDelete = async (id) => {
     if (!window.confirm('Biztosan törölni szeretnéd ezt a bejegyzést?')) return;
     
@@ -177,18 +183,30 @@ const BlogAdmin = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Blog Kezelés</h1>
-            <p className="text-gray-500 mt-1">Hozz létre, szerkeszt és kezelj blogbejegyzéseket</p>
-          </div>
-          <Link
-            to="/blog/new"
-            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
-            <Plus className="w-5 h-5 mr-2" />
-            Új bejegyzés
-          </Link>
-        </div>
+  <div>
+    <h1 className="text-2xl font-bold text-gray-900">Blog Kezelés</h1>
+    <p className="text-gray-500 mt-1">Hozz létre, szerkeszt és kezelj blogbejegyzéseket</p>
+  </div>
+  <div className="flex space-x-3"> {/* Gombokat csoportosító konténer */}
+    <button 
+      onClick={fetchPosts}
+      className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+    >
+      <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+      </svg>
+      Frissítés
+    </button>
+    
+    <Link
+      to="/blog/new"
+      className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+    >
+      <Plus className="w-5 h-5 mr-2" />
+      Új bejegyzés
+    </Link>
+  </div>
+</div>
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
