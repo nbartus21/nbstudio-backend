@@ -441,8 +441,8 @@ const AdminDashboard = () => {
   const COLORS = ['#10B981', '#F59E0B', '#EF4444'];
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
-      <h1 className="text-2xl font-bold text-gray-800 mb-6">Dashboard</h1>
+<div className="p-6 bg-gray-50 min-h-screen">
+  <div className="max-w-7xl mx-auto">      <h1 className="text-2xl font-bold text-gray-800 mb-6">Dashboard</h1>
       
       {/* Top Stats Overview */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -764,6 +764,7 @@ const AdminDashboard = () => {
             <span className="text-sm font-medium text-yellow-700">Domain-ek</span>
           </a>
         </div>
+      </div>
       </div>
     </div>
   );
