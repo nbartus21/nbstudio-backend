@@ -19,7 +19,6 @@ import TranslationTool from './TranslationTool'; // Új komponens importálása
 import SupportTicketManager from './SupportTicketManager';
 import QRLogin from './QRLogin';
 import DocumentManager from './DocumentManager';
-import AIChat from './AIChat';
 
 
 
@@ -40,7 +39,6 @@ const App = () => {
  };
 
  return (
-  <>
    <Routes>
      <Route path="/login" element={<Login />} />
      <Route path="/magic-login" element={<MagicLogin />} />
@@ -169,8 +167,6 @@ const App = () => {
      <Route path="*" element={<Navigate to="/magic-login" />} />
      <Route path="/shared-project/:token" element={<SharedProjectView />} />
    </Routes>
-        <AIChat />
-        </>
  );
 };
 
