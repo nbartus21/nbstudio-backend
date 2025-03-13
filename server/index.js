@@ -256,8 +256,33 @@ publicRouter.post('/hosting/orders', validateApiKey, async (req, res) => {
   }
 });
 
+// Register public endpoints
+app.use('/api/public', publicRouter);
+
+// Public blog posts endpoint (no auth required)
+app.get('/api/posts', async (req, res) => {
+  try {
+    const posts = await Post.find({ published: true }).sort({ createdAt: -1 });
+    res.json(posts);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Public project endpoints
+app.use('/api/public/projects', validateApiKey, projectRoutes);
+
+// Email API routes
+app.use('/api/email', emailApiRouter);
+
+// Setup email webhook for support tickets
+setupEmailEndpoint(app);
+
+// Auth routes (for login/logout)
+app.use('/api/auth', authRoutes);
+
 // ==============================================
-// PUBLIC DOCUMENT ENDPOINTS (No authentication required)
+// PUBLIC DOCUMENT PDF ENDPOINT (No authentication required)
 // ==============================================
 app.get('/api/documents/:id/pdf', async (req, res) => {
   try {
@@ -286,8 +311,7 @@ app.get('/api/documents/:id/pdf', async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
     
     // Create PDF document and pipe to response
-    const PDFDocument = await import('pdfkit');
-    const doc = new PDFDocument.default({
+    const doc = new PDFDocument({
       size: 'A4',
       margin: 50,
       info: {
@@ -380,31 +404,6 @@ app.get('/api/documents/:id/pdf', async (req, res) => {
   }
 });
 
-// Register public endpoints
-app.use('/api/public', publicRouter);
-
-// Public blog posts endpoint (no auth required)
-app.get('/api/posts', async (req, res) => {
-  try {
-    const posts = await Post.find({ published: true }).sort({ createdAt: -1 });
-    res.json(posts);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
-
-// Public project endpoints
-app.use('/api/public/projects', validateApiKey, projectRoutes);
-
-// Email API routes
-app.use('/api/email', emailApiRouter);
-
-// Setup email webhook for support tickets
-setupEmailEndpoint(app);
-
-// Auth routes (for login/logout)
-app.use('/api/auth', authRoutes);
-
 // ==============================================
 // PROTECTED ENDPOINTS (Require authentication)
 // ==============================================
@@ -426,58 +425,6 @@ app.use('/api/translation/tasks', tasksRoutes);
 app.use('/api/notes', notesRoutes);
 app.use('/api/support', supportTicketRouter);
 app.use('/api', documentsRouter);
-
-// Add special handling for document PDF generation
-app.get('/api/documents/:id/pdf', authMiddleware, async (req, res, next) => {
-  console.log('Document PDF generation request received for document:', req.params.id);
-  
-  // When using the documentsRouter, if the PDF isn't generating properly, 
-  // this fallback ensures PDF generation works
-  try {
-    const Document = mongoose.model('Document');
-    const document = await Document.findById(req.params.id);
-    
-    if (!document) {
-      return res.status(404).json({ message: 'Document not found' });
-    }
-    
-    // Set PDF headers
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="document-${req.params.id}.pdf"`);
-    
-    // Create PDF document
-    const doc = new PDFDocument({
-      size: 'A4',
-      margin: 50,
-      info: {
-        Title: `Document-${req.params.id}`,
-        Author: 'NB Studio'
-      }
-    });
-    
-    // Pipe to response
-    doc.pipe(res);
-    
-    // Add content
-    doc.fontSize(25)
-      .text('Document', { align: 'center' })
-      .moveDown();
-    
-    doc.fontSize(16)
-      .text(`Title: ${document.title || 'Untitled Document'}`, { underline: true })
-      .moveDown();
-    
-    doc.fontSize(12)
-      .text(document.content || 'No content available');
-    
-    // Finalize PDF
-    doc.end();
-    
-  } catch (error) {
-    console.error('Error in fallback PDF generation:', error);
-    next(); // Continue to the regular route handler
-  }
-});
 
 // Basic health check endpoint
 app.get('/', (req, res) => {
