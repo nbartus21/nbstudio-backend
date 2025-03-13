@@ -6,10 +6,19 @@ import https from 'https';
 import http from 'http';
 import { Server } from 'socket.io';
 import fs from 'fs';
+// PDF generation dependencies
+import PDFDocument from 'pdfkit';
+
+// Import models
 import Contact from './models/Contact.js';
 import Hosting from './models/Hosting.js';
 import HostingNotification from './models/HostingNotification.js';
+import Calculator from './models/Calculator.js';
+import Post from './models/Post.js';
+import Note from './models/Note.js';
 import Task from './models/Task.js';
+
+// Import routes
 import postRoutes from './routes/posts.js';
 import contactRoutes from './routes/contacts.js';
 import calculatorRoutes from './routes/calculators.js';
@@ -17,34 +26,34 @@ import projectRoutes from './routes/projects.js';
 import domainRoutes from './routes/domains.js';
 import serverRoutes from './routes/servers.js';
 import licenseRoutes from './routes/licenses.js';
-import authMiddleware from './middleware/auth.js';
 import authRoutes from './routes/auth.js';
 import notificationRoutes from './routes/notifications.js';
-import Calculator from './models/Calculator.js';
 import accountingRoutes from './routes/accounting.js';
 import hostingRoutes from './routes/hosting.js';
-import Post from './models/Post.js';
 import filesRoutes from './routes/files.js';
 import commentsRoutes from './routes/comments.js';
 import translationRoutes from './routes/translation.js';
 import notesRoutes from './routes/notes.js';
-import supportTicketRouter, { setupEmailEndpoint, initializeSocketIO } from './routes/supportTickets.js';
-import Note from './models/Note.js';
-import emailApiRouter from './routes/emailApi.js';
 import tasksRoutes from './routes/tasks.js';
+import supportTicketRouter, { setupEmailEndpoint, initializeSocketIO } from './routes/supportTickets.js';
+import emailApiRouter from './routes/emailApi.js';
 import documentsRouter from './routes/documents.js';
 
+// Import middleware
+import authMiddleware from './middleware/auth.js';
 
+// Load environment variables
 dotenv.config();
 
+// Initialize Express app
 const app = express();
 const host = process.env.HOST || '0.0.0.0';
 const port = process.env.PORT || 5001;
 
-// HTTP server for Socket.IO
+// Create HTTP server for Socket.IO
 const httpServer = http.createServer(app);
 
-// Socket.IO initialization
+// Configure Socket.IO
 const io = new Server(httpServer, {
   cors: {
     origin: [
@@ -62,39 +71,10 @@ const io = new Server(httpServer, {
   }
 });
 
-// API Key validation middleware
-const validateApiKey = (req, res, next) => {
-  // Tároljuk az API kulcsot egy változóban, hogy konzisztens legyen
-  const apiKey = process.env.PUBLIC_API_KEY;
-  const receivedApiKey = req.headers['x-api-key'];
-  
-  console.log('API Key ellenőrzés:');
-  console.log('Beállított API kulcs:', apiKey ? 'Beállítva' : 'Nincs beállítva');
-  console.log('Kapott API kulcs:', receivedApiKey ? 'Kapott' : 'Nincs megadva');
-  
-  if (!apiKey) {
-    console.error('PUBLIC_API_KEY nincs beállítva a környezeti változókban!');
-    return res.status(500).json({ message: 'Szerver konfigurációs hiba' });
-  }
-  
-  if (!receivedApiKey) {
-    console.error('Nem érkezett API kulcs a kérésben');
-    return res.status(401).json({ message: 'API kulcs megadása kötelező' });
-  }
-
-  if (receivedApiKey === apiKey) {
-    console.log('API kulcs ellenőrzés sikeres');
-    next();
-  } else {
-    console.error('API kulcs ellenőrzés sikertelen');
-    res.status(401).json({ message: 'Érvénytelen API kulcs' });
-  }
-};
-
-// Pass Socket.IO to the support ticket router
+// Initialize Socket.IO for support tickets
 initializeSocketIO(io);
 
-// Basic Socket.IO connection handling
+// Socket.IO connection handling
 io.on('connection', (socket) => {
   console.log('Client connected to Socket.IO:', socket.id);
   
@@ -114,10 +94,17 @@ io.on('connection', (socket) => {
 });
 
 // SSL configuration
-const sslOptions = {
-  key: fs.readFileSync('/etc/letsencrypt/live/admin.nb-studio.net/privkey.pem'),
-  cert: fs.readFileSync('/etc/letsencrypt/live/admin.nb-studio.net/fullchain.pem')
-};
+let sslOptions;
+try {
+  sslOptions = {
+    key: fs.readFileSync('/etc/letsencrypt/live/admin.nb-studio.net/privkey.pem'),
+    cert: fs.readFileSync('/etc/letsencrypt/live/admin.nb-studio.net/fullchain.pem')
+  };
+  console.log('SSL certificates loaded successfully');
+} catch (error) {
+  console.error('Error loading SSL certificates:', error.message);
+  process.exit(1);
+}
 
 // CORS configuration
 const corsOptions = {
@@ -138,11 +125,38 @@ const corsOptions = {
   optionsSuccessStatus: 200
 };
 
+// Apply middlewares
 app.use(cors(corsOptions));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// Use the imported validateApiKey instead of defining it inline
+// API Key validation middleware
+const validateApiKey = (req, res, next) => {
+  const apiKey = process.env.PUBLIC_API_KEY;
+  const receivedApiKey = req.headers['x-api-key'];
+  
+  console.log('API Key validation:');
+  console.log('Configured API key:', apiKey ? 'Set' : 'Not set');
+  console.log('Received API key:', receivedApiKey ? 'Received' : 'Not provided');
+  
+  if (!apiKey) {
+    console.error('PUBLIC_API_KEY is not set in environment variables!');
+    return res.status(500).json({ message: 'Server configuration error' });
+  }
+  
+  if (!receivedApiKey) {
+    console.error('No API key received in the request');
+    return res.status(401).json({ message: 'API key is required' });
+  }
+
+  if (receivedApiKey === apiKey) {
+    console.log('API key validation successful');
+    next();
+  } else {
+    console.error('API key validation failed');
+    res.status(401).json({ message: 'Invalid API key' });
+  }
+};
 
 // Debug middleware (only in development)
 if (process.env.NODE_ENV !== 'production') {
@@ -152,7 +166,12 @@ if (process.env.NODE_ENV !== 'production') {
   });
 }
 
-// PUBLIC ENDPOINTS
+// ==============================================
+// PUBLIC ENDPOINTS (No authentication required)
+// ==============================================
+// Note: PDF generation functionality is implemented in route handlers
+// such as invoices.js, projects.js, and other modules that need to 
+// generate PDF documents
 const publicRouter = express.Router();
 
 // Contact form endpoint
@@ -237,14 +256,8 @@ publicRouter.post('/hosting/orders', validateApiKey, async (req, res) => {
   }
 });
 
-
-
 // Register public endpoints
 app.use('/api/public', publicRouter);
-
-
-
-
 
 // Public blog posts endpoint (no auth required)
 app.get('/api/posts', async (req, res) => {
@@ -258,10 +271,9 @@ app.get('/api/posts', async (req, res) => {
 
 // Public project endpoints
 app.use('/api/public/projects', validateApiKey, projectRoutes);
+
+// Email API routes
 app.use('/api/email', emailApiRouter);
-//teszt api
-
-
 
 // Setup email webhook for support tickets
 setupEmailEndpoint(app);
@@ -269,7 +281,9 @@ setupEmailEndpoint(app);
 // Auth routes (for login/logout)
 app.use('/api/auth', authRoutes);
 
-// PROTECTED ENDPOINTS (require auth)
+// ==============================================
+// PROTECTED ENDPOINTS (Require authentication)
+// ==============================================
 app.use('/api', authMiddleware);
 app.use('/api', postRoutes);
 app.use('/api', contactRoutes);
@@ -286,8 +300,16 @@ app.use('/api', commentsRoutes);
 app.use('/api/translation', translationRoutes);
 app.use('/api/translation/tasks', tasksRoutes);
 app.use('/api/notes', notesRoutes);
-app.use('/api/support', supportTicketRouter); // Support ticket endpoints
+app.use('/api/support', supportTicketRouter);
 app.use('/api', documentsRouter);
+
+// Handle PDF generation routes
+app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', authMiddleware, (req, res, next) => {
+  // This route forwards to the PDF generation handler in routes/invoices.js
+  // The actual implementation is in that file, but we're ensuring the route exists
+  console.log('PDF generation request received for invoice:', req.params.invoiceId);
+  next();
+});
 
 // Basic health check endpoint
 app.get('/', (req, res) => {
@@ -307,30 +329,9 @@ app.use((err, req, res, next) => {
   });
 });
 
-// MongoDB connection and server startup
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => {
-    console.log('Connected to MongoDB');
-    
-    // Start HTTPS API server
-    https.createServer(sslOptions, app).listen(port, host, () => {
-      console.log(`API Server running on https://${host}:${port}`);
-    });
-    
-    // Start HTTP server for Socket.IO
-    const socketPort = parseInt(port) + 1;
-    httpServer.listen(socketPort, host, () => {
-      console.log(`Socket.IO server running on http://${host}:${socketPort}`);
-    });
-    
-    // Setup project domain handling
-    setupProjectDomain();
-  })
-  .catch((error) => {
-    console.error('MongoDB connection error:', error);
-  });
-
-// Project domain handling
+// ==============================================
+// PROJECT DOMAIN HANDLING
+// ==============================================
 function setupProjectDomain() {
   // Create a separate Express app for project.nb-studio.net
   const projectApp = express();
@@ -419,3 +420,29 @@ function setupProjectDomain() {
     console.error('Failed to start project domain server:', error);
   }
 }
+
+// ==============================================
+// SERVER STARTUP
+// ==============================================
+mongoose.connect(process.env.MONGO_URI)
+  .then(() => {
+    console.log('Connected to MongoDB');
+    
+    // Start HTTPS API server
+    https.createServer(sslOptions, app).listen(port, host, () => {
+      console.log(`API Server running on https://${host}:${port}`);
+    });
+    
+    // Start HTTP server for Socket.IO
+    const socketPort = parseInt(port) + 1;
+    httpServer.listen(socketPort, host, () => {
+      console.log(`Socket.IO server running on http://${host}:${socketPort}`);
+    });
+    
+    // Setup project domain handling
+    setupProjectDomain();
+  })
+  .catch((error) => {
+    console.error('MongoDB connection error:', error);
+    process.exit(1);
+  });
