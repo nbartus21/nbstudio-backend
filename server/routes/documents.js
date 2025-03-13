@@ -19,8 +19,13 @@ const __dirname = dirname(__filename);
 const uploadsDir = path.join(__dirname, '../../uploads/documents');
 
 // Létrehozzuk a mappát, ha nem létezik
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
+try {
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+    console.log(`Uploads directory created: ${uploadsDir}`);
+  }
+} catch (error) {
+  console.error(`Error creating uploads directory: ${error.message}`);
 }
 
 // Összes dokumentumsablon lekérése
@@ -177,40 +182,34 @@ router.put('/document-templates/:id', async (req, res) => {
 });
 
 // Dokumentumsablon törlése
-// Sablon törlése
 router.delete('/document-templates/:id', async (req, res) => {
-    try {
-      const template = await DocumentTemplate.findById(req.params.id);
-      
-      if (!template) {
-        return res.status(404).json({ message: 'Template not found' });
-      }
-      
-      // Ellenőrzés, hogy használták-e már a sablont dokumentum generáláshoz
-      const documentCount = await GeneratedDocument.countDocuments({ templateId: req.params.id });
-      
-      if (documentCount > 0) {
-        // Opció 1: Teljesen letiltjuk a törlést
-        // return res.status(400).json({ 
-        //   message: 'Nem törölhető a sablon, mert már generáltak belőle dokumentumot' 
-        // });
-        
-        // Opció 2: Archivált állapotba helyezzük törlés helyett
-        template.isArchived = true;
-        await template.save();
-        return res.json({ 
-          message: 'A sablon archiválva lett, mivel már készült belőle dokumentum',
-          archived: true
-        });
-      }
-      
-      await DocumentTemplate.deleteOne({ _id: req.params.id });
-      res.json({ message: 'Template deleted successfully' });
-    } catch (error) {
-      console.error('Error deleting template:', error);
-      res.status(500).json({ message: 'Server error', error: error.message });
+  try {
+    const template = await DocumentTemplate.findById(req.params.id);
+    
+    if (!template) {
+      return res.status(404).json({ message: 'Template not found' });
     }
-  });
+    
+    // Ellenőrzés, hogy használták-e már a sablont dokumentum generáláshoz
+    const documentCount = await GeneratedDocument.countDocuments({ templateId: req.params.id });
+    
+    if (documentCount > 0) {
+      // Opció 2: Archivált állapotba helyezzük törlés helyett
+      template.isArchived = true;
+      await template.save();
+      return res.json({ 
+        message: 'A sablon archiválva lett, mivel már készült belőle dokumentum',
+        archived: true
+      });
+    }
+    
+    await DocumentTemplate.deleteOne({ _id: req.params.id });
+    res.json({ message: 'Template deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting template:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
 
 // Dokumentum generálása sablon alapján
 router.post('/documents/generate', async (req, res) => {
@@ -336,156 +335,141 @@ router.get('/documents', async (req, res) => {
 });
 
 // Generált dokumentum lekérése ID alapján
-// Dokumentum lekérése
 router.get('/documents/:id', async (req, res) => {
-    try {
-      console.log('Dokumentum lekérés, kért ID:', req.params.id);
-      
-      const document = await GeneratedDocument.findById(req.params.id)
-        .populate('templateId')
-        .populate('projectId');
-      
-      if (!document) {
-        console.log('Dokumentum nem található ezzel az ID-val');
-        return res.status(404).json({ message: 'Document not found' });
-      }
-      
-      console.log('Visszaküldött dokumentum:', document._id, document.name);
-      res.json(document);
-    } catch (error) {
-      console.error('Error fetching document:', error);
-      res.status(500).json({ message: 'Server error', error: error.message });
+  try {
+    console.log('Dokumentum lekérés, kért ID:', req.params.id);
+    
+    const document = await GeneratedDocument.findById(req.params.id)
+      .populate('templateId')
+      .populate('projectId');
+    
+    if (!document) {
+      console.log('Dokumentum nem található ezzel az ID-val');
+      return res.status(404).json({ message: 'Document not found' });
     }
-  });
+    
+    console.log('Visszaküldött dokumentum:', document._id, document.name);
+    res.json(document);
+  } catch (error) {
+    console.error('Error fetching document:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
 
-// Dokumentum PDF generálása és letöltése
+// IMPROVED: Dokumentum PDF generálása és letöltése - közvetlen streamelés válaszba
 router.get('/documents/:id/pdf', async (req, res) => {
-    try {
-      console.log(`PDF generálás kérés, ID: ${req.params.id}`);
-      
-      // Ellenőrizzük, hogy létezik-e a feltöltések mappa
-      const uploadsDir = path.join(process.cwd(), 'uploads');
-      if (!fs.existsSync(uploadsDir)) {
-        fs.mkdirSync(uploadsDir, { recursive: true });
-        console.log(`Feltöltési mappa létrehozva: ${uploadsDir}`);
-      }
-      
-      // Dokumentum lekérése adatbázisból
-      const document = await GeneratedDocument.findById(req.params.id)
-        .populate('templateId')
-        .populate('projectId');
-      
-      if (!document) {
-        console.error(`Dokumentum nem található ezzel az ID-val: ${req.params.id}`);
-        return res.status(404).json({ message: 'Dokumentum nem található' });
-      }
-      
-      console.log(`Megtalált dokumentum: ${document.name} (${document._id})`);
-      
-      // PDF fájlnév generálása
-      const fileName = `${document.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_${Date.now()}.pdf`;
-      const filePath = path.join(uploadsDir, fileName);
-      
-      console.log(`PDF fájl generálása: ${filePath}`);
-      
-      // PDF létrehozása
-      const doc = new PDFDocument({
-        size: 'A4',
-        margin: 50,
-        info: {
-          Title: document.name,
-          Author: 'NB Studio',
-          Subject: document.templateId?.name || 'Dokumentum',
-          Keywords: document.templateId?.tags?.join(', ') || 'dokumentum'
-        }
-      });
-      
-      // Stream beállítása
-      const writeStream = fs.createWriteStream(filePath);
-      doc.pipe(writeStream);
-      
-      // Fejléc hozzáadása
-      doc.fontSize(18).text(document.name, { align: 'center' });
-      doc.moveDown();
-      doc.fontSize(12).text(`Készült: ${new Date().toLocaleDateString('hu-HU')}`, { align: 'center' });
-      doc.moveDown(2);
-      
-      // Dokumentum tartalom hozzáadása
-      // HTML-ből tiszta szöveg konvertálása
-      const content = document.htmlVersion || document.content;
-      const plainText = content.replace(/<[^>]*>/g, ' ')
-                                .replace(/\s+/g, ' ')
-                                .trim();
-      
-      doc.fontSize(12).text(plainText, {
-        align: 'left',
-        columns: 1,
-        lineGap: 5
-      });
-      
-      // Lábléc
-      const pageCount = doc.bufferedPageRange().count;
-      for (let i = 0; i < pageCount; i++) {
-        doc.switchToPage(i);
-        
-        // Lábléc pozíció (alul)
-        const footerY = doc.page.height - 50;
-        
-        doc.fontSize(8)
-           .text(
-             `${document.name} - ${i + 1}/${pageCount} oldal`, 
-             50, 
-             footerY, 
-             { align: 'center', width: doc.page.width - 100 }
-           );
-      }
-      
-      // PDF lezárása
-      doc.end();
-      
-      // Várakozás a fájl mentésére
-      writeStream.on('finish', () => {
-        console.log(`PDF fájl sikeresen létrehozva: ${filePath}`);
-        
-        // Fájl küldése
-        res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
-        
-        // Stream a fájlból a válaszba
-        const readStream = fs.createReadStream(filePath);
-        readStream.pipe(res);
-        
-        // Fájl törlése a streamelés után
-        readStream.on('end', () => {
-          fs.unlink(filePath, (err) => {
-            if (err) console.error(`Hiba a fájl törlésekor: ${err.message}`);
-            else console.log(`Ideiglenes PDF fájl törölve: ${filePath}`);
-          });
-        });
-      });
-      
-      writeStream.on('error', (err) => {
-        console.error(`Hiba a PDF fájl írása közben: ${err.message}`);
-        if (!res.headersSent) {
-          res.status(500).json({ 
-            message: 'Hiba történt a PDF generálása során', 
-            error: err.message 
-          });
-        }
-      });
-      
-    } catch (error) {
-      console.error(`PDF generálási hiba: ${error.message}`);
-      console.error(error.stack);
-      
-      if (!res.headersSent) {
-        res.status(500).json({ 
-          message: 'Hiba történt a PDF generálása során', 
-          error: error.message 
-        });
-      }
+  console.log(`PDF generálás kérés, ID: ${req.params.id}`);
+  
+  try {
+    // Dokumentum lekérése adatbázisból
+    const document = await GeneratedDocument.findById(req.params.id)
+      .populate('templateId')
+      .populate('projectId');
+    
+    if (!document) {
+      console.error(`Dokumentum nem található ezzel az ID-val: ${req.params.id}`);
+      return res.status(404).json({ message: 'Dokumentum nem található' });
     }
-  });
+    
+    console.log(`Megtalált dokumentum: ${document.name} (${document._id})`);
+    
+    // Generáljunk egy biztonságos fájlnevet a letöltéshez
+    const fileName = `${document.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_${Date.now()}.pdf`;
+    
+    // Set response headers immediately
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    
+    // Create PDF document and pipe directly to response
+    const doc = new PDFDocument({
+      size: 'A4',
+      margin: 50,
+      info: {
+        Title: document.name,
+        Author: 'NB Studio',
+        Subject: document.templateId?.name || 'Dokumentum',
+        Keywords: document.templateId?.tags?.join(', ') || 'dokumentum'
+      },
+      autoFirstPage: true,
+      bufferPages: true
+    });
+    
+    // Pipe directly to response
+    doc.pipe(res);
+    
+    // Catch errors in PDF generation and response
+    doc.on('error', (err) => {
+      console.error(`PDF generation error: ${err}`);
+      // We can't send a proper error response here as headers are already sent
+      // Just make sure the response is ended
+      if (!res.finished) {
+        doc.end();
+      }
+    });
+    
+    // Fejléc hozzáadása
+    doc.fontSize(18).text(document.name, { align: 'center' });
+    doc.moveDown();
+    doc.fontSize(12).text(`Készült: ${new Date().toLocaleDateString('hu-HU')}`, { align: 'center' });
+    doc.moveDown(2);
+    
+    // Dokumentum tartalom hozzáadása
+    // HTML-ből tiszta szöveg konvertálása
+    const content = document.htmlVersion || document.content;
+    const plainText = content.replace(/<[^>]*>/g, ' ')
+                            .replace(/\s+/g, ' ')
+                            .trim();
+    
+    doc.fontSize(12).text(plainText, {
+      align: 'left',
+      columns: 1,
+      lineGap: 5
+    });
+    
+    // Generate all pages first
+    doc.flushPages();
+    
+    // Add page numbers to each page
+    const pageCount = doc.bufferedPageRange().count;
+    for (let i = 0; i < pageCount; i++) {
+      doc.switchToPage(i);
+      
+      // Lábléc pozíció (alul)
+      const footerY = doc.page.height - 50;
+      
+      doc.fontSize(8)
+         .text(
+           `${document.name} - ${i + 1}/${pageCount} oldal`, 
+           50, 
+           footerY, 
+           { align: 'center', width: doc.page.width - 100 }
+         );
+    }
+    
+    // Update document to increase download count
+    document.downloadCount = (document.downloadCount || 0) + 1;
+    document.lastDownloadedAt = new Date();
+    await document.save();
+    
+    // Finalize PDF and send response
+    doc.end();
+    console.log(`PDF generálás befejezve: ${fileName}`);
+    
+  } catch (error) {
+    console.error(`PDF generálási hiba: ${error.message}`);
+    console.error(error.stack);
+    
+    if (!res.headersSent) {
+      res.status(500).json({ 
+        message: 'Hiba történt a PDF generálása során', 
+        error: error.message 
+      });
+    } else {
+      // If headers already sent, just end the response
+      res.end();
+    }
+  }
+});
 
 // Dokumentum állapotának frissítése (jóváhagyási folyamat)
 router.put('/documents/:id/status', async (req, res) => {

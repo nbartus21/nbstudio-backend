@@ -303,12 +303,56 @@ app.use('/api/notes', notesRoutes);
 app.use('/api/support', supportTicketRouter);
 app.use('/api', documentsRouter);
 
-// Handle PDF generation routes
-app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', authMiddleware, (req, res, next) => {
-  // This route forwards to the PDF generation handler in routes/invoices.js
-  // The actual implementation is in that file, but we're ensuring the route exists
-  console.log('PDF generation request received for invoice:', req.params.invoiceId);
-  next();
+// Add special handling for document PDF generation
+app.get('/api/documents/:id/pdf', authMiddleware, async (req, res, next) => {
+  console.log('Document PDF generation request received for document:', req.params.id);
+  
+  // When using the documentsRouter, if the PDF isn't generating properly, 
+  // this fallback ensures PDF generation works
+  try {
+    const Document = mongoose.model('Document');
+    const document = await Document.findById(req.params.id);
+    
+    if (!document) {
+      return res.status(404).json({ message: 'Document not found' });
+    }
+    
+    // Set PDF headers
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="document-${req.params.id}.pdf"`);
+    
+    // Create PDF document
+    const doc = new PDFDocument({
+      size: 'A4',
+      margin: 50,
+      info: {
+        Title: `Document-${req.params.id}`,
+        Author: 'NB Studio'
+      }
+    });
+    
+    // Pipe to response
+    doc.pipe(res);
+    
+    // Add content
+    doc.fontSize(25)
+      .text('Document', { align: 'center' })
+      .moveDown();
+    
+    doc.fontSize(16)
+      .text(`Title: ${document.title || 'Untitled Document'}`, { underline: true })
+      .moveDown();
+    
+    doc.fontSize(12)
+      .text(document.content || 'No content available');
+    
+    // Finalize PDF
+    doc.end();
+    
+  } catch (error) {
+    console.error('Error in fallback PDF generation:', error);
+    next(); // Continue to the regular route handler
+  }
 });
 
 // Basic health check endpoint
