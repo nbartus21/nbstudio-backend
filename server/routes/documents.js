@@ -382,17 +382,18 @@ router.get('/documents/:id/pdf', async (req, res) => {
     
     // Create PDF document and pipe directly to response
     const doc = new PDFDocument({
-      size: 'A4',
-      margin: 50,
-      info: {
-        Title: document.name,
-        Author: 'NB Studio',
-        Subject: document.templateId?.name || 'Dokumentum',
-        Keywords: document.templateId?.tags?.join(', ') || 'dokumentum'
-      },
-      autoFirstPage: true,
-      bufferPages: true
-    });
+        size: 'A4',
+        margin: 50,
+        info: {
+          Title: document.name,
+          Author: 'NB Studio',
+          Subject: document.templateId?.name || 'Document',
+          Keywords: document.templateId?.tags?.join(', ') || 'document'
+        },
+        font: 'Helvetica', // Ez a betűtípus általában támogatja a magyar karaktereket
+        autoFirstPage: true,
+        bufferPages: true
+      });
     
     // Pipe directly to response
     doc.pipe(res);
