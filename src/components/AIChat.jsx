@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Maximize2, Minimize2, Send, MessageSquare, Trash2, Save } from 'lucide-react';
-import { callDeepSeekAPI } from '../services/deepseekService';
+import { callDeepSeekAPI } from '../deepseekService';
 
 const AIChat = () => {
   // States
