@@ -260,7 +260,6 @@ app.get('/api/posts', async (req, res) => {
 app.use('/api/public/projects', validateApiKey, projectRoutes);
 app.use('/api/email', emailApiRouter);
 //teszt api
-app.use('/api', documentsRouter);
 
 
 
@@ -288,6 +287,7 @@ app.use('/api/translation', translationRoutes);
 app.use('/api/translation/tasks', tasksRoutes);
 app.use('/api/notes', notesRoutes);
 app.use('/api/support', supportTicketRouter); // Support ticket endpoints
+app.use('/api', documentsRouter);
 
 // Basic health check endpoint
 app.get('/', (req, res) => {
