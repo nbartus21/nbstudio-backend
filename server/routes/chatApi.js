@@ -2,7 +2,7 @@
 import express from 'express';
 import mongoose from 'mongoose';
 import authMiddleware from '../middleware/auth.js';
-import { callDeepSeekAPI } from '../../deepseekService';
+import { callDeepSeekAPI } from '../../src/deepseekService.js';
 
 const router = express.Router();
 
