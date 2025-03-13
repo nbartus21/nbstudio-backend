@@ -18,6 +18,8 @@ import HostingManager from './HostingManager';
 import TranslationTool from './TranslationTool'; // Új komponens importálása
 import SupportTicketManager from './SupportTicketManager';
 import QRLogin from './QRLogin';
+import DocumentManager from './DocumentManager';
+
 
 
 const App = () => {
@@ -153,6 +155,14 @@ const App = () => {
          </PrivateRoute>
        }
      />
+     <Route
+  path="/documents"
+  element={
+    <PrivateRoute>
+      <DocumentManager />
+    </PrivateRoute>
+  }
+/>
      <Route path="/qr-login" element={<QRLogin />} />
      <Route path="*" element={<Navigate to="/magic-login" />} />
      <Route path="/shared-project/:token" element={<SharedProjectView />} />
