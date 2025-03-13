@@ -19,7 +19,7 @@ import TranslationTool from './TranslationTool'; // Új komponens importálása
 import SupportTicketManager from './SupportTicketManager';
 import QRLogin from './QRLogin';
 import DocumentManager from './DocumentManager';
-import AIChat from './components/AIChat';
+import AIChat from './AIChat';
 
 
 
