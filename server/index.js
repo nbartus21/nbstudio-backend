@@ -256,6 +256,130 @@ publicRouter.post('/hosting/orders', validateApiKey, async (req, res) => {
   }
 });
 
+// ==============================================
+// PUBLIC DOCUMENT ENDPOINTS (No authentication required)
+// ==============================================
+app.get('/api/documents/:id/pdf', async (req, res) => {
+  try {
+    console.log(`Public PDF generation request for document ID: ${req.params.id}`);
+    
+    // Import necessary models if not available
+    const GeneratedDocument = mongoose.model('GeneratedDocument');
+    
+    // Find the document
+    const document = await GeneratedDocument.findById(req.params.id)
+      .populate('templateId')
+      .populate('projectId');
+    
+    if (!document) {
+      console.error(`Document not found with ID: ${req.params.id}`);
+      return res.status(404).json({ message: 'Document not found' });
+    }
+    
+    console.log(`Found document: ${document.name} (${document._id})`);
+    
+    // Generate safe filename for download
+    const fileName = `${document.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_${Date.now()}.pdf`;
+    
+    // Set response headers
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    
+    // Create PDF document and pipe to response
+    const PDFDocument = await import('pdfkit');
+    const doc = new PDFDocument.default({
+      size: 'A4',
+      margin: 50,
+      info: {
+        Title: document.name,
+        Author: 'NB Studio',
+        Subject: document.templateId?.name || 'Document',
+        Keywords: document.templateId?.tags?.join(', ') || 'document'
+      },
+      autoFirstPage: true,
+      bufferPages: true
+    });
+    
+    // Pipe directly to response
+    doc.pipe(res);
+    
+    // Error handling
+    doc.on('error', (err) => {
+      console.error(`PDF generation error: ${err}`);
+      if (!res.finished) {
+        doc.end();
+      }
+    });
+    
+    // Add header
+    doc.fontSize(18).text(document.name, { align: 'center' });
+    doc.moveDown();
+    doc.fontSize(12).text(`Generated: ${new Date().toLocaleDateString('hu-HU')}`, { align: 'center' });
+    doc.moveDown(2);
+    
+    // Add document content
+    // Convert HTML to plain text
+    const content = document.htmlVersion || document.content;
+    const plainText = content.replace(/<[^>]*>/g, ' ')
+                            .replace(/\s+/g, ' ')
+                            .trim();
+    
+    doc.fontSize(12).text(plainText, {
+      align: 'left',
+      columns: 1,
+      lineGap: 5
+    });
+    
+    // Generate all pages
+    doc.flushPages();
+    
+    // Add page numbers
+    const pageCount = doc.bufferedPageRange().count;
+    for (let i = 0; i < pageCount; i++) {
+      doc.switchToPage(i);
+      
+      // Footer position
+      const footerY = doc.page.height - 50;
+      
+      doc.fontSize(8)
+         .text(
+           `${document.name} - ${i + 1}/${pageCount} page`, 
+           50, 
+           footerY, 
+           { align: 'center', width: doc.page.width - 100 }
+         );
+    }
+    
+    // Update document tracking info
+    try {
+      document.downloadCount = (document.downloadCount || 0) + 1;
+      document.lastDownloadedAt = new Date();
+      await document.save();
+    } catch (saveErr) {
+      console.error(`Error updating document tracking: ${saveErr.message}`);
+      // Continue with PDF generation even if tracking update fails
+    }
+    
+    // Finalize PDF
+    doc.end();
+    console.log(`PDF generation completed for: ${fileName}`);
+    
+  } catch (error) {
+    console.error(`PDF generation error: ${error.message}`);
+    console.error(error.stack);
+    
+    if (!res.headersSent) {
+      res.status(500).json({ 
+        message: 'Error generating PDF', 
+        error: error.message 
+      });
+    } else {
+      // If headers already sent, just end the response
+      res.end();
+    }
+  }
+});
+
 // Register public endpoints
 app.use('/api/public', publicRouter);
 
