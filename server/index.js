@@ -17,8 +17,6 @@ import Calculator from './models/Calculator.js';
 import Post from './models/Post.js';
 import Note from './models/Note.js';
 import Task from './models/Task.js';
-import chatApiRoutes from './routes/chatApi.js';
-
 
 // Import routes
 import postRoutes from './routes/posts.js';
@@ -427,7 +425,6 @@ app.use('/api/translation/tasks', tasksRoutes);
 app.use('/api/notes', notesRoutes);
 app.use('/api/support', supportTicketRouter);
 app.use('/api', documentsRouter);
-app.use('/api', chatApiRoutes);
 
 // Basic health check endpoint
 app.get('/', (req, res) => {
