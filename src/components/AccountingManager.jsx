@@ -24,6 +24,9 @@ const AccountingManager = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+  
+  // API URL constants
+  const ACCOUNTING_API_URL = `${API_URL}/accounting`;
 
   // Adatok betöltése
   useEffect(() => {
@@ -34,10 +37,10 @@ const AccountingManager = () => {
     try {
       setLoading(true);
       const [transactionsRes, projectsRes, statsRes, taxRes, domainsRes] = await Promise.all([
-        api.get(`${API_URL}/accounting/transactions?year=${selectedYear}&month=${selectedMonth}`),
+        api.get(`${ACCOUNTING_API_URL}/transactions?year=${selectedYear}&month=${selectedMonth}`),
         api.get(`${API_URL}/projects`),
-        api.get(`${API_URL}/accounting/statistics?year=${selectedYear}&month=${selectedMonth}`),
-        api.get(`${API_URL}/accounting/tax-report?year=${selectedYear}`),
+        api.get(`${ACCOUNTING_API_URL}/statistics?year=${selectedYear}&month=${selectedMonth}`),
+        api.get(`${ACCOUNTING_API_URL}/tax-report?year=${selectedYear}`),
         api.get(`${API_URL}/domains`)
       ]);
   
@@ -198,10 +201,10 @@ const AccountingManager = () => {
   const handleSaveTransaction = async (data) => {
     try {
       if (selectedTransaction) {
-        await api.put(`${API_URL}/accounting/transactions/${selectedTransaction._id}`, data);
+        await api.put(`${ACCOUNTING_API_URL}/transactions/${selectedTransaction._id}`, data);
         setSuccess('Tranzakció sikeresen módosítva');
       } else {
-        await api.post(`${API_URL}/accounting/transactions`, data);
+        await api.post(`${ACCOUNTING_API_URL}/transactions`, data);
         setSuccess('Új tranzakció sikeresen hozzáadva');
       }
       await fetchData();
@@ -215,7 +218,7 @@ const AccountingManager = () => {
   // Tranzakció törlése
   const handleDeleteTransaction = async (id) => {
     try {
-      await api.delete(`${API_URL}/accounting/transactions/${id}`);
+      await api.delete(`${ACCOUNTING_API_URL}/transactions/${id}`);
       setSuccess('Tranzakció sikeresen törölve');
       await fetchData();
     } catch (error) {
@@ -249,7 +252,7 @@ const AccountingManager = () => {
   const handleSync = async () => {
     try {
       setLoading(true);
-      await api.post(`${API_URL}/accounting/sync`);
+      await api.post(`${ACCOUNTING_API_URL}/sync`);
       await fetchData();
       setSuccess('Adatok sikeresen szinkronizálva');
     } catch (error) {

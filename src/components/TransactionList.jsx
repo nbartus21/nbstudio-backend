@@ -6,6 +6,7 @@ import TransactionDetailModal from './TransactionDetailModal';
 import { api } from '../services/auth';
 
 const API_URL = 'https://admin.nb-studio.net:5001/api';
+const ACCOUNTING_API_URL = `${API_URL}/accounting`;
 
 const TransactionList = ({ 
   transactions, 
@@ -77,7 +78,7 @@ const TransactionList = ({
         throw new Error('Tranzakció nem található');
       }
 
-      const response = await api.put(`${API_URL}/accounting/transactions/${transactionId}`, {
+      const response = await api.put(`${ACCOUNTING_API_URL}/transactions/${transactionId}`, {
         paymentStatus: 'paid',
         paidAmount: transaction.amount,
         paidDate: new Date().toISOString()
@@ -104,7 +105,7 @@ const TransactionList = ({
       console.log('FormData tartalom:', Object.fromEntries(formData.entries())); // Debug log
 
       const response = await api.put(
-        `${API_URL}/accounting/transactions/${selectedTransaction._id}/details`, // Javított útvonal
+        `${ACCOUNTING_API_URL}/transactions/${selectedTransaction._id}/details`,
         formData,
         {
           headers: {

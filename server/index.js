@@ -426,6 +426,13 @@ app.use('/api/notes', notesRoutes);
 app.use('/api/support', supportTicketRouter);
 app.use('/api', documentsRouter);
 
+// Fix for transactions endpoint directly accessing the accountingRoutes
+app.use('/api/transactions', (req, res, next) => {
+  // Redirect to accounting/transactions to match the client's request
+  req.url = req.url.replace('/transactions', '/accounting/transactions');
+  next();
+}, accountingRoutes);
+
 // Basic health check endpoint
 app.get('/', (req, res) => {
   res.json({ 
