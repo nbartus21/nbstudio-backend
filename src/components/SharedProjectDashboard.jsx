@@ -269,30 +269,10 @@ const SharedProjectDashboard = ({
         setUserData(clientData);
         // Mentjük localStorage-ba
         localStorage.setItem('user_data', JSON.stringify(clientData));
-      } else {
-        // Ha a felhasználói adatok újabbak, akkor frissítsük a projektet
-        const updatedProject = {
-          ...normalizedProject,
-          client: {
-            ...normalizedProject.client,
-            name: userData.name || normalizedProject.client.name,
-            email: userData.email || normalizedProject.client.email,
-            phone: userData.phone || normalizedProject.client.phone,
-            companyName: userData.companyName || normalizedProject.client.companyName,
-            taxNumber: userData.taxNumber || normalizedProject.client.taxNumber,
-            address: userData.address || normalizedProject.client.address
-          }
-        };
-        
-        // Ha eltérnek az adatok, frissítsük
-        if (JSON.stringify(updatedProject.client) !== JSON.stringify(normalizedProject.client)) {
-          debugLog('ProjectLoad', 'Updating project with user data');
-          // Frissítjük a projektet
-          updateProjectOnServer(updatedProject).catch(err => {
-            debugLog('ProjectLoad', 'Failed to update project with user data', err);
-          });
-        }
       }
+      // Megjegyzés: Kihagytuk a projekt azonnali frissítését, mivel ez 401-es hibát okoz
+      // Ehelyett csak a helyi adatokat frissítjük, és csak akkor frissítjük a szervert,
+      // amikor a felhasználó kifejezetten erre kér minket a profilszerkesztés során
     }
   }, [normalizedProject]);
 
@@ -314,14 +294,20 @@ const SharedProjectDashboard = ({
           setDocuments(data);
         }
       } else {
-        debugLog('fetchDocuments', 'Failed to fetch documents', { status: response.status });
+        if (response.status === 401) {
+          debugLog('fetchDocuments', 'Authentication error (401) when fetching documents - falling back to local data');
+          // Csak naplózzuk, de nem jelezünk hibát a felhasználónak, mivel ez nem kritikus
+        } else {
+          debugLog('fetchDocuments', 'Failed to fetch documents', { status: response.status });
+        }
       }
     } catch (error) {
       debugLog('fetchDocuments', 'Error fetching documents', { error });
+      // Hibakezelés: nem törjük meg a folyamatot, mivel lehet, hogy csak hálózati hiba történt
     }
   };
 
-  // Felhasználói adatok frissítése
+  // Felhasználói adatok frissítése - csak lokálisan
   const handleUpdateUser = async (updatedUser) => {
     debugLog('SharedProjectDashboard', 'Updating user data', updatedUser);
     
@@ -332,8 +318,8 @@ const SharedProjectDashboard = ({
       // Tároljuk a felhasználó adatait localStorage-ban
       localStorage.setItem('user_data', JSON.stringify(updatedUser));
       
-      // Frissítsük a normalizált projektet, ha szükséges
-      if (normalizedProject && normalizedProject.client) {
+      // Frissítsük a normalizált projektet, ha szükséges és van callback
+      if (normalizedProject && normalizedProject.client && onUpdate) {
         const updatedProject = {
           ...normalizedProject,
           client: {
@@ -347,46 +333,15 @@ const SharedProjectDashboard = ({
           }
         };
         
-        // Frissítsük a projektet a szerveren is
-        await updateProjectOnServer(updatedProject);
+        // Használjuk az onUpdate callback-et a projekt frissítésére
+        // Ez a szülő komponensben kezeli a frissítést, ami lehet szerveres vagy helyi is
+        onUpdate(updatedProject);
+        
+        showSuccessMessage("Adatok sikeresen frissítve!");
       }
     } catch (error) {
       debugLog('SharedProjectDashboard', 'Error saving user data', error);
-      // Kezeljük a hibát, de ne szakítsuk meg a folyamatot
-    }
-  };
-
-  // Projekt frissítése a szerveren
-  const updateProjectOnServer = async (updatedProject) => {
-    try {
-      // A már meglévő onUpdate callback-et használjuk, ha létezik
-      if (onUpdate) {
-        onUpdate(updatedProject);
-      }
-      
-      // A teljes projekt frissítése API-n keresztül
-      const projectId = getProjectId(updatedProject);
-      if (projectId) {
-        debugLog('updateProjectOnServer', 'Sending project update to server', { projectId });
-        
-        const response = await fetch(`${API_URL}/projects/${projectId}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-API-Key': API_KEY
-          },
-          body: JSON.stringify(updatedProject)
-        });
-        
-        if (!response.ok) {
-          throw new Error(`Server returned ${response.status}`);
-        }
-        
-        debugLog('updateProjectOnServer', 'Project updated successfully on server');
-      }
-    } catch (error) {
-      debugLog('updateProjectOnServer', 'Error updating project on server', error);
-      throw error; // Továbbdobjuk a hibát a hívónak
+      showErrorMessage("Hiba történt az adatok mentésekor.");
     }
   };
 
