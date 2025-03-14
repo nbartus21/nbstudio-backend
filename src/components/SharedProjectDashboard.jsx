@@ -13,6 +13,7 @@ import ProjectDocuments from './shared/ProjectDocuments'; // New component for d
 import FilePreviewModal from './shared/FilePreviewModal';
 import InvoiceViewModal from './shared/InvoiceViewModal';
 import DocumentViewModal from './shared/DocumentViewModal'; // New component for document preview
+import ProfileButton from './ProfileButton';
 
 // Translations
 const translations = {
@@ -161,7 +162,7 @@ const SharedProjectDashboard = ({
   // State management
   const [files, setFiles] = useState([]);
   const [documents, setDocuments] = useState([]);
-  const [comments, setComments] = useState([]); // Adjunk hozzá egy üres comments tömböt
+  const [comments, setComments] = useState([]); // Comments array
   const [activeTab, setActiveTab] = useState('overview');
   const fileInputRef = useRef(null);
   const [successMessage, setSuccessMessage] = useState('');
@@ -171,6 +172,48 @@ const SharedProjectDashboard = ({
   const [viewingDocument, setViewingDocument] = useState(null);
   const [adminMode, setAdminMode] = useState(isAdmin);
   const [showLanguageDropdown, setShowLanguageDropdown] = useState(false);
+  
+  // Tároljuk a felhasználó adatait state-ben
+  const [userData, setUserData] = useState(() => {
+    // Próbáljuk betölteni a felhasználó adatait a localStorage-ból
+    try {
+      const savedUserData = localStorage.getItem('user_data');
+      
+      // Ha van helyi mentett adat, azt használjuk
+      if (savedUserData) {
+        const parsedData = JSON.parse(savedUserData);
+        return parsedData;
+      }
+      
+      // Ha nincs helyi adat, akkor a projekt kliens adatait használjuk
+      if (project?.client) {
+        return {
+          _id: project.client._id || `client_${Date.now()}`,
+          name: project.client.name || 'Vendég',
+          email: project.client.email || '',
+          phone: project.client.phone || '',
+          preferredLanguage: language,
+          companyName: project.client.companyName || '',
+          taxNumber: project.client.taxNumber || '',
+          address: project.client.address || {}
+        };
+      }
+      
+      // Ha nincs projekt kliens adat sem, akkor alapértelmezett értékek
+      return {
+        name: 'Vendég',
+        email: '',
+        preferredLanguage: language
+      };
+    } catch (error) {
+      debugLog('SharedProjectDashboard', 'Error loading user data', error);
+      return {
+        name: 'Vendég',
+        email: '',
+        preferredLanguage: language
+      };
+    }
+  });
 
   // Load data on component initialization
   useEffect(() => {
@@ -196,8 +239,61 @@ const SharedProjectDashboard = ({
       debugLog('SharedProjectDashboard', `Loaded ${savedDocuments.length} documents from localStorage`);
     }
 
+    // Load comments from localStorage
+    const savedComments = loadFromLocalStorage(normalizedProject, 'comments');
+    if (savedComments && savedComments.length > 0) {
+      setComments(savedComments);
+      debugLog('SharedProjectDashboard', `Loaded ${savedComments.length} comments from localStorage`);
+    }
+
     // Get documents from server
     fetchDocuments(projectId);
+  }, [normalizedProject]);
+
+  // Amikor a projekt betöltődik, frissítsük a felhasználói adatokat
+  useEffect(() => {
+    if (normalizedProject && normalizedProject.client) {
+      // Csak akkor frissítsük, ha nincs még felhasználói adat, vagy hiányosak az adatok
+      if (!userData || !userData.name || !userData.email) {
+        const clientData = {
+          _id: normalizedProject.client._id || `client_${Date.now()}`,
+          name: normalizedProject.client.name || 'Vendég',
+          email: normalizedProject.client.email || '',
+          phone: normalizedProject.client.phone || '',
+          preferredLanguage: language,
+          companyName: normalizedProject.client.companyName || '',
+          taxNumber: normalizedProject.client.taxNumber || '',
+          address: normalizedProject.client.address || {}
+        };
+        
+        setUserData(clientData);
+        // Mentjük localStorage-ba
+        localStorage.setItem('user_data', JSON.stringify(clientData));
+      } else {
+        // Ha a felhasználói adatok újabbak, akkor frissítsük a projektet
+        const updatedProject = {
+          ...normalizedProject,
+          client: {
+            ...normalizedProject.client,
+            name: userData.name || normalizedProject.client.name,
+            email: userData.email || normalizedProject.client.email,
+            phone: userData.phone || normalizedProject.client.phone,
+            companyName: userData.companyName || normalizedProject.client.companyName,
+            taxNumber: userData.taxNumber || normalizedProject.client.taxNumber,
+            address: userData.address || normalizedProject.client.address
+          }
+        };
+        
+        // Ha eltérnek az adatok, frissítsük
+        if (JSON.stringify(updatedProject.client) !== JSON.stringify(normalizedProject.client)) {
+          debugLog('ProjectLoad', 'Updating project with user data');
+          // Frissítjük a projektet
+          updateProjectOnServer(updatedProject).catch(err => {
+            debugLog('ProjectLoad', 'Failed to update project with user data', err);
+          });
+        }
+      }
+    }
   }, [normalizedProject]);
 
   // Fetch documents from server
@@ -222,6 +318,75 @@ const SharedProjectDashboard = ({
       }
     } catch (error) {
       debugLog('fetchDocuments', 'Error fetching documents', { error });
+    }
+  };
+
+  // Felhasználói adatok frissítése
+  const handleUpdateUser = async (updatedUser) => {
+    debugLog('SharedProjectDashboard', 'Updating user data', updatedUser);
+    
+    // Frissítjük a helyi state-et
+    setUserData(updatedUser);
+    
+    try {
+      // Tároljuk a felhasználó adatait localStorage-ban
+      localStorage.setItem('user_data', JSON.stringify(updatedUser));
+      
+      // Frissítsük a normalizált projektet, ha szükséges
+      if (normalizedProject && normalizedProject.client) {
+        const updatedProject = {
+          ...normalizedProject,
+          client: {
+            ...normalizedProject.client,
+            name: updatedUser.name,
+            email: updatedUser.email,
+            phone: updatedUser.phone,
+            companyName: updatedUser.companyName,
+            taxNumber: updatedUser.taxNumber,
+            address: updatedUser.address || normalizedProject.client.address
+          }
+        };
+        
+        // Frissítsük a projektet a szerveren is
+        await updateProjectOnServer(updatedProject);
+      }
+    } catch (error) {
+      debugLog('SharedProjectDashboard', 'Error saving user data', error);
+      // Kezeljük a hibát, de ne szakítsuk meg a folyamatot
+    }
+  };
+
+  // Projekt frissítése a szerveren
+  const updateProjectOnServer = async (updatedProject) => {
+    try {
+      // A már meglévő onUpdate callback-et használjuk, ha létezik
+      if (onUpdate) {
+        onUpdate(updatedProject);
+      }
+      
+      // A teljes projekt frissítése API-n keresztül
+      const projectId = getProjectId(updatedProject);
+      if (projectId) {
+        debugLog('updateProjectOnServer', 'Sending project update to server', { projectId });
+        
+        const response = await fetch(`${API_URL}/projects/${projectId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-API-Key': API_KEY
+          },
+          body: JSON.stringify(updatedProject)
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Server returned ${response.status}`);
+        }
+        
+        debugLog('updateProjectOnServer', 'Project updated successfully on server');
+      }
+    } catch (error) {
+      debugLog('updateProjectOnServer', 'Error updating project on server', error);
+      throw error; // Továbbdobjuk a hibát a hívónak
     }
   };
 
@@ -468,13 +633,17 @@ const SharedProjectDashboard = ({
                 </button>
               )}
               
-              <button
-                onClick={onLogout}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-              >
-                <LogOut className="h-4 w-4 mr-2" />
-                {t.logout}
-              </button>
+              {/* Profil szerkesztő gomb */}
+              <ProfileButton
+                user={userData}
+                project={normalizedProject}
+                language={language}
+                onLogout={onLogout}
+                onLanguageChange={onLanguageChange}
+                onUpdateUser={handleUpdateUser}
+                showSuccessMessage={showSuccessMessage}
+                showErrorMessage={showErrorMessage}
+              />
             </div>
           </div>
         </div>
@@ -618,7 +787,7 @@ const SharedProjectDashboard = ({
             project={normalizedProject} 
             files={files} 
             documents={documents}
-            comments={comments} // Adjuk át a comments props-ot
+            comments={comments} // Átadjuk a comments props-ot
             setActiveTab={setActiveTab} 
             language={language}
           />
