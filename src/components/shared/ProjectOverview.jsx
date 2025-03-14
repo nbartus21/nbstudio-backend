@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { formatShortDate, formatDate, debugLog } from './utils';
 
-const ProjectOverview = ({ project, files, comments, setActiveTab }) => {
+const ProjectOverview = ({ project, files = [], comments = [], setActiveTab }) => {
   debugLog('ProjectOverview', 'Rendering project overview', { 
     projectId: project?._id,
     filesCount: files?.length || 0,

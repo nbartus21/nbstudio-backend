@@ -161,6 +161,7 @@ const SharedProjectDashboard = ({
   // State management
   const [files, setFiles] = useState([]);
   const [documents, setDocuments] = useState([]);
+  const [comments, setComments] = useState([]); // Adjunk hozzá egy üres comments tömböt
   const [activeTab, setActiveTab] = useState('overview');
   const fileInputRef = useRef(null);
   const [successMessage, setSuccessMessage] = useState('');
@@ -617,6 +618,7 @@ const SharedProjectDashboard = ({
             project={normalizedProject} 
             files={files} 
             documents={documents}
+            comments={comments} // Adjuk át a comments props-ot
             setActiveTab={setActiveTab} 
             language={language}
           />
