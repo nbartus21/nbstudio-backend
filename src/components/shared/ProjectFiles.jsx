@@ -4,13 +4,137 @@ import {
 } from 'lucide-react';
 import { formatFileSize, formatShortDate, debugLog, saveToLocalStorage, getProjectId } from './utils';
 
-const ProjectFiles = ({ project, files, setFiles, onShowFilePreview, showSuccessMessage, showErrorMessage, isAdmin = false }) => {
+// Translation data for all UI elements
+const translations = {
+  en: {
+    files: "Files",
+    search: "Search...",
+    filter: "Filter:",
+    all: "All",
+    documents: "Documents",
+    images: "Images",
+    adminFiles: "Admin Files",
+    clientFiles: "Client Files",
+    sort: "Sort:",
+    newestFirst: "Newest first",
+    oldestFirst: "Oldest first",
+    byName: "By name",
+    bySize: "By size",
+    uploading: "Uploading...",
+    fileName: "File name",
+    uploaded: "Uploaded",
+    size: "Size",
+    uploadedBy: "Uploaded by",
+    actions: "Actions",
+    preview: "Preview",
+    download: "Download",
+    delete: "Delete",
+    confirmDelete: "Are you sure you want to delete this file?",
+    noResults: "No files match your search criteria",
+    clearFilters: "Clear filters",
+    noFiles: "No files uploaded yet",
+    dropFilesHere: "Drag files here or click the upload button",
+    selectFiles: "Select Files",
+    uploadSuccess: "files successfully uploaded!",
+    adminUploadSuccess: "Admin: files successfully uploaded!",
+    uploadError: "Error uploading file",
+    deleteSuccess: "File successfully deleted",
+    deleteError: "Error during deletion",
+    projectIdError: "No valid project ID! Try refreshing the page."
+  },
+  de: {
+    files: "Dateien",
+    search: "Suchen...",
+    filter: "Filter:",
+    all: "Alle",
+    documents: "Dokumente",
+    images: "Bilder",
+    adminFiles: "Admin-Dateien",
+    clientFiles: "Kunden-Dateien",
+    sort: "Sortieren:",
+    newestFirst: "Neueste zuerst",
+    oldestFirst: "Älteste zuerst",
+    byName: "Nach Name",
+    bySize: "Nach Größe",
+    uploading: "Hochladen...",
+    fileName: "Dateiname",
+    uploaded: "Hochgeladen",
+    size: "Größe",
+    uploadedBy: "Hochgeladen von",
+    actions: "Aktionen",
+    preview: "Vorschau",
+    download: "Herunterladen",
+    delete: "Löschen",
+    confirmDelete: "Sind Sie sicher, dass Sie diese Datei löschen möchten?",
+    noResults: "Keine Dateien entsprechen Ihren Suchkriterien",
+    clearFilters: "Filter löschen",
+    noFiles: "Noch keine Dateien hochgeladen",
+    dropFilesHere: "Ziehen Sie Dateien hierher oder klicken Sie auf die Schaltfläche Hochladen",
+    selectFiles: "Dateien auswählen",
+    uploadSuccess: "Dateien erfolgreich hochgeladen!",
+    adminUploadSuccess: "Admin: Dateien erfolgreich hochgeladen!",
+    uploadError: "Fehler beim Hochladen der Datei",
+    deleteSuccess: "Datei erfolgreich gelöscht",
+    deleteError: "Fehler beim Löschen",
+    projectIdError: "Keine gültige Projekt-ID! Versuchen Sie, die Seite zu aktualisieren."
+  },
+  hu: {
+    files: "Fájlok",
+    search: "Keresés...",
+    filter: "Szűrés:",
+    all: "Összes",
+    documents: "Dokumentumok",
+    images: "Képek",
+    adminFiles: "Admin fájlok",
+    clientFiles: "Ügyfél fájlok",
+    sort: "Rendezés:",
+    newestFirst: "Legújabb előre",
+    oldestFirst: "Legrégebbi előre",
+    byName: "Név szerint",
+    bySize: "Méret szerint",
+    uploading: "Feltöltés folyamatban...",
+    fileName: "Fájl neve",
+    uploaded: "Feltöltve",
+    size: "Méret",
+    uploadedBy: "Feltöltő",
+    actions: "Műveletek",
+    preview: "Előnézet",
+    download: "Letöltés",
+    delete: "Törlés",
+    confirmDelete: "Biztosan törölni szeretné ezt a fájlt?",
+    noResults: "Nincs találat a keresési feltételeknek megfelelően",
+    clearFilters: "Szűrők törlése",
+    noFiles: "Még nincsenek feltöltött fájlok",
+    dropFilesHere: "Húzza ide a fájlokat vagy kattintson a feltöltés gombra",
+    selectFiles: "Fájlok kiválasztása",
+    uploadSuccess: "fájl sikeresen feltöltve!",
+    adminUploadSuccess: "Admin: fájl sikeresen feltöltve!",
+    uploadError: "Hiba történt a fájl feltöltése során",
+    deleteSuccess: "Fájl sikeresen törölve",
+    deleteError: "Hiba történt a törlés során",
+    projectIdError: "Nincs érvényes projekt azonosító! Próbálja frissíteni az oldalt."
+  }
+};
+
+const ProjectFiles = ({ 
+  project, 
+  files, 
+  setFiles, 
+  onShowFilePreview, 
+  showSuccessMessage, 
+  showErrorMessage, 
+  isAdmin = false,
+  language = 'hu'
+}) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [fileFilter, setFileFilter] = useState('all');
   const [sortBy, setSortBy] = useState('date-desc');
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const fileInputRef = useRef(null);
+
+  // Get translations based on language
+  const t = translations[language] || translations.hu;
 
   // Debug info at mount and get safe project ID
   const projectId = getProjectId(project);
@@ -19,7 +143,8 @@ const ProjectFiles = ({ project, files, setFiles, onShowFilePreview, showSuccess
     debugLog('ProjectFiles-mount', {
       projectId: projectId,
       filesCount: files?.length || 0,
-      isAdmin: isAdmin
+      isAdmin: isAdmin,
+      language: language
     });
   }, []);
 
@@ -81,7 +206,7 @@ const ProjectFiles = ({ project, files, setFiles, onShowFilePreview, showSuccess
     
     if (!projectId) {
       debugLog('handleFileUpload', 'ERROR: No project ID');
-      showErrorMessage('Nincs érvényes projekt azonosító! Próbálja frissíteni az oldalt.');
+      showErrorMessage(t.projectIdError);
       return;
     }
     
@@ -120,7 +245,7 @@ const ProjectFiles = ({ project, files, setFiles, onShowFilePreview, showSuccess
               uploadedAt: new Date().toISOString(),
               content: e.target.result,
               projectId: projectId,
-              uploadedBy: isAdmin ? 'Admin' : 'Ügyfél' // Itt jelöljük, hogy ki töltötte fel
+              uploadedBy: isAdmin ? t.admin : t.client // Lokalizált értékek
             };
             resolve(fileData);
           };
@@ -148,11 +273,11 @@ const ProjectFiles = ({ project, files, setFiles, onShowFilePreview, showSuccess
       const saved = saveToLocalStorage(project, 'files', updatedFiles);
       debugLog('handleFileUpload', 'Saved to localStorage:', saved);
       
-      // Ha admin töltötte fel, akkor speciális üzenet
+      // Ha admin töltötte fel, akkor speciális üzenet a lokalizációval
       if (isAdmin) {
-        showSuccessMessage(`Admin: ${validFiles.length} fájl sikeresen feltöltve!`);
+        showSuccessMessage(`${t.adminUploadSuccess.replace('files', validFiles.length)}`);
       } else {
-        showSuccessMessage(`${validFiles.length} fájl sikeresen feltöltve!`);
+        showSuccessMessage(`${validFiles.length} ${t.uploadSuccess}`);
       }
       
       // Simulate a slight delay to show 100% before hiding the progress bar
@@ -161,7 +286,7 @@ const ProjectFiles = ({ project, files, setFiles, onShowFilePreview, showSuccess
       }, 500);
     } catch (error) {
       debugLog('handleFileUpload', 'Error during upload', error);
-      showErrorMessage('Hiba történt a fájl feltöltése során');
+      showErrorMessage(t.uploadError);
       setIsUploading(false);
     } finally {
       if (fileInputRef.current) {
@@ -175,7 +300,7 @@ const ProjectFiles = ({ project, files, setFiles, onShowFilePreview, showSuccess
   const handleDeleteFile = (fileId) => {
     debugLog('handleDeleteFile', `Deleting file ID: ${fileId}`);
     
-    if (!window.confirm('Biztosan törölni szeretné ezt a fájlt?')) {
+    if (!window.confirm(t.confirmDelete)) {
       debugLog('handleDeleteFile', 'Deletion cancelled by user');
       return;
     }
@@ -192,11 +317,11 @@ const ProjectFiles = ({ project, files, setFiles, onShowFilePreview, showSuccess
       // Save to localStorage
       saveToLocalStorage(project, 'files', updatedFiles);
       
-      showSuccessMessage('Fájl sikeresen törölve');
+      showSuccessMessage(t.deleteSuccess);
       debugLog('handleDeleteFile', 'File deleted successfully');
     } catch (error) {
       debugLog('handleDeleteFile', 'Error deleting file', error);
-      showErrorMessage('Hiba történt a törlés során');
+      showErrorMessage(t.deleteError);
     }
   };
 
@@ -213,9 +338,9 @@ const ProjectFiles = ({ project, files, setFiles, onShowFilePreview, showSuccess
       } else if (fileFilter === 'images') {
         matchesType = file.type?.startsWith('image/');
       } else if (fileFilter === 'admin') {
-        matchesType = file.uploadedBy === 'Admin';
+        matchesType = file.uploadedBy === t.admin || file.uploadedBy === 'Admin';
       } else if (fileFilter === 'client') {
-        matchesType = file.uploadedBy === 'Ügyfél';
+        matchesType = file.uploadedBy === t.client || file.uploadedBy === 'Ügyfél' || file.uploadedBy === 'Client';
       }
       
       return matchesSearch && matchesType;
@@ -237,7 +362,7 @@ const ProjectFiles = ({ project, files, setFiles, onShowFilePreview, showSuccess
     <div className="bg-white rounded-lg shadow">
       <div className="px-6 py-4 border-b border-gray-200">
         <div className="flex justify-between items-center">
-          <h2 className="text-lg font-medium">Fájlok</h2>
+          <h2 className="text-lg font-medium">{t.files}</h2>
           <div className="flex items-center space-x-2">
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -245,7 +370,7 @@ const ProjectFiles = ({ project, files, setFiles, onShowFilePreview, showSuccess
               </div>
               <input
                 type="text"
-                placeholder="Keresés..."
+                placeholder={t.search}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10 pr-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
@@ -264,7 +389,7 @@ const ProjectFiles = ({ project, files, setFiles, onShowFilePreview, showSuccess
             </div>
             <div className="flex-1">
               <div className="flex items-center justify-between mb-1">
-                <span className="text-sm font-medium text-blue-700">Feltöltés folyamatban...</span>
+                <span className="text-sm font-medium text-blue-700">{t.uploading}</span>
                 <span className="text-xs text-blue-600">{uploadProgress}%</span>
               </div>
               <div className="w-full bg-blue-200 rounded-full h-2">
@@ -283,7 +408,7 @@ const ProjectFiles = ({ project, files, setFiles, onShowFilePreview, showSuccess
         <div className="flex items-center space-x-2 mb-2 sm:mb-0">
           <span className="text-sm text-gray-600 flex items-center">
             <Filter className="h-4 w-4 mr-1" />
-            Szűrés:
+            {t.filter}
           </span>
           <button
             onClick={() => setFileFilter('all')}
@@ -293,7 +418,7 @@ const ProjectFiles = ({ project, files, setFiles, onShowFilePreview, showSuccess
                 : 'text-gray-600 hover:bg-gray-100 border border-transparent'
             }`}
           >
-            Összes
+            {t.all}
           </button>
           <button
             onClick={() => setFileFilter('documents')}
@@ -303,7 +428,7 @@ const ProjectFiles = ({ project, files, setFiles, onShowFilePreview, showSuccess
                 : 'text-gray-600 hover:bg-gray-100 border border-transparent'
             }`}
           >
-            Dokumentumok
+            {t.documents}
           </button>
           <button
             onClick={() => setFileFilter('images')}
@@ -313,10 +438,10 @@ const ProjectFiles = ({ project, files, setFiles, onShowFilePreview, showSuccess
                 : 'text-gray-600 hover:bg-gray-100 border border-transparent'
             }`}
           >
-            Képek
+            {t.images}
           </button>
           {/* Admin filter option - csak ha vannak admin által feltöltött fájlok */}
-          {files.some(file => file.uploadedBy === 'Admin') && (
+          {files.some(file => file.uploadedBy === t.admin || file.uploadedBy === 'Admin') && (
             <button
               onClick={() => setFileFilter('admin')}
               className={`px-3 py-1 text-sm rounded ${
@@ -325,11 +450,15 @@ const ProjectFiles = ({ project, files, setFiles, onShowFilePreview, showSuccess
                   : 'text-gray-600 hover:bg-gray-100 border border-transparent'
               }`}
             >
-              Admin fájlok
+              {t.adminFiles}
             </button>
           )}
           {/* Ügyfél filter option - csak ha vannak ügyfél által feltöltött fájlok */}
-          {files.some(file => file.uploadedBy === 'Ügyfél') && (
+          {files.some(file => 
+            file.uploadedBy === t.client || 
+            file.uploadedBy === 'Ügyfél' || 
+            file.uploadedBy === 'Client'
+          ) && (
             <button
               onClick={() => setFileFilter('client')}
               className={`px-3 py-1 text-sm rounded ${
@@ -338,7 +467,7 @@ const ProjectFiles = ({ project, files, setFiles, onShowFilePreview, showSuccess
                   : 'text-gray-600 hover:bg-gray-100 border border-transparent'
               }`}
             >
-              Ügyfél fájlok
+              {t.clientFiles}
             </button>
           )}
         </div>
@@ -346,17 +475,17 @@ const ProjectFiles = ({ project, files, setFiles, onShowFilePreview, showSuccess
         <div className="flex items-center">
           <span className="text-sm text-gray-600 mr-2 flex items-center">
             <ArrowDown className="h-4 w-4 mr-1" />
-            Rendezés:
+            {t.sort}
           </span>
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value)}
             className="text-sm border rounded px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
           >
-            <option value="date-desc">Legújabb előre</option>
-            <option value="date-asc">Legrégebbi előre</option>
-            <option value="name">Név szerint</option>
-            <option value="size">Méret szerint</option>
+            <option value="date-desc">{t.newestFirst}</option>
+            <option value="date-asc">{t.oldestFirst}</option>
+            <option value="name">{t.byName}</option>
+            <option value="size">{t.bySize}</option>
           </select>
         </div>
       </div>
@@ -373,11 +502,11 @@ const ProjectFiles = ({ project, files, setFiles, onShowFilePreview, showSuccess
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fájl neve</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Feltöltve</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Méret</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Feltöltő</th>
-                  <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Műveletek</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t.fileName}</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t.uploaded}</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t.size}</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t.uploadedBy}</th>
+                  <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">{t.actions}</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -409,8 +538,12 @@ const ProjectFiles = ({ project, files, setFiles, onShowFilePreview, showSuccess
                       <div className="text-sm text-gray-500">{formatFileSize(file.size)}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className={`text-sm font-medium ${file.uploadedBy === 'Admin' ? 'text-purple-600' : 'text-green-600'}`}>
-                        {file.uploadedBy || 'Ügyfél'}
+                      <div className={`text-sm font-medium ${
+                        file.uploadedBy === t.admin || file.uploadedBy === 'Admin' 
+                          ? 'text-purple-600' 
+                          : 'text-green-600'
+                      }`}>
+                        {file.uploadedBy || t.client}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -418,7 +551,7 @@ const ProjectFiles = ({ project, files, setFiles, onShowFilePreview, showSuccess
                         <button
                           onClick={() => onShowFilePreview(file)}
                           className="p-1 text-gray-600 hover:text-gray-900 rounded hover:bg-gray-100"
-                          title="Előnézet"
+                          title={t.preview}
                         >
                           <Eye className="h-5 w-5" />
                         </button>
@@ -433,14 +566,14 @@ const ProjectFiles = ({ project, files, setFiles, onShowFilePreview, showSuccess
                             document.body.removeChild(link);
                           }}
                           className="p-1 text-indigo-600 hover:text-indigo-900 rounded hover:bg-indigo-50"
-                          title="Letöltés"
+                          title={t.download}
                         >
                           <Download className="h-5 w-5" />
                         </button>
                         <button
                           onClick={() => handleDeleteFile(file.id)}
                           className="p-1 text-red-600 hover:text-red-900 rounded hover:bg-red-50"
-                          title="Törlés"
+                          title={t.delete}
                         >
                           <Trash2 className="h-5 w-5" />
                         </button>
@@ -456,7 +589,7 @@ const ProjectFiles = ({ project, files, setFiles, onShowFilePreview, showSuccess
             {searchTerm || fileFilter !== 'all' ? (
               <div className="text-gray-500">
                 <Search className="h-10 w-10 mx-auto text-gray-300 mb-3" />
-                <p className="text-lg font-medium">Nincs találat a keresési feltételeknek megfelelően</p>
+                <p className="text-lg font-medium">{t.noResults}</p>
                 <button
                   onClick={() => {
                     setSearchTerm('');
@@ -464,20 +597,20 @@ const ProjectFiles = ({ project, files, setFiles, onShowFilePreview, showSuccess
                   }}
                   className="mt-3 text-indigo-600 hover:text-indigo-800 font-medium"
                 >
-                  Szűrők törlése
+                  {t.clearFilters}
                 </button>
               </div>
             ) : (
               <div className="text-gray-500">
                 <Upload className="h-12 w-12 mx-auto text-gray-300 mb-3" />
-                <p className="text-lg font-medium">Még nincsenek feltöltött fájlok</p>
-                <p className="text-sm mt-1">Húzza ide a fájlokat vagy kattintson a feltöltés gombra</p>
+                <p className="text-lg font-medium">{t.noFiles}</p>
+                <p className="text-sm mt-1">{t.dropFilesHere}</p>
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                 >
                   <Upload className="h-4 w-4 mr-2 inline-block" />
-                  Fájlok kiválasztása
+                  {t.selectFiles}
                 </button>
               </div>
             )}

@@ -2,8 +2,86 @@ import React, { useState, useEffect } from 'react';
 import { MessageCircle, Trash2, Plus, User } from 'lucide-react';
 import { formatDate, debugLog, saveToLocalStorage, getProjectId } from './utils';
 
-const ProjectComments = ({ project, comments, setComments, showSuccessMessage, showErrorMessage, isAdmin = false }) => {
+// Translation data for all UI elements
+const translations = {
+  en: {
+    comments: "Comments",
+    adminComment: "Admin Comment",
+    newComment: "New Comment",
+    writeAdminComment: "Write your admin comment here...",
+    writeComment: "Write your comment here...",
+    sendAdminComment: "Send Admin Comment",
+    sendComment: "Send Comment",
+    delete: "Delete",
+    noComments: "No comments yet",
+    beFirstComment: "Be the first to comment on this project!",
+    admin: "Admin",
+    client: "Client",
+    confirmDelete: "Are you sure you want to delete this comment?",
+    commentAddSuccess: "Comment successfully added",
+    adminCommentAddSuccess: "Admin comment successfully added",
+    commentError: "Error adding comment",
+    deleteSuccess: "Comment successfully deleted",
+    deleteError: "Error deleting comment",
+    projectIdError: "No valid project ID! Try refreshing the page."
+  },
+  de: {
+    comments: "Kommentare",
+    adminComment: "Admin Kommentar",
+    newComment: "Neuer Kommentar",
+    writeAdminComment: "Schreiben Sie hier Ihren Admin-Kommentar...",
+    writeComment: "Schreiben Sie hier Ihren Kommentar...",
+    sendAdminComment: "Admin-Kommentar senden",
+    sendComment: "Kommentar senden",
+    delete: "Löschen",
+    noComments: "Noch keine Kommentare",
+    beFirstComment: "Seien Sie der Erste, der dieses Projekt kommentiert!",
+    admin: "Admin",
+    client: "Kunde",
+    confirmDelete: "Sind Sie sicher, dass Sie diesen Kommentar löschen möchten?",
+    commentAddSuccess: "Kommentar erfolgreich hinzugefügt",
+    adminCommentAddSuccess: "Admin-Kommentar erfolgreich hinzugefügt",
+    commentError: "Fehler beim Hinzufügen des Kommentars",
+    deleteSuccess: "Kommentar erfolgreich gelöscht",
+    deleteError: "Fehler beim Löschen",
+    projectIdError: "Keine gültige Projekt-ID! Versuchen Sie, die Seite zu aktualisieren."
+  },
+  hu: {
+    comments: "Hozzászólások",
+    adminComment: "Admin hozzászólás",
+    newComment: "Új hozzászólás",
+    writeAdminComment: "Írja ide az admin hozzászólását...",
+    writeComment: "Írja ide hozzászólását...",
+    sendAdminComment: "Admin hozzászólás küldése",
+    sendComment: "Hozzászólás küldése",
+    delete: "Törlés",
+    noComments: "Még nincsenek hozzászólások",
+    beFirstComment: "Legyen Ön az első, aki hozzászól a projekthez!",
+    admin: "Admin",
+    client: "Ügyfél",
+    confirmDelete: "Biztosan törölni szeretné ezt a hozzászólást?",
+    commentAddSuccess: "Hozzászólás sikeresen hozzáadva",
+    adminCommentAddSuccess: "Admin hozzászólás sikeresen hozzáadva",
+    commentError: "Hiba történt a hozzászólás hozzáadásakor",
+    deleteSuccess: "Hozzászólás sikeresen törölve",
+    deleteError: "Hiba történt a törlés során",
+    projectIdError: "Nincs érvényes projekt azonosító! Próbálja frissíteni az oldalt."
+  }
+};
+
+const ProjectComments = ({ 
+  project, 
+  comments, 
+  setComments, 
+  showSuccessMessage, 
+  showErrorMessage, 
+  isAdmin = false,
+  language = 'hu'
+}) => {
   const [newComment, setNewComment] = useState('');
+  
+  // Get translations based on language
+  const t = translations[language] || translations.hu;
   
   // Get safe project ID
   const projectId = getProjectId(project);
@@ -13,7 +91,8 @@ const ProjectComments = ({ project, comments, setComments, showSuccessMessage, s
     debugLog('ProjectComments-mount', {
       projectId: projectId,
       commentsCount: comments?.length || 0,
-      isAdmin: isAdmin
+      isAdmin: isAdmin,
+      language: language
     });
   }, []);
 
@@ -26,7 +105,7 @@ const ProjectComments = ({ project, comments, setComments, showSuccessMessage, s
     
     if (!projectId) {
       debugLog('handleAddComment', 'ERROR: No project ID');
-      showErrorMessage('Nincs érvényes projekt azonosító! Próbálja frissíteni az oldalt.');
+      showErrorMessage(t.projectIdError);
       return;
     }
     
@@ -41,7 +120,7 @@ const ProjectComments = ({ project, comments, setComments, showSuccessMessage, s
       const comment = {
         id: Date.now(),
         text: newComment,
-        author: isAdmin ? 'Admin' : 'Ügyfél',
+        author: isAdmin ? t.admin : t.client,
         timestamp: new Date().toISOString(),
         projectId: projectId,
         isAdminComment: isAdmin // Jelöljük meg, hogy admin hozzászólás-e
@@ -58,11 +137,11 @@ const ProjectComments = ({ project, comments, setComments, showSuccessMessage, s
       
       // Reset input and show success message
       setNewComment('');
-      showSuccessMessage(isAdmin ? 'Admin hozzászólás sikeresen hozzáadva' : 'Hozzászólás sikeresen hozzáadva');
+      showSuccessMessage(isAdmin ? t.adminCommentAddSuccess : t.commentAddSuccess);
       debugLog('handleAddComment', 'Comment added successfully');
     } catch (error) {
       debugLog('handleAddComment', 'Error adding comment', error);
-      showErrorMessage('Hiba történt a hozzászólás hozzáadásakor');
+      showErrorMessage(t.commentError);
     }
   };
 
@@ -70,7 +149,7 @@ const ProjectComments = ({ project, comments, setComments, showSuccessMessage, s
   const handleDeleteComment = (commentId) => {
     debugLog('handleDeleteComment', `Deleting comment ID: ${commentId}`);
     
-    if (!window.confirm('Biztosan törölni szeretné ezt a hozzászólást?')) {
+    if (!window.confirm(t.confirmDelete)) {
       debugLog('handleDeleteComment', 'Deletion cancelled by user');
       return;
     }
@@ -87,18 +166,18 @@ const ProjectComments = ({ project, comments, setComments, showSuccessMessage, s
       // Save to localStorage
       saveToLocalStorage(project, 'comments', updatedComments);
       
-      showSuccessMessage('Hozzászólás sikeresen törölve');
+      showSuccessMessage(t.deleteSuccess);
       debugLog('handleDeleteComment', 'Comment deleted successfully');
     } catch (error) {
       debugLog('handleDeleteComment', 'Error deleting comment', error);
-      showErrorMessage('Hiba történt a törlés során');
+      showErrorMessage(t.deleteError);
     }
   };
 
   return (
     <div className="bg-white rounded-lg shadow">
       <div className="px-6 py-4 border-b border-gray-200">
-        <h2 className="text-lg font-medium">Hozzászólások</h2>
+        <h2 className="text-lg font-medium">{t.comments}</h2>
       </div>
       
       {/* Add Comment Form */}
@@ -109,7 +188,7 @@ const ProjectComments = ({ project, comments, setComments, showSuccessMessage, s
         }}>
           <div className="mb-3">
             <label htmlFor="commentText" className="block text-sm font-medium text-gray-700 mb-1">
-              {isAdmin ? "Admin hozzászólás" : "Új hozzászólás"}
+              {isAdmin ? t.adminComment : t.newComment}
             </label>
             <textarea
               id="commentText"
@@ -117,7 +196,7 @@ const ProjectComments = ({ project, comments, setComments, showSuccessMessage, s
               onChange={(e) => setNewComment(e.target.value)}
               className={`w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm ${isAdmin ? 'bg-purple-50' : ''}`}
               rows={4}
-              placeholder={isAdmin ? "Írja ide az admin hozzászólását..." : "Írja ide hozzászólását..."}
+              placeholder={isAdmin ? t.writeAdminComment : t.writeComment}
               required
             />
           </div>
@@ -128,7 +207,7 @@ const ProjectComments = ({ project, comments, setComments, showSuccessMessage, s
               className={`px-4 py-2 ${isAdmin ? 'bg-purple-600 hover:bg-purple-700' : 'bg-indigo-600 hover:bg-indigo-700'} text-white rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center`}
             >
               <Plus className="h-4 w-4 mr-2" />
-              {isAdmin ? "Admin hozzászólás küldése" : "Hozzászólás küldése"}
+              {isAdmin ? t.sendAdminComment : t.sendComment}
             </button>
           </div>
         </form>
@@ -151,7 +230,7 @@ const ProjectComments = ({ project, comments, setComments, showSuccessMessage, s
                   <div className="flex justify-between items-center">
                     <div className={`font-medium ${comment.isAdminComment ? 'text-purple-900' : 'text-gray-900'}`}>
                       {comment.author}
-                      {comment.isAdminComment && <span className="ml-2 px-2 py-0.5 bg-purple-100 text-purple-800 text-xs rounded-full">Admin</span>}
+                      {comment.isAdminComment && <span className="ml-2 px-2 py-0.5 bg-purple-100 text-purple-800 text-xs rounded-full">{t.admin}</span>}
                     </div>
                     <div className="text-sm text-gray-500">{formatDate(comment.timestamp)}</div>
                   </div>
@@ -164,7 +243,7 @@ const ProjectComments = ({ project, comments, setComments, showSuccessMessage, s
                       className="text-red-600 hover:text-red-800 text-sm flex items-center"
                     >
                       <Trash2 className="h-4 w-4 mr-1" />
-                      Törlés
+                      {t.delete}
                     </button>
                   </div>
                 </div>
@@ -174,8 +253,8 @@ const ProjectComments = ({ project, comments, setComments, showSuccessMessage, s
         ) : (
           <div className="p-10 text-center text-gray-500">
             <MessageCircle className="h-12 w-12 mx-auto text-gray-300 mb-3" />
-            <p className="text-lg font-medium text-gray-600">Még nincsenek hozzászólások</p>
-            <p className="text-sm mt-1">Legyen Ön az első, aki hozzászól a projekthez!</p>
+            <p className="text-lg font-medium text-gray-600">{t.noComments}</p>
+            <p className="text-sm mt-1">{t.beFirstComment}</p>
           </div>
         )}
       </div>
