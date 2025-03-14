@@ -9,12 +9,137 @@ import {
 } from 'lucide-react';
 import { formatShortDate, formatDate, debugLog } from './utils';
 
-const ProjectOverview = ({ project, files = [], comments = [], setActiveTab }) => {
+// Translation data for all UI elements
+const translations = {
+  en: {
+    statistics: {
+      totalInvoices: "Total invoices",
+      paid: "Paid",
+      pendingAmount: "Pending amount",
+      totalAmount: "Total amount"
+    },
+    chart: {
+      invoiceStatus: "Invoice Status",
+      paid: "Paid",
+      pending: "Pending",
+      quantity: "Quantity"
+    },
+    activities: {
+      recentActivities: "Recent Activities",
+      newFileUploaded: "New file uploaded: ",
+      newComment: "New comment: ",
+      size: "Size: ",
+      noActivities: "No activities yet",
+      uploadFilesOrComment: "Upload files or comment on the project!",
+      view: "View"
+    },
+    projectInfo: {
+      projectInformation: "Project Information",
+      projectData: "Project Data",
+      projectName: "Project name:",
+      status: "Status:",
+      priority: "Priority:",
+      normal: "Normal",
+      startDate: "Start date:",
+      expectedEndDate: "Expected end date:",
+      clientData: "Client Data",
+      name: "Name:",
+      email: "Email:",
+      phone: "Phone:",
+      company: "Company:",
+      projectDescription: "Project Description"
+    }
+  },
+  de: {
+    statistics: {
+      totalInvoices: "Gesamtrechnungen",
+      paid: "Bezahlt",
+      pendingAmount: "Ausstehender Betrag",
+      totalAmount: "Gesamtbetrag"
+    },
+    chart: {
+      invoiceStatus: "Rechnungsstatus",
+      paid: "Bezahlt",
+      pending: "Ausstehend",
+      quantity: "Menge"
+    },
+    activities: {
+      recentActivities: "Neueste Aktivitäten",
+      newFileUploaded: "Neue Datei hochgeladen: ",
+      newComment: "Neuer Kommentar: ",
+      size: "Größe: ",
+      noActivities: "Noch keine Aktivitäten",
+      uploadFilesOrComment: "Laden Sie Dateien hoch oder kommentieren Sie das Projekt!",
+      view: "Ansehen"
+    },
+    projectInfo: {
+      projectInformation: "Projektinformationen",
+      projectData: "Projektdaten",
+      projectName: "Projektname:",
+      status: "Status:",
+      priority: "Priorität:",
+      normal: "Normal",
+      startDate: "Startdatum:",
+      expectedEndDate: "Voraussichtliches Enddatum:",
+      clientData: "Kundendaten",
+      name: "Name:",
+      email: "E-Mail:",
+      phone: "Telefon:",
+      company: "Unternehmen:",
+      projectDescription: "Projektbeschreibung"
+    }
+  },
+  hu: {
+    statistics: {
+      totalInvoices: "Összes számla",
+      paid: "Fizetve",
+      pendingAmount: "Függő összeg",
+      totalAmount: "Teljes összeg"
+    },
+    chart: {
+      invoiceStatus: "Számlák Állapota",
+      paid: "Fizetve",
+      pending: "Függőben",
+      quantity: "Mennyiség"
+    },
+    activities: {
+      recentActivities: "Legutóbbi tevékenységek",
+      newFileUploaded: "Új fájl feltöltve: ",
+      newComment: "Új hozzászólás: ",
+      size: "Méret: ",
+      noActivities: "Nincs még tevékenység",
+      uploadFilesOrComment: "Töltsön fel fájlokat vagy szóljon hozzá a projekthez!",
+      view: "Megtekintés"
+    },
+    projectInfo: {
+      projectInformation: "Projekt információk",
+      projectData: "Projekt adatok",
+      projectName: "Projekt neve:",
+      status: "Státusz:",
+      priority: "Prioritás:",
+      normal: "Normál",
+      startDate: "Kezdés dátuma:",
+      expectedEndDate: "Várható befejezés:",
+      clientData: "Ügyfél adatok",
+      name: "Név:",
+      email: "Email:",
+      phone: "Telefon:",
+      company: "Cég:",
+      projectDescription: "Projekt leírás"
+    }
+  }
+};
+
+const ProjectOverview = ({ project, files = [], comments = [], setActiveTab, language = 'hu' }) => {
   debugLog('ProjectOverview', 'Rendering project overview', { 
     projectId: project?._id,
     filesCount: files?.length || 0,
-    commentsCount: comments?.length || 0
+    commentsCount: comments?.length || 0,
+    language: language
   });
+
+  // Get translations for current language
+  const t = translations[language] || translations.hu;
 
   // Project-specific files and comments
   const projectFiles = files.filter(file => file.projectId === project._id);
@@ -23,9 +148,9 @@ const ProjectOverview = ({ project, files = [], comments = [], setActiveTab }) =
   // Calculate statistics
   const stats = {
     totalInvoices: project.invoices?.length || 0,
-    paidInvoices: project.invoices?.filter(inv => inv.status === 'fizetett').length || 0,
+    paidInvoices: project.invoices?.filter(inv => inv.status === 'fizetett' || inv.status === 'paid' || inv.status === 'bezahlt').length || 0,
     pendingAmount: project.invoices?.reduce((sum, inv) => 
-      inv.status !== 'fizetett' ? sum + (inv.totalAmount || 0) : sum, 0
+      (inv.status !== 'fizetett' && inv.status !== 'paid' && inv.status !== 'bezahlt') ? sum + (inv.totalAmount || 0) : sum, 0
     ) || 0,
     totalAmount: project.invoices?.reduce((sum, inv) => 
       sum + (inv.totalAmount || 0), 0
@@ -35,8 +160,8 @@ const ProjectOverview = ({ project, files = [], comments = [], setActiveTab }) =
   };
 
   const pieChartData = [
-    { name: 'Fizetve', value: stats.paidInvoices },
-    { name: 'Függőben', value: stats.totalInvoices - stats.paidInvoices }
+    { name: t.chart.paid, value: stats.paidInvoices },
+    { name: t.chart.pending, value: stats.totalInvoices - stats.paidInvoices }
   ];
 
   const COLORS = ['#10B981', '#F59E0B'];
@@ -65,7 +190,7 @@ const ProjectOverview = ({ project, files = [], comments = [], setActiveTab }) =
         <div className="bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow">
           <div className="flex justify-between items-center">
             <div>
-              <p className="text-sm text-gray-500">Összes számla</p>
+              <p className="text-sm text-gray-500">{t.statistics.totalInvoices}</p>
               <p className="text-2xl font-bold">{stats.totalInvoices} db</p>
             </div>
             <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
@@ -77,7 +202,7 @@ const ProjectOverview = ({ project, files = [], comments = [], setActiveTab }) =
         <div className="bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow">
           <div className="flex justify-between items-center">
             <div>
-              <p className="text-sm text-gray-500">Fizetve</p>
+              <p className="text-sm text-gray-500">{t.statistics.paid}</p>
               <p className="text-2xl font-bold">{stats.paidInvoices} db</p>
             </div>
             <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
@@ -89,7 +214,7 @@ const ProjectOverview = ({ project, files = [], comments = [], setActiveTab }) =
         <div className="bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow">
           <div className="flex justify-between items-center">
             <div>
-              <p className="text-sm text-gray-500">Függő összeg</p>
+              <p className="text-sm text-gray-500">{t.statistics.pendingAmount}</p>
               <p className="text-2xl font-bold">{stats.pendingAmount} €</p>
             </div>
             <div className="h-12 w-12 rounded-full bg-yellow-100 flex items-center justify-center">
@@ -101,7 +226,7 @@ const ProjectOverview = ({ project, files = [], comments = [], setActiveTab }) =
         <div className="bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow">
           <div className="flex justify-between items-center">
             <div>
-              <p className="text-sm text-gray-500">Teljes összeg</p>
+              <p className="text-sm text-gray-500">{t.statistics.totalAmount}</p>
               <p className="text-2xl font-bold">{stats.totalAmount} €</p>
             </div>
             <div className="h-12 w-12 rounded-full bg-purple-100 flex items-center justify-center">
@@ -115,7 +240,7 @@ const ProjectOverview = ({ project, files = [], comments = [], setActiveTab }) =
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Grafikon */}
         <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-lg font-medium mb-4">Számlák Állapota</h3>
+          <h3 className="text-lg font-medium mb-4">{t.chart.invoiceStatus}</h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -133,7 +258,7 @@ const ProjectOverview = ({ project, files = [], comments = [], setActiveTab }) =
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(value) => [`${value} db`, 'Mennyiség']} />
+                <Tooltip formatter={(value) => [`${value} db`, t.chart.quantity]} />
                 <Legend />
               </PieChart>
             </ResponsiveContainer>
@@ -142,7 +267,7 @@ const ProjectOverview = ({ project, files = [], comments = [], setActiveTab }) =
 
         {/* Legutóbbi tevékenységek */}
         <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-lg font-medium mb-4">Legutóbbi tevékenységek</h3>
+          <h3 className="text-lg font-medium mb-4">{t.activities.recentActivities}</h3>
           <div className="space-y-3">
             {activities.length > 0 ? (
               activities.map((activity) => (
@@ -161,12 +286,12 @@ const ProjectOverview = ({ project, files = [], comments = [], setActiveTab }) =
                   <div className="flex-1">
                     <p className="font-medium">
                       {activity.type === 'file' 
-                        ? `Új fájl feltöltve: ${activity.content.name}`
-                        : `Új hozzászólás: ${activity.content.author}`}
+                        ? `${t.activities.newFileUploaded}${activity.content.name}`
+                        : `${t.activities.newComment}${activity.content.author}`}
                     </p>
                     <p className="text-sm text-gray-500">
                       {activity.type === 'file'
-                        ? `Méret: ${activity.content.size}`
+                        ? `${t.activities.size}${activity.content.size}`
                         : activity.content.text.substring(0, 50) + (activity.content.text.length > 50 ? '...' : '')}
                     </p>
                     <p className="text-xs text-gray-400 mt-1">
@@ -178,7 +303,7 @@ const ProjectOverview = ({ project, files = [], comments = [], setActiveTab }) =
                       onClick={() => setActiveTab(activity.type === 'file' ? 'files' : 'comments')}
                       className="text-indigo-600 hover:text-indigo-800 text-sm"
                     >
-                      Megtekintés
+                      {t.activities.view}
                     </button>
                   </div>
                 </div>
@@ -186,8 +311,8 @@ const ProjectOverview = ({ project, files = [], comments = [], setActiveTab }) =
             ) : (
               <div className="text-center text-gray-500 py-6 bg-gray-50 rounded-lg">
                 <AlertCircle className="h-12 w-12 mx-auto text-gray-400 mb-2" />
-                <p className="font-medium">Nincs még tevékenység</p>
-                <p className="text-sm mt-1">Töltsön fel fájlokat vagy szóljon hozzá a projekthez!</p>
+                <p className="font-medium">{t.activities.noActivities}</p>
+                <p className="text-sm mt-1">{t.activities.uploadFilesOrComment}</p>
               </div>
             )}
           </div>
@@ -196,57 +321,57 @@ const ProjectOverview = ({ project, files = [], comments = [], setActiveTab }) =
       
       {/* Projekt információk */}
       <div className="bg-white p-6 rounded-lg shadow">
-        <h3 className="text-lg font-medium mb-4">Projekt információk</h3>
+        <h3 className="text-lg font-medium mb-4">{t.projectInfo.projectInformation}</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <h4 className="font-medium text-gray-700 mb-2">Projekt adatok</h4>
+            <h4 className="font-medium text-gray-700 mb-2">{t.projectInfo.projectData}</h4>
             <div className="space-y-2">
               <div className="flex justify-between border-b border-gray-200 pb-2">
-                <span className="text-gray-600">Projekt neve:</span>
+                <span className="text-gray-600">{t.projectInfo.projectName}</span>
                 <span className="font-medium">{project.name}</span>
               </div>
               <div className="flex justify-between border-b border-gray-200 pb-2">
-                <span className="text-gray-600">Státusz:</span>
+                <span className="text-gray-600">{t.projectInfo.status}</span>
                 <span className="font-medium">{project.status}</span>
               </div>
               <div className="flex justify-between border-b border-gray-200 pb-2">
-                <span className="text-gray-600">Prioritás:</span>
-                <span className="font-medium">{project.priority || 'Normál'}</span>
+                <span className="text-gray-600">{t.projectInfo.priority}</span>
+                <span className="font-medium">{project.priority || t.projectInfo.normal}</span>
               </div>
               {project.startDate && (
                 <div className="flex justify-between border-b border-gray-200 pb-2">
-                  <span className="text-gray-600">Kezdés dátuma:</span>
+                  <span className="text-gray-600">{t.projectInfo.startDate}</span>
                   <span className="font-medium">{formatShortDate(project.startDate)}</span>
                 </div>
               )}
               {project.expectedEndDate && (
                 <div className="flex justify-between border-b border-gray-200 pb-2">
-                  <span className="text-gray-600">Várható befejezés:</span>
+                  <span className="text-gray-600">{t.projectInfo.expectedEndDate}</span>
                   <span className="font-medium">{formatShortDate(project.expectedEndDate)}</span>
                 </div>
               )}
             </div>
           </div>
           <div>
-            <h4 className="font-medium text-gray-700 mb-2">Ügyfél adatok</h4>
+            <h4 className="font-medium text-gray-700 mb-2">{t.projectInfo.clientData}</h4>
             <div className="space-y-2">
               <div className="flex justify-between border-b border-gray-200 pb-2">
-                <span className="text-gray-600">Név:</span>
+                <span className="text-gray-600">{t.projectInfo.name}</span>
                 <span className="font-medium">{project.client?.name || 'N/A'}</span>
               </div>
               <div className="flex justify-between border-b border-gray-200 pb-2">
-                <span className="text-gray-600">Email:</span>
+                <span className="text-gray-600">{t.projectInfo.email}</span>
                 <span className="font-medium">{project.client?.email || 'N/A'}</span>
               </div>
               {project.client?.phone && (
                 <div className="flex justify-between border-b border-gray-200 pb-2">
-                  <span className="text-gray-600">Telefon:</span>
+                  <span className="text-gray-600">{t.projectInfo.phone}</span>
                   <span className="font-medium">{project.client.phone}</span>
                 </div>
               )}
               {project.client?.companyName && (
                 <div className="flex justify-between border-b border-gray-200 pb-2">
-                  <span className="text-gray-600">Cég:</span>
+                  <span className="text-gray-600">{t.projectInfo.company}</span>
                   <span className="font-medium">{project.client.companyName}</span>
                 </div>
               )}
@@ -255,7 +380,7 @@ const ProjectOverview = ({ project, files = [], comments = [], setActiveTab }) =
         </div>
         {project.description && (
           <div className="mt-6">
-            <h4 className="font-medium text-gray-700 mb-2">Projekt leírás</h4>
+            <h4 className="font-medium text-gray-700 mb-2">{t.projectInfo.projectDescription}</h4>
             <div className="bg-gray-50 p-4 rounded-md">
               <p className="text-gray-700 whitespace-pre-wrap">{project.description}</p>
             </div>
