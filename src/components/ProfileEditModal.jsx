@@ -3,7 +3,7 @@ import {
   User, X, Mail, Phone, Building, Save, AtSign, 
   MapPin, Globe, CreditCard, Loader 
 } from 'lucide-react';
-import { debugLog } from './utils';
+import { debugLog } from './shared/utils';
 
 // API URL és key - ugyanazok mint a többi komponensben
 const API_URL = 'https://admin.nb-studio.net:5001/api';

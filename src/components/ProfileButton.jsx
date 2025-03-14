@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { User, Settings, UserPlus, LogOut, ChevronDown } from 'lucide-react';
 import ProfileEditModal from './ProfileEditModal';
-import { debugLog } from './utils';
+import { debugLog } from './shared/utils';
 
 // API URL és key - ugyanazok mint a többi komponensben
 const API_URL = 'https://admin.nb-studio.net:5001/api';
