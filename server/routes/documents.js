@@ -13,6 +13,26 @@ const router = express.Router();
 // Védett végpontok
 router.use(authMiddleware);
 
+// FONTOS: Engedélyezzük a hozzáférést a dokumentum létrehozásához API kulccsal IS,
+// hogy a publikus kliensek is tudják használni
+const apiKeyChecker = (req, res, next) => {
+  // Ha van érvényes token, akkor engedjük tovább
+  if (req.userData) {
+    return next();
+  }
+  
+  // Ha nincs token, ellenőrizzük az API kulcsot
+  const apiKey = req.headers['x-api-key'];
+  if (apiKey === 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0') {
+    // Ha érvényes az API kulcs, állítsuk be egy alap userData objektumot
+    req.userData = { email: 'api-client@example.com' };
+    return next();
+  }
+  
+  // Ha sem token, sem érvényes API kulcs nincs, akkor 401
+  return res.status(401).json({ message: 'Unauthorized access' });
+};
+
 // Fájl útvonalak beállítása
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -29,7 +49,7 @@ try {
 }
 
 // Összes dokumentumsablon lekérése
-router.get('/document-templates', async (req, res) => {
+router.get('/document-templates', apiKeyChecker, async (req, res) => {
   try {
     const { type, language, search } = req.query;
     let query = {};
@@ -104,7 +124,7 @@ router.post('/document-templates', async (req, res) => {
 });
 
 // Dokumentumsablon lekérése ID alapján
-router.get('/document-templates/:id', async (req, res) => {
+router.get('/document-templates/:id', apiKeyChecker, async (req, res) => {
   try {
     const template = await DocumentTemplate.findById(req.params.id);
     
@@ -212,7 +232,7 @@ router.delete('/document-templates/:id', async (req, res) => {
 });
 
 // Dokumentum generálása sablon alapján
-router.post('/documents/generate', async (req, res) => {
+router.post('/documents/generate', apiKeyChecker, async (req, res) => {
   try {
     const { templateId, projectId, variables } = req.body;
     
@@ -314,7 +334,7 @@ router.post('/documents/generate', async (req, res) => {
 });
 
 // Összes generált dokumentum lekérése
-router.get('/documents', async (req, res) => {
+router.get('/documents', apiKeyChecker, async (req, res) => {
   try {
     const { projectId, status } = req.query;
     let query = {};
@@ -335,7 +355,7 @@ router.get('/documents', async (req, res) => {
 });
 
 // Generált dokumentum lekérése ID alapján
-router.get('/documents/:id', async (req, res) => {
+router.get('/documents/:id', apiKeyChecker, async (req, res) => {
   try {
     console.log('Dokumentum lekérés, kért ID:', req.params.id);
     
@@ -357,7 +377,7 @@ router.get('/documents/:id', async (req, res) => {
 });
 
 // IMPROVED: Dokumentum PDF generálása és letöltése - közvetlen streamelés válaszba
-router.get('/documents/:id/pdf', async (req, res) => {
+router.get('/documents/:id/pdf', apiKeyChecker, async (req, res) => {
   console.log(`PDF generálás kérés, ID: ${req.params.id}`);
   
   try {

@@ -305,7 +305,8 @@ const ProfileEditModal = ({
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
-            'X-API-Key': API_KEY
+            'X-API-Key': API_KEY,
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
           },
           body: JSON.stringify(updatedProject)
         });
@@ -320,17 +321,23 @@ const ProfileEditModal = ({
         debugLog('ProfileEditModal-submit', 'Project updated successfully on server');
       }
       
-      // 2. Frissítsük a felhasználó adatait a szerveren
+      // 2. Frissítsük a felhasználó adatait a szerveren - Megjegyzés: /users végpont jelenleg nem létezik 
+      // Ezt a részt kikommentezzük, mivel nincs users végpont
+      /*
       if (user && user._id) {
         const userResponse = await fetch(`${API_URL}/users/${user._id}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
-            'X-API-Key': API_KEY
+            'X-API-Key': API_KEY,
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
           },
           body: JSON.stringify(updatedUser)
         });
+      */
         
+      // A userResponse kezelés is kikommentezve a users végpont hiánya miatt
+      /*
         if (!userResponse.ok) {
           debugLog('ProfileEditModal-submit', 'Error updating user on server', { 
             status: userResponse.status
@@ -342,6 +349,7 @@ const ProfileEditModal = ({
           debugLog('ProfileEditModal-submit', 'User updated successfully on server');
         }
       }
+      */
       
       // 3. Ha mindkét API hívás sikertelen volt, és nincs _id, akkor csak
       // tároljuk lokálisan az adatokat, de jelezzük, hogy adatbázis frissítés nem történt
