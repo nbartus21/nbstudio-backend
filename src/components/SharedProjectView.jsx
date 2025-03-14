@@ -1,7 +1,53 @@
 import React, { useState, useEffect } from 'react';
 import SharedProjectDashboard from './SharedProjectDashboard';
-import { Lock, AlertTriangle } from 'lucide-react';
+import { Lock, AlertTriangle, Globe, Check } from 'lucide-react';
 import { debugLog } from './shared/utils';
+
+// Translation data for all UI elements
+const translations = {
+  en: {
+    viewProject: "View Project",
+    enterPin: "Please enter the PIN code to access",
+    pin: "PIN code",
+    pinPlaceholder: "6-digit PIN code",
+    login: "Login to project",
+    checking: "Checking...",
+    invalidPin: "Invalid PIN code",
+    errorOccurred: "An error occurred during verification",
+    logoutConfirm: "Are you sure you want to log out?",
+    noProject: "No project loaded",
+    selectProject: "Please select a project or log in again",
+    back: "Back",
+  },
+  de: {
+    viewProject: "Projekt ansehen",
+    enterPin: "Bitte geben Sie den PIN-Code für den Zugriff ein",
+    pin: "PIN-Code",
+    pinPlaceholder: "6-stelliger PIN-Code",
+    login: "Zum Projekt anmelden",
+    checking: "Überprüfung...",
+    invalidPin: "Ungültiger PIN-Code",
+    errorOccurred: "Bei der Überprüfung ist ein Fehler aufgetreten",
+    logoutConfirm: "Sind Sie sicher, dass Sie sich abmelden möchten?",
+    noProject: "Kein Projekt geladen",
+    selectProject: "Bitte wählen Sie ein Projekt aus oder melden Sie sich erneut an",
+    back: "Zurück",
+  },
+  hu: {
+    viewProject: "Projekt megtekintése",
+    enterPin: "Kérjük, adja meg a PIN kódot a hozzáféréshez",
+    pin: "PIN kód",
+    pinPlaceholder: "6 számjegyű PIN kód",
+    login: "Belépés a projektbe",
+    checking: "Ellenőrzés...",
+    invalidPin: "Érvénytelen PIN kód",
+    errorOccurred: "Hiba történt az ellenőrzés során",
+    logoutConfirm: "Biztosan ki szeretne lépni?",
+    noProject: "Nincs betöltve projekt",
+    selectProject: "Kérjük, válasszon egy projektet vagy jelentkezzen be újra",
+    back: "Visszalépés",
+  }
+};
 
 // Helper functions to simulate routing
 const useParams = () => {
@@ -16,6 +62,17 @@ const useNavigate = () => {
   };
 };
 
+// Detect browser language
+const detectBrowserLanguage = () => {
+  const browserLang = navigator.language || navigator.userLanguage;
+  const langCode = browserLang.split('-')[0];
+  
+  if (['en', 'de', 'hu'].includes(langCode)) {
+    return langCode;
+  }
+  return 'en'; // Default to English if not supported
+};
+
 const API_URL = 'https://admin.nb-studio.net:5001/api';
 const API_KEY = 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0';
 
@@ -27,10 +84,14 @@ const SharedProjectView = () => {
   const [isVerified, setIsVerified] = useState(false);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [language, setLanguage] = useState(detectBrowserLanguage());
+
+  // Get translations for current language
+  const t = translations[language];
 
   // Log component initialization
   useEffect(() => {
-    debugLog('SharedProjectView', 'Component initialized', { token });
+    debugLog('SharedProjectView', 'Component initialized', { token, language });
   }, []);
 
   // Check for existing session on component mount
@@ -49,7 +110,7 @@ const SharedProjectView = () => {
           const session = JSON.parse(savedSession);
           debugLog('checkExistingSession', 'Found saved session', { project: session.project?.name });
           
-          // Verificar se a sessão não expirou (24 horas)
+          // Verify if session hasn't expired (24 hours)
           const sessionTime = new Date(session.timestamp).getTime();
           const currentTime = new Date().getTime();
           const sessionAge = currentTime - sessionTime;
@@ -59,6 +120,11 @@ const SharedProjectView = () => {
             debugLog('checkExistingSession', 'Session is valid, restoring', { 
               age: Math.round(sessionAge / (60 * 60 * 1000)) + ' hours' 
             });
+            
+            // Restore language from session
+            if (session.language) {
+              setLanguage(session.language);
+            }
             
             // Ensure project has _id field for compatibility
             const projectData = session.project;
@@ -91,7 +157,7 @@ const SharedProjectView = () => {
     setLoading(true);
     setError(null);
     
-    debugLog('verifyPin', 'Verifying PIN', { token, pinLength: pin.length });
+    debugLog('verifyPin', 'Verifying PIN', { token, pinLength: pin.length, language });
     
     try {
       const response = await fetch(`${API_URL}/public/projects/verify-pin`, {
@@ -136,22 +202,23 @@ const SharedProjectView = () => {
         setIsVerified(true);
         setError(null);
         
-        // Save session to localStorage
+        // Save session to localStorage with language
         const session = {
           project: projectData,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
+          language: language
         };
         localStorage.setItem(`project_session_${token}`, JSON.stringify(session));
         
-        debugLog('verifyPin', 'Session saved');
+        debugLog('verifyPin', 'Session saved with language preference');
       } else {
         debugLog('verifyPin', 'PIN verification failed', { message: data.message });
-        setError(data.message || 'Érvénytelen PIN kód');
+        setError(data.message || t.invalidPin);
       }
     } catch (error) {
       debugLog('verifyPin', 'Error during verification', { error });
-      console.error('Hiba történt:', error);
-      setError('Hiba történt az ellenőrzés során');
+      console.error('Error occurred:', error);
+      setError(t.errorOccurred);
     } finally {
       setLoading(false);
     }
@@ -168,7 +235,8 @@ const SharedProjectView = () => {
       // Update session in localStorage
       const session = {
         project: updatedProject,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        language: language
       };
       localStorage.setItem(`project_session_${token}`, JSON.stringify(session));
       
@@ -193,16 +261,32 @@ const SharedProjectView = () => {
       }
     } catch (error) {
       debugLog('handleProjectUpdate', 'Error updating project', { error });
-      console.error('Hiba a projekt frissítésekor:', error);
+      console.error('Error updating project:', error);
+    }
+  };
+  
+  // Handle language change
+  const handleLanguageChange = (lang) => {
+    debugLog('handleLanguageChange', `Changing language to ${lang}`);
+    setLanguage(lang);
+    
+    // If user is logged in, update the session with the new language
+    if (isVerified && token) {
+      const savedSession = localStorage.getItem(`project_session_${token}`);
+      if (savedSession) {
+        const session = JSON.parse(savedSession);
+        session.language = lang;
+        localStorage.setItem(`project_session_${token}`, JSON.stringify(session));
+      }
     }
   };
   
   // Handle logout
   const handleLogout = () => {
-    if (window.confirm('Biztosan ki szeretne lépni?')) {
+    if (window.confirm(t.logoutConfirm)) {
       debugLog('handleLogout', 'User confirmed logout');
       
-      // Remove session but keep project-specific files and comments
+      // Remove session but keep project-specific files and documents
       localStorage.removeItem(`project_session_${token}`);
       
       setIsVerified(false);
@@ -228,11 +312,48 @@ const SharedProjectView = () => {
               </div>
             </div>
             <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-              Projekt megtekintése
+              {t.viewProject}
             </h2>
             <p className="mt-2 text-center text-sm text-gray-600">
-              Kérjük, adja meg a PIN kódot a hozzáféréshez
+              {t.enterPin}
             </p>
+          </div>
+          
+          {/* Language selector */}
+          <div className="flex justify-center space-x-2">
+            <button
+              onClick={() => handleLanguageChange('hu')}
+              className={`px-3 py-1 rounded-md text-sm font-medium border ${
+                language === 'hu' 
+                  ? 'bg-indigo-100 text-indigo-700 border-indigo-300' 
+                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              Magyar
+              {language === 'hu' && <Check className="inline-block ml-1 h-3 w-3" />}
+            </button>
+            <button
+              onClick={() => handleLanguageChange('de')}
+              className={`px-3 py-1 rounded-md text-sm font-medium border ${
+                language === 'de' 
+                  ? 'bg-indigo-100 text-indigo-700 border-indigo-300' 
+                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              Deutsch
+              {language === 'de' && <Check className="inline-block ml-1 h-3 w-3" />}
+            </button>
+            <button
+              onClick={() => handleLanguageChange('en')}
+              className={`px-3 py-1 rounded-md text-sm font-medium border ${
+                language === 'en' 
+                  ? 'bg-indigo-100 text-indigo-700 border-indigo-300' 
+                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              English
+              {language === 'en' && <Check className="inline-block ml-1 h-3 w-3" />}
+            </button>
           </div>
           
           {error && (
@@ -245,7 +366,7 @@ const SharedProjectView = () => {
           <form className="mt-8 space-y-6" onSubmit={verifyPin}>
             <div>
               <label htmlFor="pin" className="block text-sm font-medium text-gray-700 mb-1">
-                PIN kód
+                {t.pin}
               </label>
               <input
                 id="pin"
@@ -254,7 +375,7 @@ const SharedProjectView = () => {
                 pattern="[0-9]*"
                 inputMode="numeric"
                 autoComplete="one-time-code"
-                placeholder="6 számjegyű PIN kód"
+                placeholder={t.pinPlaceholder}
                 value={pin}
                 onChange={(e) => {
                   const value = e.target.value.replace(/[^0-9]/g, '');
@@ -277,10 +398,10 @@ const SharedProjectView = () => {
                     <span className="absolute left-0 inset-y-0 flex items-center pl-3">
                       <div className="h-5 w-5 animate-spin rounded-full border-2 border-transparent border-opacity-50 border-t-white" />
                     </span>
-                    Ellenőrzés...
+                    {t.checking}
                   </>
                 ) : (
-                  'Belépés a projektbe'
+                  t.login
                 )}
               </button>
             </div>
@@ -294,8 +415,10 @@ const SharedProjectView = () => {
   return (
     <SharedProjectDashboard 
       project={project}
+      language={language}
       onUpdate={handleProjectUpdate}
       onLogout={handleLogout}
+      onLanguageChange={handleLanguageChange}
     />
   );
 };

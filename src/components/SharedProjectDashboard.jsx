@@ -1,16 +1,129 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Upload, Check, AlertTriangle, LogOut, Users, Calendar } from 'lucide-react';
+import { 
+  Upload, Check, AlertTriangle, LogOut, Users, Calendar, 
+  Globe, ChevronDown, File, Download, FileText 
+} from 'lucide-react';
 import { formatShortDate, debugLog, loadFromLocalStorage, getProjectId } from './shared/utils';
 
 // Import modular components
 import ProjectOverview from './shared/ProjectOverview';
 import ProjectInvoices from './shared/ProjectInvoices';
 import ProjectFiles from './shared/ProjectFiles';
-import ProjectComments from './shared/ProjectComments';
+import ProjectDocuments from './shared/ProjectDocuments'; // New component for documents
 import FilePreviewModal from './shared/FilePreviewModal';
 import InvoiceViewModal from './shared/InvoiceViewModal';
+import DocumentViewModal from './shared/DocumentViewModal'; // New component for document preview
 
-const SharedProjectDashboard = ({ project, onUpdate, onLogout, isAdmin = false }) => {
+// Translations
+const translations = {
+  en: {
+    overview: "Overview",
+    invoices: "Invoices",
+    files: "Files",
+    documents: "Documents",
+    milestones: "Milestones",
+    uploadFile: "Upload File",
+    noProject: "No project loaded",
+    selectProject: "Please select a project or log in again",
+    back: "Back",
+    client: "Client",
+    lastUpdate: "Last update",
+    logout: "Logout",
+    adminMode: "Admin Mode",
+    adminModeActive: "Admin Mode Active",
+    adminModeBanner: "You are in Admin mode - your comments will appear highlighted",
+    turnOff: "Turn Off",
+    close: "Close",
+    changeLanguage: "Change Language",
+    languageChanged: "Language changed successfully",
+    downloadPdf: "Download PDF",
+    status: {
+      active: "Active",
+      completed: "Completed",
+      suspended: "Suspended",
+      deleted: "Deleted"
+    }
+  },
+  de: {
+    overview: "Übersicht",
+    invoices: "Rechnungen",
+    files: "Dateien",
+    documents: "Dokumente",
+    milestones: "Meilensteine",
+    uploadFile: "Datei hochladen",
+    noProject: "Kein Projekt geladen",
+    selectProject: "Bitte wählen Sie ein Projekt aus oder melden Sie sich erneut an",
+    back: "Zurück",
+    client: "Kunde",
+    lastUpdate: "Letzte Aktualisierung",
+    logout: "Abmelden",
+    adminMode: "Admin-Modus",
+    adminModeActive: "Admin-Modus Aktiv",
+    adminModeBanner: "Sie sind im Admin-Modus - Ihre Kommentare werden hervorgehoben angezeigt",
+    turnOff: "Ausschalten",
+    close: "Schließen",
+    changeLanguage: "Sprache ändern",
+    languageChanged: "Sprache erfolgreich geändert",
+    downloadPdf: "PDF herunterladen",
+    status: {
+      active: "Aktiv",
+      completed: "Abgeschlossen",
+      suspended: "Ausgesetzt",
+      deleted: "Gelöscht"
+    }
+  },
+  hu: {
+    overview: "Áttekintés",
+    invoices: "Számlák",
+    files: "Fájlok",
+    documents: "Dokumentumok",
+    milestones: "Mérföldkövek",
+    uploadFile: "Fájl feltöltése",
+    noProject: "Nincs betöltve projekt",
+    selectProject: "Kérjük, válasszon egy projektet vagy jelentkezzen be újra",
+    back: "Visszalépés",
+    client: "Ügyfél",
+    lastUpdate: "Utolsó frissítés",
+    logout: "Kilépés",
+    adminMode: "Admin mód",
+    adminModeActive: "Admin mód aktív",
+    adminModeBanner: "Admin módban van - a hozzászólásai megkülönböztetett módon jelennek meg",
+    turnOff: "Kikapcsolás",
+    close: "Bezárás",
+    changeLanguage: "Nyelv váltása",
+    languageChanged: "Nyelv sikeresen megváltoztatva",
+    downloadPdf: "PDF letöltése",
+    status: {
+      active: "Aktív",
+      completed: "Befejezett",
+      suspended: "Felfüggesztett",
+      deleted: "Törölt"
+    }
+  }
+};
+
+// Status translation keys mapping
+const statusMapping = {
+  'aktív': 'active',
+  'befejezett': 'completed',
+  'felfüggesztett': 'suspended',
+  'törölt': 'deleted'
+};
+
+const API_URL = 'https://admin.nb-studio.net:5001/api';
+const API_KEY = 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0';
+
+const SharedProjectDashboard = ({ 
+  project, 
+  language = 'hu', 
+  onUpdate, 
+  onLogout, 
+  onLanguageChange,
+  isAdmin = false 
+}) => {
+  // Get translations for current language
+  const t = translations[language];
+
   // Normalizáljuk a projekt objektumot, ha az _id hiányzik
   const normalizedProject = React.useMemo(() => {
     if (!project) return null;
@@ -39,22 +152,24 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout, isAdmin = false }
         hasId: Boolean(normalizedProject.id),
         has_Id: Boolean(normalizedProject._id),
         projectId: getProjectId(normalizedProject),
-        isAdmin: isAdmin
+        isAdmin: isAdmin,
+        language: language
       });
-      console.log('Full project structure:', JSON.stringify(normalizedProject, null, 2));
     }
-  }, [normalizedProject]);
+  }, [normalizedProject, language]);
 
   // State management
   const [files, setFiles] = useState([]);
+  const [documents, setDocuments] = useState([]);
   const [activeTab, setActiveTab] = useState('overview');
   const fileInputRef = useRef(null);
-  const [comments, setComments] = useState([]);
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [previewFile, setPreviewFile] = useState(null);
   const [viewingInvoice, setViewingInvoice] = useState(null);
+  const [viewingDocument, setViewingDocument] = useState(null);
   const [adminMode, setAdminMode] = useState(isAdmin);
+  const [showLanguageDropdown, setShowLanguageDropdown] = useState(false);
 
   // Load data on component initialization
   useEffect(() => {
@@ -73,13 +188,41 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout, isAdmin = false }
       debugLog('SharedProjectDashboard', `Loaded ${savedFiles.length} files from localStorage`);
     }
 
-    // Load comments from localStorage
-    const savedComments = loadFromLocalStorage(normalizedProject, 'comments');
-    if (savedComments && savedComments.length > 0) {
-      setComments(savedComments);
-      debugLog('SharedProjectDashboard', `Loaded ${savedComments.length} comments from localStorage`);
+    // Load documents from localStorage
+    const savedDocuments = loadFromLocalStorage(normalizedProject, 'documents');
+    if (savedDocuments && savedDocuments.length > 0) {
+      setDocuments(savedDocuments);
+      debugLog('SharedProjectDashboard', `Loaded ${savedDocuments.length} documents from localStorage`);
     }
+
+    // Get documents from server
+    fetchDocuments(projectId);
   }, [normalizedProject]);
+
+  // Fetch documents from server
+  const fetchDocuments = async (projectId) => {
+    try {
+      debugLog('fetchDocuments', 'Fetching documents from server', { projectId });
+      
+      const response = await fetch(`${API_URL}/projects/${projectId}/documents`, {
+        headers: {
+          'X-API-Key': API_KEY
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data && Array.isArray(data)) {
+          debugLog('fetchDocuments', `Fetched ${data.length} documents from server`);
+          setDocuments(data);
+        }
+      } else {
+        debugLog('fetchDocuments', 'Failed to fetch documents', { status: response.status });
+      }
+    } catch (error) {
+      debugLog('fetchDocuments', 'Error fetching documents', { error });
+    }
+  };
 
   // Show success message helper
   const showSuccessMessage = (message) => {
@@ -105,10 +248,22 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout, isAdmin = false }
     setPreviewFile(file);
   };
 
+  // Handler for showing document preview
+  const handleShowDocumentPreview = (document) => {
+    debugLog('handleShowDocumentPreview', 'Showing document preview', { documentName: document.name });
+    setViewingDocument(document);
+  };
+
   // Handler for closing file preview
   const handleCloseFilePreview = () => {
     debugLog('handleCloseFilePreview', 'Closing file preview');
     setPreviewFile(null);
+  };
+
+  // Handler for closing document preview
+  const handleCloseDocumentPreview = () => {
+    debugLog('handleCloseDocumentPreview', 'Closing document preview');
+    setViewingDocument(null);
   };
 
   // Handler for showing invoice details
@@ -153,19 +308,66 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout, isAdmin = false }
     debugLog('toggleAdminMode', `Admin mode ${!adminMode ? 'enabled' : 'disabled'}`);
   };
 
+  // Handle language change
+  const handleLocalLanguageChange = (lang) => {
+    if (onLanguageChange) {
+      onLanguageChange(lang);
+      showSuccessMessage(t.languageChanged);
+    }
+    setShowLanguageDropdown(false);
+  };
+  
+  // Generate PDF for invoice
+  const handleGeneratePDF = async (invoice) => {
+    try {
+      debugLog('handleGeneratePDF', 'Generating PDF for invoice', { invoiceNumber: invoice.number });
+      
+      // Call API to generate PDF
+      const response = await fetch(`${API_URL}/projects/${normalizedProject._id}/invoices/${invoice._id}/pdf`, {
+        method: 'GET',
+        headers: {
+          'X-API-Key': API_KEY
+        }
+      });
+      
+      if (response.ok) {
+        // Get blob from response
+        const blob = await response.blob();
+        
+        // Create download link
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `invoice-${invoice.number}.pdf`);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        
+        showSuccessMessage(t.downloadPdf);
+        debugLog('handleGeneratePDF', 'PDF downloaded successfully');
+      } else {
+        debugLog('handleGeneratePDF', 'Failed to generate PDF', { status: response.status });
+        showErrorMessage('Failed to generate PDF');
+      }
+    } catch (error) {
+      debugLog('handleGeneratePDF', 'Error generating PDF', { error });
+      showErrorMessage('Error generating PDF');
+    }
+  };
+
   if (!normalizedProject) {
     debugLog('SharedProjectDashboard', 'No project data - rendering empty state');
     return (
       <div className="flex justify-center items-center h-screen bg-gray-50">
         <div className="bg-white p-8 rounded-lg shadow text-center">
           <AlertTriangle className="h-16 w-16 text-yellow-500 mx-auto mb-4" />
-          <h2 className="text-xl font-bold mb-2">Nincs betöltve projekt</h2>
-          <p className="text-gray-600 mb-4">Kérjük, válasszon egy projektet vagy jelentkezzen be újra</p>
+          <h2 className="text-xl font-bold mb-2">{t.noProject}</h2>
+          <p className="text-gray-600 mb-4">{t.selectProject}</p>
           <button 
             onClick={onLogout}
             className="px-4 py-2 bg-indigo-600 text-white rounded-md"
           >
-            Visszalépés
+            {t.back}
           </button>
         </div>
       </div>
@@ -173,6 +375,12 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout, isAdmin = false }
   }
 
   const projectId = getProjectId(normalizedProject);
+  
+  // Get status text with translation
+  const getStatusText = (status) => {
+    const statusKey = statusMapping[status] || 'active';
+    return t.status[statusKey] || status;
+  };
 
   return (
     <div className="bg-gray-50 min-h-screen">
@@ -185,10 +393,10 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout, isAdmin = false }
                 <h1 className="text-xl font-bold text-gray-900">{normalizedProject.name}</h1>
                 <div className="mt-1 flex items-center text-sm text-gray-500">
                   <Users className="h-4 w-4 mr-1.5" />
-                  <span className="mr-2">Ügyfél: {normalizedProject.client?.name || 'N/A'}</span>
+                  <span className="mr-2">{t.client}: {normalizedProject.client?.name || 'N/A'}</span>
                   <span className="mx-1">•</span>
                   <Calendar className="h-4 w-4 mx-1" />
-                  <span>Utolsó frissítés: {formatShortDate(normalizedProject.updatedAt || new Date())}</span>
+                  <span>{t.lastUpdate}: {formatShortDate(normalizedProject.updatedAt || new Date())}</span>
                   {/* Debug information about project ID */}
                   <span className="mx-1 text-xs text-gray-400">ID: {projectId?.substring(0, 8)}</span>
                 </div>
@@ -205,8 +413,45 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout, isAdmin = false }
                   normalizedProject.status === 'befejezett' ? 'bg-blue-500' :
                   'bg-gray-500'
                 }`}></div>
-                {normalizedProject.status}
+                {getStatusText(normalizedProject.status)}
               </span>
+              
+              {/* Language Selector */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowLanguageDropdown(!showLanguageDropdown)}
+                  className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                >
+                  <Globe className="h-4 w-4 mr-2" />
+                  {language.toUpperCase()}
+                  <ChevronDown className="h-4 w-4 ml-1" />
+                </button>
+                
+                {showLanguageDropdown && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-20">
+                    <div className="py-1">
+                      <button
+                        onClick={() => handleLocalLanguageChange('hu')}
+                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      >
+                        Magyar {language === 'hu' && <Check className="inline h-4 w-4 ml-2" />}
+                      </button>
+                      <button
+                        onClick={() => handleLocalLanguageChange('de')}
+                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      >
+                        Deutsch {language === 'de' && <Check className="inline h-4 w-4 ml-2" />}
+                      </button>
+                      <button
+                        onClick={() => handleLocalLanguageChange('en')}
+                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      >
+                        English {language === 'en' && <Check className="inline h-4 w-4 ml-2" />}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
               
               {/* Admin Mode Toggle (csak akkor látható, ha isAdmin=true) */}
               {isAdmin && (
@@ -218,7 +463,7 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout, isAdmin = false }
                       : 'bg-white text-gray-700 border-gray-300'
                   }`}
                 >
-                  {adminMode ? 'Admin mód aktív' : 'Admin mód'}
+                  {adminMode ? t.adminModeActive : t.adminMode}
                 </button>
               )}
               
@@ -227,7 +472,7 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout, isAdmin = false }
                 className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
               >
                 <LogOut className="h-4 w-4 mr-2" />
-                Kilépés
+                {t.logout}
               </button>
             </div>
           </div>
@@ -257,13 +502,13 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout, isAdmin = false }
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
               </svg>
-              <span>Admin módban van - a hozzászólásai megkülönböztetett módon jelennek meg</span>
+              <span>{t.adminModeBanner}</span>
             </div>
             <button 
               onClick={toggleAdminMode}
               className="px-3 py-1 bg-purple-200 text-purple-800 rounded hover:bg-purple-300"
             >
-              Kikapcsolás
+              {t.turnOff}
             </button>
           </div>
         )}
@@ -280,7 +525,7 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout, isAdmin = false }
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
               >
-                Áttekintés
+                {t.overview}
               </button>
               <button
                 onClick={() => setActiveTab('invoices')}
@@ -290,7 +535,7 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout, isAdmin = false }
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm relative`}
               >
-                Számlák
+                {t.invoices}
                 {normalizedProject.invoices && normalizedProject.invoices.length > 0 && (
                   <span className="absolute -top-1 -right-1 h-5 w-5 text-xs flex items-center justify-center rounded-full bg-indigo-100 text-indigo-600">
                     {normalizedProject.invoices.length}
@@ -305,7 +550,7 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout, isAdmin = false }
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm relative`}
               >
-                Fájlok
+                {t.files}
                 {files.filter(file => file.projectId === projectId).length > 0 && (
                   <span className="absolute -top-1 -right-1 h-5 w-5 text-xs flex items-center justify-center rounded-full bg-indigo-100 text-indigo-600">
                     {files.filter(file => file.projectId === projectId).length}
@@ -313,17 +558,17 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout, isAdmin = false }
                 )}
               </button>
               <button
-                onClick={() => setActiveTab('comments')}
+                onClick={() => setActiveTab('documents')}
                 className={`${
-                  activeTab === 'comments'
+                  activeTab === 'documents'
                     ? 'border-indigo-500 text-indigo-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm relative`}
               >
-                Hozzászólások
-                {comments.filter(comment => comment.projectId === projectId).length > 0 && (
+                {t.documents}
+                {documents.filter(doc => doc.projectId === projectId).length > 0 && (
                   <span className="absolute -top-1 -right-1 h-5 w-5 text-xs flex items-center justify-center rounded-full bg-indigo-100 text-indigo-600">
-                    {comments.filter(comment => comment.projectId === projectId).length}
+                    {documents.filter(doc => doc.projectId === projectId).length}
                   </span>
                 )}
               </button>
@@ -336,7 +581,7 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout, isAdmin = false }
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
                 >
-                  Mérföldkövek
+                  {t.milestones}
                 </button>
               )}
             </nav>
@@ -354,7 +599,7 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout, isAdmin = false }
               className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex items-center shadow"
             >
               <Upload className="h-4 w-4 mr-2" />
-              Fájl feltöltése
+              {t.uploadFile}
             </button>
             <input
               type="file"
@@ -371,8 +616,9 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout, isAdmin = false }
           <ProjectOverview 
             project={normalizedProject} 
             files={files} 
-            comments={comments} 
+            documents={documents}
             setActiveTab={setActiveTab} 
+            language={language}
           />
         )}
 
@@ -380,6 +626,7 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout, isAdmin = false }
           <ProjectInvoices 
             project={normalizedProject} 
             onViewInvoice={handleViewInvoice} 
+            language={language}
           />
         )}
 
@@ -392,17 +639,20 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout, isAdmin = false }
             onShowFilePreview={handleShowFilePreview}
             showSuccessMessage={showSuccessMessage}
             showErrorMessage={showErrorMessage}
+            language={language}
           />
         )}
-
-        {activeTab === 'comments' && (
-          <ProjectComments 
-            project={normalizedProject} 
-            comments={comments} 
-            setComments={setComments}
+        
+        {activeTab === 'documents' && (
+          <ProjectDocuments
+            project={normalizedProject}
+            documents={documents}
+            setDocuments={setDocuments}
+            onShowDocumentPreview={handleShowDocumentPreview}
             showSuccessMessage={showSuccessMessage}
             showErrorMessage={showErrorMessage}
-            isAdmin={adminMode} // Átadjuk az isAdmin prop-ot a ProjectComments komponensnek
+            isAdmin={adminMode}
+            language={language}
           />
         )}
 
@@ -411,6 +661,7 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout, isAdmin = false }
           <FilePreviewModal 
             file={previewFile} 
             onClose={handleCloseFilePreview} 
+            language={language}
           />
         )}
 
@@ -419,6 +670,17 @@ const SharedProjectDashboard = ({ project, onUpdate, onLogout, isAdmin = false }
             invoice={viewingInvoice} 
             project={normalizedProject}
             onClose={handleCloseInvoiceView} 
+            onGeneratePDF={handleGeneratePDF}
+            language={language}
+          />
+        )}
+        
+        {viewingDocument && (
+          <DocumentViewModal
+            document={viewingDocument}
+            project={normalizedProject}
+            onClose={handleCloseDocumentPreview}
+            language={language}
           />
         )}
       </div>
