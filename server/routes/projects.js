@@ -70,10 +70,11 @@ router.post('/projects/:id/invoices', async (req, res) => {
     const invoiceData = req.body;
     console.log('Feldolgozandó számla adatok:', invoiceData);
 
-    // Biztosítsuk, hogy van _id mező
-    if (!invoiceData._id) {
-      console.log('_id mező hozzáadása a számlához');
-      invoiceData._id = new mongoose.Types.ObjectId();
+    // Az _id mezőt a Mongoose automatikusan létrehozza, nem kell manuálisan beállítani
+    // Töröljük az _id mezőt, ha van, hogy a Mongoose automatikusan adhassa hozzá
+    if (invoiceData._id) {
+      console.log('_id mező törlése a számláról, hogy a Mongoose automatikusan hozza létre');
+      delete invoiceData._id;
     }
 
     if (!invoiceData.items || !Array.isArray(invoiceData.items)) {
@@ -313,23 +314,24 @@ router.post('/verify-pin', async (req, res) => {
       return res.status(403).json({ message: 'Érvénytelen PIN kód' });
     }
 
-    // Számlák módosítása, hogy minden számlának legyen _id-ja
+    // Számlák feldolgozása - egyszerű JSON objektummá alakítás
     const processedInvoices = (project.invoices || []).map(invoice => {
       console.log('Számla feldolgozása a verify-pin-ben:', invoice.number, '_id:', invoice._id);
       
-      // Konvertáljuk a számlát egyszerű JSON objektummá, hogy elkerüljük a MongoDB objektum referenciákat
+      // Konvertáljuk a számlát egyszerű JSON objektummá
       const plainInvoice = JSON.parse(JSON.stringify(invoice));
       
-      // Biztosítsuk, hogy van _id és az string formátumban van
-      if (!plainInvoice._id) {
-        const newId = new mongoose.Types.ObjectId();
-        console.log('Számla _id mező hozzáadása:', invoice.number, 'új ID:', newId.toString());
-        plainInvoice._id = newId.toString();
-      } else if (typeof plainInvoice._id === 'object' && plainInvoice._id.$oid) {
-        // Ha BSON ObjectID formátum, konvertáljuk string-é
-        plainInvoice._id = plainInvoice._id.$oid;
+      // Ellenőrizzük, hogy van-e _id a számlán
+      if (plainInvoice._id) {
+        // A mongoose az _id-t ObjectId típusként tárolja, 
+        // a JSON.stringify-nál ez elveszhet, ezért itt biztosítjuk, hogy stringként legyen
+        if (typeof plainInvoice._id === 'object' && plainInvoice._id.$oid) {
+          console.log('Átalakítás: ObjectId-ből string-é:', plainInvoice._id.$oid);
+          plainInvoice._id = plainInvoice._id.$oid;
+        }
       }
       
+      console.log('Feldolgozott számla:', plainInvoice.number, 'ID:', plainInvoice._id);
       return plainInvoice;
     });
 

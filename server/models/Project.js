@@ -46,6 +46,7 @@ const projectSchema = new mongoose.Schema({
   },
   // Számlák
   invoices: [{
+    _id: { type: mongoose.Schema.Types.ObjectId, auto: true }, // Automatikus ObjectId generálás
     number: String,
     date: { type: Date, default: Date.now },
     amount: Number,
