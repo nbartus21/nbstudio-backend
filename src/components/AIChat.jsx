@@ -192,8 +192,9 @@ const AIChat = () => {
       };
       let requestBody = {};
       
-      // Mivel mindkét végpont ugyanazt hívja a szerveren, csak a nyilvános végpontot használjuk
-      // de hozzáadjuk az autentikációs adatokat is, ha be van jelentkezve
+      // Nyilvános végpontot használjunk a szerverrel való kommunikációhoz
+      // A szerveroldali chat API megfelelő végpontja: /api/public/chat
+      // Az router.post('/') kezeli a kérést
       requestUrl = `${API_URL}/api/public/chat`;
       headers['X-API-Key'] = API_KEY;
       
@@ -209,13 +210,24 @@ const AIChat = () => {
         requestBody = { messages };
       }
 
+      console.log('Küldés - URL:', requestUrl);
+      console.log('Küldés - Törzs:', JSON.stringify(requestBody));
+      
       const response = await fetch(requestUrl, {
         method: 'POST',
         headers: headers,
         body: JSON.stringify(requestBody),
       });
       
+      if (!response.ok) {
+        throw new Error(`API hiba: ${response.status} ${response.statusText}`);
+      }
+      
       const data = await response.json();
+      
+      if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+        throw new Error('Hibás válasz formátum az API-tól');
+      }
       
       // Add AI response to conversation
       const aiResponse = data.choices[0].message.content;

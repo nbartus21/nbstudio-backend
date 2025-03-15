@@ -53,7 +53,15 @@ try {
 // ----- Public endpoint for chat without authentication -----
 router.post('/', async (req, res) => {
   try {
-    const { messages } = req.body;
+    console.log('Public chat API kérés érkezett:', {
+      body: req.body,
+      headers: {
+        auth: req.headers.authorization ? 'Van' : 'Nincs',
+        'x-api-key': req.headers['x-api-key'] ? 'Van' : 'Nincs'
+      }
+    });
+    
+    const { messages, conversationId } = req.body;
     
     if (!messages || !Array.isArray(messages)) {
       return res.status(400).json({ message: 'Érvénytelen kérés formátum' });
@@ -63,30 +71,50 @@ router.post('/', async (req, res) => {
     const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || 'sk-a781f0251b034cf6b91f970b43d9caa5';
     const DEEPSEEK_API_URL = 'https://api.deepseek.com/chat/completions';
     
-    const response = await fetch(DEEPSEEK_API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`
-      },
-      body: JSON.stringify({
-        model: "deepseek-chat",
-        messages: messages,
-        stream: false
-      })
+    console.log('DeepSeek API hívás:', { 
+      url: DEEPSEEK_API_URL,
+      messages: messages.map(m => ({ role: m.role, content: m.content.substring(0, 50) + '...' }))
     });
     
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error('DeepSeek API hiba:', errorData);
-      return res.status(response.status).json({ 
+    try {
+      const response = await fetch(DEEPSEEK_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${DEEPSEEK_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: "deepseek-chat",
+          messages: messages,
+          stream: false
+        })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('DeepSeek API hiba:', errorData);
+        return res.status(response.status).json({ 
+          message: 'Hiba az AI szolgáltatásnál',
+          error: errorData 
+        });
+      }
+      
+      const data = await response.json();
+      console.log('DeepSeek API válasz:', { 
+        status: response.status,
+        hasChoices: !!data.choices,
+        firstChoice: data.choices && data.choices.length > 0 ? 'Van' : 'Nincs'
+      });
+      
+      // Sikeres válasz
+      res.json(data);
+    } catch (fetchError) {
+      console.error('Hiba a DeepSeek API hívása során:', fetchError);
+      return res.status(500).json({ 
         message: 'Hiba az AI szolgáltatásnál',
-        error: errorData 
+        error: fetchError.message 
       });
     }
-    
-    const data = await response.json();
-    res.json(data);
     
   } catch (error) {
     console.error('Chat API hiba:', error);
