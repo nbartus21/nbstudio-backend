@@ -86,6 +86,9 @@ const ProjectInvoices = ({ project, onViewInvoice, language = 'hu' }) => {
     invoicesCount: project?.invoices?.length || 0,
     language: language
   });
+  
+  // Debuggolási célból jelenítsük meg a konzolon a számlák adatait
+  console.log('A projekthez tartozó számlák:', JSON.stringify(project?.invoices || [], null, 2));
 
   // Get translations for current language
   const t = translations[language] || translations.hu;

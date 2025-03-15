@@ -283,14 +283,26 @@ router.post('/projects/:id/share', async (req, res) => {
 
 // Publikus végpont a PIN ellenőrzéshez (nem kell auth middleware)
 router.post('/verify-pin', async (req, res) => {
+  console.log('PIN ellenőrzés kérés érkezett:', req.body);
   try {
     const { token, pin } = req.body;
     
+    console.log('Token a verify-pin-ben:', token);
     const project = await Project.findOne({ 'sharing.token': token });
     
     if (!project) {
+      console.log('Projekt nem található a következő tokennel:', token);
+      // Próbáljuk meg keresni, hogy van-e egyáltalán projekt megosztási tokennel
+      const anyProjectWithSharing = await Project.findOne({ 'sharing': { $exists: true } });
+      if (anyProjectWithSharing) {
+        console.log('Van megosztott projekt, de nem ezzel a tokennel. Például:', anyProjectWithSharing.sharing.token);
+      } else {
+        console.log('Nincs egyetlen megosztott projekt sem az adatbázisban');
+      }
       return res.status(404).json({ message: 'A projekt nem található' });
     }
+    
+    console.log('Megtalált projekt:', project.name, 'számlák száma:', project.invoices?.length || 0);
 
     // Lejárat ellenőrzése
     if (project.sharing.expiresAt && new Date() > project.sharing.expiresAt) {
@@ -303,13 +315,22 @@ router.post('/verify-pin', async (req, res) => {
 
     // Számlák módosítása, hogy minden számlának legyen _id-ja
     const processedInvoices = (project.invoices || []).map(invoice => {
-      // Ellenőrizzük az _id mezőt és biztosítsuk, hogy stringként használható legyen
-      if (!invoice._id) {
-        console.log('Számla _id mező hozzáadása verify-pin hívásban:', invoice.number);
-        invoice._id = new mongoose.Types.ObjectId();
+      console.log('Számla feldolgozása a verify-pin-ben:', invoice.number, '_id:', invoice._id);
+      
+      // Konvertáljuk a számlát egyszerű JSON objektummá, hogy elkerüljük a MongoDB objektum referenciákat
+      const plainInvoice = JSON.parse(JSON.stringify(invoice));
+      
+      // Biztosítsuk, hogy van _id és az string formátumban van
+      if (!plainInvoice._id) {
+        const newId = new mongoose.Types.ObjectId();
+        console.log('Számla _id mező hozzáadása:', invoice.number, 'új ID:', newId.toString());
+        plainInvoice._id = newId.toString();
+      } else if (typeof plainInvoice._id === 'object' && plainInvoice._id.$oid) {
+        // Ha BSON ObjectID formátum, konvertáljuk string-é
+        plainInvoice._id = plainInvoice._id.$oid;
       }
-      // Egyéb mező konverziók itt
-      return invoice;
+      
+      return plainInvoice;
     });
 
     const sanitizedProject = {

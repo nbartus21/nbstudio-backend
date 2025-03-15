@@ -197,17 +197,21 @@ const SharedProjectView = () => {
           name: projectData.name
         });
         
-        // Save project data to state
-        setProject(projectData);
-        setIsVerified(true);
-        setError(null);
-        
-        // Save session to localStorage with language
-        const session = {
-          project: projectData,
-          timestamp: new Date().toISOString(),
-          language: language
-        };
+        // Debug: nézd meg a projekt struktúráját, különösen az invoices tömböt
+      console.log('Betöltött projekt adatok:', JSON.stringify(projectData, null, 2));
+      console.log('Számlák száma:', projectData.invoices?.length || 0);
+      
+      // Save project data to state
+      setProject(projectData);
+      setIsVerified(true);
+      setError(null);
+      
+      // Save session to localStorage with language
+      const session = {
+        project: projectData,
+        timestamp: new Date().toISOString(),
+        language: language
+      };
         localStorage.setItem(`project_session_${token}`, JSON.stringify(session));
         
         debugLog('verifyPin', 'Session saved with language preference');
