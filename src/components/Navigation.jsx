@@ -69,7 +69,8 @@ const Navigation = () => {
       items: [
         { path: "/contacts", label: "Kapcsolatfelvételek", icon: <Mail size={16} /> },
         { path: "/calculator", label: "Kalkulátor jelentkezések", icon: <Calculator size={16} /> },
-        { path: "/translation", label: "Fordítási Eszköz", icon: <Languages size={16} /> }
+        { path: "/translation", label: "Fordítási Eszköz", icon: <Languages size={16} /> },
+        { path: "/ai-chat", label: "AI Asszisztens", icon: <MessageCircle size={16} /> }
       ]
     },
     {
