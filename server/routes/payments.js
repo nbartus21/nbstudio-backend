@@ -15,6 +15,13 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_51QmjbrG2Q8B
 
 // Generate a payment link for an invoice
 router.post('/create-payment-link', async (req, res) => {
+  console.log('Payment link creation request received:', {
+    headers: req.headers,
+    body: req.body,
+    method: req.method,
+    path: req.path
+  });
+  
   try {
     const { invoiceId, projectId, pin } = req.body;
     

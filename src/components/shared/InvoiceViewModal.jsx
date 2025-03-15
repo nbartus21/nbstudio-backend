@@ -160,21 +160,28 @@ const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGenerat
       const sessionData = savedSession ? JSON.parse(savedSession) : {};
       const pin = sessionData.pin || '';
       
-      // Create payment link through API
+      // Create payment link through API - log additional debug information
       const API_URL = 'https://admin.nb-studio.net:5001/api';
       const API_KEY = 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0';
+      
+      console.log('Sending payment request to API');
+      console.log('API URL:', `${API_URL}/payments/create-payment-link`);
+      console.log('Invoice ID:', invoice._id);
+      console.log('Project ID:', project._id || project.id);
       
       const response = await fetch(`${API_URL}/payments/create-payment-link`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-API-Key': API_KEY
+          'X-API-Key': API_KEY,
+          'Accept': 'application/json'
         },
         body: JSON.stringify({
           invoiceId: invoice._id,
           projectId: project._id || project.id,
           pin
-        })
+        }),
+        credentials: 'include'
       });
       
       const data = await response.json();

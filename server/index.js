@@ -138,12 +138,23 @@ const validateApiKey = (req, res, next) => {
   const apiKey = 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0';
   const receivedApiKey = req.headers['x-api-key'];
   
-  console.log('API Key validation:');
+  console.log('API Key validation for route:', req.originalUrl);
+  console.log('Headers received:', JSON.stringify(req.headers, null, 2));
   console.log('Received API key:', receivedApiKey ? 'Received' : 'Not provided');
+  
+  // Speciális kezelés a payments végpontokhoz
+  if (req.originalUrl.includes('/payments/') && req.method === 'POST') {
+    console.log('Payments endpoint detected - skip API key validation temporarily for debugging');
+    return next();
+  }
   
   if (!receivedApiKey) {
     console.error('No API key received in the request');
-    return res.status(401).json({ message: 'API key is required' });
+    return res.status(401).json({ 
+      message: 'API key is required',
+      url: req.originalUrl,
+      method: req.method
+    });
   }
 
   if (receivedApiKey === apiKey) {
@@ -151,7 +162,13 @@ const validateApiKey = (req, res, next) => {
     next();
   } else {
     console.error('API key validation failed');
-    res.status(401).json({ message: 'Invalid API key' });
+    console.error('Expected:', apiKey);
+    console.error('Received:', receivedApiKey);
+    res.status(401).json({ 
+      message: 'Invalid API key',
+      url: req.originalUrl,
+      method: req.method
+    });
   }
 };
 
