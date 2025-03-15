@@ -83,8 +83,14 @@ router.get('/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => {
     });
 
     // Response headerek beállítása
+    let fileName = `szamla-${invoice.number}`;
+    // Ellenőrizzük, hogy van-e .pdf kiterjesztés
+    if (!fileName.toLowerCase().endsWith('.pdf')) {
+      fileName += '.pdf';
+    }
+    
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="szamla-${invoice.number}.pdf"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
 
     // PDF streamelése a response-ba
     doc.pipe(res);

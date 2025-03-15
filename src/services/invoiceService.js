@@ -18,6 +18,10 @@ export const downloadInvoicePDF = async (projectId, invoiceId) => {
       const filenameMatch = contentDisposition.match(/filename="(.+)"/);
       if (filenameMatch && filenameMatch[1]) {
         filename = filenameMatch[1];
+        // Ellenőrizzük, hogy van-e .pdf kiterjesztés
+        if (!filename.toLowerCase().endsWith('.pdf')) {
+          filename += '.pdf';
+        }
       }
     }
     

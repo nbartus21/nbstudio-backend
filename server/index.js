@@ -333,8 +333,12 @@ app.get('/api/documents/:id/pdf', async (req, res) => {
     
     console.log(`Found document: ${document.name} (${document._id})`);
     
-    // Generate safe filename for download
-    const fileName = `${document.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_${Date.now()}.pdf`;
+    // Generate safe filename for download with .pdf extension
+    let fileName = `${document.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_${Date.now()}`;
+    // Ellenőrizzük, hogy van-e .pdf kiterjesztés
+    if (!fileName.toLowerCase().endsWith('.pdf')) {
+      fileName += '.pdf';
+    }
     
     // Set response headers
     res.setHeader('Content-Type', 'application/pdf');
@@ -460,8 +464,11 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
     
     console.log(`Found invoice: ${invoice.number} for project: ${project.name}`);
     
-    // Generate PDF file name
-    const fileName = `szamla-${invoice.number.replace(/[^a-z0-9]/gi, '-')}.pdf`;
+    // Generate PDF file name - make sure it has .pdf extension
+    let fileName = `szamla-${invoice.number.replace(/[^a-z0-9]/gi, '-')}`;
+    if (!fileName.toLowerCase().endsWith('.pdf')) {
+      fileName += '.pdf';
+    }
     
     // Set response headers
     res.setHeader('Content-Type', 'application/pdf');

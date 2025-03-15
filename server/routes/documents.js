@@ -394,7 +394,11 @@ router.get('/documents/:id/pdf', apiKeyChecker, async (req, res) => {
     console.log(`Megtalált dokumentum: ${document.name} (${document._id})`);
     
     // Generáljunk egy biztonságos fájlnevet a letöltéshez
-    const fileName = `${document.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_${Date.now()}.pdf`;
+    let fileName = `${document.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_${Date.now()}`;
+    // Ellenőrizzük, hogy van-e .pdf kiterjesztés
+    if (!fileName.toLowerCase().endsWith('.pdf')) {
+      fileName += '.pdf';
+    }
     
     // Set response headers immediately
     res.setHeader('Content-Type', 'application/pdf');

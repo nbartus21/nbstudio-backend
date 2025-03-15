@@ -168,9 +168,15 @@ const DocumentViewModal = ({ document: docData, project, onClose, language = 'hu
           
           // Create download link for blob
           const url = window.URL.createObjectURL(blob);
+          // Biztosítsuk, hogy a fájlnév végén legyen .pdf kiterjesztés
+          let fileName = docData.name || `document-${docData._id}`;
+          if (!fileName.toLowerCase().endsWith('.pdf')) {
+            fileName += '.pdf';
+          }
+          
           const a = window.document.createElement('a');
           a.href = url;
-          a.download = docData.name || `document-${docData._id}.pdf`;
+          a.download = fileName;
           window.document.body.appendChild(a);
           a.click();
           
