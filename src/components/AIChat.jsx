@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Maximize2, Minimize2, Send, MessageSquare, Trash2, Save } from 'lucide-react';
+import { X, Maximize2, Minimize2, Send, MessageSquare, Trash2, Save, RefreshCw, Download } from 'lucide-react';
 
 const AIChat = () => {
   // States
@@ -10,6 +10,9 @@ const AIChat = () => {
   const [conversations, setConversations] = useState([]);
   const [currentConversationId, setCurrentConversationId] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [serverConversations, setServerConversations] = useState([]);
+  const [syncStatus, setSyncStatus] = useState('');
   
   const messagesEndRef = useRef(null);
   const chatInputRef = useRef(null);
@@ -28,15 +31,78 @@ const AIChat = () => {
     }
   }, [isOpen]);
 
-  // Load conversations from localStorage
+  // Ellenőrizzük, hogy a felhasználó be van-e jelentkezve
   useEffect(() => {
-    const savedConversations = localStorage.getItem('aiChatConversations');
-    if (savedConversations) {
-      setConversations(JSON.parse(savedConversations));
+    const isLoggedIn = sessionStorage.getItem('isAuthenticated') === 'true';
+    setIsAuthenticated(isLoggedIn);
+    
+    // Ha be van jelentkezve, lekérjük a szerverről a beszélgetéseket
+    if (isLoggedIn) {
+      fetchServerConversations();
+    } else {
+      // Ha nincs bejelentkezve, csak a helyi tárolóból töltjük be
+      const savedConversations = localStorage.getItem('aiChatConversations');
+      if (savedConversations) {
+        setConversations(JSON.parse(savedConversations));
+      }
     }
   }, []);
-
-  // Save conversations to localStorage
+  
+  // A szerver beszélgetések lekérése
+  const fetchServerConversations = async () => {
+    try {
+      const API_URL = 'https://admin.nb-studio.net:5001/api';
+      const token = sessionStorage.getItem('token');
+      
+      const response = await fetch(`${API_URL}/chat/conversations`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setServerConversations(data);
+        setSyncStatus('Beszélgetések sikeresen betöltve a szerverről.');
+        
+        // Ha van szerverről lekért beszélgetés, és még nincs kiválasztva beszélgetés,
+        // akkor betöltjük a legfrissebbet
+        if (data.length > 0 && !currentConversationId) {
+          fetchConversationById(data[0]._id);
+        }
+      } else {
+        console.error('Hiba a beszélgetések lekérése során:', response.statusText);
+        setSyncStatus('Nem sikerült a szerverről betölteni a beszélgetéseket.');
+      }
+    } catch (error) {
+      console.error('Hiba a beszélgetések lekérése során:', error);
+      setSyncStatus('Hiba történt a szerverrel való kommunikáció során.');
+    }
+  };
+  
+  // Egy beszélgetés lekérése ID alapján
+  const fetchConversationById = async (id) => {
+    try {
+      const API_URL = 'https://admin.nb-studio.net:5001/api';
+      const token = sessionStorage.getItem('token');
+      
+      const response = await fetch(`${API_URL}/chat/conversations/${id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setConversation(data.messages);
+        setCurrentConversationId(data._id);
+      }
+    } catch (error) {
+      console.error('Hiba a beszélgetés lekérése során:', error);
+    }
+  };
+  
+  // Helyi beszélgetések mentése localStorage-ba
   useEffect(() => {
     if (conversations.length > 0) {
       localStorage.setItem('aiChatConversations', JSON.stringify(conversations));
@@ -63,17 +129,35 @@ const AIChat = () => {
         content: msg.content
       }));
       
-      // Call DeepSeek API
       const API_URL = 'https://admin.nb-studio.net:5001/api';
       const API_KEY = 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0';
+      
+      // Ha be van jelentkezve, használjuk az autentikált végpontot, egyébként a publikusat
+      let requestUrl = '';
+      let headers = {
+        'Content-Type': 'application/json'
+      };
+      let requestBody = {};
+      
+      if (isAuthenticated) {
+        // Autentikált kérés
+        requestUrl = `${API_URL}/chat`;
+        headers['Authorization'] = `Bearer ${sessionStorage.getItem('token')}`;
+        requestBody = { 
+          messages,
+          conversationId: currentConversationId // Ha van aktuális beszélgetés ID, azt is küldjük
+        };
+      } else {
+        // Publikus kérés (nincs bejelentkezve)
+        requestUrl = `${API_URL}/public/chat`;
+        headers['X-API-Key'] = API_KEY;
+        requestBody = { messages };
+      }
 
-      const response = await fetch(`${API_URL}/public/chat`, {
+      const response = await fetch(requestUrl, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-API-Key': API_KEY
-        },
-        body: JSON.stringify({ messages }),
+        headers: headers,
+        body: JSON.stringify(requestBody),
       });
       
       const data = await response.json();
@@ -87,8 +171,15 @@ const AIChat = () => {
       
       setConversation(finalConversation);
       
-      // Update or create conversation in storage
-      updateConversationStorage(finalConversation);
+      if (isAuthenticated && data.conversationId) {
+        // Ha autentikált és a szerver küldött vissza conversation ID-t, akkor frissítsük a helyi ID-t
+        setCurrentConversationId(data.conversationId);
+        // Frissítsük a beszélgetések listáját
+        fetchServerConversations();
+      } else {
+        // Ha nincs bejelentkezve, vagy nincs visszaküldött ID, akkor helyi tárolás
+        updateConversationStorage(finalConversation);
+      }
     } catch (error) {
       console.error('Error calling AI API:', error);
       setConversation([
@@ -147,11 +238,40 @@ const AIChat = () => {
   };
   
   // Delete a conversation
-  const deleteConversation = (conversationId, e) => {
+  const deleteConversation = async (conversationId, e) => {
     e.stopPropagation();
-    setConversations(prevConversations => 
-      prevConversations.filter(c => c.id !== conversationId)
-    );
+    
+    // Ha szerverről jött a beszélgetés (autentikált felhasználó esetén)
+    if (isAuthenticated && typeof conversationId === 'string' && conversationId.length === 24) {
+      try {
+        const API_URL = 'https://admin.nb-studio.net:5001/api';
+        const token = sessionStorage.getItem('token');
+        
+        const response = await fetch(`${API_URL}/chat/conversations/${conversationId}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (response.ok) {
+          setSyncStatus('Beszélgetés sikeresen törölve a szerverről.');
+          // Frissítsük a szerver beszélgetések listáját
+          fetchServerConversations();
+        } else {
+          console.error('Hiba a beszélgetés törlése során:', response.statusText);
+          setSyncStatus('Nem sikerült törölni a beszélgetést a szerverről.');
+        }
+      } catch (error) {
+        console.error('Hiba a beszélgetés törlése során:', error);
+        setSyncStatus('Hiba történt a szerverrel való kommunikáció során.');
+      }
+    } else {
+      // Helyi beszélgetés törlése
+      setConversations(prevConversations => 
+        prevConversations.filter(c => c.id !== conversationId)
+      );
+    }
     
     // If the deleted conversation was the current one, clear it
     if (currentConversationId === conversationId) {
@@ -232,47 +352,110 @@ const AIChat = () => {
         <div className={`${isAIChatPage ? 'w-1/4' : 'w-64'} border-r border-gray-200 bg-gray-50 flex flex-col h-full`}>
           <div className="p-3 border-b border-gray-200 flex justify-between items-center">
             <h2 className="font-medium text-base">Mentett Sablonok</h2>
-            <button
-              onClick={() => startNewConversation()}
-              className="text-blue-500 hover:text-blue-600"
-              title="Új beszélgetés"
-            >
-              +
-            </button>
+            <div className="flex space-x-1">
+              {isAuthenticated && (
+                <button
+                  onClick={fetchServerConversations}
+                  className="text-gray-500 hover:text-blue-600"
+                  title="Beszélgetések frissítése a szerverről"
+                >
+                  <RefreshCw size={14} />
+                </button>
+              )}
+              <button
+                onClick={() => startNewConversation()}
+                className="text-blue-500 hover:text-blue-600"
+                title="Új beszélgetés"
+              >
+                +
+              </button>
+            </div>
           </div>
           
+          {/* Státusz információ */}
+          {syncStatus && (
+            <div className="px-3 py-1 bg-blue-50 text-xs text-blue-700 border-b border-blue-100">
+              {syncStatus}
+            </div>
+          )}
+          
           <div className="flex-1 overflow-y-auto h-full">
-            {conversations.length === 0 ? (
-              <div className="p-4 text-gray-500 text-center text-sm h-full flex items-center justify-center">
-                <div>
-                  <p>Még nincsenek mentett sablonok</p>
-                  <p className="text-xs mt-2 text-gray-400">Küldj üzenetet, hogy elkezdd az első beszélgetést</p>
-                </div>
+            {/* Ha be van jelentkezve, a szerverről lekért beszélgetéseket mutatjuk */}
+            {isAuthenticated ? (
+              <div>
+                {serverConversations.length === 0 ? (
+                  <div className="p-4 text-gray-500 text-center text-sm h-full flex items-center justify-center">
+                    <div>
+                      <p>Még nincsenek mentett beszélgetések</p>
+                      <p className="text-xs mt-2 text-gray-400">Küldj üzenetet, hogy elkezdd az első beszélgetést</p>
+                    </div>
+                  </div>
+                ) : (
+                  <ul className="h-full">
+                    {serverConversations.map((convo) => (
+                      <li 
+                        key={convo._id}
+                        onClick={() => fetchConversationById(convo._id)}
+                        className={`p-2 border-b border-gray-200 hover:bg-gray-100 cursor-pointer flex justify-between ${
+                          currentConversationId === convo._id ? 'bg-blue-50' : ''
+                        }`}
+                      >
+                        <div className="overflow-hidden">
+                          <div className="font-medium text-sm truncate">{convo.title || 'Névtelen'}</div>
+                          <div className="text-xs text-gray-500">{formatTimestamp(convo.updatedAt)}</div>
+                        </div>
+                        <button
+                          onClick={(e) => deleteConversation(convo._id, e)}
+                          className="text-gray-400 hover:text-red-500"
+                          title="Beszélgetés törlése"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             ) : (
-              <ul className="h-full">
-                {conversations.map((convo) => (
-                  <li 
-                    key={convo.id}
-                    onClick={() => loadConversation(convo.id)}
-                    className={`p-2 border-b border-gray-200 hover:bg-gray-100 cursor-pointer flex justify-between ${
-                      currentConversationId === convo.id ? 'bg-blue-50' : ''
-                    }`}
-                  >
-                    <div className="overflow-hidden">
-                      <div className="font-medium text-sm truncate">{convo.title || 'Névtelen'}</div>
-                      <div className="text-xs text-gray-500">{formatTimestamp(convo.updatedAt)}</div>
+              // Ha nincs bejelentkezve, a helyi tárolt beszélgetéseket mutatjuk
+              <div>
+                {conversations.length === 0 ? (
+                  <div className="p-4 text-gray-500 text-center text-sm h-full flex items-center justify-center">
+                    <div>
+                      <p>Még nincsenek mentett sablonok</p>
+                      <p className="text-xs mt-2 text-gray-400">Küldj üzenetet, hogy elkezdd az első beszélgetést</p>
+                      {/* Segítség a felhasználónak */}
+                      <p className="text-xs mt-2 text-blue-500">
+                        Jelentkezz be, hogy a beszélgetéseid minden eszközön elérhetőek legyenek!
+                      </p>
                     </div>
-                    <button
-                      onClick={(e) => deleteConversation(convo.id, e)}
-                      className="text-gray-400 hover:text-red-500"
-                      title="Beszélgetés törlése"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </li>
-                ))}
-              </ul>
+                  </div>
+                ) : (
+                  <ul className="h-full">
+                    {conversations.map((convo) => (
+                      <li 
+                        key={convo.id}
+                        onClick={() => loadConversation(convo.id)}
+                        className={`p-2 border-b border-gray-200 hover:bg-gray-100 cursor-pointer flex justify-between ${
+                          currentConversationId === convo.id ? 'bg-blue-50' : ''
+                        }`}
+                      >
+                        <div className="overflow-hidden">
+                          <div className="font-medium text-sm truncate">{convo.title || 'Névtelen'}</div>
+                          <div className="text-xs text-gray-500">{formatTimestamp(convo.updatedAt)}</div>
+                        </div>
+                        <button
+                          onClick={(e) => deleteConversation(convo.id, e)}
+                          className="text-gray-400 hover:text-red-500"
+                          title="Beszélgetés törlése"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             )}
           </div>
         </div>
