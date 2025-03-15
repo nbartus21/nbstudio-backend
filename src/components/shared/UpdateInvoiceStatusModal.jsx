@@ -210,6 +210,13 @@ const UpdateInvoiceStatusModal = ({ invoice, onClose, onUpdateStatus, language =
       updateData.notes = notes;
     }
     
+    // Mentés előtt naplózzuk az adatokat
+    console.log('Számla frissítési adatok:', {
+      invoiceId: invoice._id,
+      newStatus: backendStatus,
+      updateData: updateData
+    });
+    
     onUpdateStatus(invoice, backendStatus, updateData);
   };
 

@@ -83,24 +83,41 @@ const InvoiceManager = () => {
   }, []);
   
   // Státusz frissítése
-  const handleUpdateStatus = async (invoice, newStatus) => {
+  const handleUpdateStatus = async (invoice, newStatus, updateData) => {
     try {
       const projectId = invoice.projectId;
       const invoiceId = invoice._id;
       
-      // Fizetett állapot esetén beállítjuk a fizetett összeget és dátumot
-      let updateData = { status: newStatus };
-      if (newStatus === 'fizetett') {
-        updateData.paidAmount = invoice.totalAmount;
-        updateData.paidDate = new Date();
+      console.log('Státusz frissítése:', {
+        projectId,
+        invoiceId,
+        newStatus,
+        updateData
+      });
+      
+      // Ha nem kaptunk külön updateData objektumot, akkor készítünk egy alapértelmezetet
+      if (!updateData) {
+        updateData = { status: newStatus };
+        
+        // Fizetett állapot esetén beállítjuk a fizetett összeget és dátumot
+        if (newStatus === 'fizetett') {
+          updateData.paidAmount = invoice.totalAmount;
+          updateData.paidDate = new Date();
+        }
       }
       
-      const response = await api.patch(
+      // Használjuk a PUT végpontot a PATCH helyett, mert az van implementálva a szerveren
+      const response = await api.put(
         `/api/projects/${projectId}/invoices/${invoiceId}`,
         updateData
       );
       
-      if (!response.ok) throw new Error('Számla frissítése sikertelen');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Számla frissítése sikertelen');
+      }
+      
+      console.log('Státusz frissítés sikeres');
       
       // UI frissítése
       setInvoices(prevInvoices => 
@@ -119,7 +136,7 @@ const InvoiceManager = () => {
       setShowUpdateStatusModal(false);
     } catch (err) {
       console.error('Hiba a számla státuszának frissítésekor:', err);
-      setError('Nem sikerült frissíteni a számla státuszát. Kérjük, próbálja újra később.');
+      setError(`Nem sikerült frissíteni a számla státuszát: ${err.message}`);
     }
   };
   
@@ -249,17 +266,20 @@ const InvoiceManager = () => {
   }, [searchTerm, statusFilter, dateFilter, projectFilter, sortBy, invoices]);
   
 // Új számla létrehozása
-const handleCreateInvoice = async () => {
-  if (!selectedProject) {
+const handleCreateInvoice = async (selectedProjectForInvoice, invoiceData) => {
+  if (!selectedProjectForInvoice) {
     setError('Nincs kiválasztott projekt!');
     return;
   }
 
   try {
+    console.log('Számla létrehozása a következő projekthez:', selectedProjectForInvoice.name);
+    console.log('Kapott számla adatok:', invoiceData);
+    
     // Ellenőrizzük az összes tételt
     const validItems = [];
     
-    for (const item of newInvoice.items) {
+    for (const item of invoiceData.items) {
       // Ellenőrizzük, hogy a leírás nem üres
       if (!item.description || item.description.trim() === '') {
         setError('A tétel leírása nem lehet üres!');
@@ -299,7 +319,7 @@ const handleCreateInvoice = async () => {
     const invoiceNumber = `INV-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}-${Math.floor(1000 + Math.random() * 9000)}`;
 
     // Számla adatok összeállítása
-    const invoiceData = {
+    const finalInvoiceData = {
       number: invoiceNumber,
       date: new Date(),
       items: validItems,
@@ -307,14 +327,14 @@ const handleCreateInvoice = async () => {
       paidAmount: 0,
       status: 'kiállított',
       dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 nap fizetési határidő
-      notes: newInvoice.notes || ''
+      notes: invoiceData.notes || ''
     };
 
-    console.log('Küldendő számla adatok:', JSON.stringify(invoiceData, null, 2));
+    console.log('Küldendő számla adatok:', JSON.stringify(finalInvoiceData, null, 2));
 
     const response = await api.post(
-      `/api/projects/${selectedProject._id}/invoices`,
-      invoiceData
+      `/api/projects/${selectedProjectForInvoice._id}/invoices`,
+      finalInvoiceData
     );
     
     if (!response.ok) {
@@ -323,21 +343,30 @@ const handleCreateInvoice = async () => {
     }
 
     const updatedProject = await response.json();
+    console.log('Számla létrehozása sikeres', updatedProject);
+    
+    // Keressük ki az újonnan létrehozott számlát
+    const latestInvoice = updatedProject.invoices[updatedProject.invoices.length - 1];
+    
+    if (!latestInvoice) {
+      throw new Error('Nem sikerült azonosítani az újonnan létrehozott számlát');
+    }
     
     // Új számla hozzáadása a listához
     const newlyCreatedInvoice = {
-      ...invoiceData,
-      _id: updatedProject.invoices[updatedProject.invoices.length - 1]._id,
-      projectId: selectedProject._id,
-      projectName: selectedProject.name,
-      clientName: selectedProject.client?.name || 'Ismeretlen ügyfél',
-      currency: selectedProject.financial?.currency || 'EUR'
+      ...finalInvoiceData,
+      _id: latestInvoice._id,
+      projectId: selectedProjectForInvoice._id,
+      projectName: selectedProjectForInvoice.name,
+      clientName: selectedProjectForInvoice.client?.name || 'Ismeretlen ügyfél',
+      currency: selectedProjectForInvoice.financial?.currency || 'EUR'
     };
     
     setInvoices(prev => [...prev, newlyCreatedInvoice]);
+    setFilteredInvoices(prev => [...prev, newlyCreatedInvoice]);
 
     setShowNewInvoiceModal(false);
-    setNewInvoice({ items: [{ description: '', quantity: 1, unitPrice: 0 }] });
+    setSelectedProject(null);
     showMessage(setSuccessMessage, 'Számla sikeresen létrehozva');
   } catch (error) {
     console.error('Hiba a számla létrehozásakor:', error);
