@@ -816,8 +816,8 @@ const handleCreateInvoice = async (selectedProjectForInvoice, invoiceData) => {
             setNewInvoice({ items: [{ description: '', quantity: 1, unitPrice: 0 }] });
           }}
           onCreateInvoice={(project, invoiceData) => {
-            setSelectedProject(project);
-            handleCreateInvoice();
+            console.log("Új számla létrehozása:", project?.name, invoiceData);
+            handleCreateInvoice(project, invoiceData);
           }}
           initialProjectId={selectedProject?._id}
         />

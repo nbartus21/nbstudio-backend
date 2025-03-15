@@ -37,7 +37,7 @@ const AccountingManager = () => {
     try {
       setLoading(true);
       const [transactionsRes, projectsRes, statsRes, taxRes, domainsRes] = await Promise.all([
-        api.get(`${ACCOUNTING_API_URL}/transactions?year=${selectedYear}&month=${selectedMonth}`),
+        api.get(`/api/accounting/transactions?year=${selectedYear}&month=${selectedMonth}`),
         api.get(`${API_URL}/projects`),
         api.get(`${ACCOUNTING_API_URL}/statistics?year=${selectedYear}&month=${selectedMonth}`),
         api.get(`${ACCOUNTING_API_URL}/tax-report?year=${selectedYear}`),
