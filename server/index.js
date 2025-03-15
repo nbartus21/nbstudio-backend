@@ -38,7 +38,6 @@ import tasksRoutes from './routes/tasks.js';
 import supportTicketRouter, { setupEmailEndpoint, initializeSocketIO } from './routes/supportTickets.js';
 import emailApiRouter from './routes/emailApi.js';
 import documentsRouter from './routes/documents.js';
-import chatApiRouter from './routes/chatApi.js';
 
 // Import middleware
 import authMiddleware from './middleware/auth.js';
@@ -260,8 +259,8 @@ publicRouter.post('/hosting/orders', validateApiKey, async (req, res) => {
 // Register public endpoints
 app.use('/api/public', publicRouter);
 
-// Public chat endpoint
-app.use('/api/public/chat', chatApiRouter);
+// // Public chat endpoint - temporarily disabled
+// app.use('/api/public/chat', chatApiRouter);
 
 // Public blog posts endpoint (no auth required)
 app.get('/api/posts', async (req, res) => {
@@ -429,7 +428,6 @@ app.use('/api/translation/tasks', tasksRoutes);
 app.use('/api/notes', notesRoutes);
 app.use('/api/support', supportTicketRouter);
 app.use('/api', documentsRouter);
-app.use('/api', chatApiRouter);
 
 // Fix for transactions endpoint directly accessing the accountingRoutes
 app.use('/api/transactions', (req, res, next) => {
