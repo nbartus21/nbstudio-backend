@@ -161,45 +161,94 @@ const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGenerat
       const pin = sessionData.pin || '';
       
       // Create payment link through API - log additional debug information
-      const API_URL = 'https://admin.nb-studio.net:5001/api';
+      const API_URL = 'https://admin.nb-studio.net:5001';
       const API_KEY = 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0';
       
-      console.log('Sending payment request to API');
-      console.log('API URL:', `${API_URL}/payments/create-payment-link`);
-      console.log('Invoice ID:', invoice._id);
-      console.log('Project ID:', project._id || project.id);
+      // Ellenőrizzük és normalizáljuk az invoice adatait
+      const invoiceId = invoice._id?.toString() || invoice.id?.toString();
+      const projectId = project._id?.toString() || project.id?.toString();
       
-      const response = await fetch(`${API_URL}/payments/create-payment-link`, {
+      console.log('Sending payment request to API');
+      console.log('Final API URL:', `${API_URL}/api/payments/create-payment-link`);
+      console.log('Invoice ID:', invoiceId, 'Type:', typeof invoiceId);
+      console.log('Project ID:', projectId, 'Type:', typeof projectId);
+      
+      if (!invoiceId || !projectId) {
+        throw new Error('Hiányzó számla vagy projekt azonosító');
+      }
+      
+      // Részletes adatok kiírása a konzolra
+      console.log('Invoice details:', JSON.stringify(invoice, null, 2));
+      
+      const response = await fetch(`${API_URL}/api/payments/create-payment-link`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'X-API-Key': API_KEY,
-          'Accept': 'application/json'
+          'Accept': 'application/json',
+          'Origin': window.location.origin
         },
         body: JSON.stringify({
-          invoiceId: invoice._id,
-          projectId: project._id || project.id,
-          pin
+          invoiceId: invoiceId,
+          projectId: projectId,
+          pin: pin
         }),
         credentials: 'include'
       });
       
-      const data = await response.json();
+      // Részletes válasz feldolgozás
+      console.log('Response status:', response.status);
+      console.log('Response headers:', response.headers);
       
-      if (response.ok && data.success) {
-        setStripePaymentUrl(data.url);
-        debugLog('InvoiceViewModal-cardPayment', 'Payment link created', { url: data.url });
+      try {
+        const data = await response.json();
+        console.log('Response data:', data);
         
-        // Redirect to Stripe
-        window.location.href = data.url;
-      } else {
-        setPaymentError(data.message || 'Hiba történt a fizetési link létrehozásakor');
-        debugLog('InvoiceViewModal-cardPayment', 'Error creating payment link', { error: data.message });
+        if (response.ok && data.success) {
+          setStripePaymentUrl(data.url);
+          debugLog('InvoiceViewModal-cardPayment', 'Payment link created', { 
+            url: data.url,
+            sessionId: data.sessionId 
+          });
+          
+          // Sikeres fizetési link - mentjük localStorage-ba is a későbbi ellenőrzéshez
+          try {
+            localStorage.setItem('stripe_session_' + invoiceId, JSON.stringify({
+              sessionId: data.sessionId,
+              url: data.url,
+              timestamp: new Date().toISOString(),
+              invoiceId: invoiceId
+            }));
+          } catch (storageError) {
+            console.warn('Could not save stripe session to localStorage', storageError);
+          }
+          
+          // Átirányítás a Stripe oldalára némi késleltetéssel, hogy a hibaüzenetek el tudjanak tűnni
+          setTimeout(() => {
+            window.location.href = data.url;
+          }, 500);
+        } else {
+          // Részletes hibaüzenet megjelenítése
+          setPaymentError(
+            data.message || 
+            (data.error ? `Hiba: ${data.error}` : 'Hiba történt a fizetési link létrehozásakor')
+          );
+          debugLog('InvoiceViewModal-cardPayment', 'Error creating payment link', { 
+            error: data.message,
+            details: data
+          });
+        }
+      } catch (jsonError) {
+        console.error('Failed to parse response as JSON:', jsonError);
+        setPaymentError(`Hiba: ${response.status} - ${response.statusText}`);
       }
     } catch (error) {
       console.error('Stripe payment error:', error);
-      setPaymentError('Kapcsolati hiba történt a fizetési link létrehozásakor');
-      debugLog('InvoiceViewModal-cardPayment', 'Exception during payment link creation', { error: error.message });
+      setPaymentError(`Kapcsolati hiba: ${error.message}`);
+      debugLog('InvoiceViewModal-cardPayment', 'Exception during payment link creation', { 
+        error: error.message,
+        stack: error.stack
+      });
     } finally {
       setIsLoadingPayment(false);
     }
