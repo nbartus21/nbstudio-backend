@@ -132,17 +132,12 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // API Key validation middleware
 const validateApiKey = (req, res, next) => {
-  const apiKey = process.env.PUBLIC_API_KEY;
+  // Hard-coded API key az egyszerűség kedvéért - ideális esetben környezeti változóból jönne
+  const apiKey = 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0';
   const receivedApiKey = req.headers['x-api-key'];
   
   console.log('API Key validation:');
-  console.log('Configured API key:', apiKey ? 'Set' : 'Not set');
   console.log('Received API key:', receivedApiKey ? 'Received' : 'Not provided');
-  
-  if (!apiKey) {
-    console.error('PUBLIC_API_KEY is not set in environment variables!');
-    return res.status(500).json({ message: 'Server configuration error' });
-  }
   
   if (!receivedApiKey) {
     console.error('No API key received in the request');

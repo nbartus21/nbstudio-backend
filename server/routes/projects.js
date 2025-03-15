@@ -282,7 +282,7 @@ router.post('/projects/:id/share', async (req, res) => {
   }
 });
 
-// Publikus végpont a PIN ellenőrzéshez (nem kell auth middleware)
+// Publikus végpont a PIN ellenőrzéshez (nem kell auth middleware, de API key validálás a router használatánál)
 router.post('/verify-pin', async (req, res) => {
   console.log('PIN ellenőrzés kérés érkezett:', req.body);
   try {

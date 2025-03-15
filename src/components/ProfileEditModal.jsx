@@ -7,8 +7,7 @@ import { debugLog } from './shared/utils';
 
 // API URL és key - ugyanazok mint a többi komponensben
 const API_URL = 'https://admin.nb-studio.net:5001/api';
-// Fontos: Ezt az API kulcsot a .env-ből kellene kiolvasni, nem beégetni a kódba
-const API_KEY = process.env.PUBLIC_API_KEY || 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0';
+const API_KEY = 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0';
 
 // Translation data for all UI elements
 const translations = {
