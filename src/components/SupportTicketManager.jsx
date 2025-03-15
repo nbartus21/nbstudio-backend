@@ -907,7 +907,7 @@ const SupportTicketManager = () => {
         {/* Ticket content */}
         <div className="p-4 bg-white border-b border-gray-200">
           <div className="prose prose-sm max-w-none">
-            <p>{selectedTicket.content}</p>
+            <div dangerouslySetInnerHTML={{ __html: selectedTicket.content }} />
           </div>
           
           {/* Csatolmányok megjelenítése */}
@@ -977,7 +977,7 @@ const SupportTicketManager = () => {
               </div>
               
               <div className="prose prose-sm max-w-none">
-                <p>{response.content}</p>
+                <div dangerouslySetInnerHTML={{ __html: response.content }} />
               </div>
               
               {/* Válasz csatolmányok */}
@@ -1163,6 +1163,7 @@ const SupportTicketManager = () => {
               className="w-full px-3 py-2 border border-gray-300 rounded-md"
               rows={4}
             />
+            <p className="text-xs text-gray-500 mt-1">HTML támogatott: &lt;p&gt;, &lt;b&gt;, &lt;i&gt;, &lt;ul&gt;, &lt;ol&gt;, &lt;li&gt;, stb.</p>
           </div>
           
           {/* Csatolmányok listája */}
@@ -1318,6 +1319,7 @@ const SupportTicketManager = () => {
                       rows={5}
                       required
                     />
+                    <p className="text-xs text-gray-500 mt-1">HTML támogatott: &lt;p&gt;, &lt;b&gt;, &lt;i&gt;, &lt;ul&gt;, &lt;ol&gt;, &lt;li&gt;, stb.</p>
                   </div>
                   
                   <div>
