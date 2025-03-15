@@ -1,6 +1,5 @@
 import express from 'express';
 import mongoose from 'mongoose';
-import Invoice from '../models/Invoice.js';
 import Stripe from 'stripe';
 
 const router = express.Router();
@@ -16,7 +15,15 @@ router.post('/create-payment-link', async (req, res) => {
     }
 
     // Find the invoice in the database
-    const invoice = await Invoice.findById(invoiceId);
+    // Use the Project model to find the invoice within a project
+    const Project = mongoose.model('Project');
+    const project = await Project.findById(projectId);
+    
+    if (!project) {
+      return res.status(404).json({ success: false, message: 'A projekt nem található' });
+    }
+    
+    const invoice = project.invoices.id(invoiceId);
     if (!invoice) {
       return res.status(404).json({ success: false, message: 'A számla nem található' });
     }
@@ -90,20 +97,32 @@ router.post('/webhook', (req, res, next) => {
     const session = event.data.object;
     
     // Extract metadata
-    const { invoiceId } = session.metadata;
+    const { invoiceId, projectId } = session.metadata;
     
-    if (invoiceId) {
+    if (invoiceId && projectId) {
       try {
-        // Update invoice status to paid
-        await Invoice.findByIdAndUpdate(invoiceId, { 
-          status: 'fizetett',
-          paidDate: new Date(),
-          paidAmount: session.amount_total / 100, // Convert from cents
-          paymentMethod: 'card',
-          paymentReference: session.payment_intent
-        });
+        // Update invoice status in the project
+        const Project = mongoose.model('Project');
+        const project = await Project.findById(projectId);
         
-        console.log(`Invoice ${invoiceId} marked as paid via Stripe payment`);
+        if (project) {
+          const invoice = project.invoices.id(invoiceId);
+          
+          if (invoice) {
+            invoice.status = 'fizetett';
+            invoice.paidDate = new Date();
+            invoice.paidAmount = session.amount_total / 100; // Convert from cents
+            invoice.paymentMethod = 'card';
+            invoice.paymentReference = session.payment_intent;
+            
+            await project.save();
+            console.log(`Invoice ${invoiceId} marked as paid via Stripe payment in project ${projectId}`);
+          } else {
+            console.error(`Invoice ${invoiceId} not found in project ${projectId}`);
+          }
+        } else {
+          console.error(`Project ${projectId} not found`);
+        }
       } catch (error) {
         console.error('Error updating invoice after payment:', error);
       }
