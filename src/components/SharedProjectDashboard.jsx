@@ -517,6 +517,37 @@ const SharedProjectDashboard = ({
     debugLog('handleCloseInvoiceView', 'Closing invoice view');
     setViewingInvoice(null);
   };
+  
+  // Update invoice status after payment
+  const handleUpdateInvoiceStatus = (invoiceId, newStatus) => {
+    debugLog('handleUpdateInvoiceStatus', `Updating invoice ${invoiceId} status to ${newStatus}`);
+    
+    if (!normalizedProject || !normalizedProject.invoices) return;
+    
+    // Update invoice status in project locally
+    const updatedProject = { ...normalizedProject };
+    const invoiceIndex = updatedProject.invoices.findIndex(inv => 
+      (inv._id && inv._id.toString() === invoiceId) || 
+      (inv.id && inv.id.toString() === invoiceId)
+    );
+    
+    if (invoiceIndex >= 0) {
+      updatedProject.invoices[invoiceIndex].status = newStatus;
+      
+      if (newStatus === 'fizetett' || newStatus === 'paid' || newStatus === 'bezahlt') {
+        updatedProject.invoices[invoiceIndex].paidDate = new Date().toISOString();
+        updatedProject.invoices[invoiceIndex].paidAmount = updatedProject.invoices[invoiceIndex].totalAmount;
+      }
+      
+      // Update project state
+      onUpdate(updatedProject);
+      
+      // Show success message
+      showSuccessMessage('A számla státusza sikeresen frissítve');
+    } else {
+      debugLog('handleUpdateInvoiceStatus', `Invoice ${invoiceId} not found in project`);
+    }
+  };
 
   // Handle file input change
   const handleFileInputChange = (e) => {
@@ -969,6 +1000,7 @@ const SharedProjectDashboard = ({
             project={normalizedProject}
             onClose={handleCloseInvoiceView} 
             onGeneratePDF={handleGeneratePDF}
+            onUpdateStatus={handleUpdateInvoiceStatus}
             language={language}
           />
         )}

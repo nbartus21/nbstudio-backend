@@ -1,0 +1,99 @@
+const express = require('express');
+const router = express.Router();
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const mongoose = require('mongoose');
+const Invoice = require('../models/Invoice');
+
+// Generate a payment link for an invoice
+router.post('/create-payment-link', async (req, res) => {
+  try {
+    const { invoiceId, projectId, pin } = req.body;
+    
+    if (!invoiceId || !mongoose.Types.ObjectId.isValid(invoiceId)) {
+      return res.status(400).json({ success: false, message: 'Érvénytelen számla azonosító' });
+    }
+
+    // Find the invoice in the database
+    const invoice = await Invoice.findById(invoiceId);
+    if (!invoice) {
+      return res.status(404).json({ success: false, message: 'A számla nem található' });
+    }
+
+    // Check if invoice is already paid
+    if (invoice.status === 'fizetett' || invoice.status === 'paid' || invoice.status === 'bezahlt') {
+      return res.status(400).json({ success: false, message: 'A számla már ki van fizetve' });
+    }
+
+    // Create a Stripe Checkout Session
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [{
+        price_data: {
+          currency: invoice.currency || 'eur',
+          product_data: {
+            name: `Invoice #${invoice.number}`,
+            description: `Payment for invoice #${invoice.number}`,
+          },
+          unit_amount: Math.round(invoice.totalAmount * 100), // Convert to cents
+        },
+        quantity: 1,
+      }],
+      mode: 'payment',
+      success_url: `${req.headers.origin}/shared-project/${projectId}?success=true&invoice=${invoiceId}`,
+      cancel_url: `${req.headers.origin}/shared-project/${projectId}?canceled=true`,
+      metadata: {
+        invoiceId: invoiceId.toString(),
+        projectId: projectId.toString(),
+        pin: pin || ''
+      },
+    });
+
+    res.json({ success: true, url: session.url });
+  } catch (error) {
+    console.error('Stripe payment link creation error:', error);
+    res.status(500).json({ success: false, message: 'Hiba történt a fizetési link létrehozásakor' });
+  }
+});
+
+// Webhook for handling Stripe payment events
+router.post('/webhook', express.raw({type: 'application/json'}), async (req, res) => {
+  const sig = req.headers['stripe-signature'];
+  const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  let event;
+
+  try {
+    event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
+  } catch (err) {
+    console.error('Webhook signature verification failed:', err.message);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  // Handle the checkout.session.completed event
+  if (event.type === 'checkout.session.completed') {
+    const session = event.data.object;
+    
+    // Extract metadata
+    const { invoiceId } = session.metadata;
+    
+    if (invoiceId) {
+      try {
+        // Update invoice status to paid
+        await Invoice.findByIdAndUpdate(invoiceId, { 
+          status: 'fizetett',
+          paidDate: new Date(),
+          paidAmount: session.amount_total / 100, // Convert from cents
+          paymentMethod: 'card',
+          paymentReference: session.payment_intent
+        });
+        
+        console.log(`Invoice ${invoiceId} marked as paid via Stripe payment`);
+      } catch (error) {
+        console.error('Error updating invoice after payment:', error);
+      }
+    }
+  }
+
+  res.json({ received: true });
+});
+
+module.exports = router;

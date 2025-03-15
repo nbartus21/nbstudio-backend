@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   FileText, X, Download, Printer, Share2, 
-  CheckCircle, AlertCircle, Clock, Mail 
+  CheckCircle, AlertCircle, Clock, Mail,
+  CreditCard
 } from 'lucide-react';
 import { formatShortDate, debugLog } from './utils';
 import QRCode from 'qrcode.react';
@@ -14,11 +15,39 @@ const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGenerat
   });
 
   const [showQRCode, setShowQRCode] = useState(false);
+  const [stripePaymentUrl, setStripePaymentUrl] = useState(null);
+  const [isLoadingPayment, setIsLoadingPayment] = useState(false);
+  const [paymentError, setPaymentError] = useState(null);
   
   if (!invoice) {
     debugLog('InvoiceViewModal', 'No invoice provided');
     return null;
   }
+  
+  // Check for success or canceled payment in URL params when component mounts
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const success = url.searchParams.get('success');
+    const canceled = url.searchParams.get('canceled');
+    const invoiceId = url.searchParams.get('invoice');
+    
+    if (success === 'true' && invoiceId === invoice._id) {
+      debugLog('InvoiceViewModal', 'Payment was successful', { invoiceId });
+      // Update invoice status locally or refresh data
+      if (onUpdateStatus) {
+        onUpdateStatus(invoice._id, 'fizetett');
+      }
+    } else if (canceled === 'true' && invoiceId === invoice._id) {
+      debugLog('InvoiceViewModal', 'Payment was canceled', { invoiceId });
+      setPaymentError('A fizetés meg lett szakítva vagy elutasításra került.');
+    }
+    
+    // Clean up URL params
+    if (success || canceled) {
+      const cleanUrl = window.location.pathname;
+      window.history.replaceState({}, document.title, cleanUrl);
+    }
+  }, [invoice._id]);
 
   const currency = invoice?.currency || project?.financial?.currency || 'EUR';
 
@@ -117,6 +146,56 @@ const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGenerat
   const handleSendReminder = () => {
     debugLog('InvoiceViewModal-sendReminder', 'Sending reminder for invoice', invoice.number);
     alert('Emlékeztető küldése funkcionalitás hamarosan elérhető lesz!');
+  };
+  
+  // Bankkártyás fizetés Stripe-pal
+  const handleCardPayment = async () => {
+    debugLog('InvoiceViewModal-cardPayment', 'Creating Stripe payment link', { invoiceId: invoice._id });
+    setIsLoadingPayment(true);
+    setPaymentError(null);
+    
+    try {
+      // Get project sharing info from localStorage to retrieve PIN
+      const savedSession = localStorage.getItem(`project_session_${project.sharing?.token}`);
+      const sessionData = savedSession ? JSON.parse(savedSession) : {};
+      const pin = sessionData.pin || '';
+      
+      // Create payment link through API
+      const API_URL = 'https://admin.nb-studio.net:5001/api';
+      const API_KEY = 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0';
+      
+      const response = await fetch(`${API_URL}/payments/create-payment-link`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-API-Key': API_KEY
+        },
+        body: JSON.stringify({
+          invoiceId: invoice._id,
+          projectId: project._id || project.id,
+          pin
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok && data.success) {
+        setStripePaymentUrl(data.url);
+        debugLog('InvoiceViewModal-cardPayment', 'Payment link created', { url: data.url });
+        
+        // Redirect to Stripe
+        window.location.href = data.url;
+      } else {
+        setPaymentError(data.message || 'Hiba történt a fizetési link létrehozásakor');
+        debugLog('InvoiceViewModal-cardPayment', 'Error creating payment link', { error: data.message });
+      }
+    } catch (error) {
+      console.error('Stripe payment error:', error);
+      setPaymentError('Kapcsolati hiba történt a fizetési link létrehozásakor');
+      debugLog('InvoiceViewModal-cardPayment', 'Exception during payment link creation', { error: error.message });
+    } finally {
+      setIsLoadingPayment(false);
+    }
   };
 
   return (
@@ -234,6 +313,25 @@ const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGenerat
                       <p>SWIFT/BIC: COBADEFFXXX</p>
                       <p>Bank: Commerzbank AG</p>
                       <p className="mt-2">Közlemény: {invoice.number}</p>
+                      
+                      {/* Bankkártyás fizetés */}
+                      <div className="mt-4">
+                        <p className="mb-1 font-medium">Bankkártyás fizetés:</p>
+                        <button
+                          onClick={handleCardPayment}
+                          disabled={isLoadingPayment}
+                          className="px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center text-sm"
+                        >
+                          <CreditCard className="h-4 w-4 mr-1" />
+                          {isLoadingPayment ? 'Betöltés...' : 'Fizetés bankkártyával'}
+                        </button>
+                        
+                        {paymentError && (
+                          <div className="mt-2 p-2 bg-red-50 border border-red-200 text-red-700 rounded text-sm">
+                            {paymentError}
+                          </div>
+                        )}
+                      </div>
                     </div>
                     
                     <div className="flex flex-col items-center">

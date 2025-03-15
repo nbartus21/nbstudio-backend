@@ -39,6 +39,7 @@ import supportTicketRouter, { setupEmailEndpoint, initializeSocketIO } from './r
 import emailApiRouter from './routes/emailApi.js';
 import documentsRouter from './routes/documents.js';
 import chatApiRouter from './routes/chatApi.js';
+import paymentsRouter from './routes/payments.js';
 
 // Import middleware
 import authMiddleware from './middleware/auth.js';
@@ -169,6 +170,9 @@ if (process.env.NODE_ENV !== 'production') {
 // such as invoices.js, projects.js, and other modules that need to 
 // generate PDF documents
 const publicRouter = express.Router();
+
+// Payments routes - don't require authentication
+app.use('/api/payments', paymentsRouter);
 
 // Contact form endpoint
 publicRouter.post('/contact', validateApiKey, async (req, res) => {
