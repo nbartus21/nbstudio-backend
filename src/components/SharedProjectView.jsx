@@ -160,7 +160,8 @@ const SharedProjectView = () => {
     debugLog('verifyPin', 'Verifying PIN', { token, pinLength: pin.length, language });
     
     try {
-      const response = await fetch(`${API_URL}/public/projects/verify-pin`, {
+      // A helyes útvonal ellenőrzése - először próbáljuk a /public útvonalon
+      let response = await fetch(`${API_URL}/public/projects/verify-pin`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -168,6 +169,19 @@ const SharedProjectView = () => {
         },
         body: JSON.stringify({ token, pin })
       });
+      
+      // Ha 404-es hibát kapunk, próbáljuk a gyökér útvonalon
+      if (response.status === 404) {
+        debugLog('verifyPin', 'First attempt failed with 404, trying alternate route');
+        response = await fetch(`${API_URL}/verify-pin`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-API-Key': API_KEY
+          },
+          body: JSON.stringify({ token, pin })
+        });
+      }
       
       debugLog('verifyPin', 'API response status', { status: response.status });
       

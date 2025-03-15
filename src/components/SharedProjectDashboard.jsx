@@ -379,7 +379,8 @@ const SharedProjectDashboard = ({
     try {
       debugLog('fetchDocuments', 'Fetching documents from server', { projectId });
       
-      const response = await fetch(`${API_URL}/projects/${projectId}/documents`, {
+      // Először próbáljuk a /documents végpontot a projectId-vel
+      const response = await fetch(`${API_URL}/documents?projectId=${projectId}`, {
         headers: {
           'X-API-Key': API_KEY
         }
@@ -394,7 +395,14 @@ const SharedProjectDashboard = ({
       } else {
         if (response.status === 401) {
           debugLog('fetchDocuments', 'Authentication error (401) when fetching documents - falling back to local data');
-          // Csak naplózzuk, de nem jelezünk hibát a felhasználónak, mivel ez nem kritikus
+          
+          // Alternatív útvonal - próbáljuk a megosztott projekt specifikus végpontot, ha lenne
+          try {
+            // Megjegyzés: Ha később létrehozunk egy specifikus végpontot a megosztott projektekhez
+            // akkor itt hívhatjuk meg azt
+          } catch (altError) {
+            debugLog('fetchDocuments', 'Alternative route also failed', { error: altError });
+          }
         } else {
           debugLog('fetchDocuments', 'Failed to fetch documents', { status: response.status });
         }
@@ -541,8 +549,31 @@ const SharedProjectDashboard = ({
     try {
       debugLog('handleGeneratePDF', 'Generating PDF for invoice', { invoiceNumber: invoice.number });
       
+      // Ellenőrizzük, hogy a számla tartalmaz-e _id-t
+      if (!invoice._id) {
+        if (invoice.id) {
+          invoice._id = invoice.id; // Ha id létezik, használjuk azt
+          debugLog('handleGeneratePDF', 'Using invoice.id as _id', { id: invoice.id });
+        } else {
+          // Ha nincs _id vagy id, akkor hibát dobunk
+          throw new Error('Hiányzik a számla azonosítója');
+        }
+      }
+      
+      // Ellenőrizzük, hogy a project tartalmaz-e _id-t
+      const projectId = getProjectId(normalizedProject);
+      if (!projectId) {
+        throw new Error('Hiányzik a projekt azonosítója');
+      }
+      
       // Call API to generate PDF
-      const response = await fetch(`${API_URL}/projects/${normalizedProject._id}/invoices/${invoice._id}/pdf`, {
+      debugLog('handleGeneratePDF', 'Calling API', { 
+        projectId: projectId, 
+        invoiceId: invoice._id,
+        url: `${API_URL}/projects/${projectId}/invoices/${invoice._id}/pdf` 
+      });
+      
+      const response = await fetch(`${API_URL}/projects/${projectId}/invoices/${invoice._id}/pdf`, {
         method: 'GET',
         headers: {
           'X-API-Key': API_KEY
@@ -557,20 +588,36 @@ const SharedProjectDashboard = ({
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.setAttribute('download', `invoice-${invoice.number}.pdf`);
+        link.setAttribute('download', `szamla-${invoice.number}.pdf`);
         document.body.appendChild(link);
         link.click();
         link.remove();
         
+        // Felszabadítjuk a blob URL-t
+        setTimeout(() => {
+          window.URL.revokeObjectURL(url);
+        }, 100);
+        
         showSuccessMessage(t.downloadPdf);
         debugLog('handleGeneratePDF', 'PDF downloaded successfully');
       } else {
-        debugLog('handleGeneratePDF', 'Failed to generate PDF', { status: response.status });
-        showErrorMessage('Failed to generate PDF');
+        debugLog('handleGeneratePDF', 'Failed to generate PDF', { 
+          status: response.status,
+          statusText: response.statusText
+        });
+        
+        // Kezelje megfelelően a különböző HTTP státuszkódokat
+        if (response.status === 401) {
+          showErrorMessage('Authentikációs hiba - A PDF létrehozása nem lehetséges');
+        } else if (response.status === 404) {
+          showErrorMessage('A számla vagy projekt nem található');
+        } else {
+          showErrorMessage('Hiba történt a PDF generálásakor');
+        }
       }
     } catch (error) {
       debugLog('handleGeneratePDF', 'Error generating PDF', { error });
-      showErrorMessage('Error generating PDF');
+      showErrorMessage(`Hiba: ${error.message}`);
     }
   };
 
