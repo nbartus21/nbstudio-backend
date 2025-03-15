@@ -89,9 +89,21 @@ router.get('/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => {
     // PDF streamelése a response-ba
     doc.pipe(res);
 
+    try {
+      // Fejléc logó (ha létezik)
+      const logoPath = './public/logo.png';
+      // Ellenőrizzük a fájl létezését és csak akkor próbáljuk beilleszteni
+      const fs = require('fs');
+      if (fs.existsSync(logoPath)) {
+        doc.image(logoPath, 50, 50, { width: 100 })
+          .moveDown();
+      }
+    } catch (logoError) {
+      console.warn('Logo not found, skipping:', logoError.message);
+    }
+
     // Fejléc
-    doc.image('logo.png', 50, 50, { width: 100 })
-      .fontSize(25)
+    doc.fontSize(25)
       .text('SZÁMLA', { align: 'center' })
       .moveDown();
 

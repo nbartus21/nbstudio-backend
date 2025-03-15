@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { formatShortDate, debugLog } from './utils';
 import QRCode from 'qrcode.react';
+import { downloadInvoicePDF } from '../../services/invoiceService';
 
 const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGeneratePDF }) => {
   debugLog('InvoiceViewModal', 'Rendering invoice view', { 
@@ -298,7 +299,17 @@ const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGenerat
           {/* Jobb oldali gombok */}
           <div className="flex space-x-3 ml-auto">
             <button
-              onClick={() => onGeneratePDF?.(invoice)}
+              onClick={() => {
+                if (onGeneratePDF) {
+                  onGeneratePDF(invoice);
+                } else if (project?._id && invoice?._id) {
+                  downloadInvoicePDF(project._id, invoice._id)
+                    .catch(error => {
+                      console.error('Hiba a PDF letöltése során:', error);
+                      alert('Hiba történt a PDF letöltése során. Kérjük, próbálja újra később.');
+                    });
+                }
+              }}
               className="px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 flex items-center text-sm"
             >
               <Download className="h-4 w-4 mr-1" />
