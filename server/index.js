@@ -172,7 +172,7 @@ if (process.env.NODE_ENV !== 'production') {
 const publicRouter = express.Router();
 
 // Payments routes - don't require authentication
-app.use('/api/payments', paymentsRouter);
+app.use('/api/payments', validateApiKey, paymentsRouter);
 
 // Contact form endpoint
 publicRouter.post('/contact', validateApiKey, async (req, res) => {

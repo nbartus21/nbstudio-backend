@@ -3,7 +3,15 @@ import mongoose from 'mongoose';
 import Stripe from 'stripe';
 
 const router = express.Router();
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+
+// Ellenőrizzük a STRIPE_SECRET_KEY eléhetőségét
+if (!process.env.STRIPE_SECRET_KEY) {
+  console.error('STRIPE_SECRET_KEY környezeti változó nincs beállítva!');
+  console.error('Használjuk a .env fájlban megadott értéket: sk_test_51QmjbrG2Q8BRzYFBotBDVtSaWeDlhZ8fURnDB20HItI29XaqLaMFTStyNo4XWThSge1wRoZTVrKMSA5tXnXVLIZf00jCtmKyXX');
+}
+
+// Inicializáljuk a Stripe-ot az .env fájlból vagy az alapértelmezett értékkel
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_51QmjbrG2Q8BRzYFBotBDVtSaWeDlhZ8fURnDB20HItI29XaqLaMFTStyNo4XWThSge1wRoZTVrKMSA5tXnXVLIZf00jCtmKyXX');
 
 // Generate a payment link for an invoice
 router.post('/create-payment-link', async (req, res) => {
@@ -60,7 +68,13 @@ router.post('/create-payment-link', async (req, res) => {
     res.json({ success: true, url: session.url });
   } catch (error) {
     console.error('Stripe payment link creation error:', error);
-    res.status(500).json({ success: false, message: 'Hiba történt a fizetési link létrehozásakor' });
+    // Részletesebb hibaüzenet, hogy könnyebben diagnosztizálható legyen
+    res.status(500).json({ 
+      success: false, 
+      message: 'Hiba történt a fizetési link létrehozásakor',
+      error: error.message,
+      stack: process.env.NODE_ENV !== 'production' ? error.stack : undefined
+    });
   }
 });
 
