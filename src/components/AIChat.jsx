@@ -195,7 +195,7 @@ const AIChat = () => {
       // Nyilvános végpontot használjunk a szerverrel való kommunikációhoz
       // A szerveroldali chat API megfelelő végpontja: /api/public/chat
       // Az router.post('/') kezeli a kérést
-      requestUrl = `${API_URL}/api/public/chat`;
+      requestUrl = `${API_URL}/public/chat`;
       headers['X-API-Key'] = API_KEY;
       
       // Ha be van jelentkezve, Bearer tokent is küldünk, hogy a felhasználó azonosítható legyen
