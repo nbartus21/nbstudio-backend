@@ -70,6 +70,12 @@ router.post('/projects/:id/invoices', async (req, res) => {
     const invoiceData = req.body;
     console.log('Feldolgozandó számla adatok:', invoiceData);
 
+    // Biztosítsuk, hogy van _id mező
+    if (!invoiceData._id) {
+      console.log('_id mező hozzáadása a számlához');
+      invoiceData._id = new mongoose.Types.ObjectId();
+    }
+
     if (!invoiceData.items || !Array.isArray(invoiceData.items)) {
       console.error('Hibás számla tételek:', invoiceData.items);
       return res.status(400).json({ message: 'Érvénytelen számla tételek' });
@@ -295,7 +301,19 @@ router.post('/verify-pin', async (req, res) => {
       return res.status(403).json({ message: 'Érvénytelen PIN kód' });
     }
 
+    // Számlák módosítása, hogy minden számlának legyen _id-ja
+    const processedInvoices = (project.invoices || []).map(invoice => {
+      // Ellenőrizzük az _id mezőt és biztosítsuk, hogy stringként használható legyen
+      if (!invoice._id) {
+        console.log('Számla _id mező hozzáadása verify-pin hívásban:', invoice.number);
+        invoice._id = new mongoose.Types.ObjectId();
+      }
+      // Egyéb mező konverziók itt
+      return invoice;
+    });
+
     const sanitizedProject = {
+      _id: project._id, // Biztosítsuk, hogy az _id mező átkerüljön
       name: project.name,
       status: project.status,
       description: project.description,
@@ -303,7 +321,7 @@ router.post('/verify-pin', async (req, res) => {
         name: project.client?.name || '',
         email: project.client?.email || ''
       },
-      invoices: project.invoices || [],
+      invoices: processedInvoices,
       financial: {
         currency: project.financial?.currency || 'EUR'
       },

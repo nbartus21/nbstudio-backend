@@ -97,8 +97,8 @@ const ProjectInvoices = ({ project, onViewInvoice, language = 'hu' }) => {
       </div>
       <div className="divide-y divide-gray-200">
         {project.invoices?.length > 0 ? (
-          project.invoices.map((invoice) => (
-            <div key={invoice._id || invoice.number} className="p-6">
+          project.invoices.map((invoice, index) => (
+            <div key={invoice._id || invoice.number || `invoice-${index}`} className="p-6">
               <div className="flex justify-between items-start mb-4">
                 <div>
                   <h3 className="text-lg font-medium">{invoice.number}</h3>

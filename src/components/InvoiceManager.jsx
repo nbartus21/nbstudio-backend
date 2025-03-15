@@ -318,7 +318,7 @@ const handleCreateInvoice = async (selectedProjectForInvoice, invoiceData) => {
     // Egyedi számlaszám generálása
     const invoiceNumber = `INV-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}-${Math.floor(1000 + Math.random() * 9000)}`;
 
-    // Számla adatok összeállítása
+    // Számla adatok összeállítása - MongoDB ObjectId-t nem tudunk generálni frontenden, ezt a szerver fogja hozzáadni
     const finalInvoiceData = {
       number: invoiceNumber,
       date: new Date(),
