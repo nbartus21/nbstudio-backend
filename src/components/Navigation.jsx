@@ -64,13 +64,20 @@ const Navigation = () => {
       ]
     },
     {
+      category: "Segítség",
+      icon: <HelpCircle size={18} />,
+      items: [
+        { path: "/help", label: "Súgó", icon: <HelpCircle size={16} /> },
+        { path: "/ai-chat", label: "AI Asszisztens", icon: <MessageCircle size={16} /> }
+      ]
+    },
+    {
       category: "Ügyfelek",
       icon: <User size={18} />,
       items: [
         { path: "/contacts", label: "Kapcsolatfelvételek", icon: <Mail size={16} /> },
         { path: "/calculator", label: "Kalkulátor jelentkezések", icon: <Calculator size={16} /> },
-        { path: "/translation", label: "Fordítási Eszköz", icon: <Languages size={16} /> },
-        { path: "/ai-chat", label: "AI Asszisztens", icon: <MessageCircle size={16} /> }
+        { path: "/translation", label: "Fordítási Eszköz", icon: <Languages size={16} /> }
       ]
     },
     {
@@ -229,14 +236,7 @@ const Navigation = () => {
                 <Settings size={20} />
               </Link>
 
-              {/* Segítség */}
-              <Link
-                to="/help"
-                className="p-2 text-gray-300 hover:text-white hover:bg-gray-700 rounded-md transition-colors"
-                title="Súgó"
-              >
-                <HelpCircle size={20} />
-              </Link>
+              {/* Segítség - most a menüben is elérhető */}
 
               {/* Kijelentkezés */}
               <button
