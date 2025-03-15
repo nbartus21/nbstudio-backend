@@ -6,6 +6,7 @@ import https from 'https';
 import http from 'http';
 import { Server } from 'socket.io';
 import fs from 'fs';
+import path from 'path';
 // PDF generation dependencies
 import PDFDocument from 'pdfkit';
 
@@ -762,6 +763,75 @@ function setupProjectDomain() {
   projectApp.use('/socket.io', (req, res) => {
     console.log('Proxying socket.io request');
     proxyRequest(req, res, 'socket.io');
+  });
+  
+  // Handle document sharing routes specifically
+  projectApp.get('/shared-document/:token', async (req, res) => {
+    console.log(`Project domain handling document request: ${req.params.token}`);
+    try {
+      // Forward to our documents API
+      const requestUrl = `/api/shared-document/${req.params.token}`;
+      const apiReq = {
+        method: 'GET',
+        url: requestUrl,
+        headers: req.headers
+      };
+      
+      // Call our internal endpoint
+      const newReq = Object.create(req);
+      newReq.url = requestUrl;
+      newReq.originalUrl = requestUrl;
+      
+      // Use our normal API route handler
+      app._router.handle(newReq, res);
+    } catch (error) {
+      console.error('Error handling document request:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // Handle document verification with PIN
+  projectApp.post('/shared-document/:token/verify', express.json(), async (req, res) => {
+    console.log(`Project domain handling document PIN verification: ${req.params.token}`);
+    try {
+      // Forward to our documents API
+      const requestUrl = `/api/shared-document/${req.params.token}/verify`;
+      const newReq = Object.create(req);
+      newReq.url = requestUrl;
+      newReq.originalUrl = requestUrl;
+      
+      // Use our normal API route handler
+      app._router.handle(newReq, res);
+    } catch (error) {
+      console.error('Error handling document verification:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // Handle document responses (approve/reject)
+  projectApp.post('/shared-document/:token/response', express.json(), async (req, res) => {
+    console.log(`Project domain handling document response: ${req.params.token}`);
+    try {
+      // Forward to our documents API
+      const requestUrl = `/api/shared-document/${req.params.token}/response`;
+      const newReq = Object.create(req);
+      newReq.url = requestUrl;
+      newReq.originalUrl = requestUrl;
+      
+      // Use our normal API route handler
+      app._router.handle(newReq, res);
+    } catch (error) {
+      console.error('Error handling document response:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // Proxy static assets for document viewer UI
+  projectApp.use('/assets', express.static('build/assets'));
+  
+  // Serve a simple document viewer HTML
+  projectApp.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, '../build/document-viewer.html'));
   });
   
   // Proxy all other requests to the frontend app running on port 5173

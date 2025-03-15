@@ -812,7 +812,7 @@ const handleViewDocument = async (documentId) => {
                                     subject: `Dokumentum: ${doc.name}`,
                                     message: `Tisztelt Ügyfelünk!\n\nMellékelten küldjük a következő dokumentumot: ${doc.name}.\n\n` +
                                     (doc.publicToken && doc.publicPin ? 
-                                    `A dokumentum online is megtekinthető és jóváhagyható az alábbi linken:\nLink: https://admin.nb-studio.net/public/documents/${doc.publicToken}\nPIN kód: ${doc.publicPin}\n\nA hozzáférés lejár: ${doc.publicViewExpires ? new Date(doc.publicViewExpires).toLocaleDateString('hu-HU') : 'N/A'}` : '')
+                                    `A dokumentum online is megtekinthető és jóváhagyható az alábbi linken:\nLink: https://project.nb-studio.net/shared-document/${doc.publicToken}\nPIN kód: ${doc.publicPin}\n\nA hozzáférés lejár: ${doc.publicViewExpires ? new Date(doc.publicViewExpires).toLocaleDateString('hu-HU') : 'N/A'}` : '')
                                   });
                                 }}
                                 className="p-1 text-blue-600 hover:text-blue-800 rounded hover:bg-blue-50"

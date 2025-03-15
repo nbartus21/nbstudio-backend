@@ -602,8 +602,8 @@ router.post('/documents/:id/share', async (req, res) => {
     
     await document.save();
     
-    // Megosztási link generálása
-    const shareLink = `https://admin.nb-studio.net/public/documents/${publicToken}`;
+    // Megosztási link generálása a project domainen
+    const shareLink = `https://project.nb-studio.net/shared-document/${publicToken}`;
     
     res.json({ 
       success: true, 
@@ -639,7 +639,41 @@ router.delete('/documents/:id', async (req, res) => {
   }
 });
 
-// Publikus dokumentum információ lekérése (PIN bekérés előtt)
+// PUBLIC API - Az alábbiakban API kulcs ellenőrzés nélküli végpontok
+// Ezt a project.nb-studio.net domain fogja használni
+
+// Publikus dokumentum megtekintő oldal - PIN kód bekérése
+router.get('/shared-document/:token', async (req, res) => {
+  try {
+    const document = await GeneratedDocument.findOne({ publicToken: req.params.token });
+    
+    if (!document) {
+      return res.status(404).json({ message: 'Dokumentum nem található vagy a link érvénytelen' });
+    }
+    
+    // Ellenőrizzük a lejárati dátumot
+    if (document.publicViewExpires && new Date() > document.publicViewExpires) {
+      return res.status(403).json({ message: 'A megtekintési link lejárt' });
+    }
+    
+    // Csak minimális adatokat küldünk vissza PIN bekéréshez
+    const basicInfo = {
+      id: document._id,
+      name: document.name,
+      publicToken: document.publicToken,
+      expiresAt: document.publicViewExpires,
+      requiresPin: true,
+      createdAt: document.createdAt
+    };
+    
+    res.json(basicInfo);
+  } catch (error) {
+    console.error('Hiba a publikus dokumentum információ lekérésekor:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Publikus dokumentum információ lekérése (PIN bekérés előtt) - régi végpont, de meghagyjuk kompatibilitás miatt
 router.get('/public/documents/:token/info', apiKeyChecker, async (req, res) => {
   try {
     const document = await GeneratedDocument.findOne({ publicToken: req.params.token });
@@ -715,7 +749,113 @@ router.post('/public/documents/:token/verify', apiKeyChecker, async (req, res) =
   }
 });
 
-// Ügyfél dokumentum elfogadás/elutasítás
+// Publikus PIN kód ellenőrzés és dokumentum lekérés
+router.post('/shared-document/:token/verify', async (req, res) => {
+  try {
+    const { pin } = req.body;
+    
+    if (!pin) {
+      return res.status(400).json({ message: 'PIN kód megadása kötelező' });
+    }
+    
+    const document = await GeneratedDocument.findOne({ publicToken: req.params.token })
+      .populate('templateId')
+      .populate('projectId');
+    
+    if (!document) {
+      return res.status(404).json({ message: 'Dokumentum nem található vagy a link érvénytelen' });
+    }
+    
+    // Ellenőrizzük a lejárati dátumot
+    if (document.publicViewExpires && new Date() > document.publicViewExpires) {
+      return res.status(403).json({ message: 'A megtekintési link lejárt' });
+    }
+    
+    // Ellenőrizzük a PIN kódot
+    if (document.publicPin !== pin) {
+      return res.status(403).json({ message: 'Érvénytelen PIN kód' });
+    }
+    
+    // Csak a szükséges adatokat küldjük vissza
+    const sanitizedDocument = {
+      id: document._id,
+      name: document.name,
+      content: document.htmlVersion || document.content,
+      publicToken: document.publicToken,
+      expiresAt: document.publicViewExpires,
+      status: document.approvalStatus,
+      createdAt: document.createdAt
+    };
+    
+    res.json(sanitizedDocument);
+  } catch (error) {
+    console.error('Hiba a publikus dokumentum lekérésekor:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Publikus dokumentum elfogadás/elutasítás
+router.post('/shared-document/:token/response', async (req, res) => {
+  try {
+    const { response, comment, pin } = req.body;
+    
+    if (!response || !['approve', 'reject'].includes(response)) {
+      return res.status(400).json({ message: 'Érvénytelen válasz. Kérjük, válaszd az "approve" vagy "reject" opciót.' });
+    }
+    
+    if (!pin) {
+      return res.status(400).json({ message: 'PIN kód megadása kötelező' });
+    }
+    
+    const document = await GeneratedDocument.findOne({ publicToken: req.params.token });
+    
+    if (!document) {
+      return res.status(404).json({ message: 'Dokumentum nem található vagy a link érvénytelen' });
+    }
+    
+    // Ellenőrizzük a lejárati dátumot
+    if (document.publicViewExpires && new Date() > document.publicViewExpires) {
+      return res.status(403).json({ message: 'A dokumentum elfogadási link lejárt' });
+    }
+    
+    // Ellenőrizzük a PIN kódot
+    if (document.publicPin !== pin) {
+      return res.status(403).json({ message: 'Érvénytelen PIN kód' });
+    }
+    
+    // Frissítsük a dokumentum státuszát
+    if (response === 'approve') {
+      document.approvalStatus = 'clientApproved';
+      document.clientApprovedAt = new Date();
+    } else {
+      document.approvalStatus = 'clientRejected';
+      document.clientRejectedAt = new Date();
+    }
+    
+    // Mentsük a megjegyzést, ha van
+    if (comment) {
+      document.clientApprovalComment = comment;
+      document.comments.push({
+        user: 'Client',
+        text: comment,
+        timestamp: new Date()
+      });
+    }
+    
+    await document.save();
+    
+    res.json({ 
+      success: true, 
+      message: response === 'approve' ? 'Dokumentum sikeresen elfogadva' : 'Dokumentum elutasítva',
+      documentStatus: document.approvalStatus
+    });
+  } catch (error) {
+    console.error('Hiba a dokumentum ügyfél válaszának feldolgozásakor:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Ügyfél dokumentum elfogadás/elutasítás - régi végpont, de meghagyjuk kompatibilitás miatt
 router.post('/public/documents/:token/response', apiKeyChecker, async (req, res) => {
   try {
     const { response, comment, pin } = req.body;
