@@ -143,6 +143,9 @@ const generatedDocumentSchema = new mongoose.Schema({
     unique: true,
     sparse: true
   },
+  publicPin: {
+    type: String
+  },
   publicViewExpires: {
     type: Date
   },

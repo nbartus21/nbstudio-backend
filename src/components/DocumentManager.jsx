@@ -67,7 +67,8 @@ const DocumentManager = () => {
   const [shareData, setShareData] = useState({
     documentId: '',
     expiryDays: 30,
-    shareLink: ''
+    shareLink: '',
+    pin: ''
   });
 
   // Fetch templates
@@ -403,7 +404,8 @@ const handleViewDocument = async (documentId) => {
       
       setShareData({
         ...shareData,
-        shareLink: data.shareLink
+        shareLink: data.shareLink,
+        pin: data.pin
       });
       
       fetchDocuments();
@@ -751,9 +753,9 @@ const handleViewDocument = async (documentId) => {
                                 Létrehozva: {new Date(doc.createdAt).toLocaleDateString('hu-HU')}
                               </span>
                               {doc.publicToken && (
-                                <span className="text-blue-500 flex items-center">
+                                <span className="text-blue-500 flex items-center" title="Megosztási link és PIN">
                                   <Link className="h-3.5 w-3.5 mr-1" />
-                                  Megosztott
+                                  Megosztott {doc.publicPin ? `(PIN: ${doc.publicPin})` : ''}
                                 </span>
                               )}
                             </div>
@@ -808,7 +810,9 @@ const handleViewDocument = async (documentId) => {
                                   setSendEmailData({
                                     email: doc.projectId?.client?.email || '',
                                     subject: `Dokumentum: ${doc.name}`,
-                                    message: `Tisztelt Ügyfelünk!\n\nMellékelten küldjük a következő dokumentumot: ${doc.name}.`
+                                    message: `Tisztelt Ügyfelünk!\n\nMellékelten küldjük a következő dokumentumot: ${doc.name}.\n\n` +
+                                    (doc.publicToken && doc.publicPin ? 
+                                    `A dokumentum online is megtekinthető és jóváhagyható az alábbi linken:\nLink: https://admin.nb-studio.net/public/documents/${doc.publicToken}\nPIN kód: ${doc.publicPin}\n\nA hozzáférés lejár: ${doc.publicViewExpires ? new Date(doc.publicViewExpires).toLocaleDateString('hu-HU') : 'N/A'}` : '')
                                   });
                                 }}
                                 className="p-1 text-blue-600 hover:text-blue-800 rounded hover:bg-blue-50"
@@ -1368,8 +1372,35 @@ const handleViewDocument = async (documentId) => {
                         <Copy className="h-4 w-4" />
                       </button>
                     </div>
-                    <p className="text-xs text-gray-500 mt-2">
-                      Ezen a linken keresztül az ügyfél megtekintheti és elfogadhatja a dokumentumot.
+                    
+                    <div className="mt-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        PIN kód
+                      </label>
+                      <div className="flex">
+                        <input
+                          type="text"
+                          readOnly
+                          value={shareData.pin}
+                          className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 w-40 sm:text-sm border-gray-300 rounded-l-md"
+                        />
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(shareData.pin);
+                            showSuccess('PIN kód vágólapra másolva');
+                          }}
+                          className="px-4 py-2 bg-indigo-600 text-white rounded-r-md text-sm font-medium hover:bg-indigo-700 flex items-center"
+                        >
+                          <Copy className="h-4 w-4" />
+                        </button>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-2 text-red-600 font-semibold">
+                        FONTOS: Jegyezd fel ezt a PIN kódot, mert az ügyfélnek szüksége lesz rá a dokumentum megtekintéséhez!
+                      </p>
+                    </div>
+                    
+                    <p className="text-xs text-gray-500 mt-4">
+                      Ezen a linken keresztül az ügyfél megtekintheti és elfogadhatja a dokumentumot a PIN kód megadása után.
                       A link {shareData.expiryDays} nap múlva fog lejárni.
                     </p>
                   </div>

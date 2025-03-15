@@ -592,8 +592,12 @@ router.post('/documents/:id/share', async (req, res) => {
     const { v4: uuidv4 } = await import('uuid');
     const publicToken = uuidv4();
     
+    // 6 jegyű PIN kód generálása
+    const publicPin = Math.floor(100000 + Math.random() * 900000).toString();
+    
     // Dokumentum frissítése
     document.publicToken = publicToken;
+    document.publicPin = publicPin;
     document.publicViewExpires = expiryDate;
     
     await document.save();
@@ -604,6 +608,7 @@ router.post('/documents/:id/share', async (req, res) => {
     res.json({ 
       success: true, 
       shareLink,
+      pin: publicPin,
       expiresAt: expiryDate,
       documentName: document.name
     });
@@ -634,9 +639,46 @@ router.delete('/documents/:id', async (req, res) => {
   }
 });
 
-// Publikus dokumentum megtekintési végpont
-router.get('/public/documents/:token', apiKeyChecker, async (req, res) => {
+// Publikus dokumentum információ lekérése (PIN bekérés előtt)
+router.get('/public/documents/:token/info', apiKeyChecker, async (req, res) => {
   try {
+    const document = await GeneratedDocument.findOne({ publicToken: req.params.token });
+    
+    if (!document) {
+      return res.status(404).json({ message: 'Dokumentum nem található vagy a link érvénytelen' });
+    }
+    
+    // Ellenőrizzük a lejárati dátumot
+    if (document.publicViewExpires && new Date() > document.publicViewExpires) {
+      return res.status(403).json({ message: 'A megtekintési link lejárt' });
+    }
+    
+    // Csak minimális adatokat küldünk vissza PIN bekéréshez
+    const basicInfo = {
+      id: document._id,
+      name: document.name,
+      publicToken: document.publicToken,
+      expiresAt: document.publicViewExpires,
+      requiresPin: true,
+      createdAt: document.createdAt
+    };
+    
+    res.json(basicInfo);
+  } catch (error) {
+    console.error('Hiba a publikus dokumentum információ lekérésekor:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Publikus dokumentum megtekintési végpont PIN ellenőrzéssel
+router.post('/public/documents/:token/verify', apiKeyChecker, async (req, res) => {
+  try {
+    const { pin } = req.body;
+    
+    if (!pin) {
+      return res.status(400).json({ message: 'PIN kód megadása kötelező' });
+    }
+    
     const document = await GeneratedDocument.findOne({ publicToken: req.params.token })
       .populate('templateId')
       .populate('projectId');
@@ -648,6 +690,11 @@ router.get('/public/documents/:token', apiKeyChecker, async (req, res) => {
     // Ellenőrizzük a lejárati dátumot
     if (document.publicViewExpires && new Date() > document.publicViewExpires) {
       return res.status(403).json({ message: 'A megtekintési link lejárt' });
+    }
+    
+    // Ellenőrizzük a PIN kódot
+    if (document.publicPin !== pin) {
+      return res.status(403).json({ message: 'Érvénytelen PIN kód' });
     }
     
     // Csak a szükséges adatokat küldjük vissza
@@ -671,10 +718,14 @@ router.get('/public/documents/:token', apiKeyChecker, async (req, res) => {
 // Ügyfél dokumentum elfogadás/elutasítás
 router.post('/public/documents/:token/response', apiKeyChecker, async (req, res) => {
   try {
-    const { response, comment } = req.body;
+    const { response, comment, pin } = req.body;
     
     if (!response || !['approve', 'reject'].includes(response)) {
       return res.status(400).json({ message: 'Érvénytelen válasz. Kérjük, válaszd az "approve" vagy "reject" opciót.' });
+    }
+    
+    if (!pin) {
+      return res.status(400).json({ message: 'PIN kód megadása kötelező' });
     }
     
     const document = await GeneratedDocument.findOne({ publicToken: req.params.token });
@@ -686,6 +737,11 @@ router.post('/public/documents/:token/response', apiKeyChecker, async (req, res)
     // Ellenőrizzük a lejárati dátumot
     if (document.publicViewExpires && new Date() > document.publicViewExpires) {
       return res.status(403).json({ message: 'A dokumentum elfogadási link lejárt' });
+    }
+    
+    // Ellenőrizzük a PIN kódot
+    if (document.publicPin !== pin) {
+      return res.status(403).json({ message: 'Érvénytelen PIN kód' });
     }
     
     // Frissítsük a dokumentum státuszát
