@@ -258,6 +258,9 @@ app.use('/api/public', publicRouter);
 // Public chat endpoint
 app.use('/api/public/chat', validateApiKey, chatApiRouter);
 
+// Add authenticated chat endpoints
+app.use('/api/chat', authMiddleware, chatApiRouter);
+
 // Public blog posts endpoint (no auth required)
 app.get('/api/posts', async (req, res) => {
   try {

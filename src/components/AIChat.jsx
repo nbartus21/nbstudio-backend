@@ -48,61 +48,106 @@ const AIChat = () => {
     }
   }, []);
   
-  // A szerver beszélgetések lekérése - egyszerűsített implementáció
-  // Mivel a szerver oldalon nincs megfelelő végpont a beszélgetések lekéréséhez,
-  // használjuk a localStorage-et átmenetileg a szerveroldali funkcionalitás szimulálására
+  // A szerver beszélgetések lekérése az adatbázisból
   const fetchServerConversations = async () => {
+    if (!isAuthenticated) {
+      // Ha nincs bejelentkezve, a localStorage-ból töltjük be
+      try {
+        const savedConversations = localStorage.getItem('aiChatConversations');
+        if (savedConversations) {
+          const parsedConversations = JSON.parse(savedConversations);
+          const formattedConversations = parsedConversations.map(conv => ({
+            _id: conv.id,
+            title: conv.title,
+            messages: conv.messages,
+            createdAt: conv.createdAt,
+            updatedAt: conv.updatedAt
+          }));
+          setServerConversations(formattedConversations);
+        } else {
+          setServerConversations([]);
+        }
+      } catch (error) {
+        console.error('Hiba a lokális beszélgetések betöltése során:', error);
+      }
+      return;
+    }
+    
+    // Ha be van jelentkezve, a szerverről kérjük le a beszélgetéseket
     try {
-      // Helyi beszélgetések betöltése localStorage-ból
-      const savedConversations = localStorage.getItem('aiChatConversations');
-      if (savedConversations) {
-        const parsedConversations = JSON.parse(savedConversations);
+      const API_URL = 'https://admin.nb-studio.net:5001/api';
+      const token = sessionStorage.getItem('token');
+      
+      const response = await fetch(`${API_URL}/api/chat/chat/conversations`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setServerConversations(data);
+        setSyncStatus('Beszélgetések sikeresen betöltve a szerverről.');
         
-        // Átalakítjuk MongoDB-szerű formátumra a lokális beszélgetéseket
-        const formattedConversations = parsedConversations.map(conv => ({
-          _id: conv.id,
-          title: conv.title,
-          messages: conv.messages,
-          createdAt: conv.createdAt,
-          updatedAt: conv.updatedAt
-        }));
-        
-        setServerConversations(formattedConversations);
-        setSyncStatus('Beszélgetések sikeresen betöltve.');
-        
-        // Ha van beszélgetés, és még nincs kiválasztva beszélgetés, akkor betöltjük a legfrissebbet
-        if (formattedConversations.length > 0 && !currentConversationId) {
-          setConversation(formattedConversations[0].messages);
-          setCurrentConversationId(formattedConversations[0]._id);
+        // Ha van szerverről lekért beszélgetés, és még nincs kiválasztva beszélgetés,
+        // akkor betöltjük a legfrissebbet
+        if (data.length > 0 && !currentConversationId) {
+          fetchConversationById(data[0]._id);
         }
       } else {
-        setServerConversations([]);
-        setSyncStatus('Nincsenek mentett beszélgetések.');
+        console.error('Hiba a beszélgetések lekérése során:', response.statusText);
+        setSyncStatus('Nem sikerült a szerverről betölteni a beszélgetéseket.');
       }
     } catch (error) {
-      console.error('Hiba a beszélgetések betöltése során:', error);
-      setSyncStatus('Hiba történt a beszélgetések betöltése során.');
+      console.error('Hiba a beszélgetések lekérése során:', error);
+      setSyncStatus('Hiba történt a szerverrel való kommunikáció során.');
     }
   };
   
-  // Egy beszélgetés lekérése ID alapján - egyszerűsített implementáció localStorage használatával
+  // Egy beszélgetés lekérése ID alapján
   const fetchConversationById = async (id) => {
-    try {
-      // Helyi beszélgetések betöltése localStorage-ból
-      const savedConversations = localStorage.getItem('aiChatConversations');
-      if (savedConversations) {
-        const parsedConversations = JSON.parse(savedConversations);
-        
-        // Keressük meg a kért azonosítójú beszélgetést
-        const conversation = parsedConversations.find(conv => conv.id === id || conv.id === id.toString());
-        
-        if (conversation) {
-          setConversation(conversation.messages);
-          setCurrentConversationId(conversation.id);
-        } else {
-          console.error('Beszélgetés nem található:', id);
-          setSyncStatus('A kért beszélgetés nem található.');
+    if (!isAuthenticated) {
+      // Ha nincs bejelentkezve, a localStorage-ból töltjük be
+      try {
+        const savedConversations = localStorage.getItem('aiChatConversations');
+        if (savedConversations) {
+          const parsedConversations = JSON.parse(savedConversations);
+          const conversation = parsedConversations.find(conv => conv.id === id || conv.id === id.toString());
+          
+          if (conversation) {
+            setConversation(conversation.messages);
+            setCurrentConversationId(conversation.id);
+          } else {
+            console.error('Beszélgetés nem található:', id);
+            setSyncStatus('A kért beszélgetés nem található.');
+          }
         }
+      } catch (error) {
+        console.error('Hiba a beszélgetés lekérése során:', error);
+        setSyncStatus('Hiba történt a beszélgetés betöltése során.');
+      }
+      return;
+    }
+    
+    // Ha be van jelentkezve, a szerverről kérjük le
+    try {
+      const API_URL = 'https://admin.nb-studio.net:5001/api';
+      const token = sessionStorage.getItem('token');
+      
+      // Az endpoint formátuma: /api/chat/chat/conversations/:id
+      const response = await fetch(`${API_URL}/api/chat/chat/conversations/${id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setConversation(data.messages);
+        setCurrentConversationId(data._id);
+      } else {
+        console.error('Beszélgetés nem található:', id);
+        setSyncStatus('A kért beszélgetés nem található.');
       }
     } catch (error) {
       console.error('Hiba a beszélgetés lekérése során:', error);
@@ -147,20 +192,18 @@ const AIChat = () => {
       };
       let requestBody = {};
       
-      // Bejelentkezett és nem bejelentkezett felhasználók esetén is a nyilvános chat API-t használjuk
-      // A szerveroldali implementáció miatt minden kérést a public chat API-n keresztül kell indítani
-      requestUrl = `${API_URL}/api/public/chat`;
-      headers['X-API-Key'] = API_KEY;
-      
-      // Beszélgetés azonosító hozzáadása, ha van
-      if (isAuthenticated && currentConversationId) {
+      if (isAuthenticated) {
+        // Autentikált kérés a chat adatbázisba mentésére
+        requestUrl = `${API_URL}/api/chat`;
+        headers['Authorization'] = `Bearer ${sessionStorage.getItem('token')}`;
         requestBody = { 
           messages,
-          conversationId: currentConversationId
+          conversationId: currentConversationId // Ha van aktuális beszélgetés ID, azt is küldjük
         };
-        // Token hozzáadása, hogy a szerver tudja azonosítani a felhasználót
-        headers['Authorization'] = `Bearer ${sessionStorage.getItem('token')}`;
       } else {
+        // Publikus kérés (nincs bejelentkezve)
+        requestUrl = `${API_URL}/api/public/chat`;
+        headers['X-API-Key'] = API_KEY;
         requestBody = { messages };
       }
 
@@ -247,27 +290,54 @@ const AIChat = () => {
     }
   };
   
-  // Delete a conversation - egyszerűsített implementáció localStorage használatával
+  // Delete a conversation
   const deleteConversation = async (conversationId, e) => {
     e.stopPropagation();
     
-    // Töröljük a beszélgetést a lokális tárolóból
-    setConversations(prevConversations => 
-      prevConversations.filter(c => c.id !== conversationId)
-    );
-    
-    // Ha a szerver listából is töröljük (bár ez csak a memóriában történik meg)
-    setServerConversations(prevConversations => 
-      prevConversations.filter(c => c._id !== conversationId)
-    );
+    if (!isAuthenticated) {
+      // Ha nincs bejelentkezve, csak a localStorage-ból töröljük
+      setConversations(prevConversations => 
+        prevConversations.filter(c => c.id !== conversationId)
+      );
+      
+      setServerConversations(prevConversations => 
+        prevConversations.filter(c => c._id !== conversationId)
+      );
+      
+      setSyncStatus('Beszélgetés sikeresen törölve.');
+    } else {
+      // Ha be van jelentkezve, a szerverről is töröljük
+      try {
+        const API_URL = 'https://admin.nb-studio.net:5001/api';
+        const token = sessionStorage.getItem('token');
+        
+        // Az endpoint formátuma: /api/chat/chat/conversations/:id
+        const response = await fetch(`${API_URL}/api/chat/chat/conversations/${conversationId}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (response.ok) {
+          setSyncStatus('Beszélgetés sikeresen törölve a szerverről.');
+          // Frissítsük a szerver beszélgetések listáját
+          fetchServerConversations();
+        } else {
+          console.error('Hiba a beszélgetés törlése során:', response.statusText);
+          setSyncStatus('Nem sikerült törölni a beszélgetést a szerverről.');
+        }
+      } catch (error) {
+        console.error('Hiba a beszélgetés törlése során:', error);
+        setSyncStatus('Hiba történt a szerverrel való kommunikáció során.');
+      }
+    }
     
     // Ha az aktuális beszélgetést töröltük, töröljük a tartalmát is
     if (currentConversationId === conversationId) {
       setConversation([]);
       setCurrentConversationId(null);
     }
-    
-    setSyncStatus('Beszélgetés sikeresen törölve.');
   };
   
   // Handle key press
