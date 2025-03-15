@@ -18,10 +18,24 @@ export const getProjectId = (project) => {
 
 // Méret formázás emberi olvasható formára
 export const formatFileSize = (bytes) => {
-  if (bytes < 1024) return bytes + ' B';
-  else if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
-  else if (bytes < 1073741824) return (bytes / 1048576).toFixed(1) + ' MB';
-  else return (bytes / 1073741824).toFixed(1) + ' GB';
+  try {
+    // Ellenőrizzük, hogy érvényes-e a szám
+    if (bytes === undefined || bytes === null || isNaN(bytes)) {
+      console.warn('Invalid file size:', bytes);
+      return 'Ismeretlen méret';
+    }
+    
+    // Konvertáljuk számmá
+    const size = Number(bytes);
+    
+    if (size < 1024) return size + ' B';
+    else if (size < 1048576) return (size / 1024).toFixed(1) + ' KB';
+    else if (size < 1073741824) return (size / 1048576).toFixed(1) + ' MB';
+    else return (size / 1073741824).toFixed(1) + ' GB';
+  } catch (error) {
+    console.error('File size formatting error:', error);
+    return 'Hiba a méret formázásában';
+  }
 };
 
 // Teljes dátum formázás
@@ -37,7 +51,23 @@ export const formatDate = (dateString) => {
 
 // Rövid dátum formázás
 export const formatShortDate = (dateString) => {
-  return new Date(dateString).toLocaleDateString('hu-HU');
+  try {
+    // Ellenőrizzük, hogy érvényes-e a dátum
+    if (!dateString) return 'Ismeretlen dátum';
+    
+    const date = new Date(dateString);
+    
+    // Ellenőrizzük, hogy érvényes dátum-e
+    if (isNaN(date.getTime())) {
+      console.warn('Invalid date format:', dateString);
+      return 'Érvénytelen dátum';
+    }
+    
+    return date.toLocaleDateString('hu-HU');
+  } catch (error) {
+    console.error('Date formatting error:', error);
+    return 'Hiba a dátum formázásában';
+  }
 };
 
 // Sikeres és hibás üzenetek kezelésének segédfüggvényei

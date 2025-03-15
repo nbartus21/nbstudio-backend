@@ -67,18 +67,19 @@ const categoryTranslations = {
   }
 };
 
-const DocumentViewModal = ({ document, project, onClose, language = 'hu' }) => {
+const DocumentViewModal = ({ document: docData, project, onClose, language = 'hu' }) => {
+  // Átnevezzük a 'document' paramétert 'docData'-ra, hogy ne ütközzön a globális document objektummal
   debugLog('DocumentViewModal', 'Rendering document view', { 
-    documentName: document?.name, 
-    documentType: document?.type,
-    documentCategory: document?.category
+    documentName: docData?.name, 
+    documentType: docData?.type,
+    documentCategory: docData?.category
   });
   
   // Get translations for current language
   const t = translations[language] || translations.en;
   const categoryT = categoryTranslations[language] || categoryTranslations.en;
 
-  if (!document) {
+  if (!docData) {
     debugLog('DocumentViewModal', 'No document provided');
     return null;
   }
@@ -113,7 +114,7 @@ const DocumentViewModal = ({ document, project, onClose, language = 'hu' }) => {
     }
   };
 
-  const categoryStyle = getDocumentCategoryStyle(document.category);
+  const categoryStyle = getDocumentCategoryStyle(docData.category);
 
   // Get document type label
   const getDocumentTypeLabel = (mimeType) => {
@@ -127,23 +128,90 @@ const DocumentViewModal = ({ document, project, onClose, language = 'hu' }) => {
   };
 
   // Handle document download
-  const handleDownload = () => {
-    debugLog('DocumentViewModal-download', 'Downloading document', { fileName: document.name });
-    const link = document.createElement('a');
-    link.href = document.content;
-    link.download = document.name;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const handleDownload = async () => {
+    debugLog('DocumentViewModal-download', 'Downloading document', { 
+      fileName: docData.name,
+      hasContent: !!docData.content,
+      hasDocumentId: !!docData._id 
+    });
+    
+    // Ha van content (például helyi tárolás esetén), azt használjuk egyszerű letöltéshez
+    if (docData.content && docData.content.startsWith('data:')) {
+      debugLog('DocumentViewModal-download', 'Using local content for download');
+      const a = window.document.createElement('a');
+      a.href = docData.content;
+      a.download = docData.name;
+      window.document.body.appendChild(a);
+      a.click();
+      window.document.body.removeChild(a);
+      return;
+    }
+    
+    // Ha van dokumentum azonosító, akkor próbáljuk a szerver API-t
+    if (docData._id) {
+      try {
+        const API_URL = 'https://admin.nb-studio.net:5001/api';
+        const API_KEY = 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0';
+        
+        debugLog('DocumentViewModal-download', 'Downloading PDF from server API', { documentId: docData._id });
+        
+        // Használjuk a publikus PDF végpontot
+        const response = await fetch(`${API_URL}/documents/${docData._id}/pdf`, {
+          headers: {
+            'X-API-Key': API_KEY
+          }
+        });
+        
+        if (response.ok) {
+          // Get blob from response
+          const blob = await response.blob();
+          
+          // Create download link for blob
+          const url = window.URL.createObjectURL(blob);
+          const a = window.document.createElement('a');
+          a.href = url;
+          a.download = docData.name || `document-${docData._id}.pdf`;
+          window.document.body.appendChild(a);
+          a.click();
+          
+          // Cleanup
+          setTimeout(() => {
+            window.document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+          }, 100);
+          
+          debugLog('DocumentViewModal-download', 'PDF download successful');
+        } else {
+          console.error('Error downloading PDF:', response.status, response.statusText);
+          alert('Hiba történt a dokumentum letöltése során');
+        }
+      } catch (error) {
+        console.error('Error downloading document:', error);
+        alert('Nem sikerült letölteni a dokumentumot');
+      }
+    } else {
+      console.error('Cannot download - no document content or ID available');
+      alert('A dokumentum nem tölthető le, mert nincs elérhető tartalom');
+    }
   };
 
   // Check if document preview is supported
   const isPreviewSupported = () => {
-    return (
-      document.type?.startsWith('image/') || 
-      document.type === 'application/pdf' ||
-      document.type?.includes('text/plain')
-    );
+    // Ha van beágyazott tartalom, akkor ellenőrizzük a típust
+    if (docData.content) {
+      return (
+        docData.type?.startsWith('image/') || 
+        docData.type === 'application/pdf' ||
+        docData.type?.includes('text/plain')
+      );
+    } 
+    
+    // Ha nincs content, de van _id, akkor PDF letöltés lehet elérhető
+    if (docData._id) {
+      return true; // PDF letöltés mutatása
+    }
+    
+    return false;
   };
 
   return (
@@ -152,7 +220,7 @@ const DocumentViewModal = ({ document, project, onClose, language = 'hu' }) => {
         <div className="flex justify-between items-center p-4 border-b">
           <h3 className="text-lg font-medium flex items-center">
             <FileText className={`h-5 w-5 mr-2 ${categoryStyle.color}`} />
-            {t.document}: {document.name}
+            {t.document}: {docData.name}
           </h3>
           <button
             onClick={onClose}
@@ -166,23 +234,35 @@ const DocumentViewModal = ({ document, project, onClose, language = 'hu' }) => {
           {/* Document preview area */}
           <div className="flex-1 p-6 flex items-center justify-center bg-gray-100 overflow-auto">
             {isPreviewSupported() ? (
-              document.type?.startsWith('image/') ? (
+              docData.content && docData.type?.startsWith('image/') ? (
                 <img 
-                  src={document.content} 
-                  alt={document.name}
+                  src={docData.content} 
+                  alt={docData.name}
                   className="max-w-full max-h-[600px] object-contain"
                 />
-              ) : document.type === 'application/pdf' ? (
+              ) : docData.content && docData.type === 'application/pdf' ? (
                 <iframe
-                  src={document.content}
-                  title={document.name}
+                  src={docData.content}
+                  title={docData.name}
                   className="w-full h-full min-h-[600px] border-0"
                 />
+              ) : docData._id ? (
+                <div className="text-center p-10">
+                  <FileText className="h-16 w-16 mx-auto text-blue-600 mb-3" />
+                  <p className="text-gray-600 font-medium">A dokumentum tartalmát a szerverről töltheti le</p>
+                  <button
+                    onClick={handleDownload}
+                    className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 flex items-center mx-auto"
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    PDF letöltése
+                  </button>
+                </div>
               ) : (
                 <div className="bg-white p-6 rounded shadow w-full overflow-auto">
                   <pre className="whitespace-pre-wrap text-sm">
                     {/* For text files, we would need to decode the content */}
-                    {document.textContent || "Preview not available for this document type"}
+                    {docData.textContent || "Preview not available for this document type"}
                   </pre>
                 </div>
               )
@@ -191,7 +271,7 @@ const DocumentViewModal = ({ document, project, onClose, language = 'hu' }) => {
                 <FileText className={`h-16 w-16 mx-auto ${categoryStyle.color} mb-3`} />
                 <p className="text-gray-600 font-medium">{t.previewNotSupported}</p>
                 <p className="text-sm text-gray-500 mt-2">
-                  {document.name} ({formatFileSize(document.size)})
+                  {docData.name} ({formatFileSize(docData.size)})
                 </p>
                 <button
                   onClick={handleDownload}
@@ -211,30 +291,30 @@ const DocumentViewModal = ({ document, project, onClose, language = 'hu' }) => {
               <div>
                 <span className="text-sm text-gray-500">{t.category}</span>
                 <div className={`mt-1 px-2 py-1 ${categoryStyle.bgColor} ${categoryStyle.borderColor} border rounded-md inline-block text-sm font-medium ${categoryStyle.color}`}>
-                  {categoryT[document.category] || document.category}
+                  {categoryT[docData.category] || docData.category}
                 </div>
               </div>
               
-              {document.type && (
+              {docData.type && (
                 <div>
                   <span className="text-sm text-gray-500">Type</span>
-                  <p className="font-medium">{getDocumentTypeLabel(document.type)}</p>
+                  <p className="font-medium">{getDocumentTypeLabel(docData.type)}</p>
                 </div>
               )}
               
               <div>
                 <span className="text-sm text-gray-500">{t.size}</span>
-                <p className="font-medium">{formatFileSize(document.size)}</p>
+                <p className="font-medium">{formatFileSize(docData.size)}</p>
               </div>
               
               <div>
                 <span className="text-sm text-gray-500">{t.uploadedBy}</span>
-                <p className="font-medium">{document.uploadedBy || "Unknown"}</p>
+                <p className="font-medium">{docData.uploadedBy || "Unknown"}</p>
               </div>
               
               <div>
                 <span className="text-sm text-gray-500">{t.uploadedOn}</span>
-                <p className="font-medium">{formatDate(document.uploadedAt)}</p>
+                <p className="font-medium">{formatDate(docData.uploadedAt)}</p>
               </div>
             </div>
             
