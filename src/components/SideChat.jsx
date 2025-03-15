@@ -1,15 +1,26 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Send, MessageSquare, Trash2 } from 'lucide-react';
+import { X, Send, MessageSquare, Trash2, Save, ExternalLink, Maximize2, ChevronRight, Copy } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 const SideChat = () => {
   // States
   const [isOpen, setIsOpen] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
   const [message, setMessage] = useState('');
   const [conversation, setConversation] = useState([]);
+  const [savedConversations, setSavedConversations] = useState([]);
+  const [currentConversationId, setCurrentConversationId] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(true);
+  const [quickSuggestions] = useState([
+    "Hogyan tudok új projektet létrehozni?",
+    "Mi a domain regisztráció folyamata?",
+    "Hogyan számlázzak egy projektet?"
+  ]);
   
   const messagesEndRef = useRef(null);
   const chatInputRef = useRef(null);
+  const [notification, setNotification] = useState(null);
 
   // Scroll to bottom of messages
   useEffect(() => {
@@ -27,12 +38,23 @@ const SideChat = () => {
 
   // Load conversation from localStorage
   useEffect(() => {
+    // Load active conversation
     const savedMessages = localStorage.getItem('sideChatMessages');
     if (savedMessages) {
       try {
         setConversation(JSON.parse(savedMessages));
       } catch (error) {
         console.error('Error loading saved chat:', error);
+      }
+    }
+
+    // Load saved conversations
+    const savedConversationsList = localStorage.getItem('savedChatConversations');
+    if (savedConversationsList) {
+      try {
+        setSavedConversations(JSON.parse(savedConversationsList));
+      } catch (error) {
+        console.error('Error loading saved conversations:', error);
       }
     }
   }, []);
@@ -44,9 +66,19 @@ const SideChat = () => {
     }
   }, [conversation]);
 
+  // Save conversations list to localStorage
+  useEffect(() => {
+    if (savedConversations.length > 0) {
+      localStorage.setItem('savedChatConversations', JSON.stringify(savedConversations));
+    }
+  }, [savedConversations]);
+
   // Handle sending a message
   const handleSendMessage = async () => {
     if (!message.trim()) return;
+    
+    // Hide suggestions once user starts typing
+    setShowSuggestions(false);
     
     // Add user message to conversation
     const updatedConversation = [
@@ -68,16 +100,31 @@ const SideChat = () => {
       const API_URL = 'https://admin.nb-studio.net:5001/api';
       const API_KEY = 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0';
       
+      // Add authentication token if available
+      const headers = {
+        'Content-Type': 'application/json',
+        'X-API-Key': API_KEY
+      };
+      
+      const token = sessionStorage.getItem('token');
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
       const response = await fetch(`${API_URL}/public/chat`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-API-Key': API_KEY
-        },
-        body: JSON.stringify({ messages }),
+        headers: headers,
+        body: JSON.stringify({ 
+          messages, 
+          conversationId: currentConversationId 
+        }),
       });
       
       const data = await response.json();
+      
+      if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+        throw new Error('Hibás válasz formátum az API-tól');
+      }
       
       // Add AI response to conversation
       const aiResponse = data.choices[0].message.content;
@@ -87,6 +134,11 @@ const SideChat = () => {
       ];
       
       setConversation(finalConversation);
+      
+      // Update conversation ID if provided by server
+      if (data.conversationId) {
+        setCurrentConversationId(data.conversationId);
+      }
     } catch (error) {
       console.error('Error calling AI API:', error);
       setConversation([
@@ -101,7 +153,81 @@ const SideChat = () => {
   // Clear conversation
   const clearConversation = () => {
     setConversation([]);
+    setCurrentConversationId(null);
     localStorage.removeItem('sideChatMessages');
+    setShowSuggestions(true);
+  };
+  
+  // Save current conversation
+  const saveConversation = () => {
+    if (conversation.length < 2) {
+      setNotification({
+        type: 'error',
+        message: 'A mentéshez legalább egy üzenetváltás szükséges'
+      });
+      setTimeout(() => setNotification(null), 3000);
+      return;
+    }
+    
+    // Extract title from first message
+    const title = conversation[0].content.length > 30 
+      ? conversation[0].content.substring(0, 30) + '...' 
+      : conversation[0].content;
+    
+    const timestamp = new Date().toISOString();
+    const newConversation = {
+      id: currentConversationId || Date.now().toString(),
+      title,
+      messages: conversation,
+      createdAt: timestamp,
+      updatedAt: timestamp
+    };
+    
+    // Check if conversation already exists
+    const existingIndex = savedConversations.findIndex(c => c.id === newConversation.id);
+    
+    if (existingIndex !== -1) {
+      // Update existing conversation
+      const updatedConversations = [...savedConversations];
+      updatedConversations[existingIndex] = {
+        ...updatedConversations[existingIndex],
+        messages: conversation,
+        updatedAt: timestamp
+      };
+      setSavedConversations(updatedConversations);
+    } else {
+      // Add new conversation
+      setSavedConversations([newConversation, ...savedConversations]);
+    }
+    
+    setCurrentConversationId(newConversation.id);
+    
+    setNotification({
+      type: 'success',
+      message: 'Beszélgetés sikeresen elmentve'
+    });
+    setTimeout(() => setNotification(null), 3000);
+  };
+  
+  // Load a saved conversation
+  const loadConversation = (conversationId) => {
+    const conversation = savedConversations.find(c => c.id === conversationId);
+    if (conversation) {
+      setConversation(conversation.messages);
+      setCurrentConversationId(conversation.id);
+      setShowSuggestions(false);
+    }
+  };
+  
+  // Delete a saved conversation
+  const deleteConversation = (conversationId, e) => {
+    e.stopPropagation();
+    setSavedConversations(savedConversations.filter(c => c.id !== conversationId));
+    
+    // If current conversation is deleted, clear it
+    if (currentConversationId === conversationId) {
+      clearConversation();
+    }
   };
   
   // Handle key press
@@ -110,6 +236,56 @@ const SideChat = () => {
       e.preventDefault();
       handleSendMessage();
     }
+  };
+  
+  // Handle suggestion click
+  const handleSuggestionClick = (suggestion) => {
+    setMessage(suggestion);
+    handleSendMessage();
+  };
+  
+  // Copy conversation to clipboard
+  const copyConversation = () => {
+    if (conversation.length === 0) {
+      setNotification({
+        type: 'error',
+        message: 'Nincs mit másolni'
+      });
+      setTimeout(() => setNotification(null), 3000);
+      return;
+    }
+    
+    const formattedText = conversation.map(msg => {
+      const role = msg.role === 'user' ? 'Kérdés' : 'Válasz';
+      return `${role}: ${msg.content}`;
+    }).join('\n\n');
+    
+    navigator.clipboard.writeText(formattedText).then(() => {
+      setNotification({
+        type: 'success',
+        message: 'Beszélgetés másolva a vágólapra'
+      });
+      setTimeout(() => setNotification(null), 3000);
+    }).catch(err => {
+      console.error('Failed to copy: ', err);
+      setNotification({
+        type: 'error',
+        message: 'Nem sikerült másolni a beszélgetést'
+      });
+      setTimeout(() => setNotification(null), 3000);
+    });
+  };
+
+  // Format date for display
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('hu-HU', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
   // Render chat message
@@ -122,7 +298,7 @@ const SideChat = () => {
         <div
           className={`max-w-[85%] p-2 rounded-lg text-sm ${
             msg.role === 'user'
-              ? 'bg-blue-500 text-white rounded-br-none'
+              ? 'bg-indigo-600 text-white rounded-br-none'
               : 'bg-gray-200 text-gray-800 rounded-bl-none'
           }`}
         >
@@ -141,14 +317,188 @@ const SideChat = () => {
           className="bg-indigo-600 hover:bg-indigo-700 text-white p-3 rounded-full shadow-lg transition-all duration-200 flex items-center justify-center"
         >
           <MessageSquare size={24} />
+          {conversation.length > 0 && (
+            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+              {conversation.filter(msg => msg.role === 'assistant').length}
+            </span>
+          )}
         </button>
       </div>
     );
   }
 
-  // Open chat panel
+  // Expanded view (full screen)
+  if (isExpanded) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-lg shadow-2xl w-full max-w-4xl h-[90vh] flex flex-col">
+          {/* Header */}
+          <div className="p-4 bg-indigo-600 text-white flex justify-between items-center rounded-t-lg">
+            <h3 className="font-medium flex items-center">
+              <MessageSquare size={18} className="mr-2" />
+              AI Asszisztens
+            </h3>
+            <div className="flex">
+              <button
+                onClick={copyConversation}
+                className="text-white mr-2 p-1 hover:bg-indigo-700 rounded"
+                title="Beszélgetés másolása"
+              >
+                <Copy size={16} />
+              </button>
+              <button
+                onClick={saveConversation}
+                className="text-white mr-2 p-1 hover:bg-indigo-700 rounded"
+                title="Beszélgetés mentése"
+              >
+                <Save size={16} />
+              </button>
+              <button
+                onClick={clearConversation}
+                className="text-white mr-2 p-1 hover:bg-indigo-700 rounded"
+                title="Beszélgetés törlése"
+              >
+                <Trash2 size={16} />
+              </button>
+              <Link 
+                to="/ai-chat"
+                className="text-white mr-2 p-1 hover:bg-indigo-700 rounded"
+                title="Megnyitás teljes oldalon"
+              >
+                <ExternalLink size={16} />
+              </Link>
+              <button
+                onClick={() => setIsExpanded(false)}
+                className="text-white p-1 hover:bg-indigo-700 rounded"
+                title="Kis méret"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          </div>
+          
+          {/* Notification */}
+          {notification && (
+            <div className={`p-2 text-sm text-center ${
+              notification.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+            }`}>
+              {notification.message}
+            </div>
+          )}
+          
+          <div className="flex flex-1 overflow-hidden">
+            {/* Saved conversations sidebar */}
+            <div className="w-64 border-r border-gray-200 overflow-y-auto">
+              <div className="p-3 border-b border-gray-200 font-medium text-sm">
+                Mentett beszélgetések
+              </div>
+              
+              {savedConversations.length === 0 ? (
+                <div className="p-3 text-center text-gray-500 text-xs">
+                  Még nincsenek mentett beszélgetések
+                </div>
+              ) : (
+                <ul>
+                  {savedConversations.map(convo => (
+                    <li 
+                      key={convo.id}
+                      onClick={() => loadConversation(convo.id)}
+                      className={`p-2 border-b border-gray-200 hover:bg-indigo-50 cursor-pointer text-sm ${
+                        currentConversationId === convo.id ? 'bg-indigo-100' : ''
+                      }`}
+                    >
+                      <div className="flex justify-between">
+                        <div className="truncate">{convo.title}</div>
+                        <button
+                          onClick={(e) => deleteConversation(convo.id, e)}
+                          className="text-gray-400 hover:text-red-500"
+                          title="Beszélgetés törlése"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1">
+                        {formatDate(convo.updatedAt)}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            
+            {/* Main chat area */}
+            <div className="flex-1 flex flex-col overflow-hidden">
+              <div className="flex-1 p-4 overflow-y-auto bg-gray-50">
+                {conversation.length === 0 ? (
+                  <div className="h-full flex items-center justify-center text-gray-500 text-sm">
+                    <div className="text-center p-4">
+                      <MessageSquare size={48} className="mx-auto mb-4 text-indigo-300" />
+                      <p className="mb-3 text-lg">Miben segíthetek neked?</p>
+                      <p className="text-sm text-gray-400 mb-6">Küldj egy üzenetet, vagy válassz az alábbi témák közül:</p>
+                      
+                      <div className="grid grid-cols-1 gap-2 max-w-md mx-auto">
+                        {quickSuggestions.map((suggestion, index) => (
+                          <button
+                            key={index}
+                            onClick={() => handleSuggestionClick(suggestion)}
+                            className="text-left p-3 bg-white border border-gray-200 rounded-lg hover:bg-indigo-50 hover:border-indigo-200 transition-colors"
+                          >
+                            <div className="flex items-center">
+                              <span className="flex-1 text-gray-800">{suggestion}</span>
+                              <ChevronRight size={16} className="text-indigo-400" />
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {conversation.map((msg, index) => renderMessage(msg, index))}
+                    {isLoading && (
+                      <div className="text-center py-2">
+                        <div className="inline-block h-3 w-3 border-2 border-indigo-500 rounded-full border-t-transparent animate-spin"></div>
+                      </div>
+                    )}
+                    <div ref={messagesEndRef} />
+                  </div>
+                )}
+              </div>
+              
+              <div className="p-3 border-t border-gray-200 bg-white">
+                <div className="flex items-center">
+                  <textarea
+                    ref={chatInputRef}
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    placeholder="Írd ide a kérdésed..."
+                    className="flex-1 p-3 border border-gray-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none text-sm"
+                    rows={2}
+                  />
+                  <button
+                    onClick={handleSendMessage}
+                    disabled={isLoading || !message.trim()}
+                    className={`h-full p-3 rounded-r-lg ${
+                      isLoading || !message.trim()
+                        ? 'bg-gray-300 text-gray-500'
+                        : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                    }`}
+                  >
+                    <Send size={18} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Regular open chat panel
   return (
-    <div className="fixed top-0 right-0 w-80 h-full bg-white shadow-xl z-50 flex flex-col overflow-hidden">
+    <div className="fixed bottom-4 right-4 w-80 h-[500px] bg-white rounded-lg shadow-xl z-50 flex flex-col overflow-hidden">
       <div className="p-3 bg-indigo-600 text-white flex justify-between items-center">
         <h3 className="font-medium flex items-center">
           <MessageSquare size={18} className="mr-2" />
@@ -156,11 +506,32 @@ const SideChat = () => {
         </h3>
         <div className="flex">
           <button
+            onClick={copyConversation}
+            className="text-white mr-2 p-1 hover:bg-indigo-700 rounded"
+            title="Beszélgetés másolása"
+          >
+            <Copy size={16} />
+          </button>
+          <button
+            onClick={saveConversation}
+            className="text-white mr-2 p-1 hover:bg-indigo-700 rounded"
+            title="Beszélgetés mentése"
+          >
+            <Save size={16} />
+          </button>
+          <button
             onClick={clearConversation}
             className="text-white mr-2 p-1 hover:bg-indigo-700 rounded"
             title="Beszélgetés törlése"
           >
             <Trash2 size={16} />
+          </button>
+          <button
+            onClick={() => setIsExpanded(true)}
+            className="text-white mr-2 p-1 hover:bg-indigo-700 rounded"
+            title="Teljes képernyő"
+          >
+            <Maximize2 size={16} />
           </button>
           <button
             onClick={() => setIsOpen(false)}
@@ -172,13 +543,35 @@ const SideChat = () => {
         </div>
       </div>
       
+      {/* Notification */}
+      {notification && (
+        <div className={`p-2 text-xs text-center ${
+          notification.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+        }`}>
+          {notification.message}
+        </div>
+      )}
+      
       <div className="flex-1 p-3 overflow-y-auto bg-gray-50">
         {conversation.length === 0 ? (
           <div className="h-full flex items-center justify-center text-gray-500 text-sm">
             <div className="text-center p-4">
-              <MessageSquare size={36} className="mx-auto mb-3 text-gray-300" />
+              <MessageSquare size={36} className="mx-auto mb-3 text-indigo-300" />
               <p className="mb-2">Miben segíthetek neked?</p>
-              <p className="text-xs text-gray-400">Küldj egy üzenetet a beszélgetés indításához.</p>
+              
+              {showSuggestions && (
+                <div className="mt-4 space-y-2">
+                  {quickSuggestions.map((suggestion, index) => (
+                    <button
+                      key={index}
+                      onClick={() => handleSuggestionClick(suggestion)}
+                      className="w-full text-left p-2 bg-white border border-gray-200 rounded hover:bg-indigo-50 text-xs hover:border-indigo-200 transition-colors"
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         ) : (
@@ -203,12 +596,12 @@ const SideChat = () => {
             onKeyPress={handleKeyPress}
             placeholder="Írd ide a kérdésed..."
             className="flex-1 p-2 border border-gray-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none text-sm"
-            rows={1}
+            rows={2}
           />
           <button
             onClick={handleSendMessage}
             disabled={isLoading || !message.trim()}
-            className={`p-2 rounded-r-lg ${
+            className={`h-full p-2 rounded-r-lg ${
               isLoading || !message.trim()
                 ? 'bg-gray-300 text-gray-500'
                 : 'bg-indigo-600 text-white hover:bg-indigo-700'
