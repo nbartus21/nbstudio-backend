@@ -1,6 +1,7 @@
 // routes/chatApi.js
 import express from 'express';
 import mongoose from 'mongoose';
+import jwt from 'jsonwebtoken';
 import authMiddleware from '../middleware/auth.js';
 // import { callDeepSeekAPI } from '../../src/deepseekService.js';
 
@@ -234,44 +235,69 @@ router.post('/chat', async (req, res) => {
     
     const data = await response.json();
     
-    // Save to database if user is logged in
-    if (req.userData && req.userData.email) {
+    // Save to database if user is logged in - token from Authorization header
+    // vagy a kérés query-ből - ellenőrizzük mindkét lehetőséget
+    if (req.headers.authorization || (req.userData && req.userData.email)) {
       try {
-        // Add new message to stored messages
-        const allMessages = [
-          ...messages,
-          {
-            role: 'assistant',
-            content: data.choices[0].message.content
-          }
-        ];
+        let userId = null;
         
-        // If conversation ID is provided, update that conversation
-        if (conversationId) {
-          await ChatConversation.findOneAndUpdate(
-            { _id: conversationId, userId: req.userData.email },
-            { 
-              messages: allMessages,
-              updatedAt: new Date()
+        // Ha van userData (a middleware által dekódolt token), akkor az email-t használjuk
+        if (req.userData && req.userData.email) {
+          userId = req.userData.email;
+        } 
+        // Ha nincs userData, de van authorization header, akkor megpróbáljuk dekódolni
+        else if (req.headers.authorization) {
+          try {
+            const token = req.headers.authorization.split(' ')[1];
+            const decoded = jwt.verify(token, process.env.JWT_SECRET || 'nb_studio_default_secret_key');
+            userId = decoded.email;
+          } catch (tokenError) {
+            console.error('Token dekódolási hiba:', tokenError);
+          }
+        }
+        
+        // Ha sikerült azonosítani a felhasználót, elmentsük a beszélgetést
+        if (userId) {
+          console.log('Beszélgetés mentése felhasználónak:', userId);
+          
+          // Add new message to stored messages
+          const allMessages = [
+            ...messages,
+            {
+              role: 'assistant',
+              content: data.choices[0].message.content
             }
-          );
-        } else {
-          // Create a new conversation
-          const title = messages[0]?.content.slice(0, 30) + (messages[0]?.content.length > 30 ? '...' : '');
+          ];
           
-          const conversation = new ChatConversation({
-            userId: req.userData.email,
-            title,
-            messages: allMessages
-          });
-          
-          await conversation.save();
-          data.conversationId = conversation._id;
+          // If conversation ID is provided, update that conversation
+          if (conversationId) {
+            await ChatConversation.findOneAndUpdate(
+              { _id: conversationId, userId: userId },
+              { 
+                messages: allMessages,
+                updatedAt: new Date()
+              }
+            );
+          } else {
+            // Create a new conversation
+            const title = messages[0]?.content.slice(0, 30) + (messages[0]?.content.length > 30 ? '...' : '');
+            
+            const conversation = new ChatConversation({
+              userId: userId,
+              title,
+              messages: allMessages
+            });
+            
+            await conversation.save();
+            data.conversationId = conversation._id;
+          }
         }
       } catch (dbError) {
         console.error('Hiba a beszélgetés adatbázisba mentésekor:', dbError);
         // Continue sending response even if DB save fails
       }
+    } else {
+      console.log('Nincs bejelentkezett felhasználó, nem mentjük a beszélgetést');
     }
     
     res.json(data);
