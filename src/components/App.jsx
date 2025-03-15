@@ -173,7 +173,9 @@ const App = () => {
        path="/ai-chat" 
        element={
          <PrivateRoute>
-           <AIChat />
+           <div className="h-screen w-screen flex">
+             <AIChat />
+           </div>
          </PrivateRoute>
        }
      />

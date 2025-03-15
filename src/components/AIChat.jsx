@@ -3,8 +3,8 @@ import { X, Maximize2, Minimize2, Send, MessageSquare, Trash2, Save } from 'luci
 
 const AIChat = () => {
   // States
-  const [isOpen, setIsOpen] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isOpen, setIsOpen] = useState(true); // Legyen alapból megnyitva a teljes képernyős oldalon
+  const [isExpanded, setIsExpanded] = useState(true); // Legyen alapból teljes képernyő
   const [message, setMessage] = useState('');
   const [conversation, setConversation] = useState([]);
   const [conversations, setConversations] = useState([]);
@@ -194,8 +194,18 @@ const AIChat = () => {
     );
   };
 
-  // Chat bubble (minimized state)
+  // Chat bubble (minimized state) - csak a SideChat-ben használjuk
   if (!isOpen) {
+    // Az URL alapján ellenőrizzük, hogy a dedicated AI Chat oldalon vagyunk-e
+    const isAIChatPage = window.location.pathname === '/ai-chat';
+    
+    // Ha a dedicated oldalon vagyunk, akkor ne jelenítse meg a minimalizált állapotot
+    if (isAIChatPage) {
+      setIsOpen(true);
+      setIsExpanded(true);
+      return null;
+    }
+    
     return (
       <div className="fixed bottom-4 right-4 z-50">
         <button
@@ -211,7 +221,7 @@ const AIChat = () => {
   // Expanded full-screen chat
   if (isExpanded) {
     return (
-      <div className="fixed inset-0 bg-white z-50 flex overflow-hidden">
+      <div className="w-full h-full bg-white flex overflow-hidden">
         {/* Sidebar with conversation history */}
         <div className="w-64 border-r border-gray-200 bg-gray-50 flex flex-col h-full">
           <div className="p-4 border-b border-gray-200 flex justify-between items-center">
@@ -262,13 +272,6 @@ const AIChat = () => {
         <div className="flex-1 flex flex-col h-full">
           <div className="p-4 border-b border-gray-200 flex justify-between items-center">
             <h2 className="font-bold text-lg">AI Asszisztens</h2>
-            <button
-              onClick={() => setIsExpanded(false)}
-              className="text-gray-500 hover:text-gray-700"
-              title="Kis méret"
-            >
-              <Minimize2 size={20} />
-            </button>
           </div>
           
           <div className="flex-1 p-4 overflow-y-auto">
