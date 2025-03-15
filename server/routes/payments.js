@@ -4,14 +4,24 @@ import Stripe from 'stripe';
 
 const router = express.Router();
 
-// Ellenőrizzük a STRIPE_SECRET_KEY eléhetőségét
-if (!process.env.STRIPE_SECRET_KEY) {
-  console.error('STRIPE_SECRET_KEY környezeti változó nincs beállítva!');
-  console.error('Használjuk a .env fájlban megadott értéket: sk_test_51QmjbrG2Q8BRzYFBotBDVtSaWeDlhZ8fURnDB20HItI29XaqLaMFTStyNo4XWThSge1wRoZTVrKMSA5tXnXVLIZf00jCtmKyXX');
-}
+// Explicit értéket adunk a Stripe Secret Key-nek
+const STRIPE_SECRET_KEY = 'sk_test_51QmjbrG2Q8BRzYFBotBDVtSaWeDlhZ8fURnDB20HItI29XaqLaMFTStyNo4XWThSge1wRoZTVrKMSA5tXnXVLIZf00jCtmKyXX';
 
-// Inicializáljuk a Stripe-ot az .env fájlból vagy az alapértelmezett értékkel
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_51QmjbrG2Q8BRzYFBotBDVtSaWeDlhZ8fURnDB20HItI29XaqLaMFTStyNo4XWThSge1wRoZTVrKMSA5tXnXVLIZf00jCtmKyXX');
+// Inicializáljuk a Stripe-ot 
+console.log('Initializing Stripe with key starting with:', STRIPE_SECRET_KEY.substring(0, 10) + '...');
+
+// Stripe API objektum létrehozása explicit opcióval
+const stripe = new Stripe(STRIPE_SECRET_KEY, {
+  apiVersion: '2023-10-16', // Az aktuális Stripe API verzió
+  typescript: false,
+  appInfo: {
+    name: 'NB Studio',
+    version: '1.0.0',
+  },
+  maxNetworkRetries: 3,
+  timeout: 30000, // 30 másodperc
+  protocol: 'https'
+});
 
 // Generate a payment link for an invoice
 router.post('/create-payment-link', async (req, res) => {
@@ -180,30 +190,62 @@ router.post('/create-payment-link', async (req, res) => {
     let cancelUrl = `${req.headers.origin || 'https://project.nb-studio.net'}/shared-project/${project.sharing?.token || projectId}?canceled=true`;
     
     try {
+      // Ellenőrizzük a kötelező mezőket
+      if (!invoice.totalAmount || typeof invoice.totalAmount !== 'number') {
+        throw new Error('Invalid invoice amount: ' + JSON.stringify(invoice.totalAmount));
+      }
+      
+      // Tartalék érték létrehozása az adatoknak
+      const productName = invoice.number ? `Számla #${invoice.number}` : 'Számla fizetés';
+      const productDesc = invoice.number && project.name
+        ? `Fizetés a ${invoice.number} számú számlához - ${project.name}`
+        : 'Számla fizetés';
+        
+      // Log egy teszt API hívás eredménye (csak debug céllal)
+      try {
+        // Teszt API hívás a Stripe inicializálás ellenőrzéséhez
+        const test = await stripe.customers.list({ limit: 1 });
+        console.log('Stripe API test successful, found customers:', test.data.length);
+      } catch (testError) {
+        console.error('Stripe API test failed:', testError.message);
+      }
+      
+      // Adatok tisztítása és előkészítése
+      let metadataValues = {};
+      try {
+        metadataValues = {
+          invoiceId: invoice._id?.toString() || '',
+          projectId: project._id?.toString() || '',
+          invoiceNumber: invoice.number?.toString() || '',
+          projectName: project.name?.toString() || '',
+          pin: (pin || '')?.toString(),
+          sharingToken: (project.sharing?.token || '')?.toString(),
+          testValue: 'test123'
+        };
+      } catch (metadataError) {
+        console.error('Error preparing metadata:', metadataError);
+        metadataValues = { testValue: 'test123' };
+      }
+      
+      // Stripe Checkout Session létrehozása egyszerűbb konfigurációval
+      console.log('Creating Stripe session with clean data');
       const session = await stripe.checkout.sessions.create({
         payment_method_types: ['card'],
         line_items: [{
           price_data: {
-            currency: invoice.currency || 'eur',
+            currency: 'eur',
             product_data: {
-              name: `Számla #${invoice.number}`,
-              description: `Fizetés a ${invoice.number} számú számlához - ${project.name}`,
+              name: productName,
+              description: productDesc,
             },
-            unit_amount: Math.round(invoice.totalAmount * 100), // Convert to cents
+            unit_amount: Math.round(Math.abs(invoice.totalAmount) * 100), // Convert to cents, use absolute value
           },
           quantity: 1,
         }],
         mode: 'payment',
         success_url: successUrl,
         cancel_url: cancelUrl,
-        metadata: {
-          invoiceId: invoice._id.toString(),
-          projectId: project._id.toString(),
-          invoiceNumber: invoice.number,
-          projectName: project.name,
-          pin: pin || '',
-          sharingToken: project.sharing?.token || ''
-        },
+        metadata: metadataValues,
       });
       
       console.log('Stripe session created successfully:', {
