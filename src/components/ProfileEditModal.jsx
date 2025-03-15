@@ -300,15 +300,23 @@ const ProfileEditModal = ({
           }
         };
         
-        // Projekt frissítése a szerveren
-        const projectResponse = await fetch(`${API_URL}/projects/${projectId}`, {
-          method: 'PUT',
+        // Projekt frissítése a szerveren - a Sharing Token/PIN beállítása
+        const savedSession = localStorage.getItem(`project_session_${projectId}`);
+        const sessionData = savedSession ? JSON.parse(savedSession) : null;
+        const pin = sessionData?.pin || '';
+        
+        // Használjuk a verify-pin végpontot a frissítéshez
+        const projectResponse = await fetch(`${API_URL}/api/public/projects/verify-pin`, {
+          method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'X-API-Key': API_KEY,
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
+            'X-API-Key': API_KEY
           },
-          body: JSON.stringify(updatedProject)
+          body: JSON.stringify({
+            token: project.sharing?.token,
+            pin: pin,
+            updateProject: updatedProject
+          })
         });
         
         if (!projectResponse.ok) {

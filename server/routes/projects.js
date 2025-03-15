@@ -286,7 +286,7 @@ router.post('/projects/:id/share', async (req, res) => {
 router.post('/verify-pin', async (req, res) => {
   console.log('PIN ellenőrzés kérés érkezett:', req.body);
   try {
-    const { token, pin } = req.body;
+    const { token, pin, updateProject } = req.body;
     
     console.log('Token a verify-pin-ben:', token);
     const project = await Project.findOne({ 'sharing.token': token });
@@ -312,6 +312,28 @@ router.post('/verify-pin', async (req, res) => {
 
     if (project.sharing.pin !== pin) {
       return res.status(403).json({ message: 'Érvénytelen PIN kód' });
+    }
+    
+    // Ha updateProject objektumot küldtek, frissítsük a projektet
+    if (updateProject) {
+      console.log('Projekt frissítési kérés érkezett a verify-pin-ben');
+      
+      // Frissítsük a kliens adatokat - csak a biztonságos mezőket
+      if (updateProject.client) {
+        console.log('Kliens adatok frissítése:', updateProject.client.name);
+        project.client = {
+          ...project.client,
+          name: updateProject.client.name || project.client.name,
+          email: updateProject.client.email || project.client.email,
+          phone: updateProject.client.phone || project.client.phone,
+          companyName: updateProject.client.companyName || project.client.companyName,
+          taxNumber: updateProject.client.taxNumber || project.client.taxNumber,
+          address: updateProject.client.address || project.client.address
+        };
+        
+        await project.save();
+        console.log('Projekt sikeresen frissítve a szerveren.');
+      }
     }
 
     // Számlák feldolgozása - egyszerű JSON objektummá alakítás
@@ -342,13 +364,18 @@ router.post('/verify-pin', async (req, res) => {
       description: project.description,
       client: {
         name: project.client?.name || '',
-        email: project.client?.email || ''
+        email: project.client?.email || '',
+        phone: project.client?.phone || '',
+        companyName: project.client?.companyName || '',
+        taxNumber: project.client?.taxNumber || '',
+        address: project.client?.address || {}
       },
       invoices: processedInvoices,
       financial: {
         currency: project.financial?.currency || 'EUR'
       },
       sharing: {
+        token: project.sharing.token, // Hozzáadjuk a tokent is, hogy a kliens használhassa
         expiresAt: project.sharing.expiresAt,
         createdAt: project.sharing.createdAt
       }
