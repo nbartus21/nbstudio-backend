@@ -379,8 +379,8 @@ const SharedProjectDashboard = ({
     try {
       debugLog('fetchDocuments', 'Fetching documents from server', { projectId });
       
-      // Először próbáljuk a /documents végpontot a projectId-vel
-      const response = await fetch(`${API_URL}/documents?projectId=${projectId}`, {
+      // Először próbáljuk a dedikált public végpontot
+      const response = await fetch(`${API_URL}/public/projects/${projectId}/documents`, {
         headers: {
           'X-API-Key': API_KEY
         }
@@ -389,22 +389,35 @@ const SharedProjectDashboard = ({
       if (response.ok) {
         const data = await response.json();
         if (data && Array.isArray(data)) {
-          debugLog('fetchDocuments', `Fetched ${data.length} documents from server`);
+          debugLog('fetchDocuments', `Fetched ${data.length} documents from server using public endpoint`);
           setDocuments(data);
         }
       } else {
-        if (response.status === 401) {
-          debugLog('fetchDocuments', 'Authentication error (401) when fetching documents - falling back to local data');
+        // Ha nem működik a public végpont, próbáljuk a standard API-t
+        debugLog('fetchDocuments', 'Public endpoint failed, trying standard API', { status: response.status });
+        
+        try {
+          const fallbackResponse = await fetch(`${API_URL}/documents?projectId=${projectId}`, {
+            headers: {
+              'X-API-Key': API_KEY
+            }
+          });
           
-          // Alternatív útvonal - próbáljuk a megosztott projekt specifikus végpontot, ha lenne
-          try {
-            // Megjegyzés: Ha később létrehozunk egy specifikus végpontot a megosztott projektekhez
-            // akkor itt hívhatjuk meg azt
-          } catch (altError) {
-            debugLog('fetchDocuments', 'Alternative route also failed', { error: altError });
+          if (fallbackResponse.ok) {
+            const data = await fallbackResponse.json();
+            if (data && Array.isArray(data)) {
+              debugLog('fetchDocuments', `Fetched ${data.length} documents from server using standard API`);
+              setDocuments(data);
+            }
+          } else {
+            debugLog('fetchDocuments', 'Standard API also failed', { status: fallbackResponse.status });
+            
+            if (fallbackResponse.status === 401) {
+              debugLog('fetchDocuments', 'Authentication error (401) - falling back to local data');
+            }
           }
-        } else {
-          debugLog('fetchDocuments', 'Failed to fetch documents', { status: response.status });
+        } catch (fallbackError) {
+          debugLog('fetchDocuments', 'Error with fallback request', { error: fallbackError });
         }
       }
     } catch (error) {

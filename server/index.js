@@ -285,8 +285,35 @@ setupEmailEndpoint(app);
 app.use('/api/auth', authRoutes);
 
 // ==============================================
-// PUBLIC DOCUMENT PDF ENDPOINT (No authentication required)
+// PUBLIC ENDPOINTS FOR SHARED PROJECTS (No authentication required)
 // ==============================================
+
+// Public endpoint to fetch project documents 
+app.get('/api/public/projects/:projectId/documents', validateApiKey, async (req, res) => {
+  try {
+    console.log(`Public documents request for project ID: ${req.params.projectId}`);
+    
+    // Import necessary models
+    const GeneratedDocument = mongoose.model('GeneratedDocument');
+    
+    // Find documents for this project
+    const documents = await GeneratedDocument.find({ 
+      projectId: req.params.projectId 
+    }).populate('templateId', 'name type').sort({ createdAt: -1 });
+    
+    console.log(`Found ${documents.length} documents for project ${req.params.projectId}`);
+    res.json(documents);
+  } catch (error) {
+    console.error(`Error fetching public project documents: ${error.message}`);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// ==============================================
+// PUBLIC PDF ENDPOINTS (No authentication required)
+// ==============================================
+
+// Public Document PDF endpoint
 app.get('/api/documents/:id/pdf', async (req, res) => {
   try {
     console.log(`Public PDF generation request for document ID: ${req.params.id}`);
@@ -398,6 +425,185 @@ app.get('/api/documents/:id/pdf', async (req, res) => {
     if (!res.headersSent) {
       res.status(500).json({ 
         message: 'Error generating PDF', 
+        error: error.message 
+      });
+    } else {
+      // If headers already sent, just end the response
+      res.end();
+    }
+  }
+});
+
+// Public Invoice PDF endpoint
+app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => {
+  try {
+    console.log(`Public PDF generation request for invoice. Project ID: ${req.params.projectId}, Invoice ID: ${req.params.invoiceId}`);
+    
+    // Import Project model if not already available
+    const Project = mongoose.model('Project');
+    
+    // Find the project and invoice
+    const project = await Project.findById(req.params.projectId);
+    
+    if (!project) {
+      console.error(`Project not found with ID: ${req.params.projectId}`);
+      return res.status(404).json({ message: 'Projekt nem található' });
+    }
+    
+    // Find the invoice in the project
+    const invoice = project.invoices.id(req.params.invoiceId);
+    
+    if (!invoice) {
+      console.error(`Invoice not found with ID: ${req.params.invoiceId} in project ${req.params.projectId}`);
+      return res.status(404).json({ message: 'Számla nem található' });
+    }
+    
+    console.log(`Found invoice: ${invoice.number} for project: ${project.name}`);
+    
+    // Generate PDF file name
+    const fileName = `szamla-${invoice.number.replace(/[^a-z0-9]/gi, '-')}.pdf`;
+    
+    // Set response headers
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    
+    // Create PDF document and pipe directly to response
+    const doc = new PDFDocument({
+      size: 'A4',
+      margin: 50,
+      info: {
+        Title: `Számla-${invoice.number}`,
+        Author: 'NB Studio'
+      }
+    });
+    
+    // Pipe directly to response
+    doc.pipe(res);
+    
+    // Error handling for PDF generation
+    doc.on('error', (err) => {
+      console.error(`PDF generation error: ${err}`);
+      if (!res.finished) {
+        doc.end();
+      }
+    });
+    
+    try {
+      // Fejléc logó (ha létezik)
+      const logoPath = './public/logo.png';
+      // Ellenőrizzük a fájl létezését és csak akkor próbáljuk beilleszteni
+      const fs = require('fs');
+      if (fs.existsSync(logoPath)) {
+        doc.image(logoPath, 50, 50, { width: 100 })
+          .moveDown();
+      }
+    } catch (logoError) {
+      console.warn('Logo not found, skipping:', logoError.message);
+    }
+
+    // Fejléc
+    doc.fontSize(25)
+      .text('SZÁMLA', { align: 'center' })
+      .moveDown();
+
+    // Kiállító adatok
+    doc.fontSize(12)
+      .text('Kiállító:', { underline: true })
+      .text('NB Studio')
+      .text('Adószám: 12345678-1-42')
+      .text('Cím: 1234 Budapest, Példa utca 1.')
+      .moveDown();
+
+    // Vevő adatok
+    if (project.client) {
+      doc.text('Vevő:', { underline: true })
+        .text(project.client.name)
+        .text(`Email: ${project.client.email}`)
+        .text(`Adószám: ${project.client.taxNumber || 'N/A'}`)
+        .moveDown();
+    }
+
+    // Számla adatok
+    doc.text(`Számlaszám: ${invoice.number}`)
+      .text(`Kiállítás dátuma: ${new Date(invoice.date).toLocaleDateString('hu-HU')}`)
+      .text(`Fizetési határidő: ${new Date(invoice.dueDate).toLocaleDateString('hu-HU')}`)
+      .moveDown();
+
+    // Tételek táblázat
+    const tableTop = doc.y;
+    const itemsTable = {
+      headers: ['Tétel', 'Mennyiség', 'Egységár', 'Összesen'],
+      rows: invoice.items.map(item => [
+        item.description,
+        item.quantity.toString(),
+        `${item.unitPrice} EUR`,
+        `${item.total} EUR`
+      ])
+    };
+
+    let currentY = tableTop;
+    let currentPage = 1;
+
+    // Táblázat fejléc
+    doc.font('Helvetica-Bold')
+      .text(itemsTable.headers[0], 50, currentY, { width: 200 })
+      .text(itemsTable.headers[1], 250, currentY, { width: 100 })
+      .text(itemsTable.headers[2], 350, currentY, { width: 100 })
+      .text(itemsTable.headers[3], 450, currentY, { width: 100 });
+
+    // Táblázat sorok
+    doc.font('Helvetica');
+    currentY += 20;
+
+    itemsTable.rows.forEach(row => {
+      if (currentY > 700) {
+        doc.addPage();
+        currentPage++;
+        currentY = 50;
+        
+        // Fejléc az új oldalon
+        doc.font('Helvetica-Bold')
+          .text(itemsTable.headers[0], 50, currentY, { width: 200 })
+          .text(itemsTable.headers[1], 250, currentY, { width: 100 })
+          .text(itemsTable.headers[2], 350, currentY, { width: 100 })
+          .text(itemsTable.headers[3], 450, currentY, { width: 100 });
+        
+        doc.font('Helvetica');
+        currentY += 20;
+      }
+
+      doc.text(row[0], 50, currentY, { width: 200 })
+        .text(row[1], 250, currentY, { width: 100 })
+        .text(row[2], 350, currentY, { width: 100 })
+        .text(row[3], 450, currentY, { width: 100 });
+
+      currentY += 20;
+    });
+
+    // Összesítés
+    doc.moveDown()
+      .font('Helvetica-Bold')
+      .text('Összesítés:', { underline: true })
+      .moveDown()
+      .text(`Végösszeg: ${invoice.totalAmount} EUR`, { align: 'right' })
+      .text(`Fizetve: ${invoice.paidAmount} EUR`, { align: 'right' })
+      .text(`Fennmaradó összeg: ${invoice.totalAmount - invoice.paidAmount} EUR`, { align: 'right' });
+
+    // Lábléc
+    doc.fontSize(10)
+      .text('Köszönjük, hogy minket választott!', { align: 'center' })
+      .text(`Oldalszám: ${currentPage}`, 50, doc.page.height - 50, { align: 'center' });
+
+    // Finalize PDF and send response
+    doc.end();
+    console.log(`Invoice PDF generated successfully: ${fileName}`);
+  } catch (error) {
+    console.error(`Invoice PDF generation error: ${error.message}`);
+    console.error(error.stack);
+    
+    if (!res.headersSent) {
+      res.status(500).json({ 
+        message: 'Hiba a PDF generálása során', 
         error: error.message 
       });
     } else {
