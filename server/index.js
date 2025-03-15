@@ -555,17 +555,14 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
       }
     });
     
+    // Fejléc logó - kihagyjuk a logo betöltést, mert import nem használható itt
     try {
-      // Fejléc logó (ha létezik)
-      const logoPath = './public/logo.png';
-      // Ellenőrizzük a fájl létezését és csak akkor próbáljuk beilleszteni
-      const fs = require('fs');
-      if (fs.existsSync(logoPath)) {
-        doc.image(logoPath, 50, 50, { width: 100 })
-          .moveDown();
-      }
+      // Itt csak a PDF fejlécét készítjük el logó nélkül
+      doc.fontSize(14)
+        .text('NB STUDIO', 50, 60, { bold: true })
+        .moveDown();
     } catch (logoError) {
-      console.warn('Logo not found, skipping:', logoError.message);
+      console.warn('Logo error:', logoError.message);
     }
 
     // Fejléc

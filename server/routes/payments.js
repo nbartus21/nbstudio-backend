@@ -1,8 +1,10 @@
-const express = require('express');
+import express from 'express';
+import mongoose from 'mongoose';
+import Invoice from '../models/Invoice.js';
+import Stripe from 'stripe';
+
 const router = express.Router();
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
-const mongoose = require('mongoose');
-const Invoice = require('../models/Invoice');
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 // Generate a payment link for an invoice
 router.post('/create-payment-link', async (req, res) => {
@@ -56,13 +58,28 @@ router.post('/create-payment-link', async (req, res) => {
 });
 
 // Webhook for handling Stripe payment events
-router.post('/webhook', express.raw({type: 'application/json'}), async (req, res) => {
+router.post('/webhook', (req, res, next) => {
+  // Express.raw middleware helyett manuális kezelés
+  if (req.headers['content-type'] === 'application/json') {
+    let data = '';
+    req.setEncoding('utf8');
+    req.on('data', chunk => {
+      data += chunk;
+    });
+    req.on('end', () => {
+      req.rawBody = data;
+      next();
+    });
+  } else {
+    next();
+  }
+}, async (req, res) => {
   const sig = req.headers['stripe-signature'];
   const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
   let event;
 
   try {
-    event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
+    event = stripe.webhooks.constructEvent(req.rawBody || '{}', sig, endpointSecret);
   } catch (err) {
     console.error('Webhook signature verification failed:', err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
@@ -96,4 +113,4 @@ router.post('/webhook', express.raw({type: 'application/json'}), async (req, res
   res.json({ received: true });
 });
 
-module.exports = router;
+export default router;
