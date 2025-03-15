@@ -701,7 +701,9 @@ app.use('/api', documentsRouter);
 // Fix for transactions endpoint directly accessing the accountingRoutes
 app.use('/api/transactions', (req, res, next) => {
   // Redirect to accounting/transactions to match the client's request
-  req.url = req.url.replace('/transactions', '/accounting/transactions');
+  console.log('Redirecting from /api/transactions to /api/accounting/transactions');
+  req.url = req.url === '/' ? '/transactions' : req.url;
+  req.baseUrl = '/api/accounting';
   next();
 }, accountingRoutes);
 

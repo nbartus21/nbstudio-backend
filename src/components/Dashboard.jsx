@@ -92,7 +92,7 @@ const AdminDashboard = () => {
         
         // Try to fetch financial data
         try {
-          const financialResponse = await api.get(`${API_URL}/transactions`);
+          const financialResponse = await api.get(`${API_URL}/accounting/transactions`);
           if (financialResponse.ok) {
             data.financialData = await financialResponse.json();
           }
