@@ -7,6 +7,12 @@ import http from 'http';
 import { Server } from 'socket.io';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+// ES modulban definiáljuk a __dirname-t
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 // PDF generation dependencies
 import PDFDocument from 'pdfkit';
 
