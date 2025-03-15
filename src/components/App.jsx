@@ -1,5 +1,6 @@
 import React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, Link } from 'react-router-dom';
+import { MessageSquare, Mail } from 'lucide-react';
 import Navigation from './Navigation';
 import Dashboard from './Dashboard';
 import BlogAdmin from './BlogAdmin';
