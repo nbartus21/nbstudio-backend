@@ -167,6 +167,72 @@ const App = () => {
   }
 />
      <Route path="/qr-login" element={<QRLogin />} />
+     <Route 
+       path="/help" 
+       element={
+         <PrivateRoute>
+           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+             <h1 className="text-2xl font-bold mb-4">Súgó</h1>
+             <div className="bg-white rounded-lg shadow-lg p-6">
+               <div className="grid md:grid-cols-2 gap-6">
+                 {/* Bal oszlop */}
+                 <div>
+                   <h2 className="text-xl font-semibold mb-4">Gyakori kérdések</h2>
+                   <div className="space-y-4">
+                     <div className="border-b pb-4">
+                       <h3 className="font-medium mb-2">Hogyan hozzak létre új projektet?</h3>
+                       <p className="text-gray-600">
+                         A Projekt kezelő oldalon kattintson az "Új projekt" gombra, majd töltse ki a megjelenő űrlapot a projekt adataival.
+                       </p>
+                     </div>
+                     <div className="border-b pb-4">
+                       <h3 className="font-medium mb-2">Hogyan adok hozzá új számlákat?</h3>
+                       <p className="text-gray-600">
+                         Navigáljon a kiválasztott projekthez, majd kattintson a "Számlák" fülre. Itt kattintson az "Új számla" gombra.
+                       </p>
+                     </div>
+                     <div className="border-b pb-4">
+                       <h3 className="font-medium mb-2">Hogyan használjam az AI asszisztenst?</h3>
+                       <p className="text-gray-600">
+                         Az AI asszisztens a jobb alsó sarokban található chat ikonra kattintva érhető el. Írja be kérdését, és az AI segíteni fog.
+                       </p>
+                     </div>
+                   </div>
+                 </div>
+                 
+                 {/* Jobb oszlop */}
+                 <div>
+                   <h2 className="text-xl font-semibold mb-4">Segítség kérése</h2>
+                   <p className="mb-4">Ha további segítségre van szüksége:</p>
+                   <div className="space-y-4">
+                     <div className="flex items-start p-3 border rounded-lg hover:bg-gray-50">
+                       <MessageSquare className="text-blue-500 mr-3 mt-1" />
+                       <div>
+                         <h3 className="font-medium">AI Asszisztens</h3>
+                         <p className="text-gray-600 text-sm mt-1">Kérdezze az AI asszisztenst bármilyen probléma esetén.</p>
+                         <Link to="/ai-chat" className="inline-block mt-2 text-blue-500 text-sm font-medium hover:underline">
+                           Ugrás az AI asszisztenshez →
+                         </Link>
+                       </div>
+                     </div>
+                     <div className="flex items-start p-3 border rounded-lg hover:bg-gray-50">
+                       <Mail className="text-blue-500 mr-3 mt-1" />
+                       <div>
+                         <h3 className="font-medium">E-mail támogatás</h3>
+                         <p className="text-gray-600 text-sm mt-1">Küldjön e-mailt a támogatási csapatnak.</p>
+                         <a href="mailto:support@example.com" className="inline-block mt-2 text-blue-500 text-sm font-medium hover:underline">
+                           support@example.com
+                         </a>
+                       </div>
+                     </div>
+                   </div>
+                 </div>
+               </div>
+             </div>
+           </div>
+         </PrivateRoute>
+       }
+     />
      <Route path="*" element={<Navigate to="/magic-login" />} />
      <Route path="/shared-project/:token" element={<SharedProjectView />} />
      <Route 
