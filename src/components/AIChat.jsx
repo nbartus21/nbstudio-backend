@@ -176,13 +176,16 @@ const AIChat = () => {
 
   // Render chat message
   const renderMessage = (msg, index) => {
+    // Az URL alapján ellenőrizzük, hogy a dedicated AI Chat oldalon vagyunk-e
+    const isAIChatPage = window.location.pathname === '/ai-chat';
+    
     return (
       <div 
         key={index}
-        className={`mb-4 ${msg.role === 'user' ? 'ml-auto' : 'mr-auto'}`}
+        className={`mb-3 ${msg.role === 'user' ? 'ml-auto' : 'mr-auto'}`}
       >
         <div
-          className={`max-w-xs md:max-w-md lg:max-w-lg p-3 rounded-lg ${
+          className={`${isAIChatPage ? 'max-w-md' : 'max-w-xs'} p-2 rounded-lg text-sm ${
             msg.role === 'user'
               ? 'bg-blue-500 text-white rounded-br-none'
               : 'bg-gray-200 text-gray-800 rounded-bl-none'
@@ -220,12 +223,15 @@ const AIChat = () => {
 
   // Expanded full-screen chat
   if (isExpanded) {
+    // Az URL alapján ellenőrizzük, hogy a dedicated AI Chat oldalon vagyunk-e
+    const isAIChatPage = window.location.pathname === '/ai-chat';
+    
     return (
-      <div className="w-full h-full bg-white flex overflow-hidden">
+      <div className="w-full h-full bg-white flex overflow-hidden rounded-lg">
         {/* Sidebar with conversation history */}
-        <div className="w-64 border-r border-gray-200 bg-gray-50 flex flex-col h-full">
-          <div className="p-4 border-b border-gray-200 flex justify-between items-center">
-            <h2 className="font-bold text-lg">Beszélgetések</h2>
+        <div className={`${isAIChatPage ? 'w-1/4' : 'w-64'} border-r border-gray-200 bg-gray-50 flex flex-col h-full`}>
+          <div className="p-3 border-b border-gray-200 flex justify-between items-center">
+            <h2 className="font-medium text-base">Beszélgetések</h2>
             <button
               onClick={() => startNewConversation()}
               className="text-blue-500 hover:text-blue-600"
@@ -237,7 +243,7 @@ const AIChat = () => {
           
           <div className="flex-1 overflow-y-auto">
             {conversations.length === 0 ? (
-              <div className="p-4 text-gray-500 text-center">
+              <div className="p-4 text-gray-500 text-center text-sm">
                 Még nincsenek beszélgetések
               </div>
             ) : (
@@ -246,12 +252,12 @@ const AIChat = () => {
                   <li 
                     key={convo.id}
                     onClick={() => loadConversation(convo.id)}
-                    className={`p-3 border-b border-gray-200 hover:bg-gray-100 cursor-pointer flex justify-between ${
+                    className={`p-2 border-b border-gray-200 hover:bg-gray-100 cursor-pointer flex justify-between ${
                       currentConversationId === convo.id ? 'bg-blue-50' : ''
                     }`}
                   >
                     <div className="overflow-hidden">
-                      <div className="font-medium truncate">{convo.title || 'Névtelen'}</div>
+                      <div className="font-medium text-sm truncate">{convo.title || 'Névtelen'}</div>
                       <div className="text-xs text-gray-500">{formatTimestamp(convo.updatedAt)}</div>
                     </div>
                     <button
@@ -259,7 +265,7 @@ const AIChat = () => {
                       className="text-gray-400 hover:text-red-500"
                       title="Beszélgetés törlése"
                     >
-                      <Trash2 size={16} />
+                      <Trash2 size={14} />
                     </button>
                   </li>
                 ))}
@@ -270,27 +276,29 @@ const AIChat = () => {
         
         {/* Main chat area */}
         <div className="flex-1 flex flex-col h-full">
-          <div className="p-4 border-b border-gray-200 flex justify-between items-center">
-            <h2 className="font-bold text-lg">AI Asszisztens</h2>
-          </div>
+          {!isAIChatPage && (
+            <div className="p-3 border-b border-gray-200 flex justify-between items-center">
+              <h2 className="font-medium">AI Asszisztens</h2>
+            </div>
+          )}
           
-          <div className="flex-1 p-4 overflow-y-auto">
+          <div className="flex-1 p-3 overflow-y-auto">
             {conversation.length === 0 ? (
               <div className="h-full flex items-center justify-center text-gray-500">
                 <div className="text-center">
-                  <MessageSquare size={48} className="mx-auto mb-4 text-gray-300" />
-                  <p>Küldj egy üzenetet az AI-val való beszélgetés indításához.</p>
+                  <MessageSquare size={40} className="mx-auto mb-3 text-gray-300" />
+                  <p className="text-sm">Küldj egy üzenetet az AI-val való beszélgetés indításához.</p>
                 </div>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {conversation.map((msg, index) => renderMessage(msg, index))}
                 <div ref={messagesEndRef} />
               </div>
             )}
           </div>
           
-          <div className="p-4 border-t border-gray-200">
+          <div className="p-3 border-t border-gray-200">
             <div className="flex items-center">
               <textarea
                 ref={chatInputRef}
@@ -298,7 +306,7 @@ const AIChat = () => {
                 onChange={(e) => setMessage(e.target.value)}
                 onKeyPress={handleKeyPress}
                 placeholder="Írd ide az üzeneted..."
-                className="flex-1 p-2 border border-gray-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                className="flex-1 p-2 border border-gray-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm"
                 rows={1}
               />
               <button
@@ -310,7 +318,7 @@ const AIChat = () => {
                     : 'bg-blue-500 text-white hover:bg-blue-600'
                 }`}
               >
-                <Send size={20} />
+                <Send size={18} />
               </button>
             </div>
           </div>
