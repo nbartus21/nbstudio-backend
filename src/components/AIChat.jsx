@@ -231,7 +231,7 @@ const AIChat = () => {
         {/* Sidebar with conversation history */}
         <div className={`${isAIChatPage ? 'w-1/4' : 'w-64'} border-r border-gray-200 bg-gray-50 flex flex-col h-full`}>
           <div className="p-3 border-b border-gray-200 flex justify-between items-center">
-            <h2 className="font-medium text-base">Beszélgetések</h2>
+            <h2 className="font-medium text-base">Mentett Sablonok</h2>
             <button
               onClick={() => startNewConversation()}
               className="text-blue-500 hover:text-blue-600"
@@ -241,13 +241,16 @@ const AIChat = () => {
             </button>
           </div>
           
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto h-full">
             {conversations.length === 0 ? (
-              <div className="p-4 text-gray-500 text-center text-sm">
-                Még nincsenek beszélgetések
+              <div className="p-4 text-gray-500 text-center text-sm h-full flex items-center justify-center">
+                <div>
+                  <p>Még nincsenek mentett sablonok</p>
+                  <p className="text-xs mt-2 text-gray-400">Küldj üzenetet, hogy elkezdd az első beszélgetést</p>
+                </div>
               </div>
             ) : (
-              <ul>
+              <ul className="h-full">
                 {conversations.map((convo) => (
                   <li 
                     key={convo.id}
