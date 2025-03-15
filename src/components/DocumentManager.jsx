@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   FileText, Plus, Search, Filter, Download, 
   Edit, Trash2, Eye, CheckCircle, XCircle, Send,
-  Copy, FilePlus, FileCheck, Clock
+  Copy, FilePlus, FileCheck, Clock, Link, Share2
 } from 'lucide-react';
 import { api } from '../services/auth';
 
@@ -20,7 +20,9 @@ const DOCUMENT_STATUSES = [
   { value: 'pendingApproval', label: 'Jóváhagyásra vár', color: 'bg-yellow-100 text-yellow-800' },
   { value: 'approved', label: 'Jóváhagyva', color: 'bg-green-100 text-green-800' },
   { value: 'rejected', label: 'Elutasítva', color: 'bg-red-100 text-red-800' },
-  { value: 'sent', label: 'Elküldve', color: 'bg-blue-100 text-blue-800' }
+  { value: 'sent', label: 'Elküldve', color: 'bg-blue-100 text-blue-800' },
+  { value: 'clientApproved', label: 'Ügyfél elfogadta', color: 'bg-green-200 text-green-900' },
+  { value: 'clientRejected', label: 'Ügyfél elutasította', color: 'bg-red-200 text-red-900' }
 ];
 
 const DocumentManager = () => {
@@ -61,6 +63,12 @@ const DocumentManager = () => {
     message: ''
   });
   const [showSendForm, setShowSendForm] = useState(false);
+  const [showShareForm, setShowShareForm] = useState(false);
+  const [shareData, setShareData] = useState({
+    documentId: '',
+    expiryDays: 30,
+    shareLink: ''
+  });
 
   // Fetch templates
   const fetchTemplates = async () => {
@@ -359,6 +367,69 @@ const handleViewDocument = async (documentId) => {
       showSuccess('Dokumentum sikeresen elküldve');
     } catch (error) {
       console.error('Hiba a dokumentum küldésekor:', error);
+      setError(error.message);
+    }
+  };
+  
+  // Generate share link for document
+  const handleGenerateShareLink = async (documentId) => {
+    try {
+      setShareData({
+        documentId,
+        expiryDays: 30,
+        shareLink: ''
+      });
+      setShowShareForm(true);
+    } catch (error) {
+      console.error('Hiba a megosztási űrlap megnyitásakor:', error);
+      setError(error.message);
+    }
+  };
+  
+  // Create share link
+  const handleCreateShareLink = async () => {
+    try {
+      const response = await api.post(
+        `/api/documents/${shareData.documentId}/share`, 
+        { expiryDays: shareData.expiryDays }
+      );
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Hiba történt a megosztási link generálása során');
+      }
+      
+      const data = await response.json();
+      
+      setShareData({
+        ...shareData,
+        shareLink: data.shareLink
+      });
+      
+      fetchDocuments();
+      showSuccess('Megosztási link sikeresen létrehozva');
+    } catch (error) {
+      console.error('Hiba a megosztási link generálásakor:', error);
+      setError(error.message);
+    }
+  };
+  
+  // Delete document
+  const handleDeleteDocument = async (documentId) => {
+    if (!window.confirm('Biztosan törli ezt a dokumentumot?')) return;
+    
+    try {
+      const response = await api.delete(`/api/documents/${documentId}`);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Hiba történt a dokumentum törlése során');
+      }
+      
+      fetchDocuments();
+      showSuccess('Dokumentum sikeresen törölve');
+    } catch (error) {
+      console.error('Hiba a dokumentum törlésekor:', error);
       setError(error.message);
     }
   };
@@ -679,6 +750,12 @@ const handleViewDocument = async (documentId) => {
                                 <Clock className="h-3.5 w-3.5 mr-1" />
                                 Létrehozva: {new Date(doc.createdAt).toLocaleDateString('hu-HU')}
                               </span>
+                              {doc.publicToken && (
+                                <span className="text-blue-500 flex items-center">
+                                  <Link className="h-3.5 w-3.5 mr-1" />
+                                  Megosztott
+                                </span>
+                              )}
                             </div>
                           </div>
                           <div className="flex items-center space-x-2 ml-4">
@@ -740,6 +817,22 @@ const handleViewDocument = async (documentId) => {
                                 <Send className="h-5 w-5" />
                               </button>
                             )}
+                            {/* Link generálási gomb */}
+                            <button
+                              onClick={() => handleGenerateShareLink(doc._id)}
+                              className="p-1 text-purple-600 hover:text-purple-800 rounded hover:bg-purple-50"
+                              title="Megosztási link generálása"
+                            >
+                              <Link className="h-5 w-5" />
+                            </button>
+                            {/* Törlés gomb */}
+                            <button
+                              onClick={() => handleDeleteDocument(doc._id)}
+                              className="p-1 text-red-600 hover:text-red-800 rounded hover:bg-red-50"
+                              title="Dokumentum törlése"
+                            >
+                              <Trash2 className="h-5 w-5" />
+                            </button>
                           </div>
                         </div>
                       </div>
@@ -1189,6 +1282,108 @@ const handleViewDocument = async (documentId) => {
                   Küldés
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Share Link Modal */}
+      {showShareForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full">
+            <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+              <h2 className="text-xl font-medium">Dokumentum megosztása</h2>
+              <button
+                onClick={() => setShowShareForm(false)}
+                className="text-gray-400 hover:text-gray-500"
+              >
+                <XCircle className="h-6 w-6" />
+              </button>
+            </div>
+            <div className="p-6">
+              {!shareData.shareLink ? (
+                <>
+                  <div className="mb-6">
+                    <label htmlFor="expiryDays" className="block text-sm font-medium text-gray-700 mb-1">
+                      Lejárati idő (napokban)
+                    </label>
+                    <input
+                      type="number"
+                      id="expiryDays"
+                      min="1"
+                      max="365"
+                      value={shareData.expiryDays}
+                      onChange={(e) => setShareData({...shareData, expiryDays: parseInt(e.target.value) || 30})}
+                      className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Az ügyfél ennyi napig fogja tudni megtekinteni a dokumentumot a link segítségével.
+                    </p>
+                  </div>
+                  
+                  <div className="mb-6 p-4 border border-gray-200 rounded bg-gray-50">
+                    <h3 className="text-sm font-medium mb-2">Megjegyzések</h3>
+                    <p className="text-xs text-gray-500">
+                      - A megosztási link bárki számára elérhetővé teszi a dokumentumot, aki ismeri a linket<br />
+                      - A linken keresztül az ügyfél elfogadhatja vagy elutasíthatja a dokumentumot<br />
+                      - A megosztási link a beállított napok elteltével automatikusan lejár<br />
+                      - A megosztási linkkel együtt kapott dokumentum az eredeti állapotát fogja tükrözni, akkor is ha később módosítja
+                    </p>
+                  </div>
+                  
+                  <div className="flex justify-end space-x-3">
+                    <button
+                      onClick={() => setShowShareForm(false)}
+                      className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+                    >
+                      Mégse
+                    </button>
+                    <button
+                      onClick={handleCreateShareLink}
+                      className="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm font-medium hover:bg-indigo-700 flex items-center"
+                    >
+                      <Share2 className="h-4 w-4 mr-1" />
+                      Link generálása
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="mb-6">
+                    <h3 className="text-sm font-medium mb-2">Megosztási link sikeresen létrehozva</h3>
+                    <div className="mt-3 flex">
+                      <input
+                        type="text"
+                        readOnly
+                        value={shareData.shareLink}
+                        className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 flex-1 sm:text-sm border-gray-300 rounded-l-md"
+                      />
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(shareData.shareLink);
+                          showSuccess('Link vágólapra másolva');
+                        }}
+                        className="px-4 py-2 bg-indigo-600 text-white rounded-r-md text-sm font-medium hover:bg-indigo-700 flex items-center"
+                      >
+                        <Copy className="h-4 w-4" />
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-2">
+                      Ezen a linken keresztül az ügyfél megtekintheti és elfogadhatja a dokumentumot.
+                      A link {shareData.expiryDays} nap múlva fog lejárni.
+                    </p>
+                  </div>
+                  
+                  <div className="flex justify-end space-x-3">
+                    <button
+                      onClick={() => setShowShareForm(false)}
+                      className="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm font-medium hover:bg-indigo-700"
+                    >
+                      Bezárás
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>

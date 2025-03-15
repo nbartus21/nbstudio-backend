@@ -573,4 +573,151 @@ router.post('/documents/:id/send', async (req, res) => {
   }
 });
 
+// Dokumentum megosztási link generálása
+router.post('/documents/:id/share', async (req, res) => {
+  try {
+    const { expiryDays = 30 } = req.body;
+    
+    const document = await GeneratedDocument.findById(req.params.id);
+    
+    if (!document) {
+      return res.status(404).json({ message: 'Dokumentum nem található' });
+    }
+    
+    // Lejárati dátum számítása
+    const expiryDate = new Date();
+    expiryDate.setDate(expiryDate.getDate() + Number(expiryDays));
+    
+    // Token generálása
+    const { v4: uuidv4 } = await import('uuid');
+    const publicToken = uuidv4();
+    
+    // Dokumentum frissítése
+    document.publicToken = publicToken;
+    document.publicViewExpires = expiryDate;
+    
+    await document.save();
+    
+    // Megosztási link generálása
+    const shareLink = `https://admin.nb-studio.net/public/documents/${publicToken}`;
+    
+    res.json({ 
+      success: true, 
+      shareLink,
+      expiresAt: expiryDate,
+      documentName: document.name
+    });
+  } catch (error) {
+    console.error('Hiba a dokumentum megosztási link generálásakor:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Dokumentum törlése
+router.delete('/documents/:id', async (req, res) => {
+  try {
+    const document = await GeneratedDocument.findById(req.params.id);
+    
+    if (!document) {
+      return res.status(404).json({ message: 'Dokumentum nem található' });
+    }
+    
+    await GeneratedDocument.deleteOne({ _id: req.params.id });
+    
+    res.json({ 
+      success: true, 
+      message: 'Dokumentum sikeresen törölve' 
+    });
+  } catch (error) {
+    console.error('Hiba a dokumentum törlésekor:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Publikus dokumentum megtekintési végpont
+router.get('/public/documents/:token', apiKeyChecker, async (req, res) => {
+  try {
+    const document = await GeneratedDocument.findOne({ publicToken: req.params.token })
+      .populate('templateId')
+      .populate('projectId');
+    
+    if (!document) {
+      return res.status(404).json({ message: 'Dokumentum nem található vagy a link érvénytelen' });
+    }
+    
+    // Ellenőrizzük a lejárati dátumot
+    if (document.publicViewExpires && new Date() > document.publicViewExpires) {
+      return res.status(403).json({ message: 'A megtekintési link lejárt' });
+    }
+    
+    // Csak a szükséges adatokat küldjük vissza
+    const sanitizedDocument = {
+      id: document._id,
+      name: document.name,
+      content: document.htmlVersion || document.content,
+      publicToken: document.publicToken,
+      expiresAt: document.publicViewExpires,
+      status: document.approvalStatus,
+      createdAt: document.createdAt
+    };
+    
+    res.json(sanitizedDocument);
+  } catch (error) {
+    console.error('Hiba a publikus dokumentum lekérésekor:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Ügyfél dokumentum elfogadás/elutasítás
+router.post('/public/documents/:token/response', apiKeyChecker, async (req, res) => {
+  try {
+    const { response, comment } = req.body;
+    
+    if (!response || !['approve', 'reject'].includes(response)) {
+      return res.status(400).json({ message: 'Érvénytelen válasz. Kérjük, válaszd az "approve" vagy "reject" opciót.' });
+    }
+    
+    const document = await GeneratedDocument.findOne({ publicToken: req.params.token });
+    
+    if (!document) {
+      return res.status(404).json({ message: 'Dokumentum nem található vagy a link érvénytelen' });
+    }
+    
+    // Ellenőrizzük a lejárati dátumot
+    if (document.publicViewExpires && new Date() > document.publicViewExpires) {
+      return res.status(403).json({ message: 'A dokumentum elfogadási link lejárt' });
+    }
+    
+    // Frissítsük a dokumentum státuszát
+    if (response === 'approve') {
+      document.approvalStatus = 'clientApproved';
+      document.clientApprovedAt = new Date();
+    } else {
+      document.approvalStatus = 'clientRejected';
+      document.clientRejectedAt = new Date();
+    }
+    
+    // Mentsük a megjegyzést, ha van
+    if (comment) {
+      document.clientApprovalComment = comment;
+      document.comments.push({
+        user: 'Client',
+        text: comment,
+        timestamp: new Date()
+      });
+    }
+    
+    await document.save();
+    
+    res.json({ 
+      success: true, 
+      message: response === 'approve' ? 'Dokumentum sikeresen elfogadva' : 'Dokumentum elutasítva',
+      documentStatus: document.approvalStatus
+    });
+  } catch (error) {
+    console.error('Hiba a dokumentum ügyfél válaszának feldolgozásakor:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
 export default router;

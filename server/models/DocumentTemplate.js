@@ -113,7 +113,7 @@ const generatedDocumentSchema = new mongoose.Schema({
   },
   approvalStatus: {
     type: String,
-    enum: ['draft', 'pendingApproval', 'approved', 'rejected', 'sent'],
+    enum: ['draft', 'pendingApproval', 'approved', 'rejected', 'sent', 'clientApproved', 'clientRejected'],
     default: 'draft'
   },
   approvedBy: {
@@ -136,6 +136,24 @@ const generatedDocumentSchema = new mongoose.Schema({
   version: {
     type: Number,
     default: 1
+  },
+  // Ügyfél jóváhagyási link mezők
+  publicToken: {
+    type: String,
+    unique: true,
+    sparse: true
+  },
+  publicViewExpires: {
+    type: Date
+  },
+  clientApprovedAt: {
+    type: Date
+  },
+  clientRejectedAt: {
+    type: Date
+  },
+  clientApprovalComment: {
+    type: String
   },
   createdAt: { 
     type: Date, 
