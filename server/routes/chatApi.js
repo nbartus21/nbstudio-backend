@@ -50,7 +50,7 @@ try {
 }
 
 // ----- Public endpoint for chat without authentication -----
-router.post('/public/chat', async (req, res) => {
+router.post('/', async (req, res) => {
   try {
     const { messages } = req.body;
     

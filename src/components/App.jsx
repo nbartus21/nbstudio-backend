@@ -19,6 +19,7 @@ import TranslationTool from './TranslationTool'; // Új komponens importálása
 import SupportTicketManager from './SupportTicketManager';
 import QRLogin from './QRLogin';
 import DocumentManager from './DocumentManager';
+import SideChat from './SideChat';
 
 
 
@@ -34,6 +35,7 @@ const App = () => {
      <div>
        <Navigation />
        {children}
+       <SideChat />
      </div>
    );
  };
