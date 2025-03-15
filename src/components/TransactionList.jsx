@@ -175,7 +175,7 @@ const TransactionList = ({
                   <div className="flex items-center">
                     <span className="truncate max-w-md">{transaction.description}</span>
                     {transaction.invoiceNumber && (
-                      <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
+                      <span key={`invoice-${transaction._id}`} className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
                         {transaction.invoiceNumber}
                       </span>
                     )}

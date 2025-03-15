@@ -283,7 +283,7 @@ const AccountingManager = () => {
                 className="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
               >
                 {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i).map(year => (
-                  <option key={year} value={year}>{year}</option>
+                  <option key={`year-${year}`} value={year}>{year}</option>
                 ))}
               </select>
               <select
@@ -292,7 +292,7 @@ const AccountingManager = () => {
                 className="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
               >
                 {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
-                  <option key={month} value={month}>
+                  <option key={`month-${month}`} value={month}>
                     {format(new Date(2024, month - 1), 'LLLL', { locale: hu })}
                   </option>
                 ))}
