@@ -65,10 +65,14 @@ const AIChat = () => {
       }));
       
       // Call DeepSeek API
-      const response = await fetch('/api/chat', {
+      const API_URL = 'https://admin.nb-studio.net:5001/api';
+      const API_KEY = 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0';
+
+      const response = await fetch(`${API_URL}/public/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'X-API-Key': API_KEY
         },
         body: JSON.stringify({ messages }),
       });

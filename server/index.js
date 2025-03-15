@@ -38,6 +38,7 @@ import tasksRoutes from './routes/tasks.js';
 import supportTicketRouter, { setupEmailEndpoint, initializeSocketIO } from './routes/supportTickets.js';
 import emailApiRouter from './routes/emailApi.js';
 import documentsRouter from './routes/documents.js';
+import chatApiRouter from './routes/chatApi.js';
 
 // Import middleware
 import authMiddleware from './middleware/auth.js';
@@ -254,8 +255,8 @@ publicRouter.post('/hosting/orders', validateApiKey, async (req, res) => {
 // Register public endpoints
 app.use('/api/public', publicRouter);
 
-// // Public chat endpoint - temporarily disabled
-// app.use('/api/public/chat', chatApiRouter);
+// Public chat endpoint
+app.use('/api/public/chat', validateApiKey, chatApiRouter);
 
 // Public blog posts endpoint (no auth required)
 app.get('/api/posts', async (req, res) => {
