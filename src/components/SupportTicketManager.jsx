@@ -217,10 +217,12 @@ const SupportTicketManager = () => {
   // Fetch unread notifications count
   const fetchUnreadNotificationsCount = async () => {
     try {
-      const response = await api.get('/api/support/notifications/unread/count');
+      const response = await api.get('/api/notifications');
       const data = await response.json();
       
-      setUnreadNotificationsCount(data.count);
+      // Count unread notifications
+      const unreadCount = Array.isArray(data) ? data.length : 0;
+      setUnreadNotificationsCount(unreadCount);
     } catch (error) {
       console.error('Hiba az olvasatlan értesítések számának lekérésekor:', error);
     }
@@ -229,12 +231,12 @@ const SupportTicketManager = () => {
   // Fetch notifications
   const fetchNotifications = async () => {
     try {
-      const response = await api.get('/api/support/notifications?limit=10');
+      const response = await api.get('/api/notifications');
       const data = await response.json();
       
-      setNotifications(data.notifications);
+      setNotifications(Array.isArray(data) ? data : []);
       // Frissítjük az olvasatlan értesítések számát is
-      setUnreadNotificationsCount(data.unreadCount);
+      setUnreadNotificationsCount(Array.isArray(data) ? data.length : 0);
     } catch (error) {
       console.error('Hiba az értesítések lekérésekor:', error);
     }
@@ -243,7 +245,7 @@ const SupportTicketManager = () => {
   // Mark notification as read
   const markNotificationAsRead = async (notificationId) => {
     try {
-      await api.post(`/api/support/notifications/${notificationId}/read`);
+      await api.put(`/api/notifications/${notificationId}/read`);
       
       // Frissítjük az értesítéseket
       fetchNotifications();
@@ -256,7 +258,7 @@ const SupportTicketManager = () => {
   // Mark all notifications as read
   const markAllNotificationsAsRead = async () => {
     try {
-      await api.post('/api/support/notifications/read-all');
+      await api.put('/api/notifications/read-all');
       
       // Frissítjük az értesítéseket
       fetchNotifications();
