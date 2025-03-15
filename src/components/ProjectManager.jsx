@@ -252,6 +252,13 @@ const ProjectManager = () => {
         return;
       }
   
+      // Get the current project from state if it exists to preserve sharing data
+      let currentProject = null;
+      if (selectedProject._id) {
+        const existingProject = projects.find(p => p._id === selectedProject._id);
+        currentProject = existingProject || null;
+      }
+  
       const projectData = {
         ...selectedProject,
         status: selectedProject.status || 'aktív',
@@ -277,7 +284,9 @@ const ProjectManager = () => {
             max: selectedProject.financial?.budget?.max || 0
           },
           currency: selectedProject.financial?.currency || 'EUR'
-        }
+        },
+        // Preserve sharing information if it exists in the current project
+        sharing: currentProject?.sharing || selectedProject.sharing
       };
   
       let response;
