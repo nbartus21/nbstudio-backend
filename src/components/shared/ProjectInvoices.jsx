@@ -95,9 +95,6 @@ const ProjectInvoices = ({ project, onViewInvoice, language = 'hu' }) => {
 
   return (
     <div className="bg-white rounded-lg shadow">
-      <div className="px-6 py-4 border-b border-gray-200">
-        <h2 className="text-lg font-medium">{t.invoices}</h2>
-      </div>
       <div className="divide-y divide-gray-200">
         {project.invoices?.length > 0 ? (
           project.invoices.map((invoice, index) => (

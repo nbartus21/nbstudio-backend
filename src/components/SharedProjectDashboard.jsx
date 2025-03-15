@@ -156,6 +156,20 @@ const SharedProjectDashboard = ({
         isAdmin: isAdmin,
         language: language
       });
+      
+      // Debug: ha a projektben vannak számlák, kiírjuk a számukat és az azonosítóikat
+      if (normalizedProject.invoices && normalizedProject.invoices.length > 0) {
+        debugLog('ProjectInvoices', `Project has ${normalizedProject.invoices.length} invoices`);
+        normalizedProject.invoices.forEach((invoice, index) => {
+          debugLog('ProjectInvoice', `Invoice ${index+1}:`, {
+            number: invoice.number,
+            _id: invoice._id || 'no _id',
+            date: invoice.date
+          });
+        });
+      } else {
+        debugLog('ProjectInvoices', 'Project has no invoices');
+      }
     }
   }, [normalizedProject, language]);
 
@@ -163,6 +177,90 @@ const SharedProjectDashboard = ({
   const [files, setFiles] = useState([]);
   const [documents, setDocuments] = useState([]);
   const [comments, setComments] = useState([]); // Comments array
+  const [isRefreshing, setIsRefreshing] = useState(false); // Frissítési állapot
+  
+  // Projekt újratöltése API hívással (új számlákhoz)
+  const refreshProjectData = async () => {
+    debugLog('refreshProjectData', 'Reloading project data to check for new invoices');
+    
+    if (!normalizedProject || !normalizedProject._id) {
+      debugLog('refreshProjectData', 'No project ID available, skipping refresh');
+      return;
+    }
+    
+    setIsRefreshing(true);
+    
+    // API hívás a Session Storage-ból olvasott token/pin adatokkal
+    try {
+      // Ha van sharing token a sessionStorage-ban
+      const savedSession = localStorage.getItem(`project_session_${normalizedProject.sharing?.token}`);
+      
+      if (savedSession) {
+        debugLog('refreshProjectData', 'Found saved session, attempting to refresh project data');
+        const session = JSON.parse(savedSession);
+        
+        const API_URL = 'https://admin.nb-studio.net:5001/api';
+        const API_KEY = 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0';
+        
+        // Újra lekérjük a projektet
+        const response = await fetch(`${API_URL}/public/projects/verify-pin`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-API-Key': API_KEY
+          },
+          body: JSON.stringify({ 
+            token: normalizedProject.sharing?.token,
+            pin: session.pin || ''
+          })
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          debugLog('refreshProjectData', 'Project data refreshed successfully', {
+            invoicesCount: data.project.invoices?.length
+          });
+          
+          // Frissítjük a projektet
+          if (data.project.invoices && data.project.invoices.length > 0) {
+            // Csak az invoices tömböt frissítjük, hogy ne zavarjuk a többi adatot
+            const updatedProject = {
+              ...normalizedProject,
+              invoices: data.project.invoices
+            };
+            
+            // Frissítjük a projektet
+            onUpdate(updatedProject);
+            
+            showSuccessMessage('A projekt adatai frissítve lettek');
+          }
+          
+        } else {
+          debugLog('refreshProjectData', 'Failed to refresh project data', {
+            status: response.status
+          });
+        }
+      } else {
+        debugLog('refreshProjectData', 'No saved session found');
+      }
+    } catch (error) {
+      debugLog('refreshProjectData', 'Error refreshing project data', { error });
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+  
+  // Rendszeres frissítés - 1 percenként
+  useEffect(() => {
+    // Kezdeti betöltés
+    refreshProjectData();
+    
+    // Időzítő beállítása a frissítéshez
+    const intervalId = setInterval(refreshProjectData, 60000); // 1 perc = 60000 ms
+    
+    // Cleanup
+    return () => clearInterval(intervalId);
+  }, [normalizedProject?._id]);
   const [activeTab, setActiveTab] = useState('overview');
   const fileInputRef = useRef(null);
   const [successMessage, setSuccessMessage] = useState('');
@@ -749,11 +847,25 @@ const SharedProjectDashboard = ({
         )}
 
         {activeTab === 'invoices' && (
-          <ProjectInvoices 
-            project={normalizedProject} 
-            onViewInvoice={handleViewInvoice} 
-            language={language}
-          />
+          <div>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">{t.invoices}</h2>
+              <button
+                onClick={refreshProjectData}
+                disabled={isRefreshing}
+                className={`text-sm px-3 py-1 rounded ${isRefreshing 
+                  ? 'bg-gray-200 text-gray-500' 
+                  : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'}`}
+              >
+                {isRefreshing ? 'Frissítés...' : 'Számlák frissítése'}
+              </button>
+            </div>
+            <ProjectInvoices 
+              project={normalizedProject} 
+              onViewInvoice={handleViewInvoice} 
+              language={language}
+            />
+          </div>
         )}
 
         {activeTab === 'files' && (

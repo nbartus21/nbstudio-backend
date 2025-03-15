@@ -207,10 +207,12 @@ const SharedProjectView = () => {
       setError(null);
       
       // Save session to localStorage with language
+      // Mentjük a PIN kódot is a session-be, hogy később frissíteni tudjuk az adatokat
       const session = {
         project: projectData,
         timestamp: new Date().toISOString(),
-        language: language
+        language: language,
+        pin: pin // Mentjük a PIN kódot, hogy később is tudjuk használni a frissítéshez
       };
         localStorage.setItem(`project_session_${token}`, JSON.stringify(session));
         
