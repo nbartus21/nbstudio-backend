@@ -54,7 +54,8 @@ const AIChat = () => {
       const API_URL = 'https://admin.nb-studio.net:5001/api';
       const token = sessionStorage.getItem('token');
       
-      const response = await fetch(`${API_URL}/chat/conversations`, {
+      // A végpont helyes formátuma: /api/chat/conversations (nem /api/conversations)
+      const response = await fetch(`${API_URL}/api/chat/conversations`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -86,7 +87,8 @@ const AIChat = () => {
       const API_URL = 'https://admin.nb-studio.net:5001/api';
       const token = sessionStorage.getItem('token');
       
-      const response = await fetch(`${API_URL}/chat/conversations/${id}`, {
+      // A végpont helyes formátuma: /api/chat/conversations/:id
+      const response = await fetch(`${API_URL}/api/chat/conversations/${id}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -141,7 +143,7 @@ const AIChat = () => {
       
       if (isAuthenticated) {
         // Autentikált kérés
-        requestUrl = `${API_URL}/chat`;
+        requestUrl = `${API_URL}/api/chat`;
         headers['Authorization'] = `Bearer ${sessionStorage.getItem('token')}`;
         requestBody = { 
           messages,
@@ -149,7 +151,7 @@ const AIChat = () => {
         };
       } else {
         // Publikus kérés (nincs bejelentkezve)
-        requestUrl = `${API_URL}/public/chat`;
+        requestUrl = `${API_URL}/api/public/chat`;
         headers['X-API-Key'] = API_KEY;
         requestBody = { messages };
       }
@@ -247,7 +249,8 @@ const AIChat = () => {
         const API_URL = 'https://admin.nb-studio.net:5001/api';
         const token = sessionStorage.getItem('token');
         
-        const response = await fetch(`${API_URL}/chat/conversations/${conversationId}`, {
+        // A végpont helyes formátuma: /api/chat/conversations/:id
+        const response = await fetch(`${API_URL}/api/chat/conversations/${conversationId}`, {
           method: 'DELETE',
           headers: {
             'Authorization': `Bearer ${token}`
