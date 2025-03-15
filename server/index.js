@@ -769,21 +769,32 @@ function setupProjectDomain() {
   projectApp.get('/shared-document/:token', async (req, res) => {
     console.log(`Project domain handling document request: ${req.params.token}`);
     try {
-      // Forward to our documents API
-      const requestUrl = `/api/shared-document/${req.params.token}`;
-      const apiReq = {
-        method: 'GET',
-        url: requestUrl,
-        headers: req.headers
+      // Import necessary model
+      const { GeneratedDocument } = mongoose.models;
+      
+      // Directly handle the request
+      const document = await GeneratedDocument.findOne({ publicToken: req.params.token });
+      
+      if (!document) {
+        return res.status(404).json({ message: 'Dokumentum nem található vagy a link érvénytelen' });
+      }
+      
+      // Ellenőrizzük a lejárati dátumot
+      if (document.publicViewExpires && new Date() > document.publicViewExpires) {
+        return res.status(403).json({ message: 'A megtekintési link lejárt' });
+      }
+      
+      // Csak minimális adatokat küldünk vissza PIN bekéréshez
+      const basicInfo = {
+        id: document._id,
+        name: document.name,
+        publicToken: document.publicToken,
+        expiresAt: document.publicViewExpires,
+        requiresPin: true,
+        createdAt: document.createdAt
       };
       
-      // Call our internal endpoint
-      const newReq = Object.create(req);
-      newReq.url = requestUrl;
-      newReq.originalUrl = requestUrl;
-      
-      // Use our normal API route handler
-      app._router.handle(newReq, res);
+      res.json(basicInfo);
     } catch (error) {
       console.error('Error handling document request:', error);
       res.status(500).json({ message: 'Internal server error' });
@@ -794,14 +805,45 @@ function setupProjectDomain() {
   projectApp.post('/shared-document/:token/verify', express.json(), async (req, res) => {
     console.log(`Project domain handling document PIN verification: ${req.params.token}`);
     try {
-      // Forward to our documents API
-      const requestUrl = `/api/shared-document/${req.params.token}/verify`;
-      const newReq = Object.create(req);
-      newReq.url = requestUrl;
-      newReq.originalUrl = requestUrl;
+      const { pin } = req.body;
       
-      // Use our normal API route handler
-      app._router.handle(newReq, res);
+      if (!pin) {
+        return res.status(400).json({ message: 'PIN kód megadása kötelező' });
+      }
+      
+      // Import necessary model
+      const { GeneratedDocument } = mongoose.models;
+      
+      const document = await GeneratedDocument.findOne({ publicToken: req.params.token })
+        .populate('templateId')
+        .populate('projectId');
+      
+      if (!document) {
+        return res.status(404).json({ message: 'Dokumentum nem található vagy a link érvénytelen' });
+      }
+      
+      // Ellenőrizzük a lejárati dátumot
+      if (document.publicViewExpires && new Date() > document.publicViewExpires) {
+        return res.status(403).json({ message: 'A megtekintési link lejárt' });
+      }
+      
+      // Ellenőrizzük a PIN kódot
+      if (document.publicPin !== pin) {
+        return res.status(403).json({ message: 'Érvénytelen PIN kód' });
+      }
+      
+      // Csak a szükséges adatokat küldjük vissza
+      const sanitizedDocument = {
+        id: document._id,
+        name: document.name,
+        content: document.htmlVersion || document.content,
+        publicToken: document.publicToken,
+        expiresAt: document.publicViewExpires,
+        status: document.approvalStatus,
+        createdAt: document.createdAt
+      };
+      
+      res.json(sanitizedDocument);
     } catch (error) {
       console.error('Error handling document verification:', error);
       res.status(500).json({ message: 'Internal server error' });
@@ -812,14 +854,61 @@ function setupProjectDomain() {
   projectApp.post('/shared-document/:token/response', express.json(), async (req, res) => {
     console.log(`Project domain handling document response: ${req.params.token}`);
     try {
-      // Forward to our documents API
-      const requestUrl = `/api/shared-document/${req.params.token}/response`;
-      const newReq = Object.create(req);
-      newReq.url = requestUrl;
-      newReq.originalUrl = requestUrl;
+      const { response, comment, pin } = req.body;
       
-      // Use our normal API route handler
-      app._router.handle(newReq, res);
+      if (!response || !['approve', 'reject'].includes(response)) {
+        return res.status(400).json({ message: 'Érvénytelen válasz. Kérjük, válaszd az "approve" vagy "reject" opciót.' });
+      }
+      
+      if (!pin) {
+        return res.status(400).json({ message: 'PIN kód megadása kötelező' });
+      }
+      
+      // Import necessary model
+      const { GeneratedDocument } = mongoose.models;
+      
+      const document = await GeneratedDocument.findOne({ publicToken: req.params.token });
+      
+      if (!document) {
+        return res.status(404).json({ message: 'Dokumentum nem található vagy a link érvénytelen' });
+      }
+      
+      // Ellenőrizzük a lejárati dátumot
+      if (document.publicViewExpires && new Date() > document.publicViewExpires) {
+        return res.status(403).json({ message: 'A dokumentum elfogadási link lejárt' });
+      }
+      
+      // Ellenőrizzük a PIN kódot
+      if (document.publicPin !== pin) {
+        return res.status(403).json({ message: 'Érvénytelen PIN kód' });
+      }
+      
+      // Frissítsük a dokumentum státuszát
+      if (response === 'approve') {
+        document.approvalStatus = 'clientApproved';
+        document.clientApprovedAt = new Date();
+      } else {
+        document.approvalStatus = 'clientRejected';
+        document.clientRejectedAt = new Date();
+      }
+      
+      // Mentsük a megjegyzést, ha van
+      if (comment) {
+        document.clientApprovalComment = comment;
+        document.comments.push({
+          user: 'Client',
+          text: comment,
+          timestamp: new Date()
+        });
+      }
+      
+      await document.save();
+      
+      res.json({ 
+        success: true, 
+        message: response === 'approve' ? 'Dokumentum sikeresen elfogadva' : 'Dokumentum elutasítva',
+        documentStatus: document.approvalStatus
+      });
     } catch (error) {
       console.error('Error handling document response:', error);
       res.status(500).json({ message: 'Internal server error' });
@@ -834,10 +923,26 @@ function setupProjectDomain() {
     res.sendFile(path.join(__dirname, '../build/document-viewer.html'));
   });
   
-  // Proxy all other requests to the frontend app running on port 5173
-  projectApp.use((req, res) => {
-    console.log(`Proxying request to local frontend: ${req.method} ${req.url}`);
-    proxyRequest(req, res);
+  // Egyéb /shared-document/ útvonalak esetén is a viewer oldalt küldjük
+  projectApp.get('/shared-document*', (req, res, next) => {
+    // Ha ez már egy konkrét API kérés a tokenhez, akkor azt engedd tovább
+    if (req.path.match(/^\/shared-document\/[^\/]+$/)) {
+      return next();
+    }
+    
+    // Egyébként küldd a document viewer-t
+    res.sendFile(path.join(__dirname, '../build/document-viewer.html'));
+  });
+  
+  // Kezeljük az összes statikus útvonalat és a root/megosztott dokumentum útvonalakat
+  projectApp.get('*', (req, res) => {
+    // Ha a kérés egy statikus fájlra vonatkozik, amit nem találtunk meg, küldj 404-et
+    if (req.path.startsWith('/assets/')) {
+      return res.status(404).send('Not found');
+    }
+    
+    // Alapértelmezetten küldjük a document-viewer.html-t
+    res.sendFile(path.join(__dirname, '../build/document-viewer.html'));
   });
   
   // Request proxying function

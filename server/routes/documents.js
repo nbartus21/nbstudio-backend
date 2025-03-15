@@ -642,6 +642,7 @@ router.delete('/documents/:id', async (req, res) => {
 // PUBLIC API - Az alábbiakban API kulcs ellenőrzés nélküli végpontok
 // Ezt a project.nb-studio.net domain fogja használni
 
+// API útvonalak a /api prefix nélkül a project domainen
 // Publikus dokumentum megtekintő oldal - PIN kód bekérése
 router.get('/shared-document/:token', async (req, res) => {
   try {

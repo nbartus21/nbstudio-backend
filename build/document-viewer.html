@@ -7,150 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <style>
-    body {
-      font-family: 'Inter', sans-serif;
-      margin: 0;
-      padding: 0;
-      background-color: #f7f9fc;
-      color: #333;
-      display: flex;
-      flex-direction: column;
-      min-height: 100vh;
-    }
-    header {
-      background-color: #2563eb;
-      color: white;
-      padding: 1rem;
-      text-align: center;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
-    }
-    main {
-      flex: 1;
-      padding: 2rem;
-      max-width: 800px;
-      margin: 0 auto;
-      width: 100%;
-    }
-    footer {
-      background-color: #f1f5f9;
-      padding: 1rem;
-      text-align: center;
-      font-size: 0.875rem;
-      color: #64748b;
-      border-top: 1px solid #e2e8f0;
-    }
-    .card {
-      background-color: white;
-      border-radius: 0.5rem;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-      padding: 2rem;
-      margin-bottom: 2rem;
-    }
-    .error {
-      background-color: #fee2e2;
-      border-left: 4px solid #ef4444;
-      padding: 1rem;
-      margin-bottom: 1rem;
-      color: #b91c1c;
-    }
-    .form-group {
-      margin-bottom: 1.5rem;
-    }
-    label {
-      display: block;
-      font-weight: 500;
-      margin-bottom: 0.5rem;
-    }
-    input[type="text"],
-    input[type="number"] {
-      width: 100%;
-      padding: 0.75rem;
-      border: 1px solid #d1d5db;
-      border-radius: 0.375rem;
-      font-size: 1rem;
-    }
-    button {
-      background-color: #2563eb;
-      color: white;
-      border: none;
-      padding: 0.75rem 1.5rem;
-      border-radius: 0.375rem;
-      font-weight: 500;
-      cursor: pointer;
-      font-size: 1rem;
-      transition: background-color 0.3s;
-    }
-    button:hover {
-      background-color: #1d4ed8;
-    }
-    .button-group {
-      display: flex;
-      justify-content: space-between;
-      margin-top: 1.5rem;
-    }
-    .button-secondary {
-      background-color: #e2e8f0;
-      color: #475569;
-    }
-    .button-secondary:hover {
-      background-color: #cbd5e1;
-    }
-    .button-success {
-      background-color: #10b981;
-    }
-    .button-success:hover {
-      background-color: #059669;
-    }
-    .button-danger {
-      background-color: #ef4444;
-    }
-    .button-danger:hover {
-      background-color: #dc2626;
-    }
-    #documentContent {
-      margin-top: 2rem;
-      padding: 1rem;
-      border: 1px solid #e2e8f0;
-      border-radius: 0.375rem;
-      background-color: #fff;
-    }
-    .document-title {
-      font-size: 1.5rem;
-      font-weight: 600;
-      margin-bottom: 1rem;
-      color: #1e293b;
-    }
-    .hidden {
-      display: none;
-    }
-    .loading {
-      display: flex;
-      justify-content: center;
-      padding: 2rem;
-    }
-    .loading-spinner {
-      border: 4px solid rgba(0, 0, 0, 0.1);
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      border-left-color: #2563eb;
-      animation: spin 1s linear infinite;
-    }
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-    .comment-textarea {
-      width: 100%;
-      padding: 0.75rem;
-      border: 1px solid #d1d5db;
-      border-radius: 0.375rem;
-      font-size: 1rem;
-      min-height: 100px;
-      margin-bottom: 1rem;
-    }
-  </style>
+  <link rel="stylesheet" href="/assets/css/document-viewer.css">
 </head>
 <body>
   <header>
@@ -271,19 +128,42 @@
     // Dokumentum információ lekérése
     async function fetchDocumentInfo() {
       try {
-        const response = await fetch(`/shared-document/${documentToken}`);
-        if (!response.ok) {
-          const data = await response.json();
-          throw new Error(data.message || 'Hiba történt a dokumentum lekérésekor');
+        console.log('Fetching document info for token:', documentToken);
+        const response = await fetch(`/shared-document/${documentToken}`, {
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        console.log('Response status:', response.status);
+        
+        // Bármilyen válasz esetén továbbmegyünk, az esetleges hibát a felhasználói felületen kezeljük
+        let data;
+        try {
+          data = await response.json();
+          console.log('Response data:', data);
+        } catch (e) {
+          console.error('Error parsing response:', e);
+          data = { message: 'Hiba történt a válasz feldolgozásakor' };
         }
         
-        const data = await response.json();
-        documentName.textContent = data.name;
+        if (!response.ok) {
+          // Ha a válasz nem ok, de megjelenítjük a PIN formot
+          showError(data.message || 'Hiba történt a dokumentum lekérésekor');
+          documentName.textContent = 'Dokumentum megtekintése';
+        } else {
+          // Sikeres válasz esetén beállítjuk a dokumentum nevét
+          documentName.textContent = data.name || 'Dokumentum megtekintése';
+          hideError();
+        }
         
-        // PIN form megjelenítése
+        // PIN form megjelenítése minden esetben
         showSection(pinForm);
       } catch (error) {
-        showError(error.message);
+        console.error('Error in fetchDocumentInfo:', error);
+        showError('Hiba történt a dokumentum információk lekérésekor: ' + error.message);
+        documentName.textContent = 'Dokumentum megtekintése';
         showSection(pinForm); // Hiba esetén is megjelenítjük a PIN formot
       }
     }
