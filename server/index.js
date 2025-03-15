@@ -255,7 +255,64 @@ publicRouter.post('/hosting/orders', validateApiKey, async (req, res) => {
 // Register public endpoints
 app.use('/api/public', publicRouter);
 
-// Public chat endpoint
+// Public chat endpoint - külön kezelő a root path számára
+app.post('/api/public/chat', validateApiKey, async (req, res) => {
+  try {
+    console.log('Root chat API kérés érkezett a /api/public/chat útvonalra');
+    
+    const { messages } = req.body;
+    
+    if (!messages || !Array.isArray(messages)) {
+      return res.status(400).json({ message: 'Érvénytelen kérés formátum' });
+    }
+    
+    // Call DeepSeek API
+    const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || 'sk-a781f0251b034cf6b91f970b43d9caa5';
+    const DEEPSEEK_API_URL = 'https://api.deepseek.com/chat/completions';
+    
+    try {
+      const response = await fetch(DEEPSEEK_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${DEEPSEEK_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: "deepseek-chat",
+          messages: messages,
+          stream: false
+        })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('DeepSeek API hiba:', errorData);
+        return res.status(response.status).json({ 
+          message: 'Hiba az AI szolgáltatásnál',
+          error: errorData 
+        });
+      }
+      
+      const data = await response.json();
+      
+      res.json(data);
+    } catch (error) {
+      console.error('Hiba a DeepSeek API hívása során:', error);
+      return res.status(500).json({ 
+        message: 'Hiba az AI szolgáltatás elérése során',
+        error: error.message 
+      });
+    }
+  } catch (error) {
+    console.error('Általános hiba a chat kezelése során:', error);
+    res.status(500).json({ 
+      message: 'Szerverhiba a chat kérés feldolgozása során',
+      error: error.message 
+    });
+  }
+});
+
+// A többi chat útvonal is használhatja ugyanezt a routert
 app.use('/api/public/chat', validateApiKey, chatApiRouter);
 
 // Add authenticated chat endpoints
