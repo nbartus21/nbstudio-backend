@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Save, Building2, User, Mail, Phone, MapPin, FileText, CreditCard, AlertTriangle, CheckCircle, Clock } from 'lucide-react';
+import { X, Save, Building2, User, Mail, Phone, MapPin, FileText, CreditCard, AlertTriangle, CheckCircle, Clock, Calendar } from 'lucide-react';
 
 const ProjectDetailsModal = ({ project, onUpdate, onClose, onSave }) => {
   const [activeTab, setActiveTab] = useState('details');
