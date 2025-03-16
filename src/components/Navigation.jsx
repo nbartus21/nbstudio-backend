@@ -4,7 +4,7 @@ import {
   Bell, LogOut, Menu, X, ChevronDown, Settings, Search, 
   User, Home, Calendar, BookOpen, Globe, 
   Server, Database, Calculator, Mail, FileText, Clock,
-  DollarSign, PlusCircle, Languages, MessageCircle
+  DollarSign, PlusCircle, Languages, MessageCircle, HelpCircle
 } from 'lucide-react';
 import NotificationsManager from './NotificationsManager';
 
@@ -219,6 +219,15 @@ const Navigation = () => {
 
               {/* Értesítések */}
               <NotificationsManager />
+
+              {/* Súgó */}
+              <Link
+                to="/help"
+                className="p-2 text-gray-300 hover:text-white hover:bg-gray-700 rounded-md transition-colors"
+                title="Súgó"
+              >
+                <HelpCircle size={20} />
+              </Link>
 
               {/* Beállítások */}
               <Link

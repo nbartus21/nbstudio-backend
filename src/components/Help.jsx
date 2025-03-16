@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { 
   Search, X, ArrowRight, ChevronDown, ChevronUp, 
   Mail, Phone, ExternalLink, Check, Info, AlertTriangle,
-  Download, Copy, Share2
+  Download, Copy, Share2, MessageCircle
 } from 'lucide-react';
 
 // SVG Illusztrációk - modern helpsystem
