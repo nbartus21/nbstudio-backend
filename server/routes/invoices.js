@@ -86,16 +86,49 @@ router.post('/projects/:projectId/invoices', async (req, res) => {
 // PDF generálás és letöltés
 router.get('/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => {
   try {
+    console.log(`PDF generálási kérés: projectId=${req.params.projectId}, invoiceId=${req.params.invoiceId}`);
+    
+    // Érvényesítjük az ID-kat
+    if (!mongoose.Types.ObjectId.isValid(req.params.projectId)) {
+      console.log('Érvénytelen projekt ID formátum:', req.params.projectId);
+      return res.status(400).json({ message: 'Érvénytelen projekt ID formátum' });
+    }
+    
+    if (!mongoose.Types.ObjectId.isValid(req.params.invoiceId)) {
+      console.log('Érvénytelen számla ID formátum:', req.params.invoiceId);
+      return res.status(400).json({ message: 'Érvénytelen számla ID formátum' });
+    }
+    
+    // Lekérjük a projekthez tartozó számlákat
     const project = await Project.findById(req.params.projectId);
     if (!project) {
+      console.log('Projekt nem található:', req.params.projectId);
       return res.status(404).json({ message: 'Projekt nem található' });
     }
-
-    const invoice = project.invoices.id(req.params.invoiceId);
+    
+    console.log('Projekt megtalálva:', project._id);
+    
+    // Ellenőrizzük a számlákat
+    if (!project.invoices || !Array.isArray(project.invoices) || project.invoices.length === 0) {
+      console.log('A projekthez nem tartoznak számlák:', project._id);
+      return res.status(404).json({ message: 'A projekthez nem tartoznak számlák' });
+    }
+    
+    console.log(`Számlák száma a projektben: ${project.invoices.length}`);
+    
+    // Keressük meg a számlát ID alapján (string összehasonlítással, biztonságosabb)
+    const invoice = project.invoices.find(inv => 
+      inv._id.toString() === req.params.invoiceId
+    );
+    
     if (!invoice) {
+      console.log('Számla nem található ezzel az ID-val:', req.params.invoiceId);
+      console.log('Elérhető számla ID-k:', project.invoices.map(inv => inv._id.toString()));
       return res.status(404).json({ message: 'Számla nem található' });
     }
-
+    
+    console.log('Számla megtalálva:', invoice._id.toString());
+  
     // PDF létrehozása
     const doc = new PDFDocument({
       size: 'A4',
@@ -117,16 +150,20 @@ router.get('/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => {
 
     // PDF streamelése a response-ba
     doc.pipe(res);
-
+    
+    // Fejléc logó (ha létezik)
     try {
-      // Fejléc logó (ha létezik)
       const logoPath = join(__dirname, '..', 'public', 'logo.png');
+      console.log('Logo útvonal ellenőrzése:', logoPath);
       if (fs.existsSync(logoPath)) {
+        console.log('Logo megtalálva, hozzáadás a PDF-hez');
         doc.image(logoPath, 50, 50, { width: 150 })
           .moveDown();
+      } else {
+        console.log('Logo fájl nem található:', logoPath);
       }
     } catch (logoError) {
-      console.warn('Logo not found, skipping:', logoError.message);
+      console.warn('Logo betöltési hiba:', logoError.message);
       // Folytatjuk a PDF generálást logo nélkül
     }
 
@@ -217,6 +254,13 @@ router.get('/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => {
       }
     }
 
+    // Ellenőrizzük az items tömböt
+    console.log('Számla tételek ellenőrzése:', invoice.items);
+    if (!invoice.items || !Array.isArray(invoice.items)) {
+      console.log('A számla tételei hiányoznak vagy nem tömbként vannak tárolva');
+      invoice.items = []; // Üres tömböt hozunk létre, hogy ne crasheljen
+    }
+
     // Tételek táblázat fejléc
     const tableTop = Math.max(doc.y + 30, 340); // Minimum pozíció a táblázat kezdéséhez
     const tableHeaders = ['Tétel', 'Mennyiség', 'Egységár', 'Összesen'];
@@ -247,6 +291,18 @@ router.get('/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => {
     let rowBackground = true; // Váltakozó háttérszín a sorokhoz
 
     invoice.items.forEach((item, index) => {
+      // Ellenőrizzük a tétel adatokat
+      if (!item || typeof item !== 'object') {
+        console.log(`Hibás tétel formátum a(z) ${index}. indexnél:`, item);
+        return; // Kihagyjuk ezt a tételt
+      }
+      
+      // Biztosítjuk, hogy minden szükséges mezőnek legyen alapértelmezett értéke
+      item.description = item.description || 'Nincs leírás';
+      item.quantity = typeof item.quantity === 'number' ? item.quantity : 0;
+      item.unitPrice = typeof item.unitPrice === 'number' ? item.unitPrice : 0;
+      item.total = typeof item.total === 'number' ? item.total : 0;
+      
       // Oldaltörés ellenőrzése
       if (currentY > 700) {
         doc.addPage();
@@ -301,6 +357,17 @@ router.get('/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => {
       currentY += 25;
       rowBackground = !rowBackground;
     });
+
+    // Ellenőrizzük a számla összegeket
+    if (typeof invoice.totalAmount !== 'number') {
+      console.log('Hiányzó vagy érvénytelen totalAmount érték:', invoice.totalAmount);
+      invoice.totalAmount = 0;
+    }
+    
+    if (typeof invoice.paidAmount !== 'number') {
+      console.log('Hiányzó vagy érvénytelen paidAmount érték:', invoice.paidAmount);
+      invoice.paidAmount = 0;
+    }
 
     // Összegzés táblázat
     const summaryStartY = currentY + 10;
@@ -394,9 +461,6 @@ router.get('/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => {
        .text(`Közlemény: ${invoice.number}`)
        .moveDown(0.5);
 
-    // QR kód - ha elérhető
-    // Itt lehetne SEPA QR kódot generálni
-
     // Lábléc
     const footerTop = doc.page.height - 50;
     
@@ -420,6 +484,7 @@ router.get('/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => {
        .text(`Oldal: ${currentPage}`, 500, footerTop, { align: 'right' });
 
     // PDF lezárása
+    console.log('PDF generálás sikeres, küldés...');
     doc.end();
 
   } catch (error) {

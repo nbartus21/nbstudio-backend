@@ -146,22 +146,45 @@ const InvoiceManager = () => {
       const projectId = invoice.projectId;
       const invoiceId = invoice._id;
       
-      const response = await api.get(`/api/projects/${projectId}/invoices/${invoiceId}/pdf`, {
-        responseType: 'blob'
+      // Megfelelő URL-t használunk, ami kompatibilis a backend-del
+      // A teljes "/api" útvonalon kérjük le a PDF-et
+      console.log(`PDF generálás: /api/projects/${projectId}/invoices/${invoiceId}/pdf`);
+      
+      // Token ellenőrzése
+      const token = sessionStorage.getItem('token');
+      if (!token) {
+        console.error('Nincs bejelentkezési token!');
+      } else {
+        console.log('Token elérhető a sessionStorage-ban');
+      }
+      
+      // Közvetlenül a natív fetch()-et használjuk, hogy blob típusú választ kaphassunk
+      console.log('Fetch kérés indítása...');
+      const response = await fetch(`/api/projects/${projectId}/invoices/${invoiceId}/pdf`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
       });
 
+      console.log('Fetch válasz:', response.status, response.statusText);
+      
       if (!response.ok) {
-        throw new Error('PDF generálása sikertelen');
+        const errorText = await response.text().catch(err => 'Nem olvasható hibaüzenet');
+        console.error('PDF letöltési hiba:', errorText);
+        throw new Error(`PDF generálása sikertelen: ${response.status} ${response.statusText}`);
       }
 
+      console.log('PDF letöltése sikeres, blob létrehozása...');
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
       link.setAttribute('download', `szamla-${invoice.number}.pdf`);
       document.body.appendChild(link);
+      console.log('Letöltés indítása...');
       link.click();
-      link.remove();
+      document.body.removeChild(link);
       
       // Felszabadítjuk a blob URL-t
       setTimeout(() => {
@@ -171,7 +194,7 @@ const InvoiceManager = () => {
       showMessage(setSuccessMessage, 'PDF sikeresen letöltve');
     } catch (err) {
       console.error('Hiba a PDF generálásakor:', err);
-      setError('Nem sikerült generálni a PDF-et. Kérjük, próbálja újra később.');
+      setError(`Hiba a PDF generálásakor: ${err.message}`);
     }
   };
   
