@@ -38,7 +38,7 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { hu } from 'date-fns/locale';
-import api from '../services/api';
+import { api } from '../services/auth';
 import { useSnackbar } from 'notistack';
 
 const RecurringInvoiceManager = () => {
