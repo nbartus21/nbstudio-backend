@@ -1,159 +1,131 @@
 export const helpTranslations = {
   hu: {
-    title: "NB Studio Alkalmazás Súgó",
+    title: "Segítség és Dokumentáció",
     welcome: {
-      title: "Üdvözöljük az NB Studio Alkalmazásban!",
-      description: "Az NB Studio egy átfogó projektmenedzsment és üzleti alkalmazás, amely segít a vállalkozásoknak hatékonyabban működni. Az alkalmazást Norbert Bartus - www.nb-studio.net fejleszti.",
-      purpose: "Az alkalmazás célja, hogy egyszerűsítse és automatizálja a vállalkozások napi működését, miközben biztosítja a szükséges eszközöket a hatékony projektmenedzsmenthez és üzleti folyamatokhoz."
+      title: "Üdvözöljük az NB Studio-ban!",
+      description: "Az NB Studio egy átfogó projektmenedzsment és üzleti alkalmazás, amely segít a vállalkozásoknak hatékonyabban működni.",
+      purpose: "Az alkalmazást Norbert Bartus - www.nb-studio.net fejleszti."
     },
     system: {
       title: "Rendszer Funkciók",
       auth: {
-        title: "Hitelesítés és Biztonság",
+        title: "Felhasználói Hitelesítés",
         items: [
-          "Felhasználói bejelentkezés",
-          "Jogosultság kezelés",
-          "Biztonságos munkamenet",
-          "Naplózás és audit",
-          "Adatvédelmi megfelelőség"
+          "Biztonságos bejelentkezés",
+          "Jelszó visszaállítás",
+          "Profil kezelés",
+          "Jogosultságok kezelése"
         ]
       },
       notifications: {
         title: "Értesítések",
         items: [
           "Rendszer értesítések",
-          "Hosting figyelmeztetések",
-          "Feladat emlékeztetők",
-          "E-mail értesítések",
+          "Email értesítések",
+          "Push értesítések",
           "Egyedi értesítési beállítások"
         ]
       }
     },
     projectManagement: {
-      title: "Projektmenedzsment",
+      title: "Projekt Menedzsment",
       projectHandling: {
         title: "Projekt Kezelés",
-        description: "A projektmenedzsment modul segít a projektek teljes életciklusának kezelésében:",
+        description: "Hatékony projekt követés és kezelés",
         items: [
-          "Projektek létrehozása és kategorizálása",
-          "Feladatok és határidők beállítása",
-          "Erőforrások és csapattagok hozzárendelése",
-          "Projekt állapot követése",
-          "Dokumentumok és fájlok kezelése",
-          "Csapat kommunikáció",
-          "Projekt jelentések és statisztikák",
-          "Megjegyzések és dokumentáció",
-          "Feladatok követése és prioritizálása"
+          "Projekt létrehozás és szerkesztés",
+          "Feladatok és határidők kezelése",
+          "Projekt státusz követése",
+          "Csapat együttműködés"
         ]
       },
       documentManagement: {
-        title: "Dokumentumkezelés",
-        description: "A dokumentumkezelő modul segít a projekt dokumentációjának kezelésében:",
+        title: "Dokumentum Kezelés",
+        description: "Központi dokumentum kezelés",
         items: [
-          "Dokumentumok feltöltése és kategorizálása",
-          "Dokumentum sablonok kezelése",
+          "Dokumentumok feltöltése",
           "Verziókezelés",
-          "Dokumentum megosztás és jogosultságok",
-          "Dokumentum keresés és szűrés",
-          "Automatikus dokumentum generálás"
+          "Dokumentum megosztás",
+          "Dokumentum keresés"
         ]
       }
     },
     financial: {
-      title: "Pénzügyi Kezelés",
+      title: "Pénzügyek",
       accounting: {
-        title: "Számlázás és Könyvelés",
-        description: "A pénzügyi modul segít a vállalkozás pénzügyeinek kezelésében:",
+        title: "Könyvelés",
+        description: "Pénzügyi tranzakciók kezelése",
         items: [
-          "Professzionális számlák generálása",
-          "Költségek és bevételek követése",
-          "Automatikus könyvelés",
-          "Pénzügyi jelentések készítése",
-          "Adózási segédletek",
-          "Költségvetés tervezés",
-          "Pénzügyi elemzések",
-          "Fizetések kezelése",
-          "Kalkulátorok és árazás"
+          "Bevételek és kiadások",
+          "Számlák kezelése",
+          "Költségkövetés",
+          "Pénzügyi jelentések"
         ]
       },
       licensing: {
         title: "Licenc Kezelés",
-        description: "A licenc kezelő segít a szoftverlicencek követésében:",
+        description: "Szoftver licenckezelés",
         items: [
-          "Licencek katalogizálása",
+          "Licenc követése",
           "Licenc lejárat figyelése",
-          "Licenc költségek követése",
-          "Licenc megújítások kezelése",
+          "Licenc költségek",
           "Licenc dokumentáció"
         ]
       }
     },
     infrastructure: {
-      title: "Infrastruktúra Kezelés",
+      title: "Infrastruktúra",
       domainHosting: {
         title: "Domain és Hosting",
-        description: "Az infrastruktúra modul segít a domain és hosting szolgáltatások kezelésében:",
+        description: "Domain és hosting szolgáltatások kezelése",
         items: [
-          "Domain nevek kezelése",
-          "Domain lejárat figyelése",
-          "Hosting szolgáltatások kezelése",
-          "Hosting erőforrások monitorozása",
-          "Hosting költségek követése",
-          "Hosting figyelmeztetések",
-          "Infrastruktúra jelentések"
+          "Domain regisztráció",
+          "Hosting szolgáltatások",
+          "SSL tanúsítványok",
+          "DNS kezelés"
         ]
       },
       monitoring: {
-        title: "Szerver Monitorozás",
-        description: "A szerver monitorozó segít a szerverek állapotának követésében:",
+        title: "Rendszer Monitorozás",
+        description: "Infrastruktúra monitorozás",
         items: [
-          "Szerver állapot figyelése",
-          "Erőforrás használat monitorozása",
-          "Teljesítmény metrikák",
-          "Riasztások és figyelmeztetések",
-          "Szerver naplók kezelése",
-          "Automatikus backup kezelés"
+          "Teljesítmény követés",
+          "Rendszer állapot",
+          "Biztonsági figyelés",
+          "Riasztások"
         ]
       }
     },
     communication: {
-      title: "Kommunikáció és Támogatás",
+      title: "Kommunikáció",
       aiChat: {
         title: "AI Chat Asszisztens",
-        description: "Az AI Chat Asszisztens segít a napi feladatokban és kérdésekben:",
+        description: "Intelligens chat segéd",
         items: [
-          "Azonnali válaszok kérdésekre",
-          "Problémák megoldásában való segítség",
-          "Dokumentáció keresés",
-          "Folyamatok elmagyarázása",
-          "Javaslatok tétel",
-          "Automatizálási lehetőségek",
-          "Chat történet kezelése"
+          "Természetes nyelvű kommunikáció",
+          "Kérdések megválaszolása",
+          "Feladatok végrehajtása",
+          "Támogatás nyújtása"
         ]
       },
       support: {
-        title: "Support Ticket Rendszer",
-        description: "A support ticket rendszer segít a problémák és kérdések kezelésében:",
+        title: "Támogatási Jegyek",
+        description: "Támogatási kérések kezelése",
         items: [
-          "Ticket létrehozás és követés",
-          "Prioritás kezelés",
-          "Ticket kategóriák",
-          "Ticket státuszok",
-          "Ticket hozzárendelés",
-          "Ticket dokumentáció",
-          "Ticket statisztikák"
+          "Jegy létrehozása",
+          "Jegy követése",
+          "Prioritások",
+          "Válaszok kezelése"
         ]
       },
       email: {
-        title: "E-mail Kommunikáció",
-        description: "Az e-mail modul segít a kommunikáció kezelésében:",
+        title: "Email Kommunikáció",
+        description: "Email kommunikáció kezelése",
         items: [
-          "E-mail sablonok",
-          "Automatikus e-mail válaszok",
-          "E-mail ütemezés",
-          "E-mail követés",
-          "E-mail kategóriák",
-          "E-mail statisztikák"
+          "Email sablonok",
+          "Email kampányok",
+          "Email követés",
+          "Email statisztikák"
         ]
       }
     },
@@ -161,100 +133,92 @@ export const helpTranslations = {
       title: "Egyéb Funkciók",
       blog: {
         title: "Blog Kezelés",
-        description: "A blog modul segít a tartalom kezelésében:",
+        description: "Blog tartalom kezelése",
         items: [
-          "Blog bejegyzések létrehozása",
-          "Kategóriák kezelése",
-          "SEO optimalizálás",
-          "Közzététel ütemezése",
-          "Statisztikák követése"
+          "Blog bejegyzések",
+          "Kategóriák",
+          "Hozzászólások",
+          "SEO optimalizálás"
         ]
       },
       translation: {
-        title: "Fordítási Eszköz",
-        description: "A fordítási eszköz segít a tartalom lokalizálásában:",
+        title: "Fordítások",
+        description: "Többnyelvű tartalom kezelése",
         items: [
-          "Többnyelvű tartalom kezelése",
+          "Tartalom fordítás",
+          "Nyelvi verziók",
           "Fordítási memória",
-          "Automatikus fordítás",
-          "Fordítási feladatok",
-          "Fordítási statisztikák"
+          "Nyelvi beállítások"
         ]
       },
       contacts: {
-        title: "Kapcsolatkezelés",
-        description: "A kapcsolatkezelő segít az ügyfelek és partnerek kezelésében:",
+        title: "Kapcsolatok",
+        description: "Kapcsolatok kezelése",
         items: [
-          "Kapcsolatfelvételek",
-          "Kapcsolat kategóriák",
-          "Kapcsolat történet",
-          "Kapcsolat dokumentáció",
-          "Kapcsolat statisztikák"
+          "Kapcsolati adatok",
+          "Csoportok",
+          "Kapcsolat követés",
+          "Kapcsolat import/export"
         ]
       }
     },
     support: {
-      title: "Támogatás és Segítség",
+      title: "Támogatás",
       help: {
-        title: "Segítségkérés",
-        description: "Ha bármilyen kérdése vagy problémája van, több lehetőség is áll rendelkezésre:",
+        title: "Segítség",
+        description: "Segítségnyújtás és dokumentáció",
         items: [
-          "AI Chat Asszisztens használata",
-          "Support Ticket létrehozása",
-          "E-mail támogatás",
-          "Online dokumentáció",
-          "Videó oktatóanyagok"
+          "Gyakori kérdések",
+          "Használati útmutató",
+          "Video oktatóanyagok",
+          "Közösségi fórum"
         ]
       },
       contact: {
         title: "Kapcsolat",
-        description: "Az alkalmazás fejlesztéséért és karbantartásáért:",
+        description: "Kapcsolatfelvétel",
         items: [
-          "Fejlesztő: Norbert Bartus",
-          "Weboldal: www.nb-studio.net",
-          "E-mail: support@nb-studio.net",
-          "Telefon: +36 30 123 4567"
+          "Email: info@nb-studio.net",
+          "Telefon: +36 30 123 4567",
+          "Cím: Budapest, Magyarország",
+          "Munkaidő: H-P 9:00-17:00"
         ]
       }
     },
     links: {
       title: "Hasznos Linkek",
       items: [
-        { text: "Vezérlőpult", path: "/dashboard" },
-        { text: "Projektek", path: "/projects" },
-        { text: "Számlák", path: "/invoices" },
-        { text: "AI Asszisztens", path: "/ai-chat" },
-        { text: "Támogatás", path: "/support" },
-        { text: "NB Studio Weboldal", path: "https://www.nb-studio.net", external: true }
+        { text: "NB Studio Weboldal", path: "https://www.nb-studio.net", external: true },
+        { text: "Blog", path: "/blog" },
+        { text: "Dokumentáció", path: "/docs" },
+        { text: "Kapcsolat", path: "/contact" }
       ]
     }
   },
   en: {
-    title: "NB Studio Application Help",
+    title: "Help and Documentation",
     welcome: {
-      title: "Welcome to NB Studio Application!",
-      description: "NB Studio is a comprehensive project management and business application that helps companies operate more efficiently. The application is developed by Norbert Bartus - www.nb-studio.net",
-      purpose: "The application aims to simplify and automate daily business operations while providing the necessary tools for efficient project management and business processes."
+      title: "Welcome to NB Studio!",
+      description: "NB Studio is a comprehensive project management and business application that helps companies operate more efficiently.",
+      purpose: "The application is developed by Norbert Bartus - www.nb-studio.net"
     },
     system: {
       title: "System Functions",
       auth: {
-        title: "Authentication and Security",
+        title: "User Authentication",
         items: [
-          "User login",
-          "Permission management",
-          "Secure session",
-          "Logging and audit",
-          "Data protection compliance"
+          "Secure login",
+          "Password reset",
+          "Profile management",
+          "Permission management"
         ]
       },
       notifications: {
         title: "Notifications",
         items: [
           "System notifications",
-          "Hosting alerts",
-          "Task reminders",
           "Email notifications",
+          "Push notifications",
           "Custom notification settings"
         ]
       }
@@ -263,126 +227,100 @@ export const helpTranslations = {
       title: "Project Management",
       projectHandling: {
         title: "Project Handling",
-        description: "The project management module helps manage the complete lifecycle of projects:",
+        description: "Efficient project tracking and management",
         items: [
-          "Project creation and categorization",
-          "Task and deadline setting",
-          "Resource and team member assignment",
+          "Project creation and editing",
+          "Task and deadline management",
           "Project status tracking",
-          "Document and file management",
-          "Team communication",
-          "Project reports and statistics",
-          "Notes and documentation",
-          "Task tracking and prioritization"
+          "Team collaboration"
         ]
       },
       documentManagement: {
         title: "Document Management",
-        description: "The document management module helps manage project documentation:",
+        description: "Central document management",
         items: [
-          "Document upload and categorization",
-          "Document template management",
+          "Document upload",
           "Version control",
-          "Document sharing and permissions",
-          "Document search and filtering",
-          "Automatic document generation"
+          "Document sharing",
+          "Document search"
         ]
       }
     },
     financial: {
-      title: "Financial Management",
+      title: "Finance",
       accounting: {
-        title: "Invoicing and Accounting",
-        description: "The financial module helps manage company finances:",
+        title: "Accounting",
+        description: "Financial transaction management",
         items: [
-          "Professional invoice generation",
-          "Expense and revenue tracking",
-          "Automatic accounting",
-          "Financial report generation",
-          "Tax assistance",
-          "Budget planning",
-          "Financial analysis",
-          "Payment management",
-          "Calculators and pricing"
+          "Income and expenses",
+          "Invoice management",
+          "Cost tracking",
+          "Financial reports"
         ]
       },
       licensing: {
         title: "License Management",
-        description: "The license manager helps track software licenses:",
+        description: "Software license management",
         items: [
-          "License cataloging",
+          "License tracking",
           "License expiration monitoring",
-          "License cost tracking",
-          "License renewal management",
+          "License costs",
           "License documentation"
         ]
       }
     },
     infrastructure: {
-      title: "Infrastructure Management",
+      title: "Infrastructure",
       domainHosting: {
         title: "Domain and Hosting",
-        description: "The infrastructure module helps manage domain and hosting services:",
+        description: "Domain and hosting service management",
         items: [
-          "Domain name management",
-          "Domain expiration monitoring",
-          "Hosting service management",
-          "Hosting resource monitoring",
-          "Hosting cost tracking",
-          "Hosting alerts",
-          "Infrastructure reports"
+          "Domain registration",
+          "Hosting services",
+          "SSL certificates",
+          "DNS management"
         ]
       },
       monitoring: {
-        title: "Server Monitoring",
-        description: "The server monitor helps track server status:",
+        title: "System Monitoring",
+        description: "Infrastructure monitoring",
         items: [
-          "Server status monitoring",
-          "Resource usage monitoring",
-          "Performance metrics",
-          "Alerts and notifications",
-          "Server log management",
-          "Automatic backup management"
+          "Performance tracking",
+          "System status",
+          "Security monitoring",
+          "Alerts"
         ]
       }
     },
     communication: {
-      title: "Communication and Support",
+      title: "Communication",
       aiChat: {
         title: "AI Chat Assistant",
-        description: "The AI Chat Assistant helps with daily tasks and questions:",
+        description: "Intelligent chat assistant",
         items: [
-          "Instant answers to questions",
-          "Problem-solving assistance",
-          "Documentation search",
-          "Process explanation",
-          "Suggestions",
-          "Automation possibilities",
-          "Chat history management"
+          "Natural language communication",
+          "Question answering",
+          "Task execution",
+          "Support provision"
         ]
       },
       support: {
-        title: "Support Ticket System",
-        description: "The support ticket system helps manage problems and questions:",
+        title: "Support Tickets",
+        description: "Support request management",
         items: [
-          "Ticket creation and tracking",
-          "Priority management",
-          "Ticket categories",
-          "Ticket statuses",
-          "Ticket assignment",
-          "Ticket documentation",
-          "Ticket statistics"
+          "Ticket creation",
+          "Ticket tracking",
+          "Priorities",
+          "Response management"
         ]
       },
       email: {
         title: "Email Communication",
-        description: "The email module helps manage communication:",
+        description: "Email communication management",
         items: [
           "Email templates",
-          "Automatic email responses",
-          "Email scheduling",
+          "Email campaigns",
           "Email tracking",
-          "Email categories",
           "Email statistics"
         ]
       }
@@ -391,100 +329,92 @@ export const helpTranslations = {
       title: "Other Functions",
       blog: {
         title: "Blog Management",
-        description: "The blog module helps manage content:",
+        description: "Blog content management",
         items: [
-          "Blog post creation",
-          "Category management",
-          "SEO optimization",
-          "Publication scheduling",
-          "Statistics tracking"
+          "Blog posts",
+          "Categories",
+          "Comments",
+          "SEO optimization"
         ]
       },
       translation: {
-        title: "Translation Tool",
-        description: "The translation tool helps with content localization:",
+        title: "Translations",
+        description: "Multilingual content management",
         items: [
-          "Multilingual content management",
+          "Content translation",
+          "Language versions",
           "Translation memory",
-          "Automatic translation",
-          "Translation tasks",
-          "Translation statistics"
+          "Language settings"
         ]
       },
       contacts: {
-        title: "Contact Management",
-        description: "The contact manager helps manage clients and partners:",
+        title: "Contacts",
+        description: "Contact management",
         items: [
-          "Contact creation",
-          "Contact categories",
-          "Contact history",
-          "Contact documentation",
-          "Contact statistics"
+          "Contact information",
+          "Groups",
+          "Contact tracking",
+          "Contact import/export"
         ]
       }
     },
     support: {
-      title: "Support and Help",
+      title: "Support",
       help: {
-        title: "Getting Help",
-        description: "If you have any questions or problems, several options are available:",
+        title: "Help",
+        description: "Help and documentation",
         items: [
-          "Using the AI Chat Assistant",
-          "Creating a Support Ticket",
-          "Email support",
-          "Online documentation",
-          "Video tutorials"
+          "FAQ",
+          "User guide",
+          "Video tutorials",
+          "Community forum"
         ]
       },
       contact: {
         title: "Contact",
-        description: "For application development and maintenance:",
+        description: "Get in touch",
         items: [
-          "Developer: Norbert Bartus",
-          "Website: www.nb-studio.net",
-          "Email: support@nb-studio.net",
-          "Phone: +36 30 123 4567"
+          "Email: info@nb-studio.net",
+          "Phone: +36 30 123 4567",
+          "Address: Budapest, Hungary",
+          "Working hours: Mon-Fri 9:00-17:00"
         ]
       }
     },
     links: {
       title: "Useful Links",
       items: [
-        { text: "Dashboard", path: "/dashboard" },
-        { text: "Projects", path: "/projects" },
-        { text: "Invoices", path: "/invoices" },
-        { text: "AI Assistant", path: "/ai-chat" },
-        { text: "Support", path: "/support" },
-        { text: "NB Studio Website", path: "https://www.nb-studio.net", external: true }
+        { text: "NB Studio Website", path: "https://www.nb-studio.net", external: true },
+        { text: "Blog", path: "/blog" },
+        { text: "Documentation", path: "/docs" },
+        { text: "Contact", path: "/contact" }
       ]
     }
   },
   de: {
-    title: "NB Studio Anwendungshilfe",
+    title: "Hilfe und Dokumentation",
     welcome: {
-      title: "Willkommen bei der NB Studio Anwendung!",
-      description: "NB Studio ist eine umfassende Projektmanagement- und Geschäftsanwendung, die Unternehmen hilft, effizienter zu arbeiten. Die Anwendung wird von Norbert Bartus - www.nb-studio.net entwickelt.",
-      purpose: "Ziel der Anwendung ist es, den täglichen Betrieb von Unternehmen zu vereinfachen und zu automatisieren und gleichzeitig die notwendigen Werkzeuge für effizientes Projektmanagement und Geschäftsprozesse bereitzustellen."
+      title: "Willkommen bei NB Studio!",
+      description: "NB Studio ist eine umfassende Projektmanagement- und Geschäftsanwendung, die Unternehmen hilft, effizienter zu arbeiten.",
+      purpose: "Die Anwendung wird von Norbert Bartus - www.nb-studio.net entwickelt"
     },
     system: {
       title: "Systemfunktionen",
       auth: {
-        title: "Authentifizierung und Sicherheit",
+        title: "Benutzerauthentifizierung",
         items: [
-          "Benutzeranmeldung",
-          "Berechtigungsverwaltung",
-          "Sichere Sitzung",
-          "Protokollierung und Audit",
-          "Datenschutzkonformität"
+          "Sicheres Login",
+          "Passwort zurücksetzen",
+          "Profilverwaltung",
+          "Berechtigungsverwaltung"
         ]
       },
       notifications: {
         title: "Benachrichtigungen",
         items: [
           "Systembenachrichtigungen",
-          "Hosting-Warnungen",
-          "Aufgaben-Erinnerungen",
           "E-Mail-Benachrichtigungen",
+          "Push-Benachrichtigungen",
           "Angepasste Benachrichtigungseinstellungen"
         ]
       }
@@ -493,126 +423,100 @@ export const helpTranslations = {
       title: "Projektmanagement",
       projectHandling: {
         title: "Projektverwaltung",
-        description: "Das Projektmanagement-Modul hilft bei der Verwaltung des gesamten Projektlebenszyklus:",
+        description: "Effizientes Projekt-Tracking und -Management",
         items: [
-          "Projekterstellung und -kategorisierung",
-          "Aufgaben- und Terminplanung",
-          "Ressourcen- und Teammitgliederzuweisung",
-          "Projektstatusverfolgung",
-          "Dokumenten- und Dateiverwaltung",
-          "Teamkommunikation",
-          "Projektberichte und -statistiken",
-          "Notizen und Dokumentation",
-          "Aufgabenverfolgung und -priorisierung"
+          "Projekterstellung und -bearbeitung",
+          "Aufgaben- und Terminverwaltung",
+          "Projektstatus-Tracking",
+          "Teamzusammenarbeit"
         ]
       },
       documentManagement: {
         title: "Dokumentenverwaltung",
-        description: "Das Dokumentenverwaltungsmodul hilft bei der Verwaltung der Projektdokumentation:",
+        description: "Zentrale Dokumentenverwaltung",
         items: [
-          "Dokumenten-Upload und -kategorisierung",
-          "Dokumentenvorlagenverwaltung",
+          "Dokumenten-Upload",
           "Versionskontrolle",
-          "Dokumentenfreigabe und -berechtigungen",
-          "Dokumentensuche und -filterung",
-          "Automatische Dokumentengenerierung"
+          "Dokumentenfreigabe",
+          "Dokumentensuche"
         ]
       }
     },
     financial: {
-      title: "Finanzverwaltung",
+      title: "Finanzen",
       accounting: {
-        title: "Rechnungsstellung und Buchhaltung",
-        description: "Das Finanzmodul hilft bei der Verwaltung der Unternehmensfinanzen:",
+        title: "Buchhaltung",
+        description: "Verwaltung finanzieller Transaktionen",
         items: [
-          "Professionelle Rechnungsgenerierung",
-          "Ausgaben- und Einnahmenverfolgung",
-          "Automatische Buchhaltung",
-          "Finanzberichterstellung",
-          "Steuerhilfe",
-          "Budgetplanung",
-          "Finanzanalyse",
-          "Zahlungsverwaltung",
-          "Rechner und Preisgestaltung"
+          "Einnahmen und Ausgaben",
+          "Rechnungsverwaltung",
+          "Kostenverfolgung",
+          "Finanzberichte"
         ]
       },
       licensing: {
         title: "Lizenzverwaltung",
-        description: "Der Lizenzmanager hilft bei der Verwaltung von Softwarelizenzen:",
+        description: "Software-Lizenzverwaltung",
         items: [
-          "Lizenzkatalogisierung",
+          "Lizenzverfolgung",
           "Lizenzablaufüberwachung",
-          "Lizenzkostenverfolgung",
-          "Lizenzverlängerungsverwaltung",
+          "Lizenzkosten",
           "Lizenzdokumentation"
         ]
       }
     },
     infrastructure: {
-      title: "Infrastrukturverwaltung",
+      title: "Infrastruktur",
       domainHosting: {
         title: "Domain und Hosting",
-        description: "Das Infrastrukturmodul hilft bei der Verwaltung von Domain- und Hosting-Diensten:",
+        description: "Verwaltung von Domain- und Hosting-Diensten",
         items: [
-          "Domainnamenverwaltung",
-          "Domainablaufüberwachung",
-          "Hosting-Dienstverwaltung",
-          "Hosting-Ressourcenüberwachung",
-          "Hosting-Kostenverfolgung",
-          "Hosting-Warnungen",
-          "Infrastrukturberichte"
+          "Domainregistrierung",
+          "Hosting-Dienste",
+          "SSL-Zertifikate",
+          "DNS-Verwaltung"
         ]
       },
       monitoring: {
-        title: "Serverüberwachung",
-        description: "Der Servermonitor hilft bei der Überwachung des Serverstatus:",
+        title: "Systemüberwachung",
+        description: "Infrastrukturüberwachung",
         items: [
-          "Serverstatusüberwachung",
-          "Ressourcennutzungsüberwachung",
-          "Leistungsmetriken",
-          "Warnungen und Benachrichtigungen",
-          "Serverprotokollverwaltung",
-          "Automatische Backup-Verwaltung"
+          "Leistungsüberwachung",
+          "Systemstatus",
+          "Sicherheitsüberwachung",
+          "Warnungen"
         ]
       }
     },
     communication: {
-      title: "Kommunikation und Support",
+      title: "Kommunikation",
       aiChat: {
         title: "KI-Chat-Assistent",
-        description: "Der KI-Chat-Assistent hilft bei täglichen Aufgaben und Fragen:",
+        description: "Intelligenter Chat-Assistent",
         items: [
-          "Sofortige Antworten auf Fragen",
-          "Hilfe bei der Problemlösung",
-          "Dokumentationssuche",
-          "Prozesserklärung",
-          "Vorschläge",
-          "Automatisierungsmöglichkeiten",
-          "Chat-Verlaufsverwaltung"
+          "Natürliche Sprachkommunikation",
+          "Fragenbeantwortung",
+          "Aufgabenausführung",
+          "Supportbereitstellung"
         ]
       },
       support: {
-        title: "Support-Ticket-System",
-        description: "Das Support-Ticket-System hilft bei der Verwaltung von Problemen und Fragen:",
+        title: "Support-Tickets",
+        description: "Verwaltung von Support-Anfragen",
         items: [
-          "Ticket-Erstellung und -Verfolgung",
-          "Prioritätsverwaltung",
-          "Ticket-Kategorien",
-          "Ticket-Status",
-          "Ticket-Zuweisung",
-          "Ticket-Dokumentation",
-          "Ticket-Statistiken"
+          "Ticket-Erstellung",
+          "Ticket-Verfolgung",
+          "Prioritäten",
+          "Antwortverwaltung"
         ]
       },
       email: {
         title: "E-Mail-Kommunikation",
-        description: "Das E-Mail-Modul hilft bei der Verwaltung der Kommunikation:",
+        description: "Verwaltung der E-Mail-Kommunikation",
         items: [
           "E-Mail-Vorlagen",
-          "Automatische E-Mail-Antworten",
-          "E-Mail-Planung",
-          "E-Mail-Verfolgung",
-          "E-Mail-Kategorien",
+          "E-Mail-Kampagnen",
+          "E-Mail-Tracking",
           "E-Mail-Statistiken"
         ]
       }
@@ -621,71 +525,65 @@ export const helpTranslations = {
       title: "Weitere Funktionen",
       blog: {
         title: "Blog-Verwaltung",
-        description: "Das Blog-Modul hilft bei der Verwaltung von Inhalten:",
+        description: "Verwaltung von Blog-Inhalten",
         items: [
-          "Blogbeitragserstellung",
-          "Kategorieverwaltung",
-          "SEO-Optimierung",
-          "Veröffentlichungsplanung",
-          "Statistikverfolgung"
+          "Blog-Beiträge",
+          "Kategorien",
+          "Kommentare",
+          "SEO-Optimierung"
         ]
       },
       translation: {
-        title: "Übersetzungstool",
-        description: "Das Übersetzungstool hilft bei der Lokalisierung von Inhalten:",
+        title: "Übersetzungen",
+        description: "Verwaltung mehrsprachiger Inhalte",
         items: [
-          "Mehrsprachige Inhaltsverwaltung",
+          "Inhaltsübersetzung",
+          "Sprachversionen",
           "Übersetzungsspeicher",
-          "Automatische Übersetzung",
-          "Übersetzungsaufgaben",
-          "Übersetzungsstatistiken"
+          "Spracheinstellungen"
         ]
       },
       contacts: {
-        title: "Kontaktverwaltung",
-        description: "Der Kontaktmanager hilft bei der Verwaltung von Kunden und Partnern:",
+        title: "Kontakte",
+        description: "Kontaktverwaltung",
         items: [
-          "Kontakterstellung",
-          "Kontaktkategorien",
-          "Kontaktverlauf",
-          "Kontaktdokumentation",
-          "Kontaktstatistiken"
+          "Kontaktinformationen",
+          "Gruppen",
+          "Kontaktverfolgung",
+          "Kontakt-Import/Export"
         ]
       }
     },
     support: {
-      title: "Support und Hilfe",
+      title: "Support",
       help: {
-        title: "Hilfe erhalten",
-        description: "Bei Fragen oder Problemen stehen mehrere Optionen zur Verfügung:",
+        title: "Hilfe",
+        description: "Hilfe und Dokumentation",
         items: [
-          "Verwendung des KI-Chat-Assistenten",
-          "Erstellung eines Support-Tickets",
-          "E-Mail-Support",
-          "Online-Dokumentation",
-          "Video-Tutorials"
+          "FAQ",
+          "Benutzerhandbuch",
+          "Video-Tutorials",
+          "Community-Forum"
         ]
       },
       contact: {
         title: "Kontakt",
-        description: "Für Anwendungsentwicklung und -wartung:",
+        description: "Kontakt aufnehmen",
         items: [
-          "Entwickler: Norbert Bartus",
-          "Website: www.nb-studio.net",
-          "E-Mail: support@nb-studio.net",
-          "Telefon: +36 30 123 4567"
+          "E-Mail: info@nb-studio.net",
+          "Telefon: +36 30 123 4567",
+          "Adresse: Budapest, Ungarn",
+          "Öffnungszeiten: Mo-Fr 9:00-17:00"
         ]
       }
     },
     links: {
       title: "Nützliche Links",
       items: [
-        { text: "Dashboard", path: "/dashboard" },
-        { text: "Projekte", path: "/projects" },
-        { text: "Rechnungen", path: "/invoices" },
-        { text: "KI-Assistent", path: "/ai-chat" },
-        { text: "Support", path: "/support" },
-        { text: "NB Studio Website", path: "https://www.nb-studio.net", external: true }
+        { text: "NB Studio Website", path: "https://www.nb-studio.net", external: true },
+        { text: "Blog", path: "/blog" },
+        { text: "Dokumentation", path: "/docs" },
+        { text: "Kontakt", path: "/contact" }
       ]
     }
   }
