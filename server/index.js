@@ -9,8 +9,6 @@ import fs from 'fs';
 // PDF generation dependencies
 import PDFDocument from 'pdfkit';
 import puppeteer from 'puppeteer';
-import { fileURLToPath } from 'url';
-import { setupCronJobs } from './cronJobs.js';
 
 // Import models
 import Contact from './models/Contact.js';
@@ -43,7 +41,6 @@ import emailApiRouter from './routes/emailApi.js';
 import documentsRouter from './routes/documents.js';
 import chatApiRouter from './routes/chatApi.js';
 import paymentsRouter from './routes/payments.js';
-import invoicesRouter from './routes/invoices.js';
 
 // Import middleware
 import authMiddleware from './middleware/auth.js';
@@ -543,21 +540,16 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
       return res.status(404).json({ message: 'Számla nem található' });
     }
     
-    // Generate PDF using PDFKit
+    // Generate PDF using pdf-lib instead of puppeteer
     try {
-      // Create a new PDF document
+      // Fallback option: Use pdfkit directly instead of html-pdf-node
       const doc = new PDFDocument({
         size: 'A4',
         margin: 50,
         info: {
           Title: `Számla-${invoice.number}`,
-          Author: 'NB Studio',
-          Creator: 'NB Studio Backend',
-          Producer: 'PDFKit'
-        },
-        lang: 'hu-HU',
-        displayTitle: true,
-        font: 'Helvetica'
+          Author: 'NB Studio'
+        }
       });
 
       // Set response headers
@@ -567,322 +559,89 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
       // Pipe to response
       doc.pipe(res);
       
-      // Define colors
-      const colors = {
-        primary: '#2563EB',    // Kék (főszín)
-        text: '#111827',       // Sötét szürke (szöveg)
-        lightText: '#6B7280',  // Világos szürke (másodlagos szöveg)
-        accent: '#F3F4F6',     // Nagyon világos szürke (háttér)
-        success: '#10B981',    // Zöld (fizetve állapot)
-        warning: '#F59E0B',    // Sárga (lejárt állapot)
-        border: '#E5E7EB'      // Szürke (szegély)
-      };
+      // Add header
+      doc.fontSize(24)
+         .fillColor('#3182CE')
+         .text('SZÁMLA', 50, 50, { align: 'center' })
+         .fontSize(16)
+         .text(`#${invoice.number}`, 50, 90, { align: 'center' });
       
-      // Add top margin
-      doc.moveDown(2);
-      
-      // Logo placeholder and company info (top section)
-      doc.font('Helvetica-Bold')
-         .fontSize(22)
-         .fillColor(colors.primary)
-         .text('NB STUDIO', 50, 60);
-      
-      doc.font('Helvetica')
-         .fontSize(10)
-         .fillColor(colors.lightText)
-         .text('Bartus Norbert', 50, 85)
-         .text('1234 Budapest, Példa utca 1.')
-         .text('Adószám: 12345678-1-42')
-         .text('info@nb-studio.net');
-      
-      // Számla title in the right column
-      doc.font('Helvetica-Bold')
-         .fontSize(28)
-         .fillColor(colors.text)
-         .text('SZÁMLA', 350, 60, { align: 'right' });
-      
-      doc.font('Helvetica')
-         .fontSize(12)
-         .fillColor(colors.text)
-         .text(`Számlaszám: ${invoice.number}`, 350, 90, { align: 'right' });
-      
-      // Add horizontal line
-      doc.moveTo(50, 130)
-         .lineTo(550, 130)
-         .strokeColor(colors.border)
-         .stroke();
-      
-      // Invoice details
-      doc.fontSize(10)
-         .fillColor(colors.lightText)
-         .text('Kiállítás dátuma:', 50, 150);
-        
+      // Add date information
       doc.fontSize(12)
-         .fillColor(colors.text)
-         .text(new Date(invoice.date).toLocaleDateString('hu-HU'), 150, 150);
+         .fillColor('#555')
+         .text(`Kiállítás dátuma: ${new Date(invoice.date).toLocaleDateString('hu-HU')}`, 50, 140)
+         .text(`Fizetési határidő: ${new Date(invoice.dueDate).toLocaleDateString('hu-HU')}`, 50, 160);
       
-      doc.fontSize(10)
-         .fillColor(colors.lightText)
-         .text('Fizetési határidő:', 50, 170);
-        
-      doc.fontSize(12)
-         .fillColor(colors.text)
-         .text(new Date(invoice.dueDate).toLocaleDateString('hu-HU'), 150, 170);
-      
-      // Invoice status
-      const statusLabel = invoice.status === 'fizetett' ? 'FIZETVE' : 
-                         invoice.status === 'késedelmes' ? 'LEJÁRT' : 'KIÁLLÍTVA';
-      const statusColor = invoice.status === 'fizetett' ? colors.success : 
-                         invoice.status === 'késedelmes' ? colors.warning : colors.primary;
-      
-      doc.fontSize(10)
-         .fillColor(colors.lightText)
-         .text('Státusz:', 50, 190);
-      
-      doc.fontSize(11)
-         .fillColor(statusColor)
-         .font('Helvetica-Bold')
-         .text(statusLabel, 150, 190);
-      
-      doc.font('Helvetica');
-      
-      // Customer box
-      doc.rect(350, 150, 200, 90)
-         .fillColor(colors.accent)
-         .fill();
-      
-      doc.fillColor(colors.lightText)
-         .fontSize(10)
-         .text('Vevő:', 360, 155);
-      
-      // Check if client exists and has proper properties
-      if (project.client) {
-        doc.fillColor(colors.text)
-           .fontSize(12)
-           .font('Helvetica-Bold')
-           .text(project.client.name || '', 360, 170);
-           
-        doc.font('Helvetica')
-           .fontSize(10)
-           .fillColor(colors.text);
-           
-        if (project.client.companyName) {
-          doc.text(project.client.companyName, 360, 190);
-        }
-           
-        if (project.client.taxNumber) {
-          doc.text(`Adószám: ${project.client.taxNumber}`, 360, 205);
-        }
-           
-        doc.text(`Email: ${project.client.email || ''}`, 360, 220);
-      }
-      
-      // Items section title
-      doc.font('Helvetica-Bold')
+      // Add client info
+      doc.moveDown(2)
          .fontSize(14)
-         .fillColor(colors.text)
-         .text('Tételek', 50, 260);
+         .fillColor('#333')
+         .text('Vevő adatok:', 50, 200)
+         .fontSize(12)
+         .text(`${project.client?.name || 'N/A'}`, 50, 220)
+         .text(`${project.client?.companyName || ''}`, 50, 240)
+         .text(`Adószám: ${project.client?.taxNumber || 'N/A'}`, 50, 260);
       
-      // Items table
-      const tableTop = 290;
-      const tableHeaders = ['Leírás', 'Mennyiség', 'Egységár', 'Összesen'];
-      const columnWidths = [270, 70, 80, 80];
+      // Add items table
+      const tableTop = 320;
+      const tableHeaders = ['Tétel', 'Mennyiség', 'Egységár', 'Összesen'];
+      const columnWidth = 120;
       
-      // Table header background
-      doc.rect(50, tableTop, 500, 25)
-         .fillColor(colors.accent)
-         .fill();
+      // Table header
+      doc.fontSize(12)
+         .fillColor('#333');
       
-      // Table header text
-      doc.font('Helvetica-Bold')
-         .fontSize(10)
-         .fillColor(colors.text);
-      
-      let xPosition = 50;
       tableHeaders.forEach((header, i) => {
-        const align = i === 0 ? 'left' : 'right';
-        const padding = i === 0 ? 10 : 0;
-        const width = columnWidths[i];
-        
-        doc.text(header, xPosition + padding, tableTop + 8, {
-          width: width - padding,
-          align: align
-        });
-        
-        xPosition += width;
+        doc.text(header, 50 + (i * columnWidth), tableTop);
       });
       
-      // Reset font
-      doc.font('Helvetica');
+      doc.moveTo(50, tableTop + 20)
+         .lineTo(550, tableTop + 20)
+         .stroke();
       
       // Table rows
-      let yPosition = tableTop + 35;
+      let y = tableTop + 40;
       let totalAmount = 0;
       
-      // Check if items exist and are in proper format
       if (invoice.items && Array.isArray(invoice.items)) {
         invoice.items.forEach((item, i) => {
-          const quantity = item.quantity || 0;
-          const unitPrice = item.unitPrice || 0;
-          const amount = quantity * unitPrice;
+          const amount = (item.quantity || 0) * (item.unitPrice || 0);
           totalAmount += amount;
           
-          // Add subtle line between rows
-          if (i > 0) {
-            doc.moveTo(50, yPosition - 10)
-               .lineTo(550, yPosition - 10)
-               .strokeColor(colors.border)
-               .strokeOpacity(0.5)
-               .stroke();
-          }
+          doc.text(item.description || '', 50, y);
+          doc.text(item.quantity?.toString() || '0', 50 + columnWidth, y);
+          doc.text(`${item.unitPrice || 0} EUR`, 50 + (2 * columnWidth), y);
+          doc.text(`${amount} EUR`, 50 + (3 * columnWidth), y);
           
-          // Reset to normal opacity
-          doc.strokeOpacity(1);
-          
-          // Item cells
-          xPosition = 50;
-          
-          // Description
-          doc.fillColor(colors.text)
-             .fontSize(10)
-             .text(item.description || '', xPosition + 10, yPosition, { 
-               width: columnWidths[0] - 10 
-             });
-          
-          xPosition += columnWidths[0];
-          
-          // Quantity
-          doc.text(quantity.toString(), xPosition, yPosition, { 
-            width: columnWidths[1], 
-            align: 'right' 
-          });
-          
-          xPosition += columnWidths[1];
-          
-          // Unit price
-          doc.text(`${unitPrice} EUR`, xPosition, yPosition, { 
-            width: columnWidths[2], 
-            align: 'right' 
-          });
-          
-          xPosition += columnWidths[2];
-          
-          // Total amount
-          doc.font('Helvetica-Bold')
-             .text(`${amount} EUR`, xPosition, yPosition, { 
-               width: columnWidths[3], 
-               align: 'right' 
-             });
-          
-          doc.font('Helvetica');
-          
-          // Move to next row
-          yPosition += 40;
+          y += 30;
         });
       }
       
-      // Totals section background
-      const totalsTop = yPosition + 10;
-      doc.rect(300, totalsTop, 250, 80)
-         .fillColor(colors.accent)
-         .fill();
-      
-      // Totals section content
-      doc.fillColor(colors.text)
-         .font('Helvetica')
-         .fontSize(11)
-         .text('Részösszeg:', 320, totalsTop + 15)
-         .text('ÁFA (0%):', 320, totalsTop + 35)
-         .font('Helvetica-Bold')
-         .fontSize(14)
-         .text('Végösszeg:', 320, totalsTop + 55);
-      
-      // Totals amounts
-      doc.font('Helvetica')
-         .fontSize(11)
-         .text(`${invoice.totalAmount || totalAmount} EUR`, 530, totalsTop + 15, { align: 'right' })
-         .text('0 EUR', 530, totalsTop + 35, { align: 'right' })
-         .font('Helvetica-Bold')
-         .fontSize(14)
-         .fillColor(colors.primary)
-         .text(`${invoice.totalAmount || totalAmount} EUR`, 530, totalsTop + 55, { align: 'right' });
-      
-      // Payment information section
-      const paymentTop = totalsTop + 110;
-      
-      doc.font('Helvetica-Bold')
-         .fontSize(14)
-         .fillColor(colors.text)
-         .text('Fizetési információk', 50, paymentTop);
-      
-      doc.strokeColor(colors.primary)
-         .lineWidth(1)
-         .moveTo(50, paymentTop + 20)
-         .lineTo(200, paymentTop + 20)
+      // Add total
+      doc.moveTo(50, y)
+         .lineTo(550, y)
          .stroke();
       
-      doc.font('Helvetica')
-         .fontSize(10)
-         .fillColor(colors.text)
-         .moveDown()
-         .text('Banki átutalás:', 50, paymentTop + 35)
-         .fillColor(colors.lightText)
-         .text('IBAN:', 50, paymentTop + 50)
-         .text('SWIFT/BIC:', 50, paymentTop + 65)
-         .text('Bank:', 50, paymentTop + 80)
-         .text('Közlemény:', 50, paymentTop + 95);
+      doc.fontSize(14)
+         .fillColor('#3182CE')
+         .text('Végösszeg:', 350, y + 20)
+         .text(`${invoice.totalAmount || totalAmount} EUR`, 50 + (3 * columnWidth), y + 20);
       
-      doc.fillColor(colors.text)
-         .font('Helvetica-Bold')
-         .text('DE47 6634 0014 0743 4638 00', 130, paymentTop + 50)
-         .text('COBADEFFXXX', 130, paymentTop + 65)
-         .text('Commerzbank AG', 130, paymentTop + 80)
-         .text(invoice.number, 130, paymentTop + 95);
-      
-      // QR code section
-      doc.font('Helvetica-Bold')
-         .fontSize(10)
-         .fillColor(colors.primary)
-         .text('QR kód mutatása', 450, paymentTop + 35, { align: 'center' });
-      
-      // Simple QR code placeholder
-      doc.rect(400, paymentTop + 50, 100, 100)
-         .strokeColor(colors.primary)
-         .lineWidth(1)
-         .stroke();
-      
-      // Footer
+      // Add footer
       const footerTop = doc.page.height - 100;
       
-      // Footer line
-      doc.moveTo(50, footerTop)
-         .lineTo(550, footerTop)
-         .strokeColor(colors.border)
-         .lineWidth(1)
-         .stroke();
-      
-      // Footer text
       doc.fontSize(10)
-         .fillColor(colors.text)
-         .text('Köszönjük, hogy minket választott!', 50, footerTop + 15, { align: 'center', width: 500 });
-      
-      doc.fontSize(8)
-         .fillColor(colors.lightText)
-         .text('Ez a számla elektronikusan készült és érvényes aláírás nélkül is.', 50, footerTop + 35, { 
-           align: 'center', 
-           width: 500 
-         });
+         .fillColor('#666')
+         .text('NB Studio - Bartus Norbert', 50, footerTop, { align: 'center', width: 500 })
+         .text('www.nb-studio.net', 50, footerTop + 20, { align: 'center', width: 500 });
       
       // Finalize the PDF
       doc.end();
-      console.log('PDF generation completed using PDFKit with modern design');
+      console.log('PDF generation completed using PDFKit');
       
     } catch (pdfError) {
-      console.error('Error generating PDF with PDFKit:', pdfError);
-      res.status(500).json({ 
-        message: 'Hiba történt a PDF generálása során', 
-        error: pdfError.message 
-      });
+      console.error('Error generating PDF with fallback method:', pdfError);
+      res.status(500).json({ message: 'Hiba történt a PDF generálása során', error: pdfError.message });
     }
 
   } catch (error) {
@@ -912,7 +671,6 @@ app.use('/api/translation/tasks', tasksRoutes);
 app.use('/api/notes', notesRoutes);
 app.use('/api/support', supportTicketRouter);
 app.use('/api', documentsRouter);
-app.use('/api', invoicesRouter);
 
 // Fix for transactions endpoint directly accessing the accountingRoutes
 app.use('/api/transactions', (req, res, next) => {
@@ -1036,28 +794,25 @@ function setupProjectDomain() {
 // ==============================================
 // SERVER STARTUP
 // ==============================================
-try {
-  await mongoose.connect(process.env.MONGO_URI);
-  console.log('MongoDB kapcsolat létesítve');
-  
-  // Cron job-ok beállítása
-  const cronJobController = setupCronJobs();
-  app.set('cronJobController', cronJobController);
-  
-  // Start HTTPS API server
-  https.createServer(sslOptions, app).listen(port, host, () => {
-    console.log(`API Server running on https://${host}:${port}`);
+mongoose.connect(process.env.MONGO_URI)
+  .then(() => {
+    console.log('Connected to MongoDB');
+    
+    // Start HTTPS API server
+    https.createServer(sslOptions, app).listen(port, host, () => {
+      console.log(`API Server running on https://${host}:${port}`);
+    });
+    
+    // Start HTTP server for Socket.IO
+    const socketPort = parseInt(port) + 1;
+    httpServer.listen(socketPort, host, () => {
+      console.log(`Socket.IO server running on http://${host}:${socketPort}`);
+    });
+    
+    // Setup project domain handling
+    setupProjectDomain();
+  })
+  .catch((error) => {
+    console.error('MongoDB connection error:', error);
+    process.exit(1);
   });
-  
-  // Start HTTP server for Socket.IO
-  const socketPort = parseInt(port) + 1;
-  httpServer.listen(socketPort, host, () => {
-    console.log(`Socket.IO server running on http://${host}:${socketPort}`);
-  });
-  
-  // Setup project domain handling
-  setupProjectDomain();
-} catch (error) {
-  console.error('MongoDB kapcsolódási hiba:', error);
-  process.exit(1);
-}

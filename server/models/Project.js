@@ -64,45 +64,7 @@ const projectSchema = new mongoose.Schema({
     }],
     totalAmount: Number,
     paidAmount: { type: Number, default: 0 },
-    notes: String,
-    // Ismétlődő számlához tartozó referencia
-    isRecurring: { type: Boolean, default: false },
-    recurringInvoiceId: { type: mongoose.Schema.Types.ObjectId, ref: 'recurringInvoice' }
-  }],
-  // Ismétlődő számlázás beállításai
-  recurringInvoices: [{
-    _id: { type: mongoose.Schema.Types.ObjectId, auto: true },
-    name: { type: String, required: true },
-    description: String,
-    isActive: { type: Boolean, default: true },
-    frequency: {
-      type: String,
-      enum: ['havi', 'negyedéves', 'féléves', 'éves', 'egyedi'],
-      default: 'havi'
-    },
-    interval: { type: Number, default: 1 }, // Pl. 2 havi = 2 havonta
-    startDate: { type: Date, required: true },
-    endDate: Date, // Opcionális végdátum
-    nextInvoiceDate: Date, // Következő számlázási dátum
-    lastInvoiceDate: Date, // Utolsó számlázás dátuma
-    totalOccurrences: Number, // Maximális ismétlésszám (opcionális)
-    currentOccurrence: { type: Number, default: 0 }, // Eddigi ismétlések száma
-    paymentTerms: { type: Number, default: 14 }, // Fizetési határidő napokban
-    items: [{
-      description: String,
-      quantity: Number,
-      unitPrice: Number,
-      total: Number
-    }],
-    totalAmount: Number,
-    notes: String,
-    emailNotification: { type: Boolean, default: true },
-    emailTemplate: String,
-    reminderDays: [{ type: Number }], // Emlékeztető küldése ennyi nappal a számlázás előtt
-    autoSend: { type: Boolean, default: false }, // Automatikus küldés emailben
-    generatePDF: { type: Boolean, default: true }, // PDF generálás
-    createdAt: { type: Date, default: Date.now },
-    updatedAt: { type: Date, default: Date.now }
+    notes: String
   }],
   // AI elemzések és javaslatok
   aiAnalysis: {

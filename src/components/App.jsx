@@ -23,7 +23,6 @@ import DocumentManager from './DocumentManager';
 import AIChat from './AIChat'; // AI Chat importálása
 import SideChat from './SideChat'; // Side chat importálása
 import Help from './Help';
-import RecurringInvoiceManager from './RecurringInvoiceManager'; // Új komponens importálása
 
 
 
@@ -134,14 +133,6 @@ const App = () => {
        element={
          <PrivateRoute>
            <InvoiceManager />
-         </PrivateRoute>
-       }
-     />
-     <Route
-       path="/recurring-invoices"
-       element={
-         <PrivateRoute>
-           <RecurringInvoiceManager />
          </PrivateRoute>
        }
      />
