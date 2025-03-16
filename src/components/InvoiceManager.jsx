@@ -146,29 +146,8 @@ const InvoiceManager = () => {
       const projectId = invoice.projectId;
       const invoiceId = invoice._id;
       
-      const response = await api.get(`/api/projects/${projectId}/invoices/${invoiceId}/pdf`, {
-        responseType: 'blob'
-      });
-
-      if (!response.ok) {
-        throw new Error('PDF generálása sikertelen');
-      }
-
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `szamla-${invoice.number}.pdf`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      
-      // Felszabadítjuk a blob URL-t
-      setTimeout(() => {
-        window.URL.revokeObjectURL(url);
-      }, 100);
-
-      showMessage(setSuccessMessage, 'PDF sikeresen letöltve');
+      window.open(`/api/projects/${projectId}/invoices/${invoiceId}/pdf`, '_blank');
+      showMessage(setSuccessMessage, 'PDF generálása folyamatban...');
     } catch (err) {
       console.error('Hiba a PDF generálásakor:', err);
       setError('Nem sikerült generálni a PDF-et. Kérjük, próbálja újra később.');
