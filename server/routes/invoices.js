@@ -2,8 +2,12 @@ import express from 'express';
 import mongoose from 'mongoose';
 import PDFDocument from 'pdfkit';
 import Project from '../models/Project.js';
+import authMiddleware from '../middleware/auth.js';
 
 const router = express.Router();
+
+// Védett végpontok
+router.use(authMiddleware);
 
 // Számla modell létrehozása
 const invoiceSchema = new mongoose.Schema({
