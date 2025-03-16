@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { X, Save, Building2, User, Mail, Phone, MapPin, FileText, CreditCard, AlertTriangle, CheckCircle, Clock, Calendar } from 'lucide-react';
+import { X, Save, Building2, User, Mail, Phone, MapPin, FileText, CreditCard, AlertTriangle, CheckCircle, Clock, Calendar, Plus } from 'lucide-react';
 
-const ProjectDetailsModal = ({ project, onUpdate, onClose, onSave }) => {
+const ProjectDetailsModal = ({ project, onUpdate, onClose, onSave, onNewInvoice }) => {
   const [activeTab, setActiveTab] = useState('details');
   const [showValidation, setShowValidation] = useState(false);
 
@@ -478,6 +478,16 @@ const ProjectDetailsModal = ({ project, onUpdate, onClose, onSave }) => {
 
           {activeTab === 'invoices' && project._id && (
             <div>
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-lg font-medium">Számlák</h3>
+                <button
+                  onClick={() => onNewInvoice(project)}
+                  className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Új Számla
+                </button>
+              </div>
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">

@@ -697,6 +697,7 @@ const ProjectManager = () => {
           onUpdate={setSelectedProject}
           onClose={() => setSelectedProject(null)}
           onSave={handleSaveProject}
+          onNewInvoice={handleNewInvoice}
         />
       )}
 
