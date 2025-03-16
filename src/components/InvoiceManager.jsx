@@ -146,7 +146,7 @@ const InvoiceManager = () => {
       const projectId = invoice.projectId;
       const invoiceId = invoice._id;
       
-      window.open(`/api/projects/${projectId}/invoices/${invoiceId}/pdf`, '_blank');
+      window.open(`${import.meta.env.VITE_API_URL}/api/projects/${projectId}/invoices/${invoiceId}/pdf`, '_blank');
       showMessage(setSuccessMessage, 'PDF generálása folyamatban...');
     } catch (err) {
       console.error('Hiba a PDF generálásakor:', err);
