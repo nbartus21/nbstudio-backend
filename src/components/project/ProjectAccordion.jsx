@@ -1,4 +1,5 @@
 import React from 'react';
+import { Plus, Share2, Eye, Trash } from 'lucide-react';
 
 const ProjectAccordion = ({ 
   projects, 
@@ -40,60 +41,64 @@ const ProjectAccordion = ({
           
           {expandedProjects[project._id] && (
             <div className="p-4 bg-gray-50 border-t">
-              <p className="text-gray-600 mb-4">
-                {project.description || 'Nincs leírás'}
-              </p>
-              
-              {activeShares[project._id]?.hasActiveShare && (
-                <div className="mb-4 p-3 bg-blue-50 rounded-lg">
-                  <h4 className="text-sm font-medium text-blue-900 mb-2">Aktív megosztás</h4>
-                  <div className="space-y-1 text-sm">
-                    <p className="flex items-center text-blue-800">
-                      <span className="w-20">Link:</span>
-                      <a 
-                        href={activeShares[project._id].shareLink}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:underline truncate"
-                      >
-                        {activeShares[project._id].shareLink}
-                      </a>
-                    </p>
-                    <p className="flex items-center text-blue-800">
-                      <span className="w-20">PIN kód:</span>
-                      <span>{activeShares[project._id].pin}</span>
-                    </p>
-                    <p className="flex items-center text-blue-800">
-                      <span className="w-20">Lejárat:</span>
-                      <span>
-                        {new Date(activeShares[project._id].expiresAt).toLocaleDateString()}
-                      </span>
-                    </p>
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                  <p className="text-sm text-gray-600">Ügyfél</p>
+                  <p className="font-medium">{project.client?.name || 'Nincs megadva'}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Költségvetés</p>
+                  <p className="font-medium">
+                    {project.financial?.budget?.min && project.financial?.budget?.max
+                      ? `${project.financial.budget.min} - ${project.financial.budget.max} ${project.financial?.currency || 'EUR'}`
+                      : 'Nincs megadva'}
+                  </p>
+                </div>
+              </div>
+
+              {project.invoices && project.invoices.length > 0 && (
+                <div className="mb-4 p-3 bg-white rounded-md shadow-sm">
+                  <h4 className="text-sm font-medium text-gray-700 mb-2">Számlák</h4>
+                  <div className="flex space-x-4">
+                    <div>
+                      <p className="text-xs text-gray-500">Összes számla</p>
+                      <p className="font-medium">{project.invoices.length} db</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Kifizetett</p>
+                      <p className="font-medium">{project.invoices.filter(inv => inv.status === 'fizetett').length} db</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Függőben</p>
+                      <p className="font-medium">{project.invoices.filter(inv => inv.status === 'kiállított').length} db</p>
+                    </div>
                   </div>
                 </div>
               )}
-              
+
               <div className="flex space-x-2">
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     onShare(project._id);
                   }}
-                  className={`px-4 py-2 rounded ${
+                  className={`px-4 py-2 rounded flex items-center ${
                     activeShares[project._id]?.hasActiveShare
                       ? 'bg-blue-100 text-blue-800 hover:bg-blue-200'
                       : 'bg-white border border-green-600 text-green-600 hover:bg-green-50'
                   }`}
                 >
-                  {activeShares[project._id]?.hasActiveShare ? 'Új megosztási link' : 'Megosztási link generálása'}
+                  <Share2 className="h-4 w-4 mr-2" />
+                  {activeShares[project._id]?.hasActiveShare ? 'Új megosztási link' : 'Megosztás'}
                 </button>
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     onNewInvoice(project);
                   }}
-                  className="px-4 py-2 bg-white border border-indigo-600 text-indigo-600 rounded hover:bg-indigo-50"
+                  className="px-4 py-2 bg-white border border-indigo-600 text-indigo-600 rounded hover:bg-indigo-50 flex items-center"
                 >
+                  <Plus className="h-4 w-4 mr-2" />
                   Új Számla
                 </button>
                 <button
@@ -101,8 +106,9 @@ const ProjectAccordion = ({
                     e.stopPropagation();
                     onViewDetails(project);
                   }}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
+                  className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 flex items-center"
                 >
+                  <Eye className="h-4 w-4 mr-2" />
                   Részletek
                 </button>
                 <button
@@ -110,8 +116,9 @@ const ProjectAccordion = ({
                     e.stopPropagation();
                     onDelete(project._id);
                   }}
-                  className="px-4 py-2 bg-red-50 text-red-600 rounded hover:bg-red-100"
+                  className="px-4 py-2 bg-red-50 text-red-600 rounded hover:bg-red-100 flex items-center"
                 >
+                  <Trash className="h-4 w-4 mr-2" />
                   Törlés
                 </button>
               </div>

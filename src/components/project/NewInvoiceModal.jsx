@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Plus } from 'lucide-react';
+import { X, Plus, Trash2, Calculator } from 'lucide-react';
 
 const NewInvoiceModal = ({ 
   projects, 
@@ -23,6 +23,14 @@ const NewInvoiceModal = ({
     }));
   };
 
+  // Tétel törlése
+  const handleRemoveItem = (index) => {
+    setNewInvoice(prev => ({
+      ...prev,
+      items: prev.items.filter((_, i) => i !== index)
+    }));
+  };
+
   // Form mező frissítése
   const handleUpdateInvoice = (updatedInvoice) => {
     setNewInvoice(updatedInvoice);
@@ -41,13 +49,26 @@ const NewInvoiceModal = ({
       alert('Kérjük válasszon projektet!');
       return;
     }
+
+    // Ellenőrizzük, hogy minden tételnek van-e leírása
+    const hasEmptyDescriptions = newInvoice.items.some(item => !item.description.trim());
+    if (hasEmptyDescriptions) {
+      alert('Kérjük töltse ki minden tétel leírását!');
+      return;
+    }
+
     onCreateInvoice(selectedProject, newInvoice);
+  };
+
+  // Végösszeg számítása
+  const calculateTotal = () => {
+    return newInvoice.items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
   };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg max-w-2xl w-full p-6">
-        <div className="flex justify-between items-center mb-4">
+      <div className="bg-white rounded-lg max-w-4xl w-full p-6 max-h-[90vh] overflow-y-auto">
+        <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-semibold">Új Számla Létrehozása</h2>
           <button 
             onClick={onClose}
@@ -75,131 +96,167 @@ const NewInvoiceModal = ({
             ))}
           </select>
         </div>
-        
-        {/* Számla tételek */}
-        <div className="space-y-4 mb-6">
-          <h3 className="text-md font-medium">Számla tételek</h3>
-          
-          {newInvoice.items.map((item, index) => (
-            <div key={index} className="grid grid-cols-1 md:grid-cols-3 gap-4 border-b pb-4">
-              <div>
-                <label className="block text-sm text-gray-700 mb-1">Tétel leírása</label>
-                <input
-                  type="text"
-                  placeholder="Tétel leírása"
-                  value={item.description}
-                  onChange={(e) => {
-                    const updatedItems = [...newInvoice.items];
-                    updatedItems[index].description = e.target.value;
-                    handleUpdateInvoice({ ...newInvoice, items: updatedItems });
-                  }}
-                  className="w-full border rounded p-2"
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-gray-700 mb-1">Mennyiség</label>
-                <input
-                  type="number"
-                  placeholder="Mennyiség"
-                  value={item.quantity}
-                  min="1"
-                  onChange={(e) => {
-                    const updatedItems = [...newInvoice.items];
-                    updatedItems[index].quantity = parseFloat(e.target.value);
-                    handleUpdateInvoice({ ...newInvoice, items: updatedItems });
-                  }}
-                  className="w-full border rounded p-2"
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-gray-700 mb-1">Egységár ({selectedProject?.financial?.currency || 'EUR'})</label>
-                <input
-                  type="number"
-                  placeholder="Egységár"
-                  value={item.unitPrice}
-                  min="0"
-                  step="0.01"
-                  onChange={(e) => {
-                    const updatedItems = [...newInvoice.items];
-                    updatedItems[index].unitPrice = parseFloat(e.target.value);
-                    handleUpdateInvoice({ ...newInvoice, items: updatedItems });
-                  }}
-                  className="w-full border rounded p-2"
-                />
+
+        {selectedProject && (
+          <>
+            {/* Ügyfél adatok megjelenítése */}
+            <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+              <h3 className="text-sm font-medium text-gray-700 mb-2">Ügyfél adatok</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-gray-600">Név</p>
+                  <p className="font-medium">{selectedProject.client?.name}</p>
+                </div>
+                {selectedProject.client?.companyName && (
+                  <div>
+                    <p className="text-sm text-gray-600">Cégnév</p>
+                    <p className="font-medium">{selectedProject.client.companyName}</p>
+                  </div>
+                )}
+                {selectedProject.client?.taxNumber && (
+                  <div>
+                    <p className="text-sm text-gray-600">Adószám</p>
+                    <p className="font-medium">{selectedProject.client.taxNumber}</p>
+                  </div>
+                )}
+                {selectedProject.client?.address && (
+                  <div>
+                    <p className="text-sm text-gray-600">Cím</p>
+                    <p className="font-medium">
+                      {selectedProject.client.address.postalCode} {selectedProject.client.address.city}, {selectedProject.client.address.street}
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
-          ))}
 
-          <button
-            onClick={handleAddItem}
-            className="w-full bg-gray-100 text-gray-600 px-4 py-2 rounded hover:bg-gray-200 flex items-center justify-center"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Új tétel hozzáadása
-          </button>
-        </div>
-        
-        {/* Megjegyzések */}
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Megjegyzések (opcionális)
-          </label>
-          <textarea
-            value={newInvoice.notes}
-            onChange={(e) => handleUpdateInvoice({ ...newInvoice, notes: e.target.value })}
-            className="w-full border-gray-300 rounded-md shadow-sm p-2 border"
-            rows="3"
-            placeholder="Megjegyzések a számlához..."
-          ></textarea>
-        </div>
+            {/* Számla tételek */}
+            <div className="mb-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-medium">Tételek</h3>
+                <button
+                  onClick={handleAddItem}
+                  className="flex items-center text-indigo-600 hover:text-indigo-700"
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Új tétel
+                </button>
+              </div>
+              
+              {newInvoice.items.map((item, index) => (
+                <div key={index} className="mb-4 p-4 border rounded-lg">
+                  <div className="flex justify-between mb-2">
+                    <h4 className="font-medium">#{index + 1}. tétel</h4>
+                    {index > 0 && (
+                      <button
+                        onClick={() => handleRemoveItem(index)}
+                        className="text-red-600 hover:text-red-700"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="md:col-span-2">
+                      <label className="block text-sm text-gray-700 mb-1">Leírás</label>
+                      <input
+                        type="text"
+                        placeholder="Tétel leírása"
+                        value={item.description}
+                        onChange={(e) => {
+                          const updatedItems = [...newInvoice.items];
+                          updatedItems[index].description = e.target.value;
+                          handleUpdateInvoice({ ...newInvoice, items: updatedItems });
+                        }}
+                        className="w-full border rounded p-2"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-700 mb-1">Mennyiség</label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={item.quantity}
+                        onChange={(e) => {
+                          const updatedItems = [...newInvoice.items];
+                          updatedItems[index].quantity = parseInt(e.target.value) || 0;
+                          handleUpdateInvoice({ ...newInvoice, items: updatedItems });
+                        }}
+                        className="w-full border rounded p-2"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-700 mb-1">
+                        Egységár ({selectedProject?.financial?.currency || 'EUR'})
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={item.unitPrice}
+                        onChange={(e) => {
+                          const updatedItems = [...newInvoice.items];
+                          updatedItems[index].unitPrice = parseFloat(e.target.value) || 0;
+                          handleUpdateInvoice({ ...newInvoice, items: updatedItems });
+                        }}
+                        className="w-full border rounded p-2"
+                      />
+                    </div>
+                  </div>
+                  <div className="mt-2 text-right">
+                    <p className="text-sm text-gray-600">
+                      Részösszeg: {(item.quantity * item.unitPrice).toFixed(2)} {selectedProject?.financial?.currency || 'EUR'}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
 
-        {/* Végösszeg előnézet */}
-        {newInvoice.items.length > 0 && (
-          <div className="mb-6 bg-gray-50 p-4 rounded-md">
-            <h3 className="text-md font-medium mb-2">Végösszeg előnézet</h3>
-            <table className="w-full">
-              <thead className="text-sm text-gray-700">
-                <tr>
-                  <th className="text-left">Tétel</th>
-                  <th className="text-right">Mennyiség</th>
-                  <th className="text-right">Egységár</th>
-                  <th className="text-right">Összesen</th>
-                </tr>
-              </thead>
-              <tbody>
-                {newInvoice.items.map((item, index) => {
-                  const total = item.quantity * item.unitPrice;
-                  return (
-                    <tr key={index} className="text-sm">
-                      <td className="py-1">{item.description || '(Nincs leírás)'}</td>
-                      <td className="py-1 text-right">{item.quantity}</td>
-                      <td className="py-1 text-right">{item.unitPrice} {selectedProject?.financial?.currency || 'EUR'}</td>
-                      <td className="py-1 text-right">{total} {selectedProject?.financial?.currency || 'EUR'}</td>
-                    </tr>
-                  );
-                })}
-                <tr className="font-bold">
-                  <td colSpan="3" className="pt-2 text-right">Végösszeg:</td>
-                  <td className="pt-2 text-right">
-                    {newInvoice.items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0).toFixed(2)} {selectedProject?.financial?.currency || 'EUR'}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+            {/* Megjegyzések */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Megjegyzések
+              </label>
+              <textarea
+                value={newInvoice.notes}
+                onChange={(e) => handleUpdateInvoice({ ...newInvoice, notes: e.target.value })}
+                className="w-full border-gray-300 rounded-md shadow-sm p-2 border"
+                rows="3"
+                placeholder="További megjegyzések a számlához..."
+              />
+            </div>
+
+            {/* Végösszeg */}
+            <div className="mb-6 bg-gray-50 p-4 rounded-lg">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center">
+                  <Calculator className="h-5 w-5 text-gray-500 mr-2" />
+                  <h3 className="text-lg font-medium">Végösszeg</h3>
+                </div>
+                <p className="text-2xl font-bold">
+                  {calculateTotal().toFixed(2)} {selectedProject?.financial?.currency || 'EUR'}
+                </p>
+              </div>
+            </div>
+          </>
         )}
 
-        <div className="flex justify-end gap-4 mt-6">
+        {/* Gombok */}
+        <div className="flex justify-end space-x-3">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-gray-600 border border-gray-300 rounded hover:bg-gray-100"
+            className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
           >
-            Mégse
+            Mégsem
           </button>
           <button
             onClick={handleSave}
-            className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
-            disabled={!selectedProject}
+            disabled={!selectedProject || newInvoice.items.length === 0}
+            className={`px-4 py-2 rounded-md text-white ${
+              !selectedProject || newInvoice.items.length === 0
+                ? 'bg-gray-400 cursor-not-allowed'
+                : 'bg-indigo-600 hover:bg-indigo-700'
+            }`}
           >
             Számla létrehozása
           </button>

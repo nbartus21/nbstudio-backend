@@ -314,58 +314,64 @@ const ProjectManager = () => {
     }
   };
 
-  // Create invoice
-  const handleCreateInvoice = async () => {
-    if (!selectedProject) {
-      console.error('Nincs kiválasztott projekt!');
-      return;
-    }
-  
+  // Új számla létrehozása
+  const handleNewInvoice = (project) => {
+    setSelectedProject(project);
+    setShowNewInvoiceForm(true);
+  };
+
+  // Számla létrehozása
+  const handleCreateInvoice = async (project, invoiceData) => {
     try {
-      const itemsWithTotal = newInvoice.items.map(item => {
-        const total = item.quantity * item.unitPrice;
-        return {
-          ...item,
-          total
-        };
-      });
-  
+      const itemsWithTotal = invoiceData.items.map(item => ({
+        ...item,
+        total: item.quantity * item.unitPrice
+      }));
+
       const totalAmount = itemsWithTotal.reduce((sum, item) => sum + item.total, 0);
       const invoiceNumber = `INV-${Date.now()}`;
-  
-      const invoiceData = {
+
+      const newInvoiceData = {
         number: invoiceNumber,
         date: new Date(),
         items: itemsWithTotal,
         totalAmount,
         paidAmount: 0,
         status: 'kiállított',
-        dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
+        dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 napos fizetési határidő
+        notes: invoiceData.notes || ''
       };
-  
+
       const response = await api.post(
-        `${API_URL}/projects/${selectedProject._id}/invoices`,
-        invoiceData
+        `/api/projects/${project._id}/invoices`,
+        newInvoiceData
       );
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Nem sikerült létrehozni a számlát');
       }
-  
+
       const updatedProject = await response.json();
-  
-      setSelectedProject(updatedProject);
+
+      // Frissítjük a projektet a listában
       setProjects(prevProjects =>
         prevProjects.map(p =>
           p._id === updatedProject._id ? updatedProject : p
         )
       );
-  
+
       setShowNewInvoiceForm(false);
-      setNewInvoice({ items: [{ description: '', quantity: 1, unitPrice: 0 }] });
+      setSelectedProject(null);
       setError(null);
       showSuccessMessage('Számla sikeresen létrehozva');
+
+      // Frissítjük a szűrt projektek listáját is
+      setFilteredProjects(prevFiltered =>
+        prevFiltered.map(p =>
+          p._id === updatedProject._id ? updatedProject : p
+        )
+      );
     } catch (error) {
       console.error('Hiba a számla létrehozásakor:', error);
       setError(`Hiba történt a számla létrehozásakor: ${error.message}`);
@@ -642,26 +648,20 @@ const ProjectManager = () => {
   comments={projectComments}
   files={projectFiles}
   onShare={setShowShareModal}
-  onNewInvoice={(project) => {
-    setSelectedProject(project);
-    setShowNewInvoiceForm(true);
-  }}
+  onNewInvoice={handleNewInvoice}
   onViewDetails={setSelectedProject}
   onDelete={handleDelete}
   onReplyToComment={handleSendComment}
   onViewFile={handleViewFile}
   onMarkAsRead={handleMarkAsRead}
-  onUploadFile={handleFileUpload}  // ADD THIS LINE
+  onUploadFile={handleFileUpload}
 />
       ) : viewType === 'list' ? (
         <ProjectList 
           projects={filteredProjects}
           activeShares={activeShares}
           onShare={setShowShareModal}
-          onNewInvoice={(project) => {
-            setSelectedProject(project);
-            setShowNewInvoiceForm(true);
-          }}
+          onNewInvoice={handleNewInvoice}
           onViewDetails={setSelectedProject}
           onDelete={handleDelete}
           onMarkAsRead={handleMarkAsRead}
@@ -673,10 +673,7 @@ const ProjectManager = () => {
           activeShares={activeShares}
           onToggleExpand={toggleExpand}
           onShare={setShowShareModal}
-          onNewInvoice={(project) => {
-            setSelectedProject(project);
-            setShowNewInvoiceForm(true);
-          }}
+          onNewInvoice={handleNewInvoice}
           onViewDetails={setSelectedProject}
           onDelete={handleDelete}
           onMarkAsRead={handleMarkAsRead}
