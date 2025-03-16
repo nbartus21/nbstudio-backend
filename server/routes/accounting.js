@@ -223,6 +223,10 @@ router.put('/transactions/:id', async (req, res) => {
 // Tranzakció részletek frissítése
 router.put('/transactions/:id/details', async (req, res) => {
   try {
+    console.log('Tranzakció részletek frissítése: ', req.params.id);
+    console.log('Beérkező adatok:', req.body);
+    console.log('Fájlok:', req.files);
+    
     const transaction = await Accounting.findById(req.params.id);
     if (!transaction) {
       return res.status(404).json({ message: 'Tranzakció nem található' });
@@ -232,10 +236,14 @@ router.put('/transactions/:id/details', async (req, res) => {
     transaction.paymentStatus = 'paid';
     transaction.paidDate = req.body.paymentDate || new Date();
     transaction.paymentMethod = req.body.paymentMethod;
-    transaction.notes = req.body.notes;
+    
+    if (req.body.notes) {
+      transaction.notes = req.body.notes;
+    }
 
-    // Ha van csatolt fájl, kezeljük
+    // Használjuk a multer middleware-t a fájlok kezelésére
     if (req.files && req.files.length > 0) {
+      console.log('Csatolt fájlok:', req.files.map(f => f.originalname));
       const attachments = req.files.map(file => ({
         name: file.originalname,
         url: file.path, // vagy a tárolt fájl URL-je
@@ -249,10 +257,12 @@ router.put('/transactions/:id/details', async (req, res) => {
     }
 
     await transaction.save();
+    console.log('Tranzakció mentve:', transaction._id);
 
     // Ha ez egy számla, frissítsük a kapcsolódó projekt számlát is
     if (transaction.invoiceNumber && transaction.projectId) {
-      await Project.updateOne(
+      console.log('Kapcsolódó számla frissítése:', transaction.invoiceNumber);
+      const updateResult = await Project.updateOne(
         { 
           '_id': transaction.projectId,
           'invoices.number': transaction.invoiceNumber 
@@ -265,12 +275,13 @@ router.put('/transactions/:id/details', async (req, res) => {
           } 
         }
       );
+      console.log('Projekt számla frissítése:', updateResult);
     }
 
     res.json(transaction);
   } catch (error) {
     console.error('Error updating transaction details:', error);
-    res.status(500).json({ message: 'Hiba történt a részletek mentése során' });
+    res.status(500).json({ message: 'Hiba történt a részletek mentése során: ' + error.message });
   }
 });
 

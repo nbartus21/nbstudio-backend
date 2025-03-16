@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FileText, Upload, X, Check } from 'lucide-react';
 
 const TransactionDetailModal = ({ isOpen, onClose, transaction, onSave }) => {
@@ -9,6 +9,20 @@ const TransactionDetailModal = ({ isOpen, onClose, transaction, onSave }) => {
     notes: '',
     files: []
   });
+
+  // Betöltjük a tranzakció meglévő részleteit, ha vannak
+  useEffect(() => {
+    if (transaction && transaction.paymentDetails) {
+      const { paymentDate, paymentMethod, notes, attachmentDescription } = transaction.paymentDetails;
+      setPaymentDetails(prev => ({
+        ...prev,
+        paymentDate: paymentDate ? new Date(paymentDate).toISOString().split('T')[0] : '',
+        paymentMethod: paymentMethod || 'bank_transfer',
+        notes: notes || '',
+        attachmentDescription: attachmentDescription || '',
+      }));
+    }
+  }, [transaction]);
 
   const handleFileChange = (e) => {
     const newFiles = Array.from(e.target.files);
@@ -42,10 +56,11 @@ const TransactionDetailModal = ({ isOpen, onClose, transaction, onSave }) => {
       attachmentDescription: paymentDetails.attachmentDescription
     });
   
-    // Fájlok hozzáadása
+    // Fájlok hozzáadása névvel együtt
     if (paymentDetails.files && paymentDetails.files.length > 0) {
       paymentDetails.files.forEach((file, index) => {
         formData.append(`files`, file);
+        formData.append(`fileNames`, file.name);
       });
     }
   

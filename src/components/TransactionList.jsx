@@ -99,19 +99,22 @@ const TransactionList = ({
     }
   };
 
-  // New handleSaveDetails function with updated logic
+  // Javított handleSaveDetails funkció a FormData helyes kezelésével
   const handleSaveDetails = async (formData) => {
     try {
       console.log('FormData tartalom:', Object.fromEntries(formData.entries())); // Debug log
 
-      const response = await api.put(
-        `${ACCOUNTING_API_URL}/transactions/${selectedTransaction._id}/details`,
-        formData,
+      // Az api.put nem kezeli megfelelően a FormData-t, ezért natív fetch-et használunk
+      const response = await fetch(
+        `${ACCOUNTING_API_URL}/transactions/${selectedTransaction._id}/details`, 
         {
+          method: 'PUT',
+          body: formData,
+          // Ne állítsunk be Content-Type fejlécet, hogy a boundary helyesen kerüljön beállításra
           headers: {
-            // Hagyjuk, hogy a FormData állítsa be a határokat
-            // 'Content-Type': 'multipart/form-data' - ezt NE állítsuk be
-          },
+            // Az autentikációs tokent be kell állítani
+            Authorization: `Bearer ${localStorage.getItem('token')}`
+          }
         }
       );
 
