@@ -102,4 +102,7 @@ export const getAuthToken = () => {
     delete: (url) => apiFetch(url, {
       method: 'DELETE',
     }),
+
+    // Token lekérő funkció
+    getToken: () => getAuthToken(),
   };

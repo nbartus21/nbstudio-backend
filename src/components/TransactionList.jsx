@@ -105,6 +105,8 @@ const TransactionList = ({
       console.log('FormData tartalom:', Object.fromEntries(formData.entries())); // Debug log
 
       // Az api.put nem kezeli megfelelően a FormData-t, ezért natív fetch-et használunk
+      const token = sessionStorage.getItem('token');
+      
       const response = await fetch(
         `${ACCOUNTING_API_URL}/transactions/${selectedTransaction._id}/details`, 
         {
@@ -112,8 +114,8 @@ const TransactionList = ({
           body: formData,
           // Ne állítsunk be Content-Type fejlécet, hogy a boundary helyesen kerüljön beállításra
           headers: {
-            // Az autentikációs tokent be kell állítani
-            Authorization: `Bearer ${localStorage.getItem('token')}`
+            // Az autentikációs tokent közvetlenül a sessionStorage-ból vesszük
+            Authorization: `Bearer ${token}`
           }
         }
       );
@@ -178,7 +180,7 @@ const TransactionList = ({
                   <div className="flex items-center">
                     <span className="truncate max-w-md">{transaction.description}</span>
                     {transaction.invoiceNumber && (
-                      <span key={`invoice-${transaction._id}`} className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
+                      <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
                         {transaction.invoiceNumber}
                       </span>
                     )}
