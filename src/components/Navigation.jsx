@@ -48,6 +48,11 @@ const Navigation = () => {
 
   // Oldal címének meghatározása az útvonal alapján
   const getPageTitle = (path) => {
+    // Speciális útvonalak kezelése
+    if (path === "/help") {
+      return "Súgó és támogatás";
+    }
+    
     const allMenuItems = menuItems.flatMap(category => category.items);
     const item = allMenuItems.find(item => item.path === path);
     return item ? item.label : path;

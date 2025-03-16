@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useIntl } from 'react-intl';
 import { 
   Search, X, ArrowRight, ChevronDown, ChevronUp, 
   Mail, Phone, ExternalLink, Check, Info, AlertTriangle,
   Download, Copy, Share2, MessageCircle
 } from 'lucide-react';
+import { helpUITranslations } from '../locales/help-ui';
 
 // SVG Illusztrációk - modern helpsystem
 const HelpIllustration = () => (
@@ -36,7 +38,7 @@ const DocumentIllustration = () => (
 );
 
 // Fő komponensek
-const QuickLink = ({ icon, title, description, to, external = false }) => {
+const QuickLink = ({ icon, title, description, to, external = false, buttonText }) => {
   const LinkComponent = external ? 'a' : Link;
   const linkProps = external ? { href: to, target: "_blank", rel: "noopener noreferrer" } : { to };
   
@@ -51,15 +53,7 @@ const QuickLink = ({ icon, title, description, to, external = false }) => {
       <h3 className="text-gray-800 font-semibold text-lg mb-2">{title}</h3>
       <p className="text-gray-600 text-sm flex-grow">{description}</p>
       <div className="mt-4 text-blue-600 flex items-center justify-center text-sm font-medium">
-        {external ? (
-          <>
-            Megnyitás <ExternalLink size={14} className="ml-1" />
-          </>
-        ) : (
-          <>
-            Tovább <ArrowRight size={14} className="ml-1" />
-          </>
-        )}
+        {buttonText} {external ? <ExternalLink size={14} className="ml-1" /> : <ArrowRight size={14} className="ml-1" />}
       </div>
     </LinkComponent>
   );
@@ -88,7 +82,7 @@ const Faq = ({ question, answer, isOpen, toggle }) => {
   );
 };
 
-const SearchBar = ({ value, onChange, onSubmit, placeholder = "Keresés a súgóban..." }) => (
+const SearchBar = ({ value, onChange, onSubmit, placeholder }) => (
   <form onSubmit={onSubmit} className="relative w-full mb-8">
     <input
       type="text"
@@ -124,6 +118,11 @@ const Help = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeAccordion, setActiveAccordion] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const intl = useIntl();
+  
+  // Az aktuális nyelv kiválasztása a locale alapján
+  const currentLanguage = intl.locale || 'hu';
+  const t = helpUITranslations[currentLanguage] || helpUITranslations.hu;
 
   useEffect(() => {
     // Szimuláljuk a betöltést
@@ -171,56 +170,6 @@ const Help = () => {
     );
   }
 
-  // FAQ adatok
-  const faqData = [
-    {
-      question: "Hogyan tudok új projektet létrehozni?",
-      answer: "Új projekt létrehozásához navigálj a 'Projektek' menübe, majd kattints az 'Új projekt létrehozása' gombra. Töltsd ki a szükséges mezőket, majd mentsd el a projektet a 'Létrehozás' gomb megnyomásával."
-    },
-    {
-      question: "Hogyan tudok dokumentumokat feltölteni?",
-      answer: "A dokumentumok feltöltéséhez nyisd meg az adott projektet, majd kattints a 'Dokumentumok' fülre. Itt találsz egy 'Dokumentum feltöltése' gombot, amelyre kattintva választhatsz fájlt a számítógépedről."
-    },
-    {
-      question: "Hogyan menedzselhetem a domain-eket?",
-      answer: "A domain-ek kezeléséhez navigálj a 'Szolgáltatások' menüben a 'Domain Kezelő' opcióra. Itt láthatod az összes domain-t, szerkesztheted azokat, és újakat is hozzáadhatsz."
-    },
-    {
-      question: "Hogyan használhatom az AI asszisztenst?",
-      answer: "Az AI asszisztens használatához kattints a 'Szolgáltatások' menüben az 'AI Asszisztens' opcióra. Írd be a kérdésedet vagy kérésedet a szövegmezőbe, majd küldd el. Az asszisztens azonnal válaszolni fog."
-    },
-    {
-      question: "Hogyan tudok új support jegyet nyitni?",
-      answer: "Support jegy nyitásához navigálj a 'Szolgáltatások' menüben a 'Support Ticketek' oldalra, majd kattints az 'Új jegy' gombra. Töltsd ki a szükséges információkat, add meg a prioritást és a részleteket, majd mentsd el."
-    },
-    {
-      question: "Hogyan működik a számlázás az alkalmazásban?",
-      answer: "A számlázási funkciókhoz navigálj a 'Projektek' menüben a 'Számla Kezelő' opcióra. Itt létrehozhatsz új számlákat, követheted a kifizetéseket, és lekérdezheted a korábbi számlákat is."
-    }
-  ];
-
-  // Dokumentum adatok (példa)
-  const documents = [
-    {
-      title: "Felhasználói kézikönyv",
-      description: "Átfogó leírás az NB Studio összes funkciójáról",
-      icon: <Download size={22} />,
-      action: "Letöltés"
-    },
-    {
-      title: "Gyorskalauz",
-      description: "A legfontosabb funkciók gyors áttekintése",
-      icon: <Copy size={22} />,
-      action: "Megnyitás"
-    },
-    {
-      title: "Videó oktatóanyagok",
-      description: "Lépésről lépésre bemutató videók",
-      icon: <ExternalLink size={22} />,
-      action: "Lejátszás"
-    }
-  ];
-
   return (
     <div className="bg-gray-50 min-h-screen">
       <div className="container mx-auto px-4 max-w-5xl py-10">
@@ -229,9 +178,9 @@ const Help = () => {
           <div className="flex justify-center mb-6">
             <HelpIllustration />
           </div>
-          <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">Segítség és támogatás</h1>
+          <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">{t.title}</h1>
           <p className="text-gray-600 text-lg max-w-2xl mx-auto">
-            Üdvözöljük az NB Studio súgóközpontjában. Itt megtalálhatja a válaszokat a gyakori kérdésekre és útmutatást a rendszer használatához.
+            {t.introText}
           </p>
         </div>
 
@@ -240,37 +189,41 @@ const Help = () => {
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           onSubmit={handleSearchSubmit}
+          placeholder={t.searchPlaceholder}
         />
 
         {/* Gyors linkek */}
-        <HelpSection title="Gyors elérés">
+        <HelpSection title={t.quickAccess.title}>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
             <QuickLink 
               icon={<Mail size={32} />}
-              title="Kapcsolatfelvétel"
-              description="Vegye fel a kapcsolatot ügyfélszolgálatunkkal e-mailben"
+              title={t.quickAccess.contacts.title}
+              description={t.quickAccess.contacts.description}
               to="/contacts"
+              buttonText={t.quickAccess.continueButton}
             />
             <QuickLink 
               icon={<Phone size={32} />}
-              title="Telefonos támogatás"
-              description="Hívjon minket munkanapokon 9:00-17:00 között"
+              title={t.quickAccess.phone.title}
+              description={t.quickAccess.phone.description}
               to="tel:+3630123456"
               external={true}
+              buttonText={t.quickAccess.openButton}
             />
             <QuickLink 
               icon={<MessageCircle size={32} />}
-              title="AI Asszisztens"
-              description="Azonnali segítség a beépített AI asszisztenstől"
+              title={t.quickAccess.aiAssistant.title}
+              description={t.quickAccess.aiAssistant.description}
               to="/ai-chat"
+              buttonText={t.quickAccess.continueButton}
             />
           </div>
         </HelpSection>
 
         {/* Gyakori kérdések */}
-        <HelpSection title="Gyakori kérdések">
+        <HelpSection title={t.faq.title}>
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
-            {faqData.map((faq, index) => (
+            {t.faq.items.map((faq, index) => (
               <Faq
                 key={index}
                 question={faq.question}
@@ -283,9 +236,9 @@ const Help = () => {
         </HelpSection>
 
         {/* Útmutatók és dokumentáció */}
-        <HelpSection title="Dokumentáció és útmutatók">
+        <HelpSection title={t.docs.title}>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-            {documents.map((doc, index) => (
+            {t.docs.items.map((doc, index) => (
               <div 
                 key={index}
                 className="bg-white rounded-lg shadow-sm border border-gray-200 p-5 flex flex-col items-start"
@@ -293,7 +246,7 @@ const Help = () => {
                 <h3 className="text-lg font-semibold text-gray-800 mb-2">{doc.title}</h3>
                 <p className="text-gray-600 text-sm mb-4 flex-grow">{doc.description}</p>
                 <button className="text-blue-600 flex items-center text-sm font-medium hover:text-blue-800">
-                  {doc.icon}
+                  {index === 0 ? <Download size={22} /> : index === 1 ? <Copy size={22} /> : <ExternalLink size={22} />}
                   <span className="ml-2">{doc.action}</span>
                 </button>
               </div>
@@ -302,21 +255,21 @@ const Help = () => {
         </HelpSection>
 
         {/* Támogatás és kapcsolat */}
-        <HelpSection title="Segítségre van szüksége?">
+        <HelpSection title={t.support.title}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <div className="mb-4">
                 <SupportIllustration />
               </div>
-              <h3 className="text-xl font-semibold text-gray-800 mb-3">Támogatás kérése</h3>
+              <h3 className="text-xl font-semibold text-gray-800 mb-3">{t.support.supportTicket.title}</h3>
               <p className="text-gray-600 mb-4">
-                Ha nem találja a választ a kérdésére, nyisson egy támogatási jegyet és csapatunk hamarosan válaszol.
+                {t.support.supportTicket.description}
               </p>
               <Link 
                 to="/support" 
                 className="inline-block bg-blue-600 text-white px-6 py-2 rounded-md font-medium hover:bg-blue-700 transition-colors"
               >
-                Support jegy nyitása
+                {t.support.supportTicket.button}
               </Link>
             </div>
             
@@ -324,22 +277,22 @@ const Help = () => {
               <div className="mb-4">
                 <DocumentIllustration />
               </div>
-              <h3 className="text-xl font-semibold text-gray-800 mb-3">Dokumentumok böngészése</h3>
+              <h3 className="text-xl font-semibold text-gray-800 mb-3">{t.support.documents.title}</h3>
               <p className="text-gray-600 mb-4">
-                Részletes dokumentációnkban megtalálja a rendszer minden funkciójának leírását és használati útmutatóját.
+                {t.support.documents.description}
               </p>
               <Link 
                 to="/documents" 
                 className="inline-block bg-blue-600 text-white px-6 py-2 rounded-md font-medium hover:bg-blue-700 transition-colors"
               >
-                Dokumentumtár
+                {t.support.documents.button}
               </Link>
             </div>
           </div>
         </HelpSection>
 
         {/* Tippek és trükkök */}
-        <HelpSection title="Tippek és hasznos tudnivalók">
+        <HelpSection title={t.tips.title}>
           <div className="space-y-4">
             <div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded-r-md">
               <div className="flex">
@@ -348,7 +301,7 @@ const Help = () => {
                 </div>
                 <div className="ml-3">
                   <p className="text-sm text-blue-700">
-                    <strong>Gyorsbillentyűk:</strong> Használja a <kbd className="px-1 py-0.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded">Ctrl+K</kbd> billentyűkombinációt a gyorskereséshez.
+                    <strong>{t.tips.keyboard.title}:</strong> {t.tips.keyboard.description}
                   </p>
                 </div>
               </div>
@@ -361,7 +314,7 @@ const Help = () => {
                 </div>
                 <div className="ml-3">
                   <p className="text-sm text-green-700">
-                    <strong>Mentés automatikusan:</strong> A rendszer 5 percenként automatikusan menti a folyamatban lévő munkáját.
+                    <strong>{t.tips.autosave.title}:</strong> {t.tips.autosave.description}
                   </p>
                 </div>
               </div>
@@ -374,7 +327,7 @@ const Help = () => {
                 </div>
                 <div className="ml-3">
                   <p className="text-sm text-yellow-700">
-                    <strong>Kijelentkezés:</strong> Biztonsági okokból 30 perc inaktivitás után a rendszer automatikusan kijelentkezteti.
+                    <strong>{t.tips.logout.title}:</strong> {t.tips.logout.description}
                   </p>
                 </div>
               </div>
@@ -385,21 +338,21 @@ const Help = () => {
         {/* Lábléc */}
         <div className="mt-12 text-center">
           <div className="text-sm text-gray-500 mb-4">
-            <p>Nem találta meg, amit keresett?</p>
+            <p>{t.footer.notFound}</p>
             <div className="flex justify-center items-center gap-6 mt-3">
               <Link to="/ai-chat" className="text-blue-600 flex items-center hover:text-blue-800">
-                <MessageCircle size={16} className="mr-1" /> AI Asszisztens
+                <MessageCircle size={16} className="mr-1" /> {t.footer.aiChat}
               </Link>
               <a href="mailto:info@nb-studio.net" className="text-blue-600 flex items-center hover:text-blue-800">
-                <Mail size={16} className="mr-1" /> E-mail küldése
+                <Mail size={16} className="mr-1" /> {t.footer.sendEmail}
               </a>
               <button className="text-blue-600 flex items-center hover:text-blue-800" onClick={() => navigator.clipboard.writeText(window.location.href)}>
-                <Share2 size={16} className="mr-1" /> Oldal megosztása
+                <Share2 size={16} className="mr-1" /> {t.footer.sharePage}
               </button>
             </div>
           </div>
           <div className="text-xs text-gray-400">
-            © {new Date().getFullYear()} NB Studio. Minden jog fenntartva.
+            © {new Date().getFullYear()} NB Studio. {t.footer.copyright}
           </div>
         </div>
       </div>
