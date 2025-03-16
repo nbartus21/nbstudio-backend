@@ -583,8 +583,118 @@ export const documentService = {
      * These methods would implement similar template patterns
      */
     getInvoiceTemplate(language = 'hu') {
-      // Basic invoice template
-      return this.getGenericTemplate('invoice', language);
+      return `
+        <style>
+          body {
+            font-family: 'Arial', sans-serif;
+            color: #333;
+            line-height: 1.6;
+          }
+          .container {
+            padding: 20px;
+          }
+          .header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 40px;
+          }
+          .company-info {
+            flex: 1;
+          }
+          .invoice-info {
+            text-align: right;
+          }
+          .invoice-number {
+            font-size: 24px;
+            color: #2563eb;
+            margin-bottom: 10px;
+          }
+          .details {
+            margin: 30px 0;
+          }
+          .table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+          }
+          .table th {
+            background-color: #f3f4f6;
+            padding: 12px;
+            text-align: left;
+            border-bottom: 2px solid #e5e7eb;
+          }
+          .table td {
+            padding: 12px;
+            border-bottom: 1px solid #e5e7eb;
+          }
+          .total {
+            text-align: right;
+            margin-top: 30px;
+            font-size: 18px;
+          }
+          .footer {
+            margin-top: 50px;
+            padding-top: 20px;
+            border-top: 1px solid #e5e7eb;
+            text-align: center;
+            color: #666;
+          }
+        </style>
+        <div class="container">
+          <div class="header">
+            <div class="company-info">
+              <h1 style="color: #2563eb; margin: 0;">NB-Studio</h1>
+              <p>{{companyAddress}}</p>
+              <p>{{companyEmail}}</p>
+              <p>{{companyPhone}}</p>
+            </div>
+            <div class="invoice-info">
+              <div class="invoice-number">Számla #{{invoiceNumber}}</div>
+              <p>Dátum: {{currentDate}}</p>
+              <p>Fizetési határidő: {{dueDate}}</p>
+            </div>
+          </div>
+
+          <div class="details">
+            <h3>Számlázási adatok:</h3>
+            <p>{{clientName}}</p>
+            <p>{{clientAddress}}</p>
+            <p>{{clientTaxNumber}}</p>
+          </div>
+
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Tétel</th>
+                <th>Mennyiség</th>
+                <th>Egységár</th>
+                <th>Összesen</th>
+              </tr>
+            </thead>
+            <tbody>
+              {{#each items}}
+              <tr>
+                <td>{{name}}</td>
+                <td>{{quantity}}</td>
+                <td>{{price}} Ft</td>
+                <td>{{total}} Ft</td>
+              </tr>
+              {{/each}}
+            </tbody>
+          </table>
+
+          <div class="total">
+            <p>Részösszeg: {{subtotal}} Ft</p>
+            <p>ÁFA ({{vatRate}}%): {{vatAmount}} Ft</p>
+            <h2>Végösszeg: {{total}} Ft</h2>
+          </div>
+
+          <div class="footer">
+            <p>Köszönjük, hogy minket választott!</p>
+            <p>www.nb-studio.net</p>
+          </div>
+        </div>
+      `;
     },
     
     getProjectDocTemplate(language = 'hu') {
@@ -638,18 +748,31 @@ export const documentService = {
       return {
         format: 'A4',
         margin: {
-          top: '20mm',
+          top: '30mm',
           right: '20mm',
           bottom: '20mm',
           left: '20mm'
         },
+        headerTemplate: `
+          <div style="width: 100%; padding: 20px; border-bottom: 1px solid #eee;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div style="font-size: 24px; font-weight: bold; color: #333;">
+                NB-Studio
+              </div>
+              <div style="font-size: 12px; color: #666;">
+                ${new Date().toLocaleDateString('hu-HU')}
+              </div>
+            </div>
+          </div>
+        `,
         footerTemplate: `
-          <div style="width: 100%; text-align: center; font-size: 10px; color: #666;">
-            <span>Oldal <span class="pageNumber"></span> / <span class="totalPages"></span></span>
+          <div style="width: 100%; padding: 10px 20px; text-align: center; font-size: 10px; color: #666; border-top: 1px solid #eee;">
+            <div style="margin-bottom: 5px;">NB-Studio | www.nb-studio.net</div>
+            <div>Oldal <span class="pageNumber"></span> / <span class="totalPages"></span></div>
           </div>
         `,
         displayHeaderFooter: true,
-        printBackground: true
+        preferCSSPageSize: true
       };
     }
   };
