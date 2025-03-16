@@ -11,7 +11,7 @@ import {
   Settings, Info, Clipboard, TrendingUp, Zap, Server, HardDrive, Coffee,
   ChevronRight, ChevronLeft, Search, Filter, Download, Share2,
   MoreVertical, Plus, BarChart2, PieChart as PieChartIcon,
-  LineChart as LineChartIcon, Activity, AlertTriangle, Layout, GripVertical, X
+  LineChart as LineChartIcon, Activity, AlertTriangle
 } from 'lucide-react';
 import { api } from '../services/auth'; // Import api with authentication
 
@@ -24,23 +24,6 @@ const AdminDashboard = () => {
   const [refreshInterval, setRefreshInterval] = useState(300000); // 5 perc
   const [dateRange, setDateRange] = useState('30d'); // 30 nap alapértelmezett
   const [selectedView, setSelectedView] = useState('overview'); // overview, financial, projects
-  const [layout, setLayout] = useState(() => {
-    // Load saved layout from localStorage or use default
-    const savedLayout = localStorage.getItem('dashboardLayout');
-    return savedLayout ? JSON.parse(savedLayout) : {
-      widgets: [
-        { id: 'quickStats', type: 'quickStats', position: 0, visible: true },
-        { id: 'financialOverview', type: 'financialOverview', position: 1, visible: true },
-        { id: 'projectStatus', type: 'projectStatus', position: 2, visible: true },
-        { id: 'alerts', type: 'alerts', position: 3, visible: true },
-        { id: 'recentActivity', type: 'recentActivity', position: 4, visible: true },
-        { id: 'quickActions', type: 'quickActions', position: 5, visible: true }
-      ],
-      columns: 3,
-      theme: 'light'
-    };
-  });
-  const [isEditing, setIsEditing] = useState(false);
   const [dashboardData, setDashboardData] = useState({
     stats: {
       activeProjects: 0,
@@ -98,45 +81,6 @@ const AdminDashboard = () => {
     fetchDashboardData();
   }, [dateRange]);
 
-  // Save layout to localStorage when it changes
-  useEffect(() => {
-    localStorage.setItem('dashboardLayout', JSON.stringify(layout));
-  }, [layout]);
-
-  // Handle widget visibility toggle
-  const handleWidgetVisibilityToggle = (widgetId) => {
-    setLayout(prev => ({
-      ...prev,
-      widgets: prev.widgets.map(widget =>
-        widget.id === widgetId
-          ? { ...widget, visible: !widget.visible }
-          : widget
-      )
-    }));
-  };
-
-  // Handle widget position change
-  const handleWidgetPositionChange = (widgetId, newPosition) => {
-    setLayout(prev => {
-      const widgets = [...prev.widgets];
-      const widgetIndex = widgets.findIndex(w => w.id === widgetId);
-      const widget = widgets[widgetIndex];
-      widgets.splice(widgetIndex, 1);
-      widgets.splice(newPosition, 0, widget);
-      return { ...prev, widgets };
-    });
-  };
-
-  // Handle column count change
-  const handleColumnCountChange = (count) => {
-    setLayout(prev => ({ ...prev, columns: count }));
-  };
-
-  // Handle theme change
-  const handleThemeChange = (theme) => {
-    setLayout(prev => ({ ...prev, theme }));
-  };
-
   // Helper function to filter data by date range
   const filterDataByDateRange = (data, range) => {
     const now = new Date();
@@ -168,75 +112,72 @@ const AdminDashboard = () => {
     setError(null);
     
     try {
-      // Initialize data collection object with default values
+      // Initialize data collection object
       const data = {
         projects: [],
         tickets: [],
         tasks: [],
         domains: [],
         financialData: [],
-        recentActivity: []
+        recentActivity: [] // Initialize recentActivity array
       };
       
-      // Fetch all data in parallel for better performance
-      const [
-        projectsResponse,
-        ticketsResponse,
-        domainsResponse,
-        financialResponse,
-        tasksResponse
-      ] = await Promise.allSettled([
-        api.get(`${API_URL}/projects`).catch(() => ({ ok: false, json: () => [] })),
-        api.get(`${API_URL}/support/tickets`).catch(() => ({ ok: false, json: () => [] })),
-        api.get(`${API_URL}/domains`).catch(() => ({ ok: false, json: () => [] })),
-        api.get(`${API_URL}/accounting/transactions`).catch(() => ({ ok: false, json: () => [] })),
-        api.get(`${API_URL}/tasks`).catch(() => ({ ok: false, json: () => [] }))
-      ]);
-
-      // Process projects data with fallback
-      if (projectsResponse.status === 'fulfilled' && projectsResponse.value.ok) {
-        data.projects = await projectsResponse.value.json();
+      // Fetch projects - this is critical, so we don't catch errors here
+      const projectsResponse = await api.get(`${API_URL}/projects`);
+      if (!projectsResponse.ok) throw new Error(`Failed to fetch projects: ${projectsResponse.status}`);
+      data.projects = await projectsResponse.json();
+      
+      // Fetch other data with try/catch for each endpoint to prevent one failure from stopping everything
+      
+      // Try to fetch support tickets
+      try {
+        const ticketsResponse = await api.get(`${API_URL}/support/tickets`);
+        if (ticketsResponse.ok) {
+          const ticketsData = await ticketsResponse.json();
+          data.tickets = ticketsData.tickets || ticketsData || [];
+        }
+      } catch (err) {
+        console.warn('Could not fetch tickets:', err.message);
       }
-
-      // Process tickets data with fallback
-      if (ticketsResponse.status === 'fulfilled' && ticketsResponse.value.ok) {
-        const ticketsData = await ticketsResponse.value.json();
-        data.tickets = ticketsData.tickets || ticketsData || [];
+      
+      // Try to fetch domains
+      try {
+        const domainsResponse = await api.get(`${API_URL}/domains`);
+        if (domainsResponse.ok) {
+          data.domains = await domainsResponse.json();
+        }
+      } catch (err) {
+        console.warn('Could not fetch domains:', err.message);
       }
-
-      // Process domains data with fallback
-      if (domainsResponse.status === 'fulfilled' && domainsResponse.value.ok) {
-        data.domains = await domainsResponse.value.json();
+      
+      // Try to fetch financial data
+      try {
+        const financialResponse = await api.get(`${API_URL}/accounting/transactions`);
+        if (financialResponse.ok) {
+          data.financialData = await financialResponse.json();
+        }
+      } catch (err) {
+        console.warn('Could not fetch financial data:', err.message);
       }
-
-      // Process financial data with fallback
-      if (financialResponse.status === 'fulfilled' && financialResponse.value.ok) {
-        data.financialData = await financialResponse.value.json();
-      }
-
-      // Process tasks data with fallback
-      if (tasksResponse.status === 'fulfilled' && tasksResponse.value.ok) {
-        data.tasks = await tasksResponse.value.json();
-      }
-
+      
       // Process data for the dashboard
       const now = new Date();
       const thirtyDaysFromNow = new Date(now);
       thirtyDaysFromNow.setDate(now.getDate() + 30);
       
-      // Process projects data with fallback values
+      // Process projects data
       const activeProjects = data.projects.filter(project => project.status === 'aktív').length;
       
-      // Process tickets data with fallback values
-      const tickets = data.tasks || data.tickets;
+      // Process tickets data
+      const tickets = data.tickets;
       const newTickets = tickets.filter(ticket => ticket.status === 'new').length;
       const openTickets = tickets.filter(ticket => ticket.status === 'open').length;
       const pendingTickets = tickets.filter(ticket => ticket.status === 'pending').length;
       
-      // Process tasks data with fallback
-      const activeTasks = data.tasks?.filter(task => task.status === 'aktív').length || 0;
+      // Process tasks data (not using this since the endpoint returns 404)
+      const activeTasks = 0;
       
-      // Process domains data with fallback values
+      // Process domains data
       const activeDomainsCount = data.domains.filter(domain => domain.status === 'active').length;
       const expiringSoonDomainsCount = data.domains.filter(domain => {
         if (!domain.expiryDate) return false;
@@ -244,50 +185,34 @@ const AdminDashboard = () => {
         return domain.status === 'active' && expiryDate <= thirtyDaysFromNow;
       }).length;
       
-      // Get server status with fallback
-      let serverStatus = {
-        cpu: 0,
-        memory: 0,
-        disk: 0,
-        uptime: 0
+      // Generate mock server status data (since we don't have a real endpoint)
+      const serverStatus = {
+        cpu: Math.floor(Math.random() * 35) + 15, // 15-50% CPU usage
+        memory: Math.floor(Math.random() * 40) + 30, // 30-70% memory usage
+        disk: Math.floor(Math.random() * 30) + 40, // 40-70% disk usage
+        uptime: Math.floor(Math.random() * 90) + 30 // 30-120 days uptime
       };
       
-      try {
-        const serverStatusResponse = await api.get(`${API_URL}/system/status`);
-        if (serverStatusResponse.ok) {
-          serverStatus = await serverStatusResponse.json();
-        }
-      } catch (err) {
-        console.warn('Server status fetch failed, using default values');
-      }
-      
-      // Get user statistics with fallback
-      let userStats = {
-        total: 0,
-        active: 0,
-        newThisMonth: 0
+      // Generate mock user statistics (since we don't have a real endpoint)
+      const userStats = {
+        total: Math.floor(Math.random() * 50) + 150, // 150-200 total users
+        active: Math.floor(Math.random() * 30) + 70, // 70-100 active users
+        newThisMonth: Math.floor(Math.random() * 15) + 5 // 5-20 new users this month
       };
       
-      try {
-        const userStatsResponse = await api.get(`${API_URL}/users/stats`);
-        if (userStatsResponse.ok) {
-          userStats = await userStatsResponse.json();
-        }
-      } catch (err) {
-        console.warn('User stats fetch failed, using default values');
-      }
-      
-      // Process financial data with fallback values
+      // Process financial data
+      // Calculate total revenue
       const paidInvoices = data.financialData.filter(
         transaction => transaction.type === 'income' && transaction.paymentStatus === 'paid'
       );
       const totalRevenue = paidInvoices.reduce((sum, inv) => sum + (inv.amount || 0), 0);
       
+      // Calculate pending invoices
       const pendingInvoices = data.financialData.filter(
         transaction => transaction.type === 'income' && transaction.paymentStatus === 'pending'
       ).length;
       
-      // Prepare monthly financial data with fallback
+      // Prepare monthly financial data (last 3 months)
       const last3Months = getLastMonths(3);
       const monthlyFinancialData = last3Months.map(month => {
         const monthlyRevenue = data.financialData
@@ -305,7 +230,7 @@ const AdminDashboard = () => {
         };
       });
       
-      // Prepare invoice status data with fallback values
+      // Prepare invoice status data
       const paidCount = data.financialData.filter(t => t.type === 'income' && t.paymentStatus === 'paid').length;
       const pendingCount = data.financialData.filter(t => t.type === 'income' && t.paymentStatus === 'pending').length;
       const overdueCount = data.financialData.filter(t => t.type === 'income' && t.paymentStatus === 'overdue').length;
@@ -316,29 +241,21 @@ const AdminDashboard = () => {
         { name: 'Lejárt', value: overdueCount }
       ];
       
-      // Get quarterly growth data with fallback
-      let quarterlyGrowth = [
-        { quarter: 'Q1', revenue: 0, growth: 0 },
-        { quarter: 'Q2', revenue: 0, growth: 0 },
-        { quarter: 'Q3', revenue: 0, growth: 0 },
-        { quarter: 'Q4', revenue: 0, growth: 0 }
+      // Generate quarterly growth data
+      const quarterlyGrowth = [
+        { quarter: 'Q1', revenue: Math.floor(Math.random() * 5000) + 15000, growth: Math.floor(Math.random() * 30) - 10 },
+        { quarter: 'Q2', revenue: Math.floor(Math.random() * 8000) + 18000, growth: Math.floor(Math.random() * 25) + 5 },
+        { quarter: 'Q3', revenue: Math.floor(Math.random() * 10000) + 20000, growth: Math.floor(Math.random() * 20) + 10 },
+        { quarter: 'Q4', revenue: Math.floor(Math.random() * 12000) + 25000, growth: Math.floor(Math.random() * 15) + 15 }
       ];
       
-      try {
-        const quarterlyGrowthResponse = await api.get(`${API_URL}/accounting/quarterly-growth`);
-        if (quarterlyGrowthResponse.ok) {
-          quarterlyGrowth = await quarterlyGrowthResponse.json();
-        }
-      } catch (err) {
-        console.warn('Quarterly growth fetch failed, using default values');
-      }
-      
-      // Process project statistics with fallback values
+      // Generate project statistics
+      // Project status distribution
       const projectStatusCounts = {
         active: data.projects.filter(p => p.status === 'aktív').length,
         completed: data.projects.filter(p => p.status === 'befejezett').length,
         suspended: data.projects.filter(p => p.status === 'felfüggesztett').length,
-        planning: data.projects.filter(p => p.status === 'tervezés').length
+        planning: data.projects.filter(p => p.status === 'tervezés').length || Math.floor(Math.random() * 5) + 1
       };
       
       const projectStatusDistribution = [
@@ -348,39 +265,21 @@ const AdminDashboard = () => {
         { name: 'Tervezés', value: projectStatusCounts.planning }
       ];
       
-      // Get project type distribution with fallback
-      let projectTypeDistribution = [
-        { name: 'Webfejlesztés', value: 0 },
-        { name: 'Mobilalkalmazás', value: 0 },
-        { name: 'UI/UX Design', value: 0 },
-        { name: 'Tanácsadás', value: 0 }
+      // Project type distribution (mocked)
+      const projectTypeDistribution = [
+        { name: 'Webfejlesztés', value: Math.floor(Math.random() * 20) + 20 },
+        { name: 'Mobilalkalmazás', value: Math.floor(Math.random() * 15) + 10 },
+        { name: 'UI/UX Design', value: Math.floor(Math.random() * 10) + 5 },
+        { name: 'Tanácsadás', value: Math.floor(Math.random() * 10) + 5 }
       ];
       
-      try {
-        const projectTypeResponse = await api.get(`${API_URL}/projects/types`);
-        if (projectTypeResponse.ok) {
-          projectTypeDistribution = await projectTypeResponse.json();
-        }
-      } catch (err) {
-        console.warn('Project type distribution fetch failed, using default values');
-      }
-      
-      // Get monthly project completion data with fallback
-      let monthlyProjectCompletion = getLastMonths(6).map(month => ({
+      // Monthly project completion (mocked)
+      const monthlyProjectCompletion = getLastMonths(6).map(month => ({
         month: month.name,
-        completed: 0
+        completed: Math.floor(Math.random() * 6) + 1
       }));
       
-      try {
-        const monthlyCompletionResponse = await api.get(`${API_URL}/projects/completion`);
-        if (monthlyCompletionResponse.ok) {
-          monthlyProjectCompletion = await monthlyCompletionResponse.json();
-        }
-      } catch (err) {
-        console.warn('Monthly project completion fetch failed, using default values');
-      }
-      
-      // Prepare recent activity with fallback values
+      // Prepare recent activity
       const recentActivity = [];
       
       // Add recent projects
@@ -450,7 +349,7 @@ const AdminDashboard = () => {
       // Sort all recent activity by timestamp
       recentActivity.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
       
-      // Prepare alerts with fallback values
+      // Prepare alerts
       const alerts = [];
       
       // Add domain expiry alerts
@@ -636,230 +535,6 @@ const AdminDashboard = () => {
     window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname);
   };
 
-  // Render widget based on type
-  const renderWidget = (widget) => {
-    if (!widget.visible) return null;
-
-    switch (widget.type) {
-      case 'quickStats':
-        return (
-          <div key={widget.id} className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Gyors Statisztikák</h2>
-              {isEditing && (
-                <div className="flex items-center space-x-2">
-                  <button
-                    onClick={() => handleWidgetVisibilityToggle(widget.id)}
-                    className="p-1 text-gray-400 hover:text-gray-500"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                  <button
-                    className="p-1 text-gray-400 hover:text-gray-500 cursor-move"
-                    draggable
-                    onDragStart={(e) => {
-                      e.dataTransfer.setData('widgetId', widget.id);
-                    }}
-                    onDragOver={(e) => e.preventDefault()}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      const newPosition = parseInt(e.dataTransfer.getData('newPosition'));
-                      handleWidgetPositionChange(widget.id, newPosition);
-                    }}
-                  >
-                    <GripVertical className="h-4 w-4" />
-                  </button>
-                </div>
-              )}
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <div className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Aktív Projektek</p>
-                    <div className="mt-2 flex items-baseline">
-                      <p className="text-2xl font-semibold text-gray-900">{dashboardData.stats.activeProjects}</p>
-                      <p className="ml-2 flex items-baseline text-sm font-semibold text-green-600">
-                        <ArrowUp className="h-4 w-4 mr-1" />
-                        8%
-                      </p>
-                    </div>
-                  </div>
-                  <div className="p-3 bg-indigo-100 rounded-lg">
-                    <Archive className="h-6 w-6 text-indigo-600" />
-                  </div>
-                </div>
-                <div className="mt-4">
-                  <div className="flex items-center text-sm text-gray-500">
-                    <Calendar className="h-4 w-4 mr-1" />
-                    <span>12 projekt vár jóváhagyásra</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Nyitott Támogatási Jegyek</p>
-                    <div className="mt-2 flex items-baseline">
-                      <p className="text-2xl font-semibold text-gray-900">{dashboardData.stats.openTickets}</p>
-                      <p className="ml-2 flex items-baseline text-sm font-semibold text-red-600">
-                        <ArrowUp className="h-4 w-4 mr-1" />
-                        12%
-                      </p>
-                    </div>
-                  </div>
-                  <div className="p-3 bg-blue-100 rounded-lg">
-                    <MessageSquare className="h-6 w-6 text-blue-600" />
-                  </div>
-                </div>
-                <div className="mt-4">
-                  <div className="flex items-center text-sm text-gray-500">
-                    <Clock className="h-4 w-4 mr-1" />
-                    <span>Átlagos válaszidő: 2.5 óra</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Teljes Bevétel</p>
-                    <div className="mt-2 flex items-baseline">
-                      <p className="text-2xl font-semibold text-gray-900">{formatCurrency(dashboardData.stats.totalRevenue)}</p>
-                      <p className="ml-2 flex items-baseline text-sm font-semibold text-green-600">
-                        <ArrowUp className="h-4 w-4 mr-1" />
-                        15%
-                      </p>
-                    </div>
-                  </div>
-                  <div className="p-3 bg-green-100 rounded-lg">
-                    <DollarSign className="h-6 w-6 text-green-600" />
-                  </div>
-                </div>
-                <div className="mt-4">
-                  <div className="flex items-center text-sm text-gray-500">
-                    <TrendingUp className="h-4 w-4 mr-1" />
-                    <span>Növekedés az előző hónaphoz képest</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Függőben Lévő Számlák</p>
-                    <div className="mt-2 flex items-baseline">
-                      <p className="text-2xl font-semibold text-gray-900">{dashboardData.stats.pendingInvoices}</p>
-                      <p className="ml-2 flex items-baseline text-sm font-semibold text-yellow-600">
-                        <ArrowDown className="h-4 w-4 mr-1" />
-                        5%
-                      </p>
-                    </div>
-                  </div>
-                  <div className="p-3 bg-yellow-100 rounded-lg">
-                    <CreditCard className="h-6 w-6 text-yellow-600" />
-                  </div>
-                </div>
-                <div className="mt-4">
-                  <div className="flex items-center text-sm text-gray-500">
-                    <Clock className="h-4 w-4 mr-1" />
-                    <span>3 számla lejár 7 napon belül</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-
-      case 'financialOverview':
-        return (
-          <div key={widget.id} className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Pénzügyi Áttekintés</h2>
-              {isEditing && (
-                <div className="flex items-center space-x-2">
-                  <button
-                    onClick={() => handleWidgetVisibilityToggle(widget.id)}
-                    className="p-1 text-gray-400 hover:text-gray-500"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                  <button
-                    className="p-1 text-gray-400 hover:text-gray-500 cursor-move"
-                    draggable
-                    onDragStart={(e) => {
-                      e.dataTransfer.setData('widgetId', widget.id);
-                    }}
-                    onDragOver={(e) => e.preventDefault()}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      const newPosition = parseInt(e.dataTransfer.getData('newPosition'));
-                      handleWidgetPositionChange(widget.id, newPosition);
-                    }}
-                  >
-                    <GripVertical className="h-4 w-4" />
-                  </button>
-                </div>
-              )}
-            </div>
-            <div className="h-80">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart
-                  data={processedFinancialData.monthly}
-                  margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
-                >
-                  <defs>
-                    <linearGradient id="revenue" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#10B981" stopOpacity={0.8}/>
-                      <stop offset="95%" stopColor="#10B981" stopOpacity={0}/>
-                    </linearGradient>
-                    <linearGradient id="expenses" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.8}/>
-                      <stop offset="95%" stopColor="#F59E0B" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                  <XAxis dataKey="month" stroke="#6B7280" />
-                  <YAxis stroke="#6B7280" />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: 'white', 
-                      border: '1px solid #E5E7EB',
-                      borderRadius: '0.5rem',
-                      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                    }}
-                    formatter={(value) => formatCurrency(value)}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="revenue"
-                    stroke="#10B981"
-                    fillOpacity={1}
-                    fill="url(#revenue)"
-                    name="Bevétel"
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="expenses"
-                    stroke="#F59E0B"
-                    fillOpacity={1}
-                    fill="url(#expenses)"
-                    name="Kiadás"
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        );
-
-      // Add similar cases for other widget types...
-
-      default:
-        return null;
-    }
-  };
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-50">
@@ -904,7 +579,7 @@ const AdminDashboard = () => {
   }
 
   return (
-    <div className={`min-h-screen ${layout.theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'}`}>
+    <div className="min-h-screen bg-gray-50">
       {/* Top Navigation Bar */}
       <div className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -957,50 +632,12 @@ const AdminDashboard = () => {
                 <option value="projects">Projektek</option>
               </select>
 
-              {/* Layout customization controls */}
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={() => setIsEditing(!isEditing)}
-                  className={`p-2 rounded-lg ${
-                    isEditing
-                      ? 'bg-indigo-100 text-indigo-600'
-                      : 'text-gray-400 hover:text-gray-500 hover:bg-gray-100'
-                  }`}
-                >
-                  <Layout className="h-5 w-5" />
-                </button>
-
-                {isEditing && (
-                  <>
-                    <select
-                      value={layout.columns}
-                      onChange={(e) => handleColumnCountChange(Number(e.target.value))}
-                      className="text-sm border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-                    >
-                      <option value="1">1 oszlop</option>
-                      <option value="2">2 oszlop</option>
-                      <option value="3">3 oszlop</option>
-                      <option value="4">4 oszlop</option>
-                    </select>
-
-                    <select
-                      value={layout.theme}
-                      onChange={(e) => handleThemeChange(e.target.value)}
-                      className="text-sm border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-                    >
-                      <option value="light">Világos</option>
-                      <option value="dark">Sötét</option>
-                    </select>
-                  </>
-                )}
-
-                <button className="p-2 text-gray-400 hover:text-gray-500 rounded-full hover:bg-gray-100">
-                  <Bell className="h-5 w-5" />
-                </button>
-                <button className="p-2 text-gray-400 hover:text-gray-500 rounded-full hover:bg-gray-100">
-                  <Settings className="h-5 w-5" />
-                </button>
-              </div>
+              <button className="p-2 text-gray-400 hover:text-gray-500 rounded-full hover:bg-gray-100">
+                <Bell className="h-5 w-5" />
+              </button>
+              <button className="p-2 text-gray-400 hover:text-gray-500 rounded-full hover:bg-gray-100">
+                <Settings className="h-5 w-5" />
+              </button>
             </div>
           </div>
         </div>
@@ -1008,11 +645,486 @@ const AdminDashboard = () => {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Render widgets based on layout */}
-        <div className={`grid grid-cols-1 md:grid-cols-${layout.columns} gap-6`}>
-          {layout.widgets
-            .sort((a, b) => a.position - b.position)
-            .map(widget => renderWidget(widget))}
+        {/* Quick Stats Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Aktív Projektek</p>
+                <div className="mt-2 flex items-baseline">
+                  <p className="text-2xl font-semibold text-gray-900">{dashboardData.stats.activeProjects}</p>
+                  <p className="ml-2 flex items-baseline text-sm font-semibold text-green-600">
+                    <ArrowUp className="h-4 w-4 mr-1" />
+                    8%
+                  </p>
+                </div>
+              </div>
+              <div className="p-3 bg-indigo-100 rounded-lg">
+                <Archive className="h-6 w-6 text-indigo-600" />
+              </div>
+            </div>
+            <div className="mt-4">
+              <div className="flex items-center text-sm text-gray-500">
+                <Calendar className="h-4 w-4 mr-1" />
+                <span>12 projekt vár jóváhagyásra</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Nyitott Támogatási Jegyek</p>
+                <div className="mt-2 flex items-baseline">
+                  <p className="text-2xl font-semibold text-gray-900">{dashboardData.stats.openTickets}</p>
+                  <p className="ml-2 flex items-baseline text-sm font-semibold text-red-600">
+                    <ArrowUp className="h-4 w-4 mr-1" />
+                    12%
+                  </p>
+                </div>
+              </div>
+              <div className="p-3 bg-blue-100 rounded-lg">
+                <MessageSquare className="h-6 w-6 text-blue-600" />
+              </div>
+            </div>
+            <div className="mt-4">
+              <div className="flex items-center text-sm text-gray-500">
+                <Clock className="h-4 w-4 mr-1" />
+                <span>Átlagos válaszidő: 2.5 óra</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Teljes Bevétel</p>
+                <div className="mt-2 flex items-baseline">
+                  <p className="text-2xl font-semibold text-gray-900">{formatCurrency(dashboardData.stats.totalRevenue)}</p>
+                  <p className="ml-2 flex items-baseline text-sm font-semibold text-green-600">
+                    <ArrowUp className="h-4 w-4 mr-1" />
+                    15%
+                  </p>
+                </div>
+              </div>
+              <div className="p-3 bg-green-100 rounded-lg">
+                <DollarSign className="h-6 w-6 text-green-600" />
+              </div>
+            </div>
+            <div className="mt-4">
+              <div className="flex items-center text-sm text-gray-500">
+                <TrendingUp className="h-4 w-4 mr-1" />
+                <span>Növekedés az előző hónaphoz képest</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Függőben Lévő Számlák</p>
+                <div className="mt-2 flex items-baseline">
+                  <p className="text-2xl font-semibold text-gray-900">{dashboardData.stats.pendingInvoices}</p>
+                  <p className="ml-2 flex items-baseline text-sm font-semibold text-yellow-600">
+                    <ArrowDown className="h-4 w-4 mr-1" />
+                    5%
+                  </p>
+                </div>
+              </div>
+              <div className="p-3 bg-yellow-100 rounded-lg">
+                <CreditCard className="h-6 w-6 text-yellow-600" />
+              </div>
+            </div>
+            <div className="mt-4">
+              <div className="flex items-center text-sm text-gray-500">
+                <Clock className="h-4 w-4 mr-1" />
+                <span>3 számla lejár 7 napon belül</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Charts Section - Conditional Rendering based on selectedView */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+          {selectedView === 'overview' && (
+            <>
+              {/* Financial Overview */}
+              <div className="lg:col-span-2 bg-white rounded-xl shadow-sm p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h2 className="text-lg font-semibold text-gray-900">Pénzügyi Áttekintés</h2>
+                    <p className="text-sm text-gray-500 mt-1">Havi bevétel és kiadások</p>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <button className="p-2 text-gray-400 hover:text-gray-500 rounded-lg hover:bg-gray-100">
+                      <Download className="h-5 w-5" />
+                    </button>
+                    <button className="p-2 text-gray-400 hover:text-gray-500 rounded-lg hover:bg-gray-100">
+                      <Share2 className="h-5 w-5" />
+                    </button>
+                    <button className="p-2 text-gray-400 hover:text-gray-500 rounded-lg hover:bg-gray-100">
+                      <MoreVertical className="h-5 w-5" />
+                    </button>
+                  </div>
+                </div>
+                <div className="h-80">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart
+                      data={processedFinancialData.monthly}
+                      margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+                    >
+                      <defs>
+                        <linearGradient id="revenue" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#10B981" stopOpacity={0.8}/>
+                          <stop offset="95%" stopColor="#10B981" stopOpacity={0}/>
+                        </linearGradient>
+                        <linearGradient id="expenses" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.8}/>
+                          <stop offset="95%" stopColor="#F59E0B" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                      <XAxis dataKey="month" stroke="#6B7280" />
+                      <YAxis stroke="#6B7280" />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: 'white', 
+                          border: '1px solid #E5E7EB',
+                          borderRadius: '0.5rem',
+                          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                        }}
+                        formatter={(value) => formatCurrency(value)}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="revenue"
+                        stroke="#10B981"
+                        fillOpacity={1}
+                        fill="url(#revenue)"
+                        name="Bevétel"
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="expenses"
+                        stroke="#F59E0B"
+                        fillOpacity={1}
+                        fill="url(#expenses)"
+                        name="Kiadás"
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* Project Status */}
+              <div className="bg-white rounded-xl shadow-sm p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h2 className="text-lg font-semibold text-gray-900">Projektek Állapota</h2>
+                    <p className="text-sm text-gray-500 mt-1">Aktuális projekt eloszlás</p>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <button className="p-2 text-gray-400 hover:text-gray-500 rounded-lg hover:bg-gray-100">
+                      <PieChartIcon className="h-5 w-5" />
+                    </button>
+                    <button className="p-2 text-gray-400 hover:text-gray-500 rounded-lg hover:bg-gray-100">
+                      <BarChart2 className="h-5 w-5" />
+                    </button>
+                  </div>
+                </div>
+                <div className="h-80">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={processedProjectStats.statusDistribution}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={80}
+                        fill="#8884d8"
+                        paddingAngle={5}
+                        dataKey="value"
+                        label={({name, percent}) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      >
+                        {processedProjectStats.statusDistribution.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={
+                            index === 0 ? '#10B981' : // Aktív - zöld
+                            index === 1 ? '#6366F1' : // Befejezett - indigo
+                            index === 2 ? '#F59E0B' : // Felfüggesztett - sárga
+                            '#94A3B8'  // Tervezés - szürke
+                          } />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: 'white', 
+                          border: '1px solid #E5E7EB',
+                          borderRadius: '0.5rem',
+                          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                        }}
+                        formatter={(value) => [`${value} db`, 'Projektek']} 
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </>
+          )}
+
+          {selectedView === 'financial' && (
+            <div className="lg:col-span-3 bg-white rounded-xl shadow-sm p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900">Részletes Pénzügyi Adatok</h2>
+                  <p className="text-sm text-gray-500 mt-1">Bevételek és kiadások részletes elemzése</p>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <button className="p-2 text-gray-400 hover:text-gray-500 rounded-lg hover:bg-gray-100">
+                    <Download className="h-5 w-5" />
+                  </button>
+                  <button className="p-2 text-gray-400 hover:text-gray-500 rounded-lg hover:bg-gray-100">
+                    <Share2 className="h-5 w-5" />
+                  </button>
+                </div>
+              </div>
+              <div className="h-96">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={processedFinancialData.monthly}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                    <XAxis dataKey="month" stroke="#6B7280" />
+                    <YAxis stroke="#6B7280" />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: 'white', 
+                        border: '1px solid #E5E7EB',
+                        borderRadius: '0.5rem',
+                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                      }}
+                      formatter={(value) => formatCurrency(value)}
+                    />
+                    <Bar dataKey="revenue" fill="#10B981" name="Bevétel" />
+                    <Bar dataKey="expenses" fill="#F59E0B" name="Kiadás" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+
+          {selectedView === 'projects' && (
+            <div className="lg:col-span-3 bg-white rounded-xl shadow-sm p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900">Projekt Teljesítmény</h2>
+                  <p className="text-sm text-gray-500 mt-1">Projektek haladása és teljesítménye</p>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <button className="p-2 text-gray-400 hover:text-gray-500 rounded-lg hover:bg-gray-100">
+                    <Download className="h-5 w-5" />
+                  </button>
+                  <button className="p-2 text-gray-400 hover:text-gray-500 rounded-lg hover:bg-gray-100">
+                    <Share2 className="h-5 w-5" />
+                  </button>
+                </div>
+              </div>
+              <div className="h-96">
+                <ResponsiveContainer width="100%" height="100%">
+                  <RadarChart data={processedProjectStats.monthlyCompletion}>
+                    <PolarGrid stroke="#E5E7EB" />
+                    <PolarAngleAxis dataKey="month" stroke="#6B7280" />
+                    <PolarRadiusAxis stroke="#6B7280" />
+                    <Radar
+                      name="Befejezett"
+                      dataKey="completed"
+                      stroke="#10B981"
+                      fill="#10B981"
+                      fillOpacity={0.6}
+                    />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: 'white', 
+                        border: '1px solid #E5E7EB',
+                        borderRadius: '0.5rem',
+                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                      }}
+                    />
+                  </RadarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Alerts and Recent Activity */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+          {/* Alerts */}
+          <div className="lg:col-span-2 bg-white rounded-xl shadow-sm p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Figyelmeztetések</h2>
+                <p className="text-sm text-gray-500 mt-1">Aktív rendszerfigyelmeztetések</p>
+              </div>
+              <button className="text-sm text-indigo-600 hover:text-indigo-700 font-medium">
+                Összes megtekintése
+              </button>
+            </div>
+            {dashboardData.alerts.length > 0 ? (
+              <div className="space-y-4">
+                {dashboardData.alerts.map((alert) => (
+                  <div 
+                    key={alert.id} 
+                    className={`p-4 rounded-lg ${
+                      alert.severity === 'high' ? 'bg-red-50 border-l-4 border-red-500' :
+                      alert.severity === 'medium' ? 'bg-yellow-50 border-l-4 border-yellow-500' :
+                      'bg-blue-50 border-l-4 border-blue-500'
+                    }`}
+                  >
+                    <div className="flex items-start">
+                      <div className={`p-2 rounded-lg mr-3 ${
+                        alert.severity === 'high' ? 'bg-red-100' :
+                        alert.severity === 'medium' ? 'bg-yellow-100' :
+                        'bg-blue-100'
+                      }`}>
+                        <AlertTriangle className={`h-5 w-5 ${
+                          alert.severity === 'high' ? 'text-red-600' :
+                          alert.severity === 'medium' ? 'text-yellow-600' :
+                          'text-blue-600'
+                        }`} />
+                      </div>
+                      <div className="flex-1">
+                        <p className={`text-sm font-medium ${
+                          alert.severity === 'high' ? 'text-red-800' :
+                          alert.severity === 'medium' ? 'text-yellow-800' :
+                          'text-blue-800'
+                        }`}>
+                          {alert.message}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {formatDate(alert.timestamp)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-64 text-gray-400">
+                <CheckCircle className="h-12 w-12 mb-2" />
+                <p>Nincsenek aktív figyelmeztetések</p>
+              </div>
+            )}
+          </div>
+
+          {/* Recent Activity */}
+          <div className="bg-white rounded-xl shadow-sm p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Legutóbbi Aktivitás</h2>
+                <p className="text-sm text-gray-500 mt-1">Rendszer események</p>
+              </div>
+              <button className="p-2 text-gray-400 hover:text-gray-500 rounded-lg hover:bg-gray-100">
+                <RefreshCw className="h-5 w-5" />
+              </button>
+            </div>
+            {dashboardData.recentActivity.length > 0 ? (
+              <div className="space-y-4">
+                {dashboardData.recentActivity.map((activity, index) => (
+                  <div key={index} className="flex items-start">
+                    <div className={`rounded-lg p-2 mr-3 ${
+                      activity.type === 'project' ? 'bg-indigo-100' :
+                      activity.type === 'invoice' ? 'bg-green-100' :
+                      activity.type === 'ticket' ? 'bg-blue-100' :
+                      activity.type === 'domain' ? 'bg-yellow-100' :
+                      'bg-gray-100'
+                    }`}>
+                      {activity.type === 'project' && <Archive className="h-5 w-5 text-indigo-600" />}
+                      {activity.type === 'invoice' && <CreditCard className="h-5 w-5 text-green-600" />}
+                      {activity.type === 'ticket' && <MessageSquare className="h-5 w-5 text-blue-600" />}
+                      {activity.type === 'domain' && <Globe className="h-5 w-5 text-yellow-600" />}
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-gray-900">
+                        {activity.type === 'project' && `Új projekt: ${activity.name}`}
+                        {activity.type === 'invoice' && `Számla ${activity.action === 'paid' ? 'kifizetve' : 'létrehozva'}: ${activity.name}`}
+                        {activity.type === 'ticket' && `Support jegy ${activity.action === 'resolved' ? 'megoldva' : 'létrehozva'}: ${activity.name}`}
+                        {activity.type === 'domain' && `Domain ${activity.action === 'renewed' ? 'megújítva' : 'regisztrálva'}: ${activity.name}`}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {formatDate(activity.timestamp)}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-64 text-gray-400">
+                <Activity className="h-12 w-12 mb-2" />
+                <p>Nincs közelmúltbeli aktivitás</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Quick Actions */}
+        <div className="bg-white rounded-xl shadow-sm p-6">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Gyors Műveletek</h2>
+              <p className="text-sm text-gray-500 mt-1">Gyakran használt funkciók</p>
+            </div>
+            <button className="text-sm text-indigo-600 hover:text-indigo-700 font-medium">
+              Összes megtekintése
+            </button>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-4">
+            <a href="/projects" className="group flex flex-col items-center justify-center p-4 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors">
+              <div className="p-3 bg-indigo-100 rounded-lg group-hover:bg-indigo-200 transition-colors">
+                <Archive className="h-6 w-6 text-indigo-600" />
+              </div>
+              <span className="mt-2 text-sm font-medium text-indigo-700">Projektek</span>
+            </a>
+            
+            <a href="/accounting" className="group flex flex-col items-center justify-center p-4 bg-green-50 rounded-lg hover:bg-green-100 transition-colors">
+              <div className="p-3 bg-green-100 rounded-lg group-hover:bg-green-200 transition-colors">
+                <FileText className="h-6 w-6 text-green-600" />
+              </div>
+              <span className="mt-2 text-sm font-medium text-green-700">Számlák</span>
+            </a>
+            
+            <a href="/support" className="group flex flex-col items-center justify-center p-4 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors">
+              <div className="p-3 bg-blue-100 rounded-lg group-hover:bg-blue-200 transition-colors">
+                <MessageSquare className="h-6 w-6 text-blue-600" />
+              </div>
+              <span className="mt-2 text-sm font-medium text-blue-700">Support</span>
+            </a>
+            
+            <a href="/domains" className="group flex flex-col items-center justify-center p-4 bg-yellow-50 rounded-lg hover:bg-yellow-100 transition-colors">
+              <div className="p-3 bg-yellow-100 rounded-lg group-hover:bg-yellow-200 transition-colors">
+                <Globe className="h-6 w-6 text-yellow-600" />
+              </div>
+              <span className="mt-2 text-sm font-medium text-yellow-700">Domain-ek</span>
+            </a>
+            
+            <a href="/users" className="group flex flex-col items-center justify-center p-4 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors">
+              <div className="p-3 bg-purple-100 rounded-lg group-hover:bg-purple-200 transition-colors">
+                <Users className="h-6 w-6 text-purple-600" />
+              </div>
+              <span className="mt-2 text-sm font-medium text-purple-700">Felhasználók</span>
+            </a>
+            
+            <a href="/reports" className="group flex flex-col items-center justify-center p-4 bg-red-50 rounded-lg hover:bg-red-100 transition-colors">
+              <div className="p-3 bg-red-100 rounded-lg group-hover:bg-red-200 transition-colors">
+                <Clipboard className="h-6 w-6 text-red-600" />
+              </div>
+              <span className="mt-2 text-sm font-medium text-red-700">Jelentések</span>
+            </a>
+          </div>
+          
+          <div className="mt-6 flex items-center justify-center">
+            <button className="inline-flex items-center px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shadow-sm transition-colors">
+              <Plus className="h-5 w-5 mr-2" />
+              Új projekt létrehozása
+            </button>
+          </div>
         </div>
       </div>
     </div>
