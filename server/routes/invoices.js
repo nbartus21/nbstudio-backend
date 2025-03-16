@@ -3,6 +3,12 @@ import mongoose from 'mongoose';
 import PDFDocument from 'pdfkit';
 import Project from '../models/Project.js';
 import authMiddleware from '../middleware/auth.js';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+import fs from 'fs';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const router = express.Router();
 
@@ -102,7 +108,6 @@ router.get('/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => {
 
     // Response headerek beállítása
     let fileName = `szamla-${invoice.number}`;
-    // Ellenőrizzük, hogy van-e .pdf kiterjesztés
     if (!fileName.toLowerCase().endsWith('.pdf')) {
       fileName += '.pdf';
     }
@@ -115,15 +120,14 @@ router.get('/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => {
 
     try {
       // Fejléc logó (ha létezik)
-      const logoPath = './public/logo.png';
-      // Ellenőrizzük a fájl létezését és csak akkor próbáljuk beilleszteni
-      const fs = require('fs');
+      const logoPath = join(__dirname, '..', 'public', 'logo.png');
       if (fs.existsSync(logoPath)) {
         doc.image(logoPath, 50, 50, { width: 150 })
           .moveDown();
       }
     } catch (logoError) {
       console.warn('Logo not found, skipping:', logoError.message);
+      // Folytatjuk a PDF generálást logo nélkül
     }
 
     // Modern design - színek és stílusok
