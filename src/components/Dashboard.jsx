@@ -81,6 +81,31 @@ const AdminDashboard = () => {
     fetchDashboardData();
   }, [dateRange]);
 
+  // Helper function to filter data by date range
+  const filterDataByDateRange = (data, range) => {
+    const now = new Date();
+    const ranges = {
+      '7d': 7,
+      '30d': 30,
+      '90d': 90,
+      '1y': 365
+    };
+    
+    const days = ranges[range] || 30;
+    const startDate = new Date(now);
+    startDate.setDate(now.getDate() - days);
+    
+    return {
+      ...data,
+      financialData: data.financialData?.filter(item => 
+        new Date(item.date) >= startDate
+      ) || [],
+      recentActivity: data.recentActivity?.filter(item => 
+        new Date(item.timestamp) >= startDate
+      ) || []
+    };
+  };
+
   // Fetch all required data for the dashboard
   const fetchDashboardData = async () => {
     setIsLoading(true);
@@ -93,7 +118,8 @@ const AdminDashboard = () => {
         tickets: [],
         tasks: [],
         domains: [],
-        financialData: []
+        financialData: [],
+        recentActivity: [] // Initialize recentActivity array
       };
       
       // Fetch projects - this is critical, so we don't catch errors here
@@ -113,18 +139,6 @@ const AdminDashboard = () => {
       } catch (err) {
         console.warn('Could not fetch tickets:', err.message);
       }
-      
-      // Tasks endpoint is returning 404 so we'll skip it based on the error logs
-      /* 
-      try {
-        const tasksResponse = await api.get(`${API_URL}/tasks`);
-        if (tasksResponse.ok) {
-          data.tasks = await tasksResponse.json();
-        }
-      } catch (err) {
-        console.warn('Could not fetch tasks:', err.message);
-      }
-      */
       
       // Try to fetch domains
       try {
@@ -385,6 +399,9 @@ const AdminDashboard = () => {
         });
       }
       
+      // Add recentActivity to data object
+      data.recentActivity = recentActivity;
+      
       // Add date range filtering
       const filteredData = filterDataByDateRange(data, dateRange);
       
@@ -408,9 +425,9 @@ const AdminDashboard = () => {
           serverStatus: serverStatus,
           userStats: userStats
         },
-        recentActivity,
+        recentActivity: filteredData.recentActivity,
         financialData: {
-          monthly: monthlyFinancialData,
+          monthly: filteredData.monthlyFinancialData || monthlyFinancialData,
           invoiceStatus: invoiceStatusData,
           quarterlyGrowth: quarterlyGrowth
         },
@@ -429,31 +446,6 @@ const AdminDashboard = () => {
       setError(err.message);
       setIsLoading(false);
     }
-  };
-
-  // Helper function to filter data by date range
-  const filterDataByDateRange = (data, range) => {
-    const now = new Date();
-    const ranges = {
-      '7d': 7,
-      '30d': 30,
-      '90d': 90,
-      '1y': 365
-    };
-    
-    const days = ranges[range] || 30;
-    const startDate = new Date(now);
-    startDate.setDate(now.getDate() - days);
-    
-    return {
-      ...data,
-      financialData: data.financialData.filter(item => 
-        new Date(item.date) >= startDate
-      ),
-      recentActivity: data.recentActivity.filter(item => 
-        new Date(item.timestamp) >= startDate
-      )
-    };
   };
 
   // Handle refresh interval change
