@@ -683,11 +683,10 @@ const ProjectManager = () => {
       {/* Modals */}
       {showNewInvoiceForm && (
         <NewInvoiceModal
-          newInvoice={newInvoice}
-          onUpdateInvoice={setNewInvoice}
+          projects={projects}
+          initialProjectId={selectedProject?._id}
           onClose={() => setShowNewInvoiceForm(false)}
-          onSave={handleCreateInvoice}
-          onAddItem={handleAddInvoiceItem}
+          onCreateInvoice={handleCreateInvoice}
         />
       )}
 
