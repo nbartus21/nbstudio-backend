@@ -43,7 +43,6 @@ import emailApiRouter from './routes/emailApi.js';
 import documentsRouter from './routes/documents.js';
 import chatApiRouter from './routes/chatApi.js';
 import paymentsRouter from './routes/payments.js';
-import userRoutes from './routes/users.js';
 
 // Import middleware
 import authMiddleware from './middleware/auth.js';
