@@ -66,11 +66,19 @@ const supportTicketSchema = new mongoose.Schema({
     }]
   }],
   tags: [String],
+  labels: [{
+    text: String,
+    color: String
+  }],
   dueDate: Date,
   timeSpent: Number, // minutes
   isRead: { 
     type: Boolean, 
     default: false 
+  },
+  isEscalated: {
+    type: Boolean,
+    default: false
   },
   createdAt: { 
     type: Date, 

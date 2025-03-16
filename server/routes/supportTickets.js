@@ -144,7 +144,7 @@ router.post('/tickets', async (req, res) => {
 // Ticket frissítése
 router.put('/tickets/:id', async (req, res) => {
   try {
-    const { status, priority, assignedTo, tags, notes } = req.body;
+    const { status, priority, assignedTo, tags, notes, labels, isRead, isEscalated } = req.body;
     
     const ticket = await SupportTicket.findById(req.params.id);
     
@@ -153,10 +153,13 @@ router.put('/tickets/:id', async (req, res) => {
     }
     
     // Frissíthető mezők
-    if (status) ticket.status = status;
-    if (priority) ticket.priority = priority;
-    if (assignedTo) ticket.assignedTo = assignedTo;
-    if (tags) ticket.tags = tags;
+    if (status !== undefined) ticket.status = status;
+    if (priority !== undefined) ticket.priority = priority;
+    if (assignedTo !== undefined) ticket.assignedTo = assignedTo;
+    if (tags !== undefined) ticket.tags = tags;
+    if (labels !== undefined) ticket.labels = labels;
+    if (isRead !== undefined) ticket.isRead = isRead;
+    if (isEscalated !== undefined) ticket.isEscalated = isEscalated;
     
     // Dátum frissítése
     ticket.updatedAt = new Date();
