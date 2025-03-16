@@ -168,7 +168,7 @@ const AdminDashboard = () => {
     setError(null);
     
     try {
-      // Initialize data collection object
+      // Initialize data collection object with default values
       const data = {
         projects: [],
         tickets: [],
@@ -186,37 +186,35 @@ const AdminDashboard = () => {
         financialResponse,
         tasksResponse
       ] = await Promise.allSettled([
-        api.get(`${API_URL}/projects`),
-        api.get(`${API_URL}/support/tickets`),
-        api.get(`${API_URL}/domains`),
-        api.get(`${API_URL}/accounting/transactions`),
-        api.get(`${API_URL}/tasks`)
+        api.get(`${API_URL}/projects`).catch(() => ({ ok: false, json: () => [] })),
+        api.get(`${API_URL}/support/tickets`).catch(() => ({ ok: false, json: () => [] })),
+        api.get(`${API_URL}/domains`).catch(() => ({ ok: false, json: () => [] })),
+        api.get(`${API_URL}/accounting/transactions`).catch(() => ({ ok: false, json: () => [] })),
+        api.get(`${API_URL}/tasks`).catch(() => ({ ok: false, json: () => [] }))
       ]);
 
-      // Process projects data
+      // Process projects data with fallback
       if (projectsResponse.status === 'fulfilled' && projectsResponse.value.ok) {
         data.projects = await projectsResponse.value.json();
-      } else {
-        throw new Error('Projektek betöltése sikertelen');
       }
 
-      // Process tickets data
+      // Process tickets data with fallback
       if (ticketsResponse.status === 'fulfilled' && ticketsResponse.value.ok) {
         const ticketsData = await ticketsResponse.value.json();
         data.tickets = ticketsData.tickets || ticketsData || [];
       }
 
-      // Process domains data
+      // Process domains data with fallback
       if (domainsResponse.status === 'fulfilled' && domainsResponse.value.ok) {
         data.domains = await domainsResponse.value.json();
       }
 
-      // Process financial data
+      // Process financial data with fallback
       if (financialResponse.status === 'fulfilled' && financialResponse.value.ok) {
         data.financialData = await financialResponse.value.json();
       }
 
-      // Process tasks data
+      // Process tasks data with fallback
       if (tasksResponse.status === 'fulfilled' && tasksResponse.value.ok) {
         data.tasks = await tasksResponse.value.json();
       }
@@ -226,19 +224,19 @@ const AdminDashboard = () => {
       const thirtyDaysFromNow = new Date(now);
       thirtyDaysFromNow.setDate(now.getDate() + 30);
       
-      // Process projects data with real status values
+      // Process projects data with fallback values
       const activeProjects = data.projects.filter(project => project.status === 'aktív').length;
       
-      // Process tickets data with real status values
-      const tickets = data.tasks || data.tickets; // Use tasks if available, fallback to tickets
+      // Process tickets data with fallback values
+      const tickets = data.tasks || data.tickets;
       const newTickets = tickets.filter(ticket => ticket.status === 'new').length;
       const openTickets = tickets.filter(ticket => ticket.status === 'open').length;
       const pendingTickets = tickets.filter(ticket => ticket.status === 'pending').length;
       
-      // Process tasks data
+      // Process tasks data with fallback
       const activeTasks = data.tasks?.filter(task => task.status === 'aktív').length || 0;
       
-      // Process domains data with real status values
+      // Process domains data with fallback values
       const activeDomainsCount = data.domains.filter(domain => domain.status === 'active').length;
       const expiringSoonDomainsCount = data.domains.filter(domain => {
         if (!domain.expiryDate) return false;
@@ -246,28 +244,40 @@ const AdminDashboard = () => {
         return domain.status === 'active' && expiryDate <= thirtyDaysFromNow;
       }).length;
       
-      // Get real server status data
-      const serverStatusResponse = await api.get(`${API_URL}/system/status`);
-      const serverStatus = serverStatusResponse.ok ? 
-        await serverStatusResponse.json() : 
-        {
-          cpu: 0,
-          memory: 0,
-          disk: 0,
-          uptime: 0
-        };
+      // Get server status with fallback
+      let serverStatus = {
+        cpu: 0,
+        memory: 0,
+        disk: 0,
+        uptime: 0
+      };
       
-      // Get real user statistics
-      const userStatsResponse = await api.get(`${API_URL}/users/stats`);
-      const userStats = userStatsResponse.ok ? 
-        await userStatsResponse.json() : 
-        {
-          total: 0,
-          active: 0,
-          newThisMonth: 0
-        };
+      try {
+        const serverStatusResponse = await api.get(`${API_URL}/system/status`);
+        if (serverStatusResponse.ok) {
+          serverStatus = await serverStatusResponse.json();
+        }
+      } catch (err) {
+        console.warn('Server status fetch failed, using default values');
+      }
       
-      // Process financial data with real values
+      // Get user statistics with fallback
+      let userStats = {
+        total: 0,
+        active: 0,
+        newThisMonth: 0
+      };
+      
+      try {
+        const userStatsResponse = await api.get(`${API_URL}/users/stats`);
+        if (userStatsResponse.ok) {
+          userStats = await userStatsResponse.json();
+        }
+      } catch (err) {
+        console.warn('User stats fetch failed, using default values');
+      }
+      
+      // Process financial data with fallback values
       const paidInvoices = data.financialData.filter(
         transaction => transaction.type === 'income' && transaction.paymentStatus === 'paid'
       );
@@ -277,7 +287,7 @@ const AdminDashboard = () => {
         transaction => transaction.type === 'income' && transaction.paymentStatus === 'pending'
       ).length;
       
-      // Prepare monthly financial data with real data
+      // Prepare monthly financial data with fallback
       const last3Months = getLastMonths(3);
       const monthlyFinancialData = last3Months.map(month => {
         const monthlyRevenue = data.financialData
@@ -295,7 +305,7 @@ const AdminDashboard = () => {
         };
       });
       
-      // Prepare invoice status data with real values
+      // Prepare invoice status data with fallback values
       const paidCount = data.financialData.filter(t => t.type === 'income' && t.paymentStatus === 'paid').length;
       const pendingCount = data.financialData.filter(t => t.type === 'income' && t.paymentStatus === 'pending').length;
       const overdueCount = data.financialData.filter(t => t.type === 'income' && t.paymentStatus === 'overdue').length;
@@ -306,18 +316,24 @@ const AdminDashboard = () => {
         { name: 'Lejárt', value: overdueCount }
       ];
       
-      // Get real quarterly growth data
-      const quarterlyGrowthResponse = await api.get(`${API_URL}/accounting/quarterly-growth`);
-      const quarterlyGrowth = quarterlyGrowthResponse.ok ? 
-        await quarterlyGrowthResponse.json() : 
-        [
-          { quarter: 'Q1', revenue: 0, growth: 0 },
-          { quarter: 'Q2', revenue: 0, growth: 0 },
-          { quarter: 'Q3', revenue: 0, growth: 0 },
-          { quarter: 'Q4', revenue: 0, growth: 0 }
-        ];
+      // Get quarterly growth data with fallback
+      let quarterlyGrowth = [
+        { quarter: 'Q1', revenue: 0, growth: 0 },
+        { quarter: 'Q2', revenue: 0, growth: 0 },
+        { quarter: 'Q3', revenue: 0, growth: 0 },
+        { quarter: 'Q4', revenue: 0, growth: 0 }
+      ];
       
-      // Process project statistics with real data
+      try {
+        const quarterlyGrowthResponse = await api.get(`${API_URL}/accounting/quarterly-growth`);
+        if (quarterlyGrowthResponse.ok) {
+          quarterlyGrowth = await quarterlyGrowthResponse.json();
+        }
+      } catch (err) {
+        console.warn('Quarterly growth fetch failed, using default values');
+      }
+      
+      // Process project statistics with fallback values
       const projectStatusCounts = {
         active: data.projects.filter(p => p.status === 'aktív').length,
         completed: data.projects.filter(p => p.status === 'befejezett').length,
@@ -332,27 +348,39 @@ const AdminDashboard = () => {
         { name: 'Tervezés', value: projectStatusCounts.planning }
       ];
       
-      // Get real project type distribution
-      const projectTypeResponse = await api.get(`${API_URL}/projects/types`);
-      const projectTypeDistribution = projectTypeResponse.ok ? 
-        await projectTypeResponse.json() : 
-        [
-          { name: 'Webfejlesztés', value: 0 },
-          { name: 'Mobilalkalmazás', value: 0 },
-          { name: 'UI/UX Design', value: 0 },
-          { name: 'Tanácsadás', value: 0 }
-        ];
+      // Get project type distribution with fallback
+      let projectTypeDistribution = [
+        { name: 'Webfejlesztés', value: 0 },
+        { name: 'Mobilalkalmazás', value: 0 },
+        { name: 'UI/UX Design', value: 0 },
+        { name: 'Tanácsadás', value: 0 }
+      ];
       
-      // Get real monthly project completion data
-      const monthlyCompletionResponse = await api.get(`${API_URL}/projects/completion`);
-      const monthlyProjectCompletion = monthlyCompletionResponse.ok ? 
-        await monthlyCompletionResponse.json() : 
-        getLastMonths(6).map(month => ({
-          month: month.name,
-          completed: 0
-        }));
+      try {
+        const projectTypeResponse = await api.get(`${API_URL}/projects/types`);
+        if (projectTypeResponse.ok) {
+          projectTypeDistribution = await projectTypeResponse.json();
+        }
+      } catch (err) {
+        console.warn('Project type distribution fetch failed, using default values');
+      }
       
-      // Prepare recent activity with real data
+      // Get monthly project completion data with fallback
+      let monthlyProjectCompletion = getLastMonths(6).map(month => ({
+        month: month.name,
+        completed: 0
+      }));
+      
+      try {
+        const monthlyCompletionResponse = await api.get(`${API_URL}/projects/completion`);
+        if (monthlyCompletionResponse.ok) {
+          monthlyProjectCompletion = await monthlyCompletionResponse.json();
+        }
+      } catch (err) {
+        console.warn('Monthly project completion fetch failed, using default values');
+      }
+      
+      // Prepare recent activity with fallback values
       const recentActivity = [];
       
       // Add recent projects
@@ -422,7 +450,7 @@ const AdminDashboard = () => {
       // Sort all recent activity by timestamp
       recentActivity.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
       
-      // Prepare alerts with real data
+      // Prepare alerts with fallback values
       const alerts = [];
       
       // Add domain expiry alerts
