@@ -680,20 +680,27 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
 
     const file = { content };
 
-    const htmlPdf = require('html-pdf-node');
-    
-    // Generate PDF
-    htmlPdf.generatePdf(file, options).then(pdfBuffer => {
-      // Set response headers
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename=szamla-${invoice.number}.pdf`);
+    // Dinamikus import használata require helyett
+    try {
+      const htmlPdf = await import('html-pdf-node');
       
-      // Send the PDF buffer
-      res.send(pdfBuffer);
-    }).catch(error => {
+      // Generate PDF
+      htmlPdf.generatePdf(file, options).then(pdfBuffer => {
+        // Set response headers
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename=szamla-${invoice.number}.pdf`);
+        
+        // Send the PDF buffer
+        res.send(pdfBuffer);
+      }).catch(error => {
+        console.error('Error generating PDF:', error);
+        res.status(500).json({ message: 'Hiba történt a PDF generálása során' });
+      });
+
+    } catch (error) {
       console.error('Error generating PDF:', error);
       res.status(500).json({ message: 'Hiba történt a PDF generálása során' });
-    });
+    }
 
   } catch (error) {
     console.error('Error generating PDF:', error);
