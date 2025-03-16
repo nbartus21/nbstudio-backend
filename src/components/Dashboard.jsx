@@ -1,13 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { 
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, 
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+  AreaChart, Area, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis
 } from 'recharts';
 import { 
   AlertCircle, CheckCircle, Clock, FileText, Globe, 
   DollarSign, Users, MessageSquare, Bell, ArrowUp, ArrowDown,
   Calendar, Database, Shield, CreditCard, Archive, RefreshCw,
-  Settings, Info, Clipboard, TrendingUp, Zap, Server, HardDrive, Coffee
+  Settings, Info, Clipboard, TrendingUp, Zap, Server, HardDrive, Coffee,
+  ChevronRight, ChevronLeft, Search, Filter, Download, Share2,
+  MoreVertical, Plus, BarChart2, PieChart as PieChartIcon,
+  LineChart as LineChartIcon, Activity, AlertTriangle
 } from 'lucide-react';
 import { api } from '../services/auth'; // Import api with authentication
 
@@ -468,8 +472,11 @@ const AdminDashboard = () => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-indigo-600"></div>
+      <div className="flex items-center justify-center h-screen bg-gray-50">
+        <div className="flex flex-col items-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-indigo-600"></div>
+          <p className="mt-4 text-gray-600">Adatok betöltése...</p>
+        </div>
       </div>
     );
   }
@@ -477,29 +484,28 @@ const AdminDashboard = () => {
   if (error) {
     return (
       <div className="p-6 max-w-7xl mx-auto">
-        <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded">
+        <div className="bg-red-50 border-l-4 border-red-500 p-6 rounded-lg shadow-sm">
           <div className="flex items-center">
-            <AlertCircle className="h-6 w-6 text-red-500 mr-2" />
-            <p className="text-red-700">Az adatok betöltése sikertelen: {error}</p>
+            <AlertCircle className="h-8 w-8 text-red-500 mr-4" />
+            <div>
+              <h3 className="text-lg font-semibold text-red-800">Hiba történt</h3>
+              <p className="text-red-700 mt-1">Az adatok betöltése sikertelen: {error}</p>
+            </div>
           </div>
-          <div className="mt-4 flex space-x-3">
+          <div className="mt-6 flex space-x-4">
             <button 
               onClick={() => window.location.reload()}
-              className="bg-red-100 hover:bg-red-200 text-red-800 font-semibold py-2 px-4 rounded"
+              className="inline-flex items-center px-4 py-2 bg-red-100 hover:bg-red-200 text-red-800 font-semibold rounded-lg transition-colors"
             >
+              <RefreshCw className="h-4 w-4 mr-2" />
               Újrapróbálkozás
             </button>
             <button 
               onClick={handleTokenRefresh}
-              className="bg-blue-100 hover:bg-blue-200 text-blue-800 font-semibold py-2 px-4 rounded"
+              className="inline-flex items-center px-4 py-2 bg-blue-100 hover:bg-blue-200 text-blue-800 font-semibold rounded-lg transition-colors"
             >
+              <Shield className="h-4 w-4 mr-2" />
               Munkamenet frissítése
-            </button>
-            <button 
-              onClick={handleAuthError}
-              className="bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold py-2 px-4 rounded"
-            >
-              Bejelentkezés
             </button>
           </div>
         </div>
@@ -507,229 +513,310 @@ const AdminDashboard = () => {
     );
   }
 
-  // Colors for charts
-  const COLORS = ['#10B981', '#F59E0B', '#EF4444'];
-
   return (
-<div className="p-6 bg-gray-50 min-h-screen">
-  <div className="max-w-7xl mx-auto">      
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
-        <div className="text-sm text-gray-500">
-          <span className="inline-flex items-center mr-4">
-            <div className="w-2 h-2 rounded-full bg-green-500 mr-1.5"></div>
-            Rendszer státusz: Aktív
-          </span>
-          <span className="text-gray-400">Utolsó frissítés: {new Date().toLocaleString('hu-HU')}</span>
-        </div>
-      </div>
-      
-      {/* Top Stats Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center">
-            <div className="p-3 rounded-full bg-indigo-100 mr-4">
-              <Archive className="h-6 w-6 text-indigo-600" />
-            </div>
-            <div>
-              <p className="text-gray-500 text-sm">Aktív Projektek</p>
-              <div className="flex items-end">
-                <h2 className="text-2xl font-bold">{dashboardData.stats.activeProjects}</h2>
-                <span className="text-xs text-green-600 ml-2 flex items-center"><ArrowUp className="h-3 w-3 mr-1" />8%</span>
+    <div className="min-h-screen bg-gray-50">
+      {/* Top Navigation Bar */}
+      <div className="bg-white shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center">
+              <h1 className="text-xl font-bold text-gray-900">Dashboard</h1>
+              <div className="ml-4 flex items-center space-x-2">
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                  <div className="w-2 h-2 rounded-full bg-green-500 mr-1.5"></div>
+                  Aktív
+                </span>
+                <span className="text-sm text-gray-500">
+                  Utolsó frissítés: {new Date().toLocaleString('hu-HU')}
+                </span>
               </div>
             </div>
-          </div>
-        </div>
-        
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center">
-            <div className="p-3 rounded-full bg-blue-100 mr-4">
-              <MessageSquare className="h-6 w-6 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-gray-500 text-sm">Nyitott Támogatási Jegyek</p>
-              <div className="flex items-end">
-                <h2 className="text-2xl font-bold">{dashboardData.stats.openTickets}</h2>
-                <span className="text-xs text-red-600 ml-2 flex items-center"><ArrowUp className="h-3 w-3 mr-1" />12%</span>
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center">
-            <div className="p-3 rounded-full bg-green-100 mr-4">
-              <DollarSign className="h-6 w-6 text-green-600" />
-            </div>
-            <div>
-              <p className="text-gray-500 text-sm">Teljes Bevétel</p>
-              <div className="flex items-end">
-                <h2 className="text-2xl font-bold">{formatCurrency(dashboardData.stats.totalRevenue)}</h2>
-                <span className="text-xs text-green-600 ml-2 flex items-center"><ArrowUp className="h-3 w-3 mr-1" />15%</span>
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center">
-            <div className="p-3 rounded-full bg-yellow-100 mr-4">
-              <Clock className="h-6 w-6 text-yellow-600" />
-            </div>
-            <div>
-              <p className="text-gray-500 text-sm">Függőben Lévő Számlák</p>
-              <div className="flex items-end">
-                <h2 className="text-2xl font-bold">{dashboardData.stats.pendingInvoices}</h2>
-                <span className="text-xs text-gray-600 ml-2">db</span>
-              </div>
+            <div className="flex items-center space-x-4">
+              <button className="p-2 text-gray-400 hover:text-gray-500 rounded-full hover:bg-gray-100">
+                <Bell className="h-5 w-5" />
+              </button>
+              <button className="p-2 text-gray-400 hover:text-gray-500 rounded-full hover:bg-gray-100">
+                <Settings className="h-5 w-5" />
+              </button>
             </div>
           </div>
         </div>
       </div>
-      
-      {/* Second row of stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center">
-            <div className="p-3 rounded-full bg-purple-100 mr-4">
-              <Users className="h-6 w-6 text-purple-600" />
-            </div>
-            <div>
-              <p className="text-gray-500 text-sm">Aktív Felhasználók</p>
-              <div className="flex items-end">
-                <h2 className="text-2xl font-bold">{dashboardData.stats.userStats.active}</h2>
-                <span className="text-xs text-gray-600 ml-2">/{dashboardData.stats.userStats.total}</span>
-              </div>
-              <p className="text-xs text-green-600 mt-1">+{dashboardData.stats.userStats.newThisMonth} az elmúlt hónapban</p>
-            </div>
-          </div>
-        </div>
-        
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center">
-            <div className="p-3 rounded-full bg-teal-100 mr-4">
-              <TrendingUp className="h-6 w-6 text-teal-600" />
-            </div>
-            <div>
-              <p className="text-gray-500 text-sm">Negyedéves növekedés</p>
-              <div className="flex items-end">
-                <h2 className="text-2xl font-bold">{dashboardData.financialData.quarterlyGrowth[3].growth}%</h2>
-                <span className="text-xs text-gray-600 ml-2">Q4</span>
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center">
-            <div className="p-3 rounded-full bg-red-100 mr-4">
-              <Globe className="h-6 w-6 text-red-600" />
-            </div>
-            <div>
-              <p className="text-gray-500 text-sm">Domain-ek</p>
-              <div className="flex items-end">
-                <h2 className="text-2xl font-bold">{dashboardData.stats.domains.active}</h2>
-              </div>
-              <p className="text-xs text-yellow-600 mt-1">{dashboardData.stats.domains.expiringSoon} hamarosan lejár</p>
-            </div>
-          </div>
-        </div>
-        
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center">
-            <div className="p-3 rounded-full bg-orange-100 mr-4">
-              <Server className="h-6 w-6 text-orange-600" />
-            </div>
-            <div>
-              <p className="text-gray-500 text-sm">Szerver státusz</p>
-              <div className="flex flex-col">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-500">CPU</span>
-                  <div className="w-20 bg-gray-200 rounded-full h-2 ml-2">
-                    <div className="bg-blue-600 h-2 rounded-full" style={{ width: `${dashboardData.stats.serverStatus.cpu}%` }}></div>
-                  </div>
-                  <span className="text-xs font-medium ml-1">{dashboardData.stats.serverStatus.cpu}%</span>
-                </div>
-                <div className="flex items-center justify-between mt-1">
-                  <span className="text-xs text-gray-500">RAM</span>
-                  <div className="w-20 bg-gray-200 rounded-full h-2 ml-2">
-                    <div className="bg-green-600 h-2 rounded-full" style={{ width: `${dashboardData.stats.serverStatus.memory}%` }}></div>
-                  </div>
-                  <span className="text-xs font-medium ml-1">{dashboardData.stats.serverStatus.memory}%</span>
-                </div>
-                <div className="flex items-center justify-between mt-1">
-                  <span className="text-xs text-gray-500">Disk</span>
-                  <div className="w-20 bg-gray-200 rounded-full h-2 ml-2">
-                    <div className="bg-purple-600 h-2 rounded-full" style={{ width: `${dashboardData.stats.serverStatus.disk}%` }}></div>
-                  </div>
-                  <span className="text-xs font-medium ml-1">{dashboardData.stats.serverStatus.disk}%</span>
+
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Quick Stats Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Aktív Projektek</p>
+                <div className="mt-2 flex items-baseline">
+                  <p className="text-2xl font-semibold text-gray-900">{dashboardData.stats.activeProjects}</p>
+                  <p className="ml-2 flex items-baseline text-sm font-semibold text-green-600">
+                    <ArrowUp className="h-4 w-4 mr-1" />
+                    8%
+                  </p>
                 </div>
               </div>
+              <div className="p-3 bg-indigo-100 rounded-lg">
+                <Archive className="h-6 w-6 text-indigo-600" />
+              </div>
+            </div>
+            <div className="mt-4">
+              <div className="flex items-center text-sm text-gray-500">
+                <Calendar className="h-4 w-4 mr-1" />
+                <span>12 projekt vár jóváhagyásra</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Nyitott Támogatási Jegyek</p>
+                <div className="mt-2 flex items-baseline">
+                  <p className="text-2xl font-semibold text-gray-900">{dashboardData.stats.openTickets}</p>
+                  <p className="ml-2 flex items-baseline text-sm font-semibold text-red-600">
+                    <ArrowUp className="h-4 w-4 mr-1" />
+                    12%
+                  </p>
+                </div>
+              </div>
+              <div className="p-3 bg-blue-100 rounded-lg">
+                <MessageSquare className="h-6 w-6 text-blue-600" />
+              </div>
+            </div>
+            <div className="mt-4">
+              <div className="flex items-center text-sm text-gray-500">
+                <Clock className="h-4 w-4 mr-1" />
+                <span>Átlagos válaszidő: 2.5 óra</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Teljes Bevétel</p>
+                <div className="mt-2 flex items-baseline">
+                  <p className="text-2xl font-semibold text-gray-900">{formatCurrency(dashboardData.stats.totalRevenue)}</p>
+                  <p className="ml-2 flex items-baseline text-sm font-semibold text-green-600">
+                    <ArrowUp className="h-4 w-4 mr-1" />
+                    15%
+                  </p>
+                </div>
+              </div>
+              <div className="p-3 bg-green-100 rounded-lg">
+                <DollarSign className="h-6 w-6 text-green-600" />
+              </div>
+            </div>
+            <div className="mt-4">
+              <div className="flex items-center text-sm text-gray-500">
+                <TrendingUp className="h-4 w-4 mr-1" />
+                <span>Növekedés az előző hónaphoz képest</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Függőben Lévő Számlák</p>
+                <div className="mt-2 flex items-baseline">
+                  <p className="text-2xl font-semibold text-gray-900">{dashboardData.stats.pendingInvoices}</p>
+                  <p className="ml-2 flex items-baseline text-sm font-semibold text-yellow-600">
+                    <ArrowDown className="h-4 w-4 mr-1" />
+                    5%
+                  </p>
+                </div>
+              </div>
+              <div className="p-3 bg-yellow-100 rounded-lg">
+                <CreditCard className="h-6 w-6 text-yellow-600" />
+              </div>
+            </div>
+            <div className="mt-4">
+              <div className="flex items-center text-sm text-gray-500">
+                <Clock className="h-4 w-4 mr-1" />
+                <span>3 számla lejár 7 napon belül</span>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-      
-      {/* Alerts & Financial Overview */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        <div className="lg:col-span-2">
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-semibold">Pénzügyi Áttekintés</h2>
-              <div className="flex space-x-4">
-                <button className="px-3 py-1 text-sm bg-indigo-500 text-white rounded hover:bg-indigo-600">Havi</button>
-                <button className="px-3 py-1 text-sm bg-gray-200 text-gray-700 rounded hover:bg-gray-300">Negyedéves</button>
-                <button className="px-3 py-1 text-sm bg-gray-200 text-gray-700 rounded hover:bg-gray-300">Éves</button>
+
+        {/* Charts Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+          {/* Financial Overview */}
+          <div className="lg:col-span-2 bg-white rounded-xl shadow-sm p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Pénzügyi Áttekintés</h2>
+                <p className="text-sm text-gray-500 mt-1">Havi bevétel és kiadások</p>
+              </div>
+              <div className="flex items-center space-x-2">
+                <button className="p-2 text-gray-400 hover:text-gray-500 rounded-lg hover:bg-gray-100">
+                  <Download className="h-5 w-5" />
+                </button>
+                <button className="p-2 text-gray-400 hover:text-gray-500 rounded-lg hover:bg-gray-100">
+                  <Share2 className="h-5 w-5" />
+                </button>
+                <button className="p-2 text-gray-400 hover:text-gray-500 rounded-lg hover:bg-gray-100">
+                  <MoreVertical className="h-5 w-5" />
+                </button>
               </div>
             </div>
             <div className="h-80">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart
+                <AreaChart
                   data={dashboardData.financialData.monthly}
-                  margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                  margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
                 >
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis />
-                  <Tooltip formatter={(value) => formatCurrency(value)} />
-                  <Legend />
-                  <Bar dataKey="revenue" name="Bevétel" fill="#10B981" />
-                  <Bar dataKey="expenses" name="Kiadás" fill="#F59E0B" />
-                </BarChart>
+                  <defs>
+                    <linearGradient id="revenue" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10B981" stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor="#10B981" stopOpacity={0}/>
+                    </linearGradient>
+                    <linearGradient id="expenses" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor="#F59E0B" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                  <XAxis dataKey="month" stroke="#6B7280" />
+                  <YAxis stroke="#6B7280" />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'white', 
+                      border: '1px solid #E5E7EB',
+                      borderRadius: '0.5rem',
+                      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                    }}
+                    formatter={(value) => formatCurrency(value)}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="revenue"
+                    stroke="#10B981"
+                    fillOpacity={1}
+                    fill="url(#revenue)"
+                    name="Bevétel"
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="expenses"
+                    stroke="#F59E0B"
+                    fillOpacity={1}
+                    fill="url(#expenses)"
+                    name="Kiadás"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Project Status */}
+          <div className="bg-white rounded-xl shadow-sm p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Projektek Állapota</h2>
+                <p className="text-sm text-gray-500 mt-1">Aktuális projekt eloszlás</p>
+              </div>
+              <div className="flex items-center space-x-2">
+                <button className="p-2 text-gray-400 hover:text-gray-500 rounded-lg hover:bg-gray-100">
+                  <PieChartIcon className="h-5 w-5" />
+                </button>
+                <button className="p-2 text-gray-400 hover:text-gray-500 rounded-lg hover:bg-gray-100">
+                  <BarChart2 className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+            <div className="h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={dashboardData.projectStats.statusDistribution}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    paddingAngle={5}
+                    dataKey="value"
+                    label={({name, percent}) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  >
+                    {dashboardData.projectStats.statusDistribution.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={
+                        index === 0 ? '#10B981' : // Aktív - zöld
+                        index === 1 ? '#6366F1' : // Befejezett - indigo
+                        index === 2 ? '#F59E0B' : // Felfüggesztett - sárga
+                        '#94A3B8'  // Tervezés - szürke
+                      } />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'white', 
+                      border: '1px solid #E5E7EB',
+                      borderRadius: '0.5rem',
+                      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                    }}
+                    formatter={(value) => [`${value} db`, 'Projektek']} 
+                  />
+                </PieChart>
               </ResponsiveContainer>
             </div>
           </div>
         </div>
-        
-        <div>
-          <div className="bg-white rounded-lg shadow p-6 h-full">
-            <div className="flex items-center mb-4">
-              <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
-              <h2 className="text-lg font-semibold">Figyelmeztetések</h2>
+
+        {/* Alerts and Recent Activity */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+          {/* Alerts */}
+          <div className="lg:col-span-2 bg-white rounded-xl shadow-sm p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Figyelmeztetések</h2>
+                <p className="text-sm text-gray-500 mt-1">Aktív rendszerfigyelmeztetések</p>
+              </div>
+              <button className="text-sm text-indigo-600 hover:text-indigo-700 font-medium">
+                Összes megtekintése
+              </button>
             </div>
             {dashboardData.alerts.length > 0 ? (
               <div className="space-y-4">
                 {dashboardData.alerts.map((alert) => (
                   <div 
                     key={alert.id} 
-                    className={`p-3 rounded-lg ${
+                    className={`p-4 rounded-lg ${
                       alert.severity === 'high' ? 'bg-red-50 border-l-4 border-red-500' :
                       alert.severity === 'medium' ? 'bg-yellow-50 border-l-4 border-yellow-500' :
                       'bg-blue-50 border-l-4 border-blue-500'
                     }`}
                   >
-                    <div className="flex justify-between items-start">
-                      <p className={`text-sm ${
-                        alert.severity === 'high' ? 'text-red-800' :
-                        alert.severity === 'medium' ? 'text-yellow-800' :
-                        'text-blue-800'
+                    <div className="flex items-start">
+                      <div className={`p-2 rounded-lg mr-3 ${
+                        alert.severity === 'high' ? 'bg-red-100' :
+                        alert.severity === 'medium' ? 'bg-yellow-100' :
+                        'bg-blue-100'
                       }`}>
-                        {alert.message}
-                      </p>
+                        <AlertTriangle className={`h-5 w-5 ${
+                          alert.severity === 'high' ? 'text-red-600' :
+                          alert.severity === 'medium' ? 'text-yellow-600' :
+                          'text-blue-600'
+                        }`} />
+                      </div>
+                      <div className="flex-1">
+                        <p className={`text-sm font-medium ${
+                          alert.severity === 'high' ? 'text-red-800' :
+                          alert.severity === 'medium' ? 'text-yellow-800' :
+                          'text-blue-800'
+                        }`}>
+                          {alert.message}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {formatDate(alert.timestamp)}
+                        </p>
+                      </div>
                     </div>
-                    <span className="text-xs text-gray-500 mt-1 block">
-                      {formatDate(alert.timestamp)}
-                    </span>
                   </div>
                 ))}
               </div>
@@ -740,322 +827,119 @@ const AdminDashboard = () => {
               </div>
             )}
           </div>
-        </div>
-      </div>
-      
-      {/* Project Stats & Invoice Chart */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        <div>
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-lg font-semibold mb-4">Projektek Állapota</h2>
-            {dashboardData.projectStats.statusDistribution.some(item => item.value > 0) ? (
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={dashboardData.projectStats.statusDistribution}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={80}
-                      fill="#8884d8"
-                      paddingAngle={5}
-                      dataKey="value"
-                      label={({name, percent}) => `${name} ${(percent * 100).toFixed(0)}%`}
-                    >
-                      {dashboardData.projectStats.statusDistribution.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={
-                          index === 0 ? '#10B981' : // Aktív - zöld
-                          index === 1 ? '#6366F1' : // Befejezett - indigo
-                          index === 2 ? '#F59E0B' : // Felfüggesztett - sárga
-                          '#94A3B8'  // Tervezés - szürke
-                        } />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(value) => [`${value} db`, 'Projektek']} />
-                  </PieChart>
-                </ResponsiveContainer>
+
+          {/* Recent Activity */}
+          <div className="bg-white rounded-xl shadow-sm p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Legutóbbi Aktivitás</h2>
+                <p className="text-sm text-gray-500 mt-1">Rendszer események</p>
               </div>
-            ) : (
-              <div className="flex items-center justify-center h-64 text-gray-400">
-                <p>Nincs elegendő adat a megjelenítéshez</p>
-              </div>
-            )}
-            <div className="grid grid-cols-2 gap-2 mt-4">
-              <div className="text-center">
-                <div className="flex items-center justify-center mb-1">
-                  <div className="h-3 w-3 rounded-full bg-green-500 mr-1"></div>
-                  <span className="text-xs font-medium">Aktív</span>
-                </div>
-                <p className="text-lg font-bold">
-                  {dashboardData.projectStats.statusDistribution[0]?.value || 0}
-                </p>
-              </div>
-              <div className="text-center">
-                <div className="flex items-center justify-center mb-1">
-                  <div className="h-3 w-3 rounded-full bg-indigo-500 mr-1"></div>
-                  <span className="text-xs font-medium">Befejezett</span>
-                </div>
-                <p className="text-lg font-bold">
-                  {dashboardData.projectStats.statusDistribution[1]?.value || 0}
-                </p>
-              </div>
-              <div className="text-center">
-                <div className="flex items-center justify-center mb-1">
-                  <div className="h-3 w-3 rounded-full bg-yellow-500 mr-1"></div>
-                  <span className="text-xs font-medium">Felfüggesztett</span>
-                </div>
-                <p className="text-lg font-bold">
-                  {dashboardData.projectStats.statusDistribution[2]?.value || 0}
-                </p>
-              </div>
-              <div className="text-center">
-                <div className="flex items-center justify-center mb-1">
-                  <div className="h-3 w-3 rounded-full bg-gray-400 mr-1"></div>
-                  <span className="text-xs font-medium">Tervezés</span>
-                </div>
-                <p className="text-lg font-bold">
-                  {dashboardData.projectStats.statusDistribution[3]?.value || 0}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      
-        <div>
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-lg font-semibold mb-4">Számlák Állapota</h2>
-            {dashboardData.financialData.invoiceStatus.some(item => item.value > 0) ? (
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={dashboardData.financialData.invoiceStatus}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={80}
-                      fill="#8884d8"
-                      paddingAngle={5}
-                      dataKey="value"
-                      label={({name, percent}) => `${name} ${(percent * 100).toFixed(0)}%`}
-                    >
-                      {dashboardData.financialData.invoiceStatus.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(value) => [`${value} db`, 'Mennyiség']} />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-            ) : (
-              <div className="flex items-center justify-center h-64 text-gray-400">
-                <p>Nincs elegendő adat a megjelenítéshez</p>
-              </div>
-            )}
-            <div className="grid grid-cols-3 gap-2 mt-4">
-              <div className="text-center">
-                <div className="flex items-center justify-center mb-1">
-                  <div className="h-3 w-3 rounded-full bg-green-500 mr-1"></div>
-                  <span className="text-xs font-medium">Fizetett</span>
-                </div>
-                <p className="text-lg font-bold">
-                  {dashboardData.financialData.invoiceStatus[0]?.value || 0}
-                </p>
-              </div>
-              <div className="text-center">
-                <div className="flex items-center justify-center mb-1">
-                  <div className="h-3 w-3 rounded-full bg-yellow-500 mr-1"></div>
-                  <span className="text-xs font-medium">Függőben</span>
-                </div>
-                <p className="text-lg font-bold">
-                  {dashboardData.financialData.invoiceStatus[1]?.value || 0}
-                </p>
-              </div>
-              <div className="text-center">
-                <div className="flex items-center justify-center mb-1">
-                  <div className="h-3 w-3 rounded-full bg-red-500 mr-1"></div>
-                  <span className="text-xs font-medium">Lejárt</span>
-                </div>
-                <p className="text-lg font-bold">
-                  {dashboardData.financialData.invoiceStatus[2]?.value || 0}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <div>
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-semibold">Rendszer Teljesítmény</h2>
-              <span className="text-xs text-gray-500 inline-flex items-center">
-                <HardDrive className="h-3 w-3 mr-1" />
-                Szerver: {dashboardData.stats.serverStatus.uptime} nap uptime
-              </span>
-            </div>
-            
-            <div className="mb-4">
-              <div className="flex items-center justify-between mb-1">
-                <div className="flex items-center">
-                  <Coffee className="h-4 w-4 text-blue-600 mr-1.5" />
-                  <span className="text-sm font-medium">CPU Terhelés</span>
-                </div>
-                <span className="text-xs text-gray-600">{dashboardData.stats.serverStatus.cpu}%</span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-3">
-                <div 
-                  className={`h-3 rounded-full ${
-                    dashboardData.stats.serverStatus.cpu > 70 ? 'bg-red-500' : 
-                    dashboardData.stats.serverStatus.cpu > 50 ? 'bg-yellow-500' : 'bg-blue-600'
-                  }`} 
-                  style={{ width: `${dashboardData.stats.serverStatus.cpu}%` }}
-                ></div>
-              </div>
-            </div>
-            
-            <div className="mb-4">
-              <div className="flex items-center justify-between mb-1">
-                <div className="flex items-center">
-                  <Zap className="h-4 w-4 text-green-600 mr-1.5" />
-                  <span className="text-sm font-medium">Memória Használat</span>
-                </div>
-                <span className="text-xs text-gray-600">{dashboardData.stats.serverStatus.memory}%</span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-3">
-                <div 
-                  className={`h-3 rounded-full ${
-                    dashboardData.stats.serverStatus.memory > 70 ? 'bg-red-500' : 
-                    dashboardData.stats.serverStatus.memory > 50 ? 'bg-yellow-500' : 'bg-green-600'
-                  }`} 
-                  style={{ width: `${dashboardData.stats.serverStatus.memory}%` }}
-                ></div>
-              </div>
-            </div>
-            
-            <div className="mb-6">
-              <div className="flex items-center justify-between mb-1">
-                <div className="flex items-center">
-                  <Database className="h-4 w-4 text-purple-600 mr-1.5" />
-                  <span className="text-sm font-medium">Tárhely Használat</span>
-                </div>
-                <span className="text-xs text-gray-600">{dashboardData.stats.serverStatus.disk}%</span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-3">
-                <div 
-                  className={`h-3 rounded-full ${
-                    dashboardData.stats.serverStatus.disk > 70 ? 'bg-red-500' : 
-                    dashboardData.stats.serverStatus.disk > 50 ? 'bg-yellow-500' : 'bg-purple-600'
-                  }`} 
-                  style={{ width: `${dashboardData.stats.serverStatus.disk}%` }}
-                ></div>
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-3">
-              <button className="flex items-center justify-center py-2 px-3 text-sm bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded transition-colors">
-                <Settings className="h-4 w-4 mr-1.5" />
-                Beállítások
+              <button className="p-2 text-gray-400 hover:text-gray-500 rounded-lg hover:bg-gray-100">
+                <RefreshCw className="h-5 w-5" />
               </button>
-              <button className="flex items-center justify-center py-2 px-3 text-sm bg-gray-50 hover:bg-gray-100 text-gray-700 rounded transition-colors">
-                <Info className="h-4 w-4 mr-1.5" />
-                Rendszer infó
-              </button>
-            </div>
-          </div>
-        </div>
-        
-        <div>
-          <div className="bg-white rounded-lg shadow p-6 h-full">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-semibold">Legutóbbi Aktivitás</h2>
-              <RefreshCw className="h-4 w-4 text-gray-400 cursor-pointer" onClick={() => window.location.reload()} />
             </div>
             {dashboardData.recentActivity.length > 0 ? (
               <div className="space-y-4">
                 {dashboardData.recentActivity.map((activity, index) => (
                   <div key={index} className="flex items-start">
-                    <div className={`rounded-full p-2 mr-3 ${
+                    <div className={`rounded-lg p-2 mr-3 ${
                       activity.type === 'project' ? 'bg-indigo-100' :
                       activity.type === 'invoice' ? 'bg-green-100' :
                       activity.type === 'ticket' ? 'bg-blue-100' :
                       activity.type === 'domain' ? 'bg-yellow-100' :
                       'bg-gray-100'
                     }`}>
-                      {activity.type === 'project' && <Archive className={`h-4 w-4 text-indigo-600`} />}
-                      {activity.type === 'invoice' && <CreditCard className={`h-4 w-4 text-green-600`} />}
-                      {activity.type === 'ticket' && <MessageSquare className={`h-4 w-4 text-blue-600`} />}
-                      {activity.type === 'domain' && <Globe className={`h-4 w-4 text-yellow-600`} />}
+                      {activity.type === 'project' && <Archive className="h-5 w-5 text-indigo-600" />}
+                      {activity.type === 'invoice' && <CreditCard className="h-5 w-5 text-green-600" />}
+                      {activity.type === 'ticket' && <MessageSquare className="h-5 w-5 text-blue-600" />}
+                      {activity.type === 'domain' && <Globe className="h-5 w-5 text-yellow-600" />}
                     </div>
-                    <div>
-                      <p className="text-sm font-medium">
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-gray-900">
                         {activity.type === 'project' && `Új projekt: ${activity.name}`}
                         {activity.type === 'invoice' && `Számla ${activity.action === 'paid' ? 'kifizetve' : 'létrehozva'}: ${activity.name}`}
                         {activity.type === 'ticket' && `Support jegy ${activity.action === 'resolved' ? 'megoldva' : 'létrehozva'}: ${activity.name}`}
                         {activity.type === 'domain' && `Domain ${activity.action === 'renewed' ? 'megújítva' : 'regisztrálva'}: ${activity.name}`}
                       </p>
-                      <span className="text-xs text-gray-500">{formatDate(activity.timestamp)}</span>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {formatDate(activity.timestamp)}
+                      </p>
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center h-64 text-gray-400">
+                <Activity className="h-12 w-12 mb-2" />
                 <p>Nincs közelmúltbeli aktivitás</p>
               </div>
             )}
           </div>
         </div>
-      </div>
-      
-      {/* Quick Actions */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-semibold">Gyors Műveletek</h2>
-          <button className="text-sm text-indigo-600 hover:text-indigo-700 flex items-center">
-            <Settings className="h-4 w-4 mr-1" />
-            Testreszabás
-          </button>
+
+        {/* Quick Actions */}
+        <div className="bg-white rounded-xl shadow-sm p-6">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Gyors Műveletek</h2>
+              <p className="text-sm text-gray-500 mt-1">Gyakran használt funkciók</p>
+            </div>
+            <button className="text-sm text-indigo-600 hover:text-indigo-700 font-medium">
+              Összes megtekintése
+            </button>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-4">
+            <a href="/projects" className="group flex flex-col items-center justify-center p-4 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors">
+              <div className="p-3 bg-indigo-100 rounded-lg group-hover:bg-indigo-200 transition-colors">
+                <Archive className="h-6 w-6 text-indigo-600" />
+              </div>
+              <span className="mt-2 text-sm font-medium text-indigo-700">Projektek</span>
+            </a>
+            
+            <a href="/accounting" className="group flex flex-col items-center justify-center p-4 bg-green-50 rounded-lg hover:bg-green-100 transition-colors">
+              <div className="p-3 bg-green-100 rounded-lg group-hover:bg-green-200 transition-colors">
+                <FileText className="h-6 w-6 text-green-600" />
+              </div>
+              <span className="mt-2 text-sm font-medium text-green-700">Számlák</span>
+            </a>
+            
+            <a href="/support" className="group flex flex-col items-center justify-center p-4 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors">
+              <div className="p-3 bg-blue-100 rounded-lg group-hover:bg-blue-200 transition-colors">
+                <MessageSquare className="h-6 w-6 text-blue-600" />
+              </div>
+              <span className="mt-2 text-sm font-medium text-blue-700">Support</span>
+            </a>
+            
+            <a href="/domains" className="group flex flex-col items-center justify-center p-4 bg-yellow-50 rounded-lg hover:bg-yellow-100 transition-colors">
+              <div className="p-3 bg-yellow-100 rounded-lg group-hover:bg-yellow-200 transition-colors">
+                <Globe className="h-6 w-6 text-yellow-600" />
+              </div>
+              <span className="mt-2 text-sm font-medium text-yellow-700">Domain-ek</span>
+            </a>
+            
+            <a href="/users" className="group flex flex-col items-center justify-center p-4 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors">
+              <div className="p-3 bg-purple-100 rounded-lg group-hover:bg-purple-200 transition-colors">
+                <Users className="h-6 w-6 text-purple-600" />
+              </div>
+              <span className="mt-2 text-sm font-medium text-purple-700">Felhasználók</span>
+            </a>
+            
+            <a href="/reports" className="group flex flex-col items-center justify-center p-4 bg-red-50 rounded-lg hover:bg-red-100 transition-colors">
+              <div className="p-3 bg-red-100 rounded-lg group-hover:bg-red-200 transition-colors">
+                <Clipboard className="h-6 w-6 text-red-600" />
+              </div>
+              <span className="mt-2 text-sm font-medium text-red-700">Jelentések</span>
+            </a>
+          </div>
+          
+          <div className="mt-6 flex items-center justify-center">
+            <button className="inline-flex items-center px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shadow-sm transition-colors">
+              <Plus className="h-5 w-5 mr-2" />
+              Új projekt létrehozása
+            </button>
+          </div>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-4">
-          <a href="/projects" className="flex flex-col items-center justify-center p-4 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors">
-            <Archive className="h-6 w-6 text-indigo-600 mb-2" />
-            <span className="text-sm font-medium text-indigo-700">Projektek</span>
-          </a>
-          
-          <a href="/accounting" className="flex flex-col items-center justify-center p-4 bg-green-50 rounded-lg hover:bg-green-100 transition-colors">
-            <FileText className="h-6 w-6 text-green-600 mb-2" />
-            <span className="text-sm font-medium text-green-700">Számlák</span>
-          </a>
-          
-          <a href="/support" className="flex flex-col items-center justify-center p-4 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors">
-            <MessageSquare className="h-6 w-6 text-blue-600 mb-2" />
-            <span className="text-sm font-medium text-blue-700">Support</span>
-          </a>
-          
-          <a href="/domains" className="flex flex-col items-center justify-center p-4 bg-yellow-50 rounded-lg hover:bg-yellow-100 transition-colors">
-            <Globe className="h-6 w-6 text-yellow-600 mb-2" />
-            <span className="text-sm font-medium text-yellow-700">Domain-ek</span>
-          </a>
-          
-          <a href="/users" className="flex flex-col items-center justify-center p-4 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors">
-            <Users className="h-6 w-6 text-purple-600 mb-2" />
-            <span className="text-sm font-medium text-purple-700">Felhasználók</span>
-          </a>
-          
-          <a href="/reports" className="flex flex-col items-center justify-center p-4 bg-red-50 rounded-lg hover:bg-red-100 transition-colors">
-            <Clipboard className="h-6 w-6 text-red-600 mb-2" />
-            <span className="text-sm font-medium text-red-700">Jelentések</span>
-          </a>
-        </div>
-        
-        <div className="mt-6 flex items-center justify-center">
-          <button className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg flex items-center shadow-sm">
-            <Archive className="h-4 w-4 mr-2" />
-            Új projekt létrehozása
-          </button>
-        </div>
-      </div>
       </div>
     </div>
   );
