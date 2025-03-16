@@ -540,166 +540,108 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
       return res.status(404).json({ message: 'Számla nem található' });
     }
     
-    // Generate PDF using html-pdf-node
-    const options = {
-      format: 'A4',
-      margin: {
-        top: '20mm',
-        right: '20mm',
-        bottom: '20mm',
-        left: '20mm'
-      },
-      printBackground: true,
-      preferCSSPageSize: true
-    };
-
-    const content = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="UTF-8">
-        <style>
-          body {
-            font-family: 'Arial', sans-serif;
-            color: #333;
-            line-height: 1.6;
-            margin: 0;
-            padding: 20px;
-          }
-          .header {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 40px;
-            padding-bottom: 20px;
-            border-bottom: 2px solid #2563eb;
-          }
-          .company-info {
-            flex: 1;
-          }
-          .company-info h1 {
-            color: #2563eb;
-            margin: 0 0 10px 0;
-            font-size: 28px;
-          }
-          .invoice-info {
-            text-align: right;
-          }
-          .invoice-number {
-            font-size: 24px;
-            color: #2563eb;
-            margin-bottom: 10px;
-          }
-          .details {
-            margin: 30px 0;
-          }
-          .table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 20px 0;
-          }
-          .table th {
-            background-color: #f3f4f6;
-            padding: 12px;
-            text-align: left;
-            border-bottom: 2px solid #e5e7eb;
-          }
-          .table td {
-            padding: 12px;
-            border-bottom: 1px solid #e5e7eb;
-          }
-          .total {
-            text-align: right;
-            margin-top: 30px;
-            font-size: 18px;
-          }
-          .footer {
-            margin-top: 50px;
-            padding-top: 20px;
-            border-top: 1px solid #e5e7eb;
-            text-align: center;
-            color: #666;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <div class="company-info">
-            <h1>NB-Studio</h1>
-            <p>1234 Budapest, Példa utca 1.</p>
-            <p>Adószám: 12345678-1-42</p>
-            <p>Email: info@nb-studio.net</p>
-          </div>
-          <div class="invoice-info">
-            <div class="invoice-number">Számla #${invoice.number}</div>
-            <p>Kiállítás dátuma: ${new Date(invoice.date).toLocaleDateString('hu-HU')}</p>
-            <p>Fizetési határidő: ${new Date(invoice.dueDate).toLocaleDateString('hu-HU')}</p>
-          </div>
-        </div>
-
-        <div class="details">
-          <h3>Vevő:</h3>
-          <p><strong>${project.client?.name || 'N/A'}</strong></p>
-          <p>${project.client?.address || 'N/A'}</p>
-          <p>Adószám: ${project.client?.taxNumber || 'N/A'}</p>
-        </div>
-
-        <table class="table">
-          <thead>
-            <tr>
-              <th>Tétel</th>
-              <th>Mennyiség</th>
-              <th>Egységár</th>
-              <th>Összesen</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${invoice.items.map(item => `
-              <tr>
-                <td>${item.name}</td>
-                <td>${item.quantity}</td>
-                <td>${item.price} ${invoice.currency}</td>
-                <td>${item.quantity * item.price} ${invoice.currency}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-
-        <div class="total">
-          <p>Végösszeg: ${invoice.total} ${invoice.currency}</p>
-          <p>Fizetve: ${invoice.paid} ${invoice.currency}</p>
-          <p>Fennmaradó összeg: ${invoice.total - invoice.paid} ${invoice.currency}</p>
-        </div>
-
-        <div class="footer">
-          <p>Köszönjük, hogy minket választott!</p>
-          <p>www.nb-studio.net</p>
-        </div>
-      </body>
-      </html>
-    `;
-
-    const file = { content };
-
-    // Dinamikus import használata require helyett
+    // Generate PDF using pdf-lib instead of puppeteer
     try {
-      const htmlPdf = await import('html-pdf-node');
-      
-      // Generate PDF
-      htmlPdf.generatePdf(file, options).then(pdfBuffer => {
-        // Set response headers
-        res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', `attachment; filename=szamla-${invoice.number}.pdf`);
-        
-        // Send the PDF buffer
-        res.send(pdfBuffer);
-      }).catch(error => {
-        console.error('Error generating PDF:', error);
-        res.status(500).json({ message: 'Hiba történt a PDF generálása során' });
+      // Fallback option: Use pdfkit directly instead of html-pdf-node
+      const doc = new PDFDocument({
+        size: 'A4',
+        margin: 50,
+        info: {
+          Title: `Számla-${invoice.number}`,
+          Author: 'NB Studio'
+        }
       });
 
-    } catch (error) {
-      console.error('Error generating PDF:', error);
-      res.status(500).json({ message: 'Hiba történt a PDF generálása során' });
+      // Set response headers
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename=szamla-${invoice.number}.pdf`);
+      
+      // Pipe to response
+      doc.pipe(res);
+      
+      // Add header
+      doc.fontSize(24)
+         .fillColor('#3182CE')
+         .text('SZÁMLA', 50, 50, { align: 'center' })
+         .fontSize(16)
+         .text(`#${invoice.number}`, 50, 90, { align: 'center' });
+      
+      // Add date information
+      doc.fontSize(12)
+         .fillColor('#555')
+         .text(`Kiállítás dátuma: ${new Date(invoice.date).toLocaleDateString('hu-HU')}`, 50, 140)
+         .text(`Fizetési határidő: ${new Date(invoice.dueDate).toLocaleDateString('hu-HU')}`, 50, 160);
+      
+      // Add client info
+      doc.moveDown(2)
+         .fontSize(14)
+         .fillColor('#333')
+         .text('Vevő adatok:', 50, 200)
+         .fontSize(12)
+         .text(`${project.client?.name || 'N/A'}`, 50, 220)
+         .text(`${project.client?.companyName || ''}`, 50, 240)
+         .text(`Adószám: ${project.client?.taxNumber || 'N/A'}`, 50, 260);
+      
+      // Add items table
+      const tableTop = 320;
+      const tableHeaders = ['Tétel', 'Mennyiség', 'Egységár', 'Összesen'];
+      const columnWidth = 120;
+      
+      // Table header
+      doc.fontSize(12)
+         .fillColor('#333');
+      
+      tableHeaders.forEach((header, i) => {
+        doc.text(header, 50 + (i * columnWidth), tableTop);
+      });
+      
+      doc.moveTo(50, tableTop + 20)
+         .lineTo(550, tableTop + 20)
+         .stroke();
+      
+      // Table rows
+      let y = tableTop + 40;
+      let totalAmount = 0;
+      
+      if (invoice.items && Array.isArray(invoice.items)) {
+        invoice.items.forEach((item, i) => {
+          const amount = (item.quantity || 0) * (item.unitPrice || 0);
+          totalAmount += amount;
+          
+          doc.text(item.description || '', 50, y);
+          doc.text(item.quantity?.toString() || '0', 50 + columnWidth, y);
+          doc.text(`${item.unitPrice || 0} EUR`, 50 + (2 * columnWidth), y);
+          doc.text(`${amount} EUR`, 50 + (3 * columnWidth), y);
+          
+          y += 30;
+        });
+      }
+      
+      // Add total
+      doc.moveTo(50, y)
+         .lineTo(550, y)
+         .stroke();
+      
+      doc.fontSize(14)
+         .fillColor('#3182CE')
+         .text('Végösszeg:', 350, y + 20)
+         .text(`${invoice.totalAmount || totalAmount} EUR`, 50 + (3 * columnWidth), y + 20);
+      
+      // Add footer
+      const footerTop = doc.page.height - 100;
+      
+      doc.fontSize(10)
+         .fillColor('#666')
+         .text('NB Studio - Bartus Norbert', 50, footerTop, { align: 'center', width: 500 })
+         .text('www.nb-studio.net', 50, footerTop + 20, { align: 'center', width: 500 });
+      
+      // Finalize the PDF
+      doc.end();
+      console.log('PDF generation completed using PDFKit');
+      
+    } catch (pdfError) {
+      console.error('Error generating PDF with fallback method:', pdfError);
+      res.status(500).json({ message: 'Hiba történt a PDF generálása során', error: pdfError.message });
     }
 
   } catch (error) {
