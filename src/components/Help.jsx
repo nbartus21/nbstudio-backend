@@ -43,13 +43,13 @@ const SubSection = ({ title, description, items, renderContent }) => (
   <div className="space-y-4">
     <h3 className="text-xl font-semibold">{title}</h3>
     {description && <p className="text-gray-600">{description}</p>}
-    {renderContent(items)}
+    {items && renderContent && renderContent(items)}
   </div>
 );
 
 const List = ({ items }) => (
   <ul className="list-disc list-inside space-y-2 text-gray-600">
-    {items.map((item, index) => (
+    {Array.isArray(items) && items.map((item, index) => (
       <li key={index}>{item}</li>
     ))}
   </ul>
@@ -57,7 +57,7 @@ const List = ({ items }) => (
 
 const Links = ({ items }) => (
   <div className="grid md:grid-cols-2 gap-4">
-    {items.map((item, index) => (
+    {Array.isArray(items) && items.map((item, index) => (
       item.external ? (
         <a
           key={index}
