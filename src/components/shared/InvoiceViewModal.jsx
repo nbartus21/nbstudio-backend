@@ -456,12 +456,6 @@ const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGenerat
               onClick={() => {
                 if (onGeneratePDF) {
                   onGeneratePDF(invoice);
-                } else if (project?._id && invoice?._id) {
-                  downloadInvoicePDF(project._id, invoice._id)
-                    .catch(error => {
-                      console.error('Hiba a PDF letöltése során:', error);
-                      alert('Hiba történt a PDF letöltése során. Kérjük, próbálja újra később.');
-                    });
                 }
               }}
               className="px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 flex items-center text-sm"
