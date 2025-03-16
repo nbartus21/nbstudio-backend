@@ -319,7 +319,7 @@ const InvoiceReportComponent = ({
                         <div className={`text-sm ${getDueDateClass(invoice.dueDate, invoice.paymentStatus)}`}>
                           {invoice.dueDate ? format(new Date(invoice.dueDate), 'yyyy-MM-dd') : 'N/A'}
                           {isOverdue && (
-                            <span className="ml-2 text-xs font-medium text-red-600">
+                            <span key="overdue-marker" className="ml-2 text-xs font-medium text-red-600">
                               (Lejárt)
                             </span>
                           )}
@@ -339,6 +339,7 @@ const InvoiceReportComponent = ({
                         <div className="flex justify-end space-x-2">
                           {invoice.projectId && invoice.invoiceNumber && (
                             <button
+                              key="download-pdf"
                               onClick={() => onGeneratePDF(invoice.invoiceNumber, invoice.projectId)}
                               className="text-green-600 hover:text-green-900 p-1 rounded hover:bg-green-50"
                               title="PDF letöltése"
@@ -349,6 +350,7 @@ const InvoiceReportComponent = ({
                           
                           {invoice.paymentStatus !== 'paid' && (
                             <button
+                              key="mark-paid"
                               onClick={() => handleUpdateStatus(invoice, 'paid')}
                               className="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-50"
                               title="Fizetettre állítás"
@@ -359,6 +361,7 @@ const InvoiceReportComponent = ({
                           
                           {invoice.paymentStatus === 'paid' && (
                             <button
+                              key="mark-pending"
                               onClick={() => handleUpdateStatus(invoice, 'pending')}
                               className="text-orange-600 hover:text-orange-900 p-1 rounded hover:bg-orange-50"
                               title="Függőbenre állítás"
