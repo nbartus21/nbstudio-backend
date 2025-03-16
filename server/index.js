@@ -540,29 +540,20 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
       return res.status(404).json({ message: 'Számla nem található' });
     }
     
-    console.log(`Found invoice: ${invoice.number} for project: ${project.name}`);
-    
-    // Generate PDF file name
-    let fileName = `szamla-${invoice.number.replace(/[^a-z0-9]/gi, '-')}`;
-    if (!fileName.toLowerCase().endsWith('.pdf')) {
-      fileName += '.pdf';
-    }
+    // Generate PDF using html-pdf-node
+    const options = {
+      format: 'A4',
+      margin: {
+        top: '20mm',
+        right: '20mm',
+        bottom: '20mm',
+        left: '20mm'
+      },
+      printBackground: true,
+      preferCSSPageSize: true
+    };
 
-    // Set response headers
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
-
-    // Create browser instance
-    const browser = await puppeteer.launch({
-      headless: 'new',
-      args: ['--no-sandbox']
-    });
-
-    // Create a new page
-    const page = await browser.newPage();
-
-    // Generate HTML content using the template
-    const htmlContent = `
+    const content = `
       <!DOCTYPE html>
       <html>
       <head>
@@ -687,26 +678,22 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
       </html>
     `;
 
-    // Set the page content
-    await page.setContent(htmlContent);
+    const file = { content };
 
+    const htmlPdf = require('html-pdf-node');
+    
     // Generate PDF
-    const pdf = await page.pdf({
-      format: 'A4',
-      margin: {
-        top: '20mm',
-        right: '20mm',
-        bottom: '20mm',
-        left: '20mm'
-      },
-      printBackground: true
+    htmlPdf.generatePdf(file, options).then(pdfBuffer => {
+      // Set response headers
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename=szamla-${invoice.number}.pdf`);
+      
+      // Send the PDF buffer
+      res.send(pdfBuffer);
+    }).catch(error => {
+      console.error('Error generating PDF:', error);
+      res.status(500).json({ message: 'Hiba történt a PDF generálása során' });
     });
-
-    // Close the browser
-    await browser.close();
-
-    // Send the PDF
-    res.end(pdf);
 
   } catch (error) {
     console.error('Error generating PDF:', error);
