@@ -1,522 +1,407 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent } from './Card';
 import { Link } from 'react-router-dom';
-import { helpTranslations } from '../locales/help';
-import { ChevronRight, Search, ExternalLink } from 'lucide-react';
+import { 
+  Search, X, ArrowRight, ChevronDown, ChevronUp, 
+  Mail, Phone, ExternalLink, Check, Info, AlertTriangle,
+  Download, Copy, Share2
+} from 'lucide-react';
 
-// Nyelv választó komponens
-const LanguageSelector = ({ language, setLanguage }) => (
-  <div className="flex space-x-2 bg-white shadow-sm rounded-full p-1">
-    <button
-      onClick={() => setLanguage('hu')}
-      className={`px-4 py-2 rounded-full transition-all duration-300 ${
-        language === 'hu' 
-          ? 'bg-blue-500 text-white shadow-md' 
-          : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-      }`}
-    >
-      HU
-    </button>
-    <button
-      onClick={() => setLanguage('en')}
-      className={`px-4 py-2 rounded-full transition-all duration-300 ${
-        language === 'en' 
-          ? 'bg-blue-500 text-white shadow-md' 
-          : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-      }`}
-    >
-      EN
-    </button>
-    <button
-      onClick={() => setLanguage('de')}
-      className={`px-4 py-2 rounded-full transition-all duration-300 ${
-        language === 'de' 
-          ? 'bg-blue-500 text-white shadow-md' 
-          : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-      }`}
-    >
-      DE
-    </button>
-  </div>
+// SVG Illusztrációk - modern helpsystem
+const HelpIllustration = () => (
+  <svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="100" cy="100" r="96" stroke="#e2e8f0" strokeWidth="8"/>
+    <circle cx="100" cy="100" r="70" fill="#3b82f6" fillOpacity="0.1"/>
+    <path d="M100 60V110M100 130V140" stroke="#3b82f6" strokeWidth="10" strokeLinecap="round"/>
+  </svg>
 );
 
-// Szekció komponens
-const Section = ({ title, children, icon }) => (
-  <div className="mb-8 opacity-0 animate-fadeIn">
-    <Card className="border-l-4 border-blue-500 hover:shadow-lg transition-shadow duration-300">
-      <CardContent>
-        <div className="flex items-center mb-4">
-          {icon && <span className="text-blue-500 mr-3 text-xl">{icon}</span>}
-          <h2 className="text-2xl font-semibold text-gray-800">{title}</h2>
-        </div>
-        {children}
-      </CardContent>
-    </Card>
-  </div>
+const SupportIllustration = () => (
+  <svg width="180" height="180" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="20" y="40" width="140" height="100" rx="8" fill="#e2e8f0"/>
+    <rect x="30" y="60" width="120" height="70" rx="4" fill="white"/>
+    <path d="M50 80L80 100L110 80" stroke="#3b82f6" strokeWidth="4" strokeLinecap="round"/>
+    <path d="M50 120L70 105" stroke="#3b82f6" strokeWidth="4" strokeLinecap="round"/>
+    <path d="M110 120L90 105" stroke="#3b82f6" strokeWidth="4" strokeLinecap="round"/>
+  </svg>
 );
 
-// Alszekció komponens
-const SubSection = ({ title, description, items, renderContent, icon }) => (
-  <div className="space-y-4 p-4 rounded-lg hover:bg-gray-50 transition-colors duration-300">
-    <div className="flex items-center">
-      {icon && <span className="text-blue-400 mr-2">{icon}</span>}
-      <h3 className="text-xl font-semibold text-gray-700">{title}</h3>
-    </div>
-    {description && <p className="text-gray-600 leading-relaxed">{description}</p>}
-    {items && renderContent && renderContent(items)}
-  </div>
+const DocumentIllustration = () => (
+  <svg width="160" height="160" viewBox="0 0 160 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M40 20H95L120 45V140H40V20Z" fill="#e2e8f0"/>
+    <path d="M95 20V45H120L95 20Z" fill="#94a3b8"/>
+    <path d="M60 65H100" stroke="#3b82f6" strokeWidth="4" strokeLinecap="round"/>
+    <path d="M60 85H100" stroke="#3b82f6" strokeWidth="4" strokeLinecap="round"/>
+    <path d="M60 105H80" stroke="#3b82f6" strokeWidth="4" strokeLinecap="round"/>
+  </svg>
 );
 
-// Lista komponens
-const List = ({ items }) => (
-  <ul className="space-y-2 text-gray-600">
-    {Array.isArray(items) && items.map((item, index) => (
-      <li key={index} className="flex items-start">
-        <span className="text-blue-500 mr-2 mt-1">•</span>
-        <span className="leading-relaxed">{item}</span>
-      </li>
-    ))}
-  </ul>
-);
-
-// Linkek komponens
-const Links = ({ items }) => (
-  <div className="grid md:grid-cols-2 gap-4">
-    {Array.isArray(items) && items.map((item, index) => (
-      item.external ? (
-        <a
-          key={index}
-          href={item.path}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center p-3 rounded-lg bg-gray-50 hover:bg-blue-50 text-blue-600 hover:text-blue-700 transition-colors duration-200 group"
-        >
-          <span className="flex-grow">{item.text}</span>
-          <ExternalLink size={16} className="ml-2" />
-        </a>
-      ) : (
-        <Link
-          key={index}
-          to={item.path}
-          className="flex items-center p-3 rounded-lg bg-gray-50 hover:bg-blue-50 text-blue-600 hover:text-blue-700 transition-colors duration-200 group"
-        >
-          <span className="flex-grow">{item.text}</span>
-          <ChevronRight size={16} className="ml-2 group-hover:translate-x-1 transition-transform duration-200" />
-        </Link>
-      )
-    ))}
-  </div>
-);
-
-// Ikonok a szekciókhoz
-const icons = {
-  welcome: "👋",
-  system: "🔐",
-  projectManagement: "📋",
-  financial: "💰",
-  infrastructure: "🏗️",
-  communication: "💬",
-  other: "🔍",
-  support: "🛟",
-  links: "🔗",
-  
-  // Alszekciók ikonjai
-  auth: "🔑",
-  notifications: "🔔",
-  projectHandling: "📁",
-  documentManagement: "📄",
-  accounting: "💵",
-  licensing: "📜",
-  domainHosting: "🌐",
-  monitoring: "📊",
-  aiChat: "🤖",
-  support: "🎫",
-  email: "✉️",
-  blog: "📝",
-  translation: "🌍",
-  contacts: "👥",
-  help: "❓",
-  contact: "📞"
-};
-
-// Keresés komponens
-const SearchBar = ({ onSearch }) => {
-  const [searchTerm, setSearchTerm] = useState('');
-  
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onSearch(searchTerm);
-  };
+// Fő komponensek
+const QuickLink = ({ icon, title, description, to, external = false }) => {
+  const LinkComponent = external ? 'a' : Link;
+  const linkProps = external ? { href: to, target: "_blank", rel: "noopener noreferrer" } : { to };
   
   return (
-    <form onSubmit={handleSubmit} className="mb-6">
-      <div className="relative">
-        <input
-          type="text"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          placeholder="Keresés a súgóban..."
-          className="w-full p-3 pl-10 pr-4 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-        />
-        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-          <Search size={18} className="text-gray-400" />
-        </div>
+    <LinkComponent 
+      {...linkProps} 
+      className="flex flex-col items-center p-4 sm:p-5 border border-gray-200 rounded-lg bg-white shadow-sm hover:shadow-md transition-all duration-300 text-center h-full"
+    >
+      <div className="text-blue-500 mb-3">
+        {icon}
       </div>
-    </form>
+      <h3 className="text-gray-800 font-semibold text-lg mb-2">{title}</h3>
+      <p className="text-gray-600 text-sm flex-grow">{description}</p>
+      <div className="mt-4 text-blue-600 flex items-center justify-center text-sm font-medium">
+        {external ? (
+          <>
+            Megnyitás <ExternalLink size={14} className="ml-1" />
+          </>
+        ) : (
+          <>
+            Tovább <ArrowRight size={14} className="ml-1" />
+          </>
+        )}
+      </div>
+    </LinkComponent>
   );
 };
 
+const Faq = ({ question, answer, isOpen, toggle }) => {
+  return (
+    <div className="border-b border-gray-200">
+      <button
+        className="flex justify-between items-center w-full py-4 text-left focus:outline-none"
+        onClick={toggle}
+      >
+        <h3 className="text-md sm:text-lg font-medium text-gray-800">{question}</h3>
+        <div className="text-blue-500">
+          {isOpen ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+        </div>
+      </button>
+      <div 
+        className={`overflow-hidden transition-all duration-300 ${
+          isOpen ? 'max-h-[500px] opacity-100 pb-4' : 'max-h-0 opacity-0'
+        }`}
+      >
+        <p className="text-gray-600">{answer}</p>
+      </div>
+    </div>
+  );
+};
+
+const SearchBar = ({ value, onChange, onSubmit, placeholder = "Keresés a súgóban..." }) => (
+  <form onSubmit={onSubmit} className="relative w-full mb-8">
+    <input
+      type="text"
+      value={value}
+      onChange={onChange}
+      placeholder={placeholder}
+      className="w-full px-4 py-3 pl-10 rounded-lg border border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+    />
+    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+      <Search size={18} className="text-gray-400" />
+    </div>
+    {value && (
+      <button 
+        type="button" 
+        onClick={() => onChange({ target: { value: '' } })}
+        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+      >
+        <X size={18} />
+      </button>
+    )}
+  </form>
+);
+
+const HelpSection = ({ title, children }) => (
+  <section className="mb-10">
+    <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4">{title}</h2>
+    {children}
+  </section>
+);
+
 // Fő Help komponens
 const Help = () => {
-  const [language, setLanguage] = useState('hu');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [activeAccordion, setActiveAccordion] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [searchResults, setSearchResults] = useState(null);
-  const t = helpTranslations[language];
 
   useEffect(() => {
     // Szimuláljuk a betöltést
-    setIsLoading(true);
     const timer = setTimeout(() => {
       setIsLoading(false);
-    }, 500);
+    }, 600);
     
     return () => clearTimeout(timer);
-  }, [language]);
+  }, []);
 
-  // Keresés funkció
-  const handleSearch = (searchTerm) => {
-    if (!searchTerm.trim()) {
-      setSearchResults(null);
-      return;
-    }
-    
-    const searchTermLower = searchTerm.toLowerCase();
-    const results = [];
-    
-    // Összes szekció keresése
-    const sections = [
-      'welcome', 'system', 'projectManagement', 'financial', 
-      'infrastructure', 'communication', 'other', 'support', 'links'
-    ];
-    
-    sections.forEach(sectionKey => {
-      const section = t[sectionKey];
-      
-      // Szekció címében keresés
-      if (section.title.toLowerCase().includes(searchTermLower)) {
-        results.push({
-          type: 'section',
-          title: section.title,
-          key: sectionKey
-        });
-      }
-      
-      // Alszekciókban keresés
-      Object.keys(section).forEach(subKey => {
-        const subSection = section[subKey];
-        
-        if (typeof subSection === 'object' && subSection !== null) {
-          // Alszekció címében keresés
-          if (subSection.title && subSection.title.toLowerCase().includes(searchTermLower)) {
-            results.push({
-              type: 'subsection',
-              title: subSection.title,
-              sectionKey,
-              sectionTitle: section.title,
-              subKey
-            });
-          }
-          
-          // Listaelemekben keresés
-          if (Array.isArray(subSection.items)) {
-            subSection.items.forEach((item, idx) => {
-              if (typeof item === 'string' && item.toLowerCase().includes(searchTermLower)) {
-                results.push({
-                  type: 'item',
-                  content: item,
-                  sectionKey,
-                  sectionTitle: section.title,
-                  subKey,
-                  subTitle: subSection.title
-                });
-              } else if (typeof item === 'object' && item !== null && item.text && 
-                        item.text.toLowerCase().includes(searchTermLower)) {
-                results.push({
-                  type: 'link',
-                  text: item.text,
-                  path: item.path,
-                  external: item.external,
-                  sectionKey
-                });
-              }
-            });
-          }
-        }
-      });
-    });
-    
-    setSearchResults(results);
+  // Toggle accordion
+  const toggleAccordion = (index) => {
+    setActiveAccordion(activeAccordion === index ? null : index);
   };
 
-  // Betöltő nézet
+  // Handle search
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    if (searchTerm.trim()) {
+      console.log('Searching for:', searchTerm);
+      // Itt lehetne valós keresési logika
+    }
+  };
+
+  // Betöltő képernyő
   if (isLoading) {
     return (
-      <div className="container mx-auto px-4 py-8 flex justify-center items-center min-h-[60vh]">
-        <div className="animate-pulse flex flex-col items-center">
-          <div className="h-8 w-64 bg-gray-200 rounded mb-8"></div>
-          <div className="h-64 w-full max-w-3xl bg-gray-100 rounded"></div>
+      <div className="container mx-auto px-4 max-w-5xl py-10 flex flex-col items-center justify-center min-h-[60vh]">
+        <div className="animate-pulse w-full max-w-3xl">
+          <div className="h-8 bg-gray-200 rounded-full w-3/4 mx-auto mb-10"></div>
+          <div className="h-12 bg-gray-200 rounded-lg w-full mb-8"></div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="h-52 bg-gray-100 rounded-lg"></div>
+            ))}
+          </div>
+          <div className="h-6 bg-gray-200 rounded-full w-1/2 mb-4"></div>
+          <div className="space-y-4">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="h-16 bg-gray-100 rounded-lg"></div>
+            ))}
+          </div>
         </div>
       </div>
     );
   }
 
+  // FAQ adatok
+  const faqData = [
+    {
+      question: "Hogyan tudok új projektet létrehozni?",
+      answer: "Új projekt létrehozásához navigálj a 'Projektek' menübe, majd kattints az 'Új projekt létrehozása' gombra. Töltsd ki a szükséges mezőket, majd mentsd el a projektet a 'Létrehozás' gomb megnyomásával."
+    },
+    {
+      question: "Hogyan tudok dokumentumokat feltölteni?",
+      answer: "A dokumentumok feltöltéséhez nyisd meg az adott projektet, majd kattints a 'Dokumentumok' fülre. Itt találsz egy 'Dokumentum feltöltése' gombot, amelyre kattintva választhatsz fájlt a számítógépedről."
+    },
+    {
+      question: "Hogyan menedzselhetem a domain-eket?",
+      answer: "A domain-ek kezeléséhez navigálj a 'Szolgáltatások' menüben a 'Domain Kezelő' opcióra. Itt láthatod az összes domain-t, szerkesztheted azokat, és újakat is hozzáadhatsz."
+    },
+    {
+      question: "Hogyan használhatom az AI asszisztenst?",
+      answer: "Az AI asszisztens használatához kattints a 'Szolgáltatások' menüben az 'AI Asszisztens' opcióra. Írd be a kérdésedet vagy kérésedet a szövegmezőbe, majd küldd el. Az asszisztens azonnal válaszolni fog."
+    },
+    {
+      question: "Hogyan tudok új support jegyet nyitni?",
+      answer: "Support jegy nyitásához navigálj a 'Szolgáltatások' menüben a 'Support Ticketek' oldalra, majd kattints az 'Új jegy' gombra. Töltsd ki a szükséges információkat, add meg a prioritást és a részleteket, majd mentsd el."
+    },
+    {
+      question: "Hogyan működik a számlázás az alkalmazásban?",
+      answer: "A számlázási funkciókhoz navigálj a 'Projektek' menüben a 'Számla Kezelő' opcióra. Itt létrehozhatsz új számlákat, követheted a kifizetéseket, és lekérdezheted a korábbi számlákat is."
+    }
+  ];
+
+  // Dokumentum adatok (példa)
+  const documents = [
+    {
+      title: "Felhasználói kézikönyv",
+      description: "Átfogó leírás az NB Studio összes funkciójáról",
+      icon: <Download size={22} />,
+      action: "Letöltés"
+    },
+    {
+      title: "Gyorskalauz",
+      description: "A legfontosabb funkciók gyors áttekintése",
+      icon: <Copy size={22} />,
+      action: "Megnyitás"
+    },
+    {
+      title: "Videó oktatóanyagok",
+      description: "Lépésről lépésre bemutató videók",
+      icon: <ExternalLink size={22} />,
+      action: "Lejátszás"
+    }
+  ];
+
   return (
-    <div className="container mx-auto px-4 py-8 max-w-5xl">
-      <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
-        <h1 className="text-3xl font-bold text-gray-800 relative">
-          {t.title}
-          <span className="absolute bottom-0 left-0 w-1/3 h-1 bg-blue-500 rounded"></span>
-        </h1>
-        <LanguageSelector language={language} setLanguage={setLanguage} />
-      </div>
-      
-      <SearchBar onSearch={handleSearch} />
-      
-      {/* Keresési eredmények megjelenítése */}
-      {searchResults && (
-        <div className="mb-8">
-          <Card className="border-l-4 border-amber-500">
-            <CardContent>
-              <h2 className="text-xl font-semibold mb-4">
-                {searchResults.length === 0 
-                  ? "Nincs találat" 
-                  : `Találatok (${searchResults.length})`}
-              </h2>
-              
-              {searchResults.length > 0 && (
-                <div className="space-y-4">
-                  {searchResults.map((result, idx) => (
-                    <div key={idx} className="p-3 bg-gray-50 rounded-lg hover:bg-blue-50 transition-colors">
-                      {result.type === 'section' && (
-                        <div className="flex items-center">
-                          <span className="text-blue-500 mr-2">{icons[result.key]}</span>
-                          <h3 className="font-medium">{result.title}</h3>
-                        </div>
-                      )}
-                      
-                      {result.type === 'subsection' && (
-                        <div>
-                          <div className="flex items-center">
-                            <span className="text-blue-500 mr-2">{icons[result.subKey]}</span>
-                            <h3 className="font-medium">{result.title}</h3>
-                          </div>
-                          <p className="text-sm text-gray-500 mt-1">
-                            <span className="font-medium">{result.sectionTitle}</span> szekcióban
-                          </p>
-                        </div>
-                      )}
-                      
-                      {result.type === 'item' && (
-                        <div>
-                          <p className="text-gray-700">{result.content}</p>
-                          <p className="text-sm text-gray-500 mt-1">
-                            <span className="font-medium">{result.sectionTitle} &gt; {result.subTitle}</span>
-                          </p>
-                        </div>
-                      )}
-                      
-                      {result.type === 'link' && (
-                        <div>
-                          {result.external ? (
-                            <a 
-                              href={result.path} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="text-blue-600 hover:underline flex items-center"
-                            >
-                              {result.text}
-                              <ExternalLink size={14} className="ml-1" />
-                            </a>
-                          ) : (
-                            <Link 
-                              to={result.path}
-                              className="text-blue-600 hover:underline flex items-center"
-                            >
-                              {result.text}
-                              <ChevronRight size={14} className="ml-1" />
-                            </Link>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+    <div className="bg-gray-50 min-h-screen">
+      <div className="container mx-auto px-4 max-w-5xl py-10">
+        {/* Fejléc */}
+        <div className="text-center mb-10">
+          <div className="flex justify-center mb-6">
+            <HelpIllustration />
+          </div>
+          <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">Segítség és támogatás</h1>
+          <p className="text-gray-600 text-lg max-w-2xl mx-auto">
+            Üdvözöljük az NB Studio súgóközpontjában. Itt megtalálhatja a válaszokat a gyakori kérdésekre és útmutatást a rendszer használatához.
+          </p>
         </div>
-      )}
-      
-      <div className="space-y-6" style={{ animationDelay: '100ms' }}>
-        <Section title={t.welcome.title} icon={icons.welcome}>
-          <div className="p-2 border-l-2 border-blue-100 pl-4 mb-4">
-            <p className="text-gray-600 mb-4 leading-relaxed">{t.welcome.description}</p>
-            <p className="text-gray-600 leading-relaxed">{t.welcome.purpose}</p>
-          </div>
-        </Section>
 
-        <Section title={t.system.title} icon={icons.system}>
-          <div className="grid md:grid-cols-2 gap-6">
-            <SubSection
-              title={t.system.auth.title}
-              items={t.system.auth.items}
-              renderContent={List}
-              icon={icons.auth}
-            />
-            <SubSection
-              title={t.system.notifications.title}
-              items={t.system.notifications.items}
-              renderContent={List}
-              icon={icons.notifications}
-            />
-          </div>
-        </Section>
+        {/* Keresés */}
+        <SearchBar 
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          onSubmit={handleSearchSubmit}
+        />
 
-        <Section title={t.projectManagement.title} icon={icons.projectManagement}>
-          <div className="space-y-6">
-            <SubSection
-              title={t.projectManagement.projectHandling.title}
-              description={t.projectManagement.projectHandling.description}
-              items={t.projectManagement.projectHandling.items}
-              renderContent={List}
-              icon={icons.projectHandling}
+        {/* Gyors linkek */}
+        <HelpSection title="Gyors elérés">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+            <QuickLink 
+              icon={<Mail size={32} />}
+              title="Kapcsolatfelvétel"
+              description="Vegye fel a kapcsolatot ügyfélszolgálatunkkal e-mailben"
+              to="/contacts"
             />
-            <SubSection
-              title={t.projectManagement.documentManagement.title}
-              description={t.projectManagement.documentManagement.description}
-              items={t.projectManagement.documentManagement.items}
-              renderContent={List}
-              icon={icons.documentManagement}
+            <QuickLink 
+              icon={<Phone size={32} />}
+              title="Telefonos támogatás"
+              description="Hívjon minket munkanapokon 9:00-17:00 között"
+              to="tel:+3630123456"
+              external={true}
+            />
+            <QuickLink 
+              icon={<MessageCircle size={32} />}
+              title="AI Asszisztens"
+              description="Azonnali segítség a beépített AI asszisztenstől"
+              to="/ai-chat"
             />
           </div>
-        </Section>
+        </HelpSection>
 
-        <Section title={t.financial.title} icon={icons.financial}>
-          <div className="space-y-6">
-            <SubSection
-              title={t.financial.accounting.title}
-              description={t.financial.accounting.description}
-              items={t.financial.accounting.items}
-              renderContent={List}
-              icon={icons.accounting}
-            />
-            <SubSection
-              title={t.financial.licensing.title}
-              description={t.financial.licensing.description}
-              items={t.financial.licensing.items}
-              renderContent={List}
-              icon={icons.licensing}
-            />
+        {/* Gyakori kérdések */}
+        <HelpSection title="Gyakori kérdések">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+            {faqData.map((faq, index) => (
+              <Faq
+                key={index}
+                question={faq.question}
+                answer={faq.answer}
+                isOpen={activeAccordion === index}
+                toggle={() => toggleAccordion(index)}
+              />
+            ))}
           </div>
-        </Section>
+        </HelpSection>
 
-        <Section title={t.infrastructure.title} icon={icons.infrastructure}>
-          <div className="space-y-6">
-            <SubSection
-              title={t.infrastructure.domainHosting.title}
-              description={t.infrastructure.domainHosting.description}
-              items={t.infrastructure.domainHosting.items}
-              renderContent={List}
-              icon={icons.domainHosting}
-            />
-            <SubSection
-              title={t.infrastructure.monitoring.title}
-              description={t.infrastructure.monitoring.description}
-              items={t.infrastructure.monitoring.items}
-              renderContent={List}
-              icon={icons.monitoring}
-            />
+        {/* Útmutatók és dokumentáció */}
+        <HelpSection title="Dokumentáció és útmutatók">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+            {documents.map((doc, index) => (
+              <div 
+                key={index}
+                className="bg-white rounded-lg shadow-sm border border-gray-200 p-5 flex flex-col items-start"
+              >
+                <h3 className="text-lg font-semibold text-gray-800 mb-2">{doc.title}</h3>
+                <p className="text-gray-600 text-sm mb-4 flex-grow">{doc.description}</p>
+                <button className="text-blue-600 flex items-center text-sm font-medium hover:text-blue-800">
+                  {doc.icon}
+                  <span className="ml-2">{doc.action}</span>
+                </button>
+              </div>
+            ))}
           </div>
-        </Section>
+        </HelpSection>
 
-        <Section title={t.communication.title} icon={icons.communication}>
-          <div className="space-y-6">
-            <SubSection
-              title={t.communication.aiChat.title}
-              description={t.communication.aiChat.description}
-              items={t.communication.aiChat.items}
-              renderContent={List}
-              icon={icons.aiChat}
-            />
-            <SubSection
-              title={t.communication.support.title}
-              description={t.communication.support.description}
-              items={t.communication.support.items}
-              renderContent={List}
-              icon={icons.support}
-            />
-            <SubSection
-              title={t.communication.email.title}
-              description={t.communication.email.description}
-              items={t.communication.email.items}
-              renderContent={List}
-              icon={icons.email}
-            />
+        {/* Támogatás és kapcsolat */}
+        <HelpSection title="Segítségre van szüksége?">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <div className="mb-4">
+                <SupportIllustration />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-800 mb-3">Támogatás kérése</h3>
+              <p className="text-gray-600 mb-4">
+                Ha nem találja a választ a kérdésére, nyisson egy támogatási jegyet és csapatunk hamarosan válaszol.
+              </p>
+              <Link 
+                to="/support" 
+                className="inline-block bg-blue-600 text-white px-6 py-2 rounded-md font-medium hover:bg-blue-700 transition-colors"
+              >
+                Support jegy nyitása
+              </Link>
+            </div>
+            
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <div className="mb-4">
+                <DocumentIllustration />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-800 mb-3">Dokumentumok böngészése</h3>
+              <p className="text-gray-600 mb-4">
+                Részletes dokumentációnkban megtalálja a rendszer minden funkciójának leírását és használati útmutatóját.
+              </p>
+              <Link 
+                to="/documents" 
+                className="inline-block bg-blue-600 text-white px-6 py-2 rounded-md font-medium hover:bg-blue-700 transition-colors"
+              >
+                Dokumentumtár
+              </Link>
+            </div>
           </div>
-        </Section>
+        </HelpSection>
 
-        <Section title={t.other.title} icon={icons.other}>
-          <div className="space-y-6">
-            <SubSection
-              title={t.other.blog.title}
-              description={t.other.blog.description}
-              items={t.other.blog.items}
-              renderContent={List}
-              icon={icons.blog}
-            />
-            <SubSection
-              title={t.other.translation.title}
-              description={t.other.translation.description}
-              items={t.other.translation.items}
-              renderContent={List}
-              icon={icons.translation}
-            />
-            <SubSection
-              title={t.other.contacts.title}
-              description={t.other.contacts.description}
-              items={t.other.contacts.items}
-              renderContent={List}
-              icon={icons.contacts}
-            />
+        {/* Tippek és trükkök */}
+        <HelpSection title="Tippek és hasznos tudnivalók">
+          <div className="space-y-4">
+            <div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded-r-md">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <Info className="h-5 w-5 text-blue-500" />
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm text-blue-700">
+                    <strong>Gyorsbillentyűk:</strong> Használja a <kbd className="px-1 py-0.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded">Ctrl+K</kbd> billentyűkombinációt a gyorskereséshez.
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-green-50 border-l-4 border-green-400 p-4 rounded-r-md">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <Check className="h-5 w-5 text-green-500" />
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm text-green-700">
+                    <strong>Mentés automatikusan:</strong> A rendszer 5 percenként automatikusan menti a folyamatban lévő munkáját.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-r-md">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <AlertTriangle className="h-5 w-5 text-yellow-500" />
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm text-yellow-700">
+                    <strong>Kijelentkezés:</strong> Biztonsági okokból 30 perc inaktivitás után a rendszer automatikusan kijelentkezteti.
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
-        </Section>
+        </HelpSection>
 
-        <Section title={t.support.title} icon={icons.support}>
-          <div className="grid md:grid-cols-2 gap-6">
-            <SubSection
-              title={t.support.help.title}
-              description={t.support.help.description}
-              items={t.support.help.items}
-              renderContent={List}
-              icon={icons.help}
-            />
-            <SubSection
-              title={t.support.contact.title}
-              description={t.support.contact.description}
-              items={t.support.contact.items}
-              renderContent={List}
-              icon={icons.contact}
-            />
+        {/* Lábléc */}
+        <div className="mt-12 text-center">
+          <div className="text-sm text-gray-500 mb-4">
+            <p>Nem találta meg, amit keresett?</p>
+            <div className="flex justify-center items-center gap-6 mt-3">
+              <Link to="/ai-chat" className="text-blue-600 flex items-center hover:text-blue-800">
+                <MessageCircle size={16} className="mr-1" /> AI Asszisztens
+              </Link>
+              <a href="mailto:info@nb-studio.net" className="text-blue-600 flex items-center hover:text-blue-800">
+                <Mail size={16} className="mr-1" /> E-mail küldése
+              </a>
+              <button className="text-blue-600 flex items-center hover:text-blue-800" onClick={() => navigator.clipboard.writeText(window.location.href)}>
+                <Share2 size={16} className="mr-1" /> Oldal megosztása
+              </button>
+            </div>
           </div>
-        </Section>
-
-        <Section title={t.links.title} icon={icons.links}>
-          <Links items={t.links.items} />
-        </Section>
-      </div>
-      
-      <div className="mt-12 text-center text-gray-500 text-sm opacity-0 animate-fadeIn" style={{ animationDelay: '800ms' }}>
-        <p>© {new Date().getFullYear()} NB Studio - <a href="https://www.nb-studio.net" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">www.nb-studio.net</a></p>
+          <div className="text-xs text-gray-400">
+            © {new Date().getFullYear()} NB Studio. Minden jog fenntartva.
+          </div>
+        </div>
       </div>
     </div>
   );

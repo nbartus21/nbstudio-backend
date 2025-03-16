@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   Bell, LogOut, Menu, X, ChevronDown, Settings, Search, 
-  User, HelpCircle, Home, Calendar, BookOpen, Globe, 
+  User, Home, Calendar, BookOpen, Globe, 
   Server, Database, Calculator, Mail, FileText, Clock,
   DollarSign, PlusCircle, Languages, MessageCircle
 } from 'lucide-react';
@@ -64,14 +64,6 @@ const Navigation = () => {
       ]
     },
     {
-      category: "Segítség",
-      icon: <HelpCircle size={18} />,
-      items: [
-        { path: "/help", label: "Súgó", icon: <HelpCircle size={16} /> },
-        { path: "/ai-chat", label: "AI Asszisztens", icon: <MessageCircle size={16} /> }
-      ]
-    },
-    {
       category: "Ügyfelek",
       icon: <User size={18} />,
       items: [
@@ -97,7 +89,8 @@ const Navigation = () => {
         { path: "/infrastructure", label: "Infrastruktúra Kezelő", icon: <Server size={16} /> },
         { path: "/hosting", label: "Hosting Kezelő", icon: <Database size={16} /> },
         { path: "/accounting", label: "Könyvelés", icon: <DollarSign size={16} /> },
-        { path: "/support", label: "Support Ticketek", icon: <MessageCircle size={16} /> }
+        { path: "/support", label: "Support Ticketek", icon: <MessageCircle size={16} /> },
+        { path: "/ai-chat", label: "AI Asszisztens", icon: <MessageCircle size={16} /> }
       ]
     }
   ];
@@ -235,8 +228,6 @@ const Navigation = () => {
               >
                 <Settings size={20} />
               </Link>
-
-              {/* Segítség - most a menüben is elérhető */}
 
               {/* Kijelentkezés */}
               <button
