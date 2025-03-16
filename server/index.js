@@ -43,6 +43,7 @@ import emailApiRouter from './routes/emailApi.js';
 import documentsRouter from './routes/documents.js';
 import chatApiRouter from './routes/chatApi.js';
 import paymentsRouter from './routes/payments.js';
+import invoicesRouter from './routes/invoices.js';
 
 // Import middleware
 import authMiddleware from './middleware/auth.js';
@@ -911,6 +912,7 @@ app.use('/api/translation/tasks', tasksRoutes);
 app.use('/api/notes', notesRoutes);
 app.use('/api/support', supportTicketRouter);
 app.use('/api', documentsRouter);
+app.use('/api', invoicesRouter);
 
 // Fix for transactions endpoint directly accessing the accountingRoutes
 app.use('/api/transactions', (req, res, next) => {

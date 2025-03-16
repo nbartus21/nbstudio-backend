@@ -98,7 +98,7 @@ const projectSchema = new mongoose.Schema({
     notes: String,
     emailNotification: { type: Boolean, default: true },
     emailTemplate: String,
-    reminderDays: { type: Number, default: 3 }, // Emlékeztető küldése ennyi nappal a számlázás előtt
+    reminderDays: [{ type: Number }], // Emlékeztető küldése ennyi nappal a számlázás előtt
     autoSend: { type: Boolean, default: false }, // Automatikus küldés emailben
     generatePDF: { type: Boolean, default: true }, // PDF generálás
     createdAt: { type: Date, default: Date.now },

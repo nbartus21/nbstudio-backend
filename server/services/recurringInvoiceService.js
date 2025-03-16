@@ -85,17 +85,21 @@ class RecurringInvoiceService {
           // Ellenőrizzük az emlékeztetőket
           else if (recurringInvoice.emailNotification && 
                    recurringInvoice.nextInvoiceDate && 
-                   recurringInvoice.reminderDays) {
-            const reminderDate = new Date(recurringInvoice.nextInvoiceDate);
-            reminderDate.setDate(reminderDate.getDate() - recurringInvoice.reminderDays);
-            
-            if (reminderDate <= now && 
-                (!recurringInvoice.lastReminderSent || 
-                 new Date(recurringInvoice.lastReminderSent) < reminderDate)) {
-              // Emlékeztető küldése
-              await this.sendReminderEmail(project, recurringInvoice);
-              recurringInvoice.lastReminderSent = now;
-              reminderCount++;
+                   recurringInvoice.reminderDays && 
+                   recurringInvoice.reminderDays.length > 0) {
+            // Több emlékeztető napot is kezelünk
+            for (const reminderDay of recurringInvoice.reminderDays) {
+              const reminderDate = new Date(recurringInvoice.nextInvoiceDate);
+              reminderDate.setDate(reminderDate.getDate() - reminderDay);
+              
+              if (reminderDate <= now && 
+                  (!recurringInvoice.lastReminderSent || 
+                   new Date(recurringInvoice.lastReminderSent) < reminderDate)) {
+                // Emlékeztető küldése
+                await this.sendReminderEmail(project, recurringInvoice, reminderDay);
+                recurringInvoice.lastReminderSent = now;
+                reminderCount++;
+              }
             }
           }
         }
@@ -239,16 +243,13 @@ class RecurringInvoiceService {
   }
 
   // Emlékeztető küldése közelgő számlagenerálásról
-  async sendReminderEmail(project, recurringInvoice) {
+  async sendReminderEmail(project, recurringInvoice, daysLeft) {
     if (!project.client || !project.client.email) {
       console.log('Nem lehet emlékeztetőt küldeni: hiányzó ügyfél email cím');
       return;
     }
 
     try {
-      // Email küldés inicializálása
-      const transporter = nodemailer.createTransport(this.emailConfig);
-      
       // Email sablon betöltése vagy alapértelmezett használata
       let emailTemplate = this.getDefaultReminderEmailTemplate();
       
@@ -258,17 +259,18 @@ class RecurringInvoiceService {
         .replace('{{INVOICE_NAME}}', recurringInvoice.name)
         .replace('{{NEXT_INVOICE_DATE}}', new Date(recurringInvoice.nextInvoiceDate).toLocaleDateString('hu-HU'))
         .replace('{{TOTAL_AMOUNT}}', `${recurringInvoice.totalAmount} EUR`)
-        .replace('{{PROJECT_NAME}}', project.name);
+        .replace('{{PROJECT_NAME}}', project.name)
+        .replace('{{DAYS_LEFT}}', daysLeft || '');  // Hány nap van hátra a számla generálásáig
       
       // Email küldése
-      await transporter.sendMail({
+      await this.transporter.sendMail({
         from: `"NB Studio" <${this.emailConfig.auth.user}>`,
         to: project.client.email,
         subject: `Emlékeztető: Közelgő automatikus számlázás - NB Studio`,
         html: emailHtml
       });
       
-      console.log(`Emlékeztető email elküldve: ${recurringInvoice.name} - ${project.client.email}`);
+      console.log(`Emlékeztető email elküldve: ${recurringInvoice.name} - ${project.client.email} (${daysLeft} nappal a generálás előtt)`);
     } catch (error) {
       console.error('Hiba az emlékeztető email küldésekor:', error);
     }
@@ -325,8 +327,10 @@ class RecurringInvoiceService {
   // Alapértelmezett emlékeztető email sablon
   getDefaultReminderEmailTemplate() {
     return `
+      <!DOCTYPE html>
       <html>
       <head>
+        <meta charset="UTF-8">
         <style>
           body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
           .container { max-width: 600px; margin: 0 auto; padding: 20px; }
@@ -342,7 +346,7 @@ class RecurringInvoiceService {
           </div>
           <div class="content">
             <p>Tisztelt {{CLIENT_NAME}}!</p>
-            <p>Ezúton tájékoztatjuk, hogy az ismétlődő számlázási beállítások alapján hamarosan automatikusan kiállítunk egy új számlát Önnek.</p>
+            <p>Ezúton tájékoztatjuk, hogy az ismétlődő számlázási beállítások alapján hamarosan ({{DAYS_LEFT}} nap múlva) automatikusan kiállítunk egy új számlát Önnek.</p>
             <p><strong>Várható számla adatok:</strong></p>
             <ul>
               <li>Számla neve: {{INVOICE_NAME}}</li>
@@ -355,7 +359,7 @@ class RecurringInvoiceService {
           </div>
           <div class="footer">
             <p>Ez egy automatikusan generált üzenet. Kérjük, ne válaszoljon rá!</p>
-            <p>&copy; NB Studio</p>
+            <p>&copy; ${new Date().getFullYear()} NB Studio</p>
           </div>
         </div>
       </body>
