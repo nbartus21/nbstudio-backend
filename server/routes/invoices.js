@@ -38,10 +38,24 @@ router.post('/projects/:projectId/invoices', async (req, res) => {
     }
 
     // Számla adatok előkészítése
-    const invoiceData = {
-      ...req.body,
-      projectId: project._id
-    };
+    const invoiceData = { ...req.body };
+    
+    // Ha vannak tételek és nincs megadva a total mező, számoljuk ki
+    if (invoiceData.items && Array.isArray(invoiceData.items)) {
+      invoiceData.items = invoiceData.items.map(item => {
+        if (!item.total) {
+          // Biztosítsuk, hogy számok legyenek
+          const quantity = parseFloat(item.quantity) || 0;
+          const unitPrice = parseFloat(item.unitPrice) || 0;
+          
+          // Számítsuk ki a total mezőt
+          item.total = quantity * unitPrice;
+        }
+        return item;
+      });
+    }
+    
+    invoiceData.projectId = project._id;
 
     // Számla létrehozása
     const invoice = new Invoice(invoiceData);

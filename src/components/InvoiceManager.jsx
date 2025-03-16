@@ -106,8 +106,8 @@ const InvoiceManager = () => {
         }
       }
       
-      // Használjuk a PUT végpontot a PATCH helyett, mert az van implementálva a szerveren
-      const response = await api.put(
+      // Használjuk a PATCH végpontot, amely a részleges frissítésre való
+      const response = await api.patch(
         `/api/projects/${projectId}/invoices/${invoiceId}`,
         updateData
       );
