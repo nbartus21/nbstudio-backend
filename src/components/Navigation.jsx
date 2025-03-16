@@ -83,6 +83,7 @@ const Navigation = () => {
       items: [
         { path: "/projects", label: "Projekt kezelő", icon: <FileText size={16} /> },
         { path: "/invoices", label: "Számla Kezelő", icon: <DollarSign size={16} /> },
+        { path: "/recurring-invoices", label: "Ismétlődő számlák", icon: <Clock size={16} /> },
         { path: "/documents", label: "Dokumentumok", icon: <FileText size={16} /> }
       ]
     },

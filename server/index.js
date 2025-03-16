@@ -9,6 +9,8 @@ import fs from 'fs';
 // PDF generation dependencies
 import PDFDocument from 'pdfkit';
 import puppeteer from 'puppeteer';
+import { fileURLToPath } from 'url';
+import { setupCronJobs } from './cronJobs.js';
 
 // Import models
 import Contact from './models/Contact.js';
@@ -41,6 +43,7 @@ import emailApiRouter from './routes/emailApi.js';
 import documentsRouter from './routes/documents.js';
 import chatApiRouter from './routes/chatApi.js';
 import paymentsRouter from './routes/payments.js';
+import userRoutes from './routes/users.js';
 
 // Import middleware
 import authMiddleware from './middleware/auth.js';
@@ -1032,25 +1035,28 @@ function setupProjectDomain() {
 // ==============================================
 // SERVER STARTUP
 // ==============================================
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => {
-    console.log('Connected to MongoDB');
-    
-    // Start HTTPS API server
-    https.createServer(sslOptions, app).listen(port, host, () => {
-      console.log(`API Server running on https://${host}:${port}`);
-    });
-    
-    // Start HTTP server for Socket.IO
-    const socketPort = parseInt(port) + 1;
-    httpServer.listen(socketPort, host, () => {
-      console.log(`Socket.IO server running on http://${host}:${socketPort}`);
-    });
-    
-    // Setup project domain handling
-    setupProjectDomain();
-  })
-  .catch((error) => {
-    console.error('MongoDB connection error:', error);
-    process.exit(1);
+try {
+  await mongoose.connect(process.env.MONGO_URI);
+  console.log('MongoDB kapcsolat létesítve');
+  
+  // Cron job-ok beállítása
+  const cronJobController = setupCronJobs();
+  app.set('cronJobController', cronJobController);
+  
+  // Start HTTPS API server
+  https.createServer(sslOptions, app).listen(port, host, () => {
+    console.log(`API Server running on https://${host}:${port}`);
   });
+  
+  // Start HTTP server for Socket.IO
+  const socketPort = parseInt(port) + 1;
+  httpServer.listen(socketPort, host, () => {
+    console.log(`Socket.IO server running on http://${host}:${socketPort}`);
+  });
+  
+  // Setup project domain handling
+  setupProjectDomain();
+} catch (error) {
+  console.error('MongoDB kapcsolódási hiba:', error);
+  process.exit(1);
+}
