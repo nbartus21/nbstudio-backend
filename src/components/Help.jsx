@@ -343,7 +343,7 @@ const Help = () => {
               <Link to="/ai-chat" className="text-blue-600 flex items-center hover:text-blue-800">
                 <MessageCircle size={16} className="mr-1" /> {t.footer.aiChat}
               </Link>
-              <a href="mailto:info@nb-studio.net" className="text-blue-600 flex items-center hover:text-blue-800">
+              <a href="mailto:kontakt@nb-studio.net" className="text-blue-600 flex items-center hover:text-blue-800">
                 <Mail size={16} className="mr-1" /> {t.footer.sendEmail}
               </a>
               <button className="text-blue-600 flex items-center hover:text-blue-800" onClick={() => navigator.clipboard.writeText(window.location.href)}>
@@ -352,7 +352,7 @@ const Help = () => {
             </div>
           </div>
           <div className="text-xs text-gray-400">
-            © {new Date().getFullYear()} NB Studio. {t.footer.copyright}
+            © {new Date().getFullYear()} NB Studio - Norbert Bartus {t.footer.copyright}
           </div>
         </div>
       </div>
