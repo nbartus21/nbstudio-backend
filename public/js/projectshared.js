@@ -9,9 +9,9 @@ async function updateProfile(profileData) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        // Ellenőrizzük, hogy van-e token vagy más hitelesítési adat
         'Authorization': localStorage.getItem('token') ? `Bearer ${localStorage.getItem('token')}` : ''
       },
+      credentials: 'include', // Add credentials to include cookies
       body: JSON.stringify(profileData)
     });
     
@@ -28,7 +28,6 @@ async function updateProfile(profileData) {
     return data;
   } catch (error) {
     console.error('Error updating profile:', error);
-    // Itt kezeljük a hibát a felhasználói felületen
     alert(`Hiba történt a profil mentésekor: ${error.message}`);
     throw error;
   }
@@ -37,23 +36,29 @@ async function updateProfile(profileData) {
 // A PIN ellenőrzési funkció
 async function verifyPin(pin, projectId) {
   try {
+    // Log all available tokens for debugging
+    console.log('Available tokens:', {
+      localStorage: localStorage.getItem('token'),
+      sessionStorage: sessionStorage.getItem('token'),
+      cookies: document.cookie
+    });
+    
     console.log('Sending verify PIN request:', { pin, projectId });
     
-    // For both functions, add credentials: 'include' to the fetch options
     const response = await fetch('/projectshared/verify-pin', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': localStorage.getItem('token') ? `Bearer ${localStorage.getItem('token')}` : ''
       },
-      credentials: 'include', // Add this line to include cookies
+      credentials: 'include',
       body: JSON.stringify({ pin, projectId })
     });
     
     console.log('Verify PIN response status:', response.status);
     
     if (!response.ok) {
-      const errorData = await response.json();
+      const errorData = await response.json().catch(e => ({ message: 'Could not parse error response' }));
       console.error('PIN verification failed:', errorData);
       throw new Error(errorData.message || 'Hiba történt a PIN ellenőrzésekor');
     }
