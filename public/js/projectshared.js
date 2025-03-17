@@ -39,11 +39,14 @@ async function verifyPin(pin, projectId) {
   try {
     console.log('Sending verify PIN request:', { pin, projectId });
     
+    // For both functions, add credentials: 'include' to the fetch options
     const response = await fetch('/projectshared/verify-pin', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Authorization': localStorage.getItem('token') ? `Bearer ${localStorage.getItem('token')}` : ''
       },
+      credentials: 'include', // Add this line to include cookies
       body: JSON.stringify({ pin, projectId })
     });
     
