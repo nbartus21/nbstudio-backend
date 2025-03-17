@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Bell, X, AlertTriangle, Info, Server, Calendar, FileText, Clock, Database, Globe, MessageCircle } from 'lucide-react';
+import { Bell, X, AlertTriangle, Info, Server, Calendar, FileText, Clock, Database, Globe, MessageCircle, Mail } from 'lucide-react';
 import { api } from '../services/auth';
 import { useNavigate } from 'react-router-dom';
 
@@ -273,7 +273,13 @@ const NotificationsManager = () => {
 
   useEffect(() => {
     fetchAllNotifications();
-    const interval = setInterval(fetchAllNotifications, 30000);
+    // Support ticket értesítések lekérése
+    fetchSupportTicketNotifications();
+    
+    const interval = setInterval(() => {
+      fetchAllNotifications();
+      fetchSupportTicketNotifications();
+    }, 30000);
     return () => clearInterval(interval);
   }, []);
 
@@ -332,6 +338,8 @@ const NotificationsManager = () => {
         return <FileText className={`w-5 h-5 ${getColorByLevel(severity)}`} />; // Fájl értesítés ikon
       case 'comment':
         return <MessageCircle className={`w-5 h-5 ${getColorByLevel(severity)}`} />; // Hozzászólás értesítés ikon
+      case 'ticket':
+        return <Mail className={`w-5 h-5 ${getColorByLevel(severity)}`} />; // Support ticket értesítés ikon
       default:
         // Súlyosság szerinti alapértelmezett ikonok
         switch (severity) {
@@ -357,9 +365,53 @@ const NotificationsManager = () => {
     }
   };
 
+  // Support ticket értesítések lekérése
+  const fetchSupportTicketNotifications = async () => {
+    try {
+      const response = await api.get('/api/notifications');
+      const data = await response.json();
+      
+      // Elolvastott értesítések kiszűrése
+      const readNotifications = getReadNotifications();
+      
+      // Új tömb létrehozása a ticket értesítésekből
+      const ticketNotifications = data.filter(notification => 
+        !readNotifications.includes(`ticket_${notification._id}`)
+      ).map(notification => ({
+        _id: `ticket_${notification._id}`,
+        title: notification.title || 'Support értesítés',
+        message: notification.message,
+        severity: notification.severity || 'info',
+        createdAt: notification.createdAt,
+        type: 'ticket',
+        link: notification.link || '/support/tickets'
+      }));
+      
+      // Értesítések frissítése
+      setNotifications(prev => {
+        // Meglévő ticket értesítések eltávolítása
+        const filteredNotifications = prev.filter(n => n.type !== 'ticket');
+        // Új ticket értesítések hozzáadása
+        return [...filteredNotifications, ...ticketNotifications]
+          .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      });
+      
+      // Olvasatlan számláló frissítése
+      setUnreadCount(prev => {
+        const ticketCount = ticketNotifications.length;
+        const otherCount = notifications.filter(n => n.type !== 'ticket').length;
+        return otherCount + ticketCount;
+      });
+      
+    } catch (error) {
+      console.error('Hiba a support ticket értesítések lekérésekor:', error);
+    }
+  };
+
   // Frissítés indítása kézzel
   const handleRefresh = () => {
     fetchAllNotifications();
+    fetchSupportTicketNotifications();
   };
 
   return (
@@ -463,6 +515,14 @@ const NotificationsManager = () => {
                 : 'bg-gray-100 text-gray-800 hover:bg-gray-200'}`}
             >
               Hozzászólások
+            </button>
+            <button
+              onClick={() => setFilterType('ticket')}
+              className={`px-2 py-1 text-xs rounded-full ${filterType === 'ticket' 
+                ? 'bg-blue-100 text-blue-800' 
+                : 'bg-gray-100 text-gray-800 hover:bg-gray-200'}`}
+            >
+              Supportok
             </button>
           </div>
 

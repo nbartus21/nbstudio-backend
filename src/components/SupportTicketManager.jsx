@@ -5,7 +5,7 @@ import {
   Check, Clock, Paperclip, ArrowUp, Mail, Search,
   ChevronLeft, ChevronRight, Filter, X, Send, Download,
   Phone, MessageSquare, HelpCircle, Edit, Trash2, ExternalLink,
-  Plus, RefreshCw, Palette, Bell, Clock8, Eye
+  Plus, RefreshCw, Palette, Clock8, Eye
 } from 'lucide-react';
 
 // Formázó segédfüggvények
@@ -102,10 +102,6 @@ const SupportTicketManager = () => {
   const autoRefreshIntervalRef = useRef(null);
   const [lastRefreshTime, setLastRefreshTime] = useState(new Date());
 
-  // Értesítések
-  const [notifications, setNotifications] = useState([]);
-  const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
-  const [showNotifications, setShowNotifications] = useState(false);
   
   // New ticket form
   const [showNewTicketForm, setShowNewTicketForm] = useState(false);
@@ -137,22 +133,12 @@ const SupportTicketManager = () => {
   // Refs
   const colorPickerRef = useRef(null);
   const fileInputRef = useRef(null);
-  const notificationsRef = useRef(null);
 
   // Load initial data
   useEffect(() => {
     fetchTickets();
     
-    // Inicializáljuk az értesítések számát
-    fetchUnreadNotificationsCount();
-    
-    // Polling frissítés beállítása
-    const intervalId = setInterval(() => {
-      fetchUnreadNotificationsCount();
-    }, 60000); // 1 perc
-    
     return () => {
-      clearInterval(intervalId);
       if (autoRefreshIntervalRef.current) {
         clearInterval(autoRefreshIntervalRef.current);
       }
@@ -202,71 +188,14 @@ const SupportTicketManager = () => {
       if (colorPickerRef.current && !colorPickerRef.current.contains(event.target)) {
         setShowColorPicker(false);
       }
-      
-      if (notificationsRef.current && !notificationsRef.current.contains(event.target)) {
-        setShowNotifications(false);
-      }
     }
     
     document.addEventListener('mousedown', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [colorPickerRef, notificationsRef]);
+  }, [colorPickerRef]);
   
-  // Fetch unread notifications count
-  const fetchUnreadNotificationsCount = async () => {
-    try {
-      const response = await api.get('/api/notifications');
-      const data = await response.json();
-      
-      // Count unread notifications
-      const unreadCount = Array.isArray(data) ? data.length : 0;
-      setUnreadNotificationsCount(unreadCount);
-    } catch (error) {
-      console.error('Hiba az olvasatlan értesítések számának lekérésekor:', error);
-    }
-  };
-  
-  // Fetch notifications
-  const fetchNotifications = async () => {
-    try {
-      const response = await api.get('/api/notifications');
-      const data = await response.json();
-      
-      setNotifications(Array.isArray(data) ? data : []);
-      // Frissítjük az olvasatlan értesítések számát is
-      setUnreadNotificationsCount(Array.isArray(data) ? data.length : 0);
-    } catch (error) {
-      console.error('Hiba az értesítések lekérésekor:', error);
-    }
-  };
-  
-  // Mark notification as read
-  const markNotificationAsRead = async (notificationId) => {
-    try {
-      await api.put(`/api/notifications/${notificationId}/read`);
-      
-      // Frissítjük az értesítéseket
-      fetchNotifications();
-      fetchUnreadNotificationsCount();
-    } catch (error) {
-      console.error('Hiba az értesítés olvasottnak jelölésekor:', error);
-    }
-  };
-  
-  // Mark all notifications as read
-  const markAllNotificationsAsRead = async () => {
-    try {
-      await api.put('/api/notifications/read-all');
-      
-      // Frissítjük az értesítéseket
-      fetchNotifications();
-      fetchUnreadNotificationsCount();
-    } catch (error) {
-      console.error('Hiba az összes értesítés olvasottnak jelölésekor:', error);
-    }
-  };
   
   // Fetch tickets
   const fetchTickets = async () => {
@@ -568,28 +497,6 @@ const SupportTicketManager = () => {
     }
   };
   
-  // Toggle notifications panel
-  const toggleNotificationsPanel = () => {
-    if (!showNotifications) {
-      // Ha megnyitjuk, lekérjük az értesítéseket
-      fetchNotifications();
-    }
-    setShowNotifications(!showNotifications);
-  };
-  
-  // Értesítés kezelése és a kapcsolódó ticket megnyitása
-  const handleNotificationClick = async (notification) => {
-    // Olvasottnak jelöljük
-    await markNotificationAsRead(notification._id);
-    
-    // Ha van ticketId, megnyitjuk
-    if (notification.ticketId) {
-      fetchTicketDetails(notification.ticketId);
-    }
-    
-    // Bezárjuk az értesítések panelt
-    setShowNotifications(false);
-  };
   
   // Rendering helpers
   const renderTicketList = () => {
@@ -1457,66 +1364,6 @@ const SupportTicketManager = () => {
     );
   };
 
-  // Render notifications panel
-  const renderNotificationsPanel = () => {
-    if (!showNotifications) return null;
-    
-    return (
-      <div 
-        ref={notificationsRef}
-        className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden z-20"
-      >
-        <div className="flex justify-between items-center p-4 border-b border-gray-200">
-          <h3 className="font-medium text-gray-800">Értesítések</h3>
-          <button
-            onClick={markAllNotificationsAsRead}
-            className="text-sm text-indigo-600 hover:text-indigo-800"
-          >
-            Összes olvasottnak jelölése
-          </button>
-        </div>
-        
-        <div className="max-h-[400px] overflow-y-auto">
-          {notifications.length === 0 ? (
-            <div className="p-6 text-center text-gray-500">
-              Nincsenek értesítések
-            </div>
-          ) : (
-            <div className="divide-y divide-gray-200">
-              {notifications.map(notification => (
-                <div 
-                  key={notification._id}
-                  className={`p-4 hover:bg-gray-50 cursor-pointer ${!notification.read ? 'bg-blue-50' : ''}`}
-                  onClick={() => handleNotificationClick(notification)}
-                >
-                  <div className="flex items-start">
-                    <div className={`rounded-full p-2 ${
-                      notification.severity === 'error' ? 'bg-red-100 text-red-700' :
-                      notification.severity === 'warning' ? 'bg-yellow-100 text-yellow-700' :
-                      'bg-blue-100 text-blue-700'
-                    } mr-3`}>
-                      <Bell className="h-4 w-4" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900">
-                        {notification.title}
-                      </p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {formatDate(notification.createdAt)}
-                      </p>
-                      <p className="text-sm text-gray-700 mt-1 break-words">
-                        {notification.message}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  };
   
   // Render auto-refresh controls
   const renderAutoRefreshControls = () => {
@@ -1566,21 +1413,6 @@ const SupportTicketManager = () => {
           <div className="flex justify-between items-center">
             <h1 className="text-2xl font-bold text-gray-900">Support Ticket Kezelő</h1>
             <div className="flex items-center space-x-3">
-              <div className="relative">
-                <button
-                  onClick={toggleNotificationsPanel}
-                  className="relative p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-full"
-                >
-                  <Bell className="h-5 w-5" />
-                  {unreadNotificationsCount > 0 && (
-                    <span className="absolute top-0 right-0 h-4 w-4 text-xs flex items-center justify-center rounded-full bg-red-500 text-white">
-                      {unreadNotificationsCount}
-                    </span>
-                  )}
-                </button>
-                {renderNotificationsPanel()}
-              </div>
-              
               <button
                 onClick={() => setShowFilters(!showFilters)}
                 className="flex items-center px-4 py-2 border border-gray-300 bg-white text-gray-700 rounded-md hover:bg-gray-50"
