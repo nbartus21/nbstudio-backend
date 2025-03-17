@@ -134,6 +134,32 @@ router.post('/tickets', async (req, res) => {
       console.error('Hiba az értesítés létrehozásakor, de folytatjuk:', notificationError.message);
     }
     
+    // Email küldése az ügyfélnek az új ticketről
+    try {
+      const mailOptions = {
+        from: `"NB Studio Support" <${process.env.CONTACT_SMTP_USER || process.env.SMTP_USER}>`,
+        to: ticket.client.email,
+        subject: `Ticket létrehozva: ${ticket.subject} [#${savedTicket._id.toString().slice(-6)}]`,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #3B82F6;">NB Studio Support</h2>
+            <p>Tisztelt ${ticket.client.name || 'Ügyfelünk'}!</p>
+            <p>Köszönjük megkeresését! Ticket-jét rögzítettük rendszerünkben. Kollégáink hamarosan felveszik Önnel a kapcsolatot.</p>
+            <p>Ticket azonosító: #${savedTicket._id.toString().slice(-6)}</p>
+            <p style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #eaeaea; font-size: 14px; color: #666;">
+              Ez egy automatikus értesítés. További kérdések esetén egyszerűen válaszoljon erre az e-mailre.
+            </p>
+          </div>
+        `
+      };
+      
+      await transporter.sendMail(mailOptions);
+      console.log('Email sikeresen elküldve az ügyfélnek a ticket létrehozásáról');
+    } catch (emailError) {
+      console.error('Hiba az email küldésekor az új ticket létrehozásakor, de folytatjuk:', emailError.message);
+      // Folytatjuk hiba ellenére is
+    }
+    
     res.status(201).json(savedTicket);
   } catch (error) {
     console.error('Error creating ticket:', error);
