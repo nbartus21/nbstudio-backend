@@ -1,12 +1,17 @@
 #!/usr/bin/env node
 
-// CommonJS formátum használata a szélesebb kompatibilitás érdekében
-const fetch = require('node-fetch');
-const jwt = require('jsonwebtoken');
-const path = require('path');
-const fs = require('fs');
+// ESM formátum használata a package.json "type": "module" beállítás miatt
+import fetch from 'node-fetch';
+import jwt from 'jsonwebtoken';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
 
-// Környezeti változók betöltése közvetlenül, dotenv nélkül
+// Elérési útvonalak beállítása ESM módban
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Környezeti változók betöltése közvetlenül
 const loadEnv = () => {
   const envPath = path.resolve(__dirname, '..', '.env');
   if (!fs.existsSync(envPath)) {
