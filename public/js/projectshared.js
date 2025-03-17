@@ -5,13 +5,18 @@ async function updateProfile(profileData) {
   try {
     console.log('Sending profile update request with data:', profileData);
     
+    // Try to get token from multiple possible sources
+    const token = localStorage.getItem('token') || 
+                  sessionStorage.getItem('token') || 
+                  getCookieValue('token');
+    
     const response = await fetch('/projectshared/update-profile', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': localStorage.getItem('token') ? `Bearer ${localStorage.getItem('token')}` : ''
+        'Authorization': token ? `Bearer ${token}` : ''
       },
-      credentials: 'include', // Add credentials to include cookies
+      credentials: 'include',
       body: JSON.stringify(profileData)
     });
     
@@ -36,10 +41,13 @@ async function updateProfile(profileData) {
 // A PIN ellenőrzési funkció
 async function verifyPin(pin, projectId) {
   try {
-    // Log all available tokens for debugging
-    console.log('Available tokens:', {
-      localStorage: localStorage.getItem('token'),
-      sessionStorage: sessionStorage.getItem('token'),
+    // Try to get token from multiple possible sources
+    const token = localStorage.getItem('token') || 
+                  sessionStorage.getItem('token') || 
+                  getCookieValue('token');
+    
+    console.log('Available authentication:', {
+      token: token,
       cookies: document.cookie
     });
     
@@ -49,7 +57,7 @@ async function verifyPin(pin, projectId) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': localStorage.getItem('token') ? `Bearer ${localStorage.getItem('token')}` : ''
+        'Authorization': token ? `Bearer ${token}` : ''
       },
       credentials: 'include',
       body: JSON.stringify({ pin, projectId })
@@ -65,6 +73,13 @@ async function verifyPin(pin, projectId) {
     
     const data = await response.json();
     console.log('PIN verification successful:', data);
+    
+    // If verification was successful, store any returned token
+    if (data.token) {
+      localStorage.setItem('token', data.token);
+      console.log('New token stored from PIN verification');
+    }
+    
     return data;
   } catch (error) {
     console.error('Error verifying PIN:', error);
@@ -73,4 +88,8 @@ async function verifyPin(pin, projectId) {
   }
 }
 
-// ... existing code ...
+// Helper function to get cookie value by name
+function getCookieValue(name) {
+  const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+  return match ? match[2] : null;
+}
