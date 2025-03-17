@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   FileText, Download, Edit, Eye, Trash2, DollarSign, Filter, Search, 
   Plus, ArrowUp, ArrowDown, CheckCircle, XCircle, AlertCircle, Calendar,
-  UserPlus, RefreshCw, Printer
+  UserPlus, RefreshCw, Printer, Repeat
 } from 'lucide-react';
 import { api } from '../services/auth';
 import { formatShortDate, showMessage } from './shared/utils';
@@ -34,6 +34,7 @@ const InvoiceManager = () => {
   const [dateFilter, setDateFilter] = useState('all');
   const [projectFilter, setProjectFilter] = useState('all');
   const [sortBy, setSortBy] = useState('date-desc');
+  const [recurringFilter, setRecurringFilter] = useState('all'); // Ismétlődő számlák szűrője
   
   // Új számla állapota
   const [newInvoice, setNewInvoice] = useState({
@@ -140,6 +141,36 @@ const InvoiceManager = () => {
     }
   };
   
+  // Ismétlődő számla generálása
+  const handleGenerateRecurring = async (invoice) => {
+    if (!window.confirm('Biztosan létre szeretne hozni egy új számlát ebből az ismétlődő számla sablonból?')) {
+      return;
+    }
+    
+    try {
+      const projectId = invoice.projectId;
+      const invoiceId = invoice._id;
+      
+      const response = await api.post(`/api/projects/${projectId}/invoices/${invoiceId}/generate`);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Hiba az ismétlődő számla generálása során');
+      }
+      
+      const result = await response.json();
+      console.log('Új számla létrehozva:', result);
+      
+      // Frissítsük a számlalistát
+      await fetchInvoices();
+      
+      showMessage(setSuccessMessage, 'Ismétlődő számla sikeresen létrehozva');
+    } catch (err) {
+      console.error('Hiba az ismétlődő számla generálásakor:', err);
+      setError(`Nem sikerült létrehozni az ismétlődő számlát: ${err.message}`);
+    }
+  };
+  
   // PDF generálása
   const handleGeneratePDF = async (invoice) => {
     try {
@@ -239,6 +270,19 @@ const InvoiceManager = () => {
       filtered = filtered.filter(invoice => invoice.status === statusFilter);
     }
     
+    // Ismétlődő számlák szűrője
+    if (recurringFilter !== 'all') {
+      if (recurringFilter === 'recurring') {
+        filtered = filtered.filter(invoice => 
+          invoice.recurring && invoice.recurring.isRecurring === true
+        );
+      } else {
+        filtered = filtered.filter(invoice => 
+          !invoice.recurring || invoice.recurring.isRecurring !== true
+        );
+      }
+    }
+    
     // Dátum szűrő
     if (dateFilter !== 'all') {
       const now = new Date();
@@ -307,7 +351,7 @@ const InvoiceManager = () => {
   // Szűrő változás követése
   useEffect(() => {
     applyFilters();
-  }, [searchTerm, statusFilter, dateFilter, projectFilter, sortBy, invoices]);
+  }, [searchTerm, statusFilter, dateFilter, projectFilter, sortBy, recurringFilter, invoices]);
   
 // Új számla létrehozása
 const handleCreateInvoice = async (selectedProjectForInvoice, invoiceData) => {
@@ -362,6 +406,18 @@ const handleCreateInvoice = async (selectedProjectForInvoice, invoiceData) => {
     // Egyedi számlaszám generálása
     const invoiceNumber = `INV-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}-${Math.floor(1000 + Math.random() * 9000)}`;
 
+    // Ismétlődő számla beállítások hozzáadása
+    let recurringSettings = null;
+    if (invoiceData.recurring && invoiceData.recurring.isRecurring) {
+      recurringSettings = {
+        isRecurring: true,
+        interval: invoiceData.recurring.interval || 'havonta',
+        nextDate: invoiceData.recurring.nextDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 nap múlva alapértelmezetten
+        endDate: invoiceData.recurring.endDate || null,
+        remainingOccurrences: invoiceData.recurring.remainingOccurrences || null
+      };
+    }
+
     // Számla adatok összeállítása - MongoDB ObjectId-t nem tudunk generálni frontenden, ezt a szerver fogja hozzáadni
     const finalInvoiceData = {
       number: invoiceNumber,
@@ -371,7 +427,8 @@ const handleCreateInvoice = async (selectedProjectForInvoice, invoiceData) => {
       paidAmount: 0,
       status: 'kiállított',
       dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 nap fizetési határidő
-      notes: invoiceData.notes || ''
+      notes: invoiceData.notes || '',
+      recurring: recurringSettings
     };
 
     console.log('Küldendő számla adatok:', JSON.stringify(finalInvoiceData, null, 2));
@@ -622,6 +679,18 @@ const handleCreateInvoice = async (selectedProjectForInvoice, invoiceData) => {
           
           <div className="flex-grow-0">
             <select
+              value={recurringFilter}
+              onChange={(e) => setRecurringFilter(e.target.value)}
+              className="pl-3 pr-8 py-2 border rounded-md"
+            >
+              <option value="all">Összes számla</option>
+              <option value="recurring">Ismétlődő számlák</option>
+              <option value="non-recurring">Egyszeri számlák</option>
+            </select>
+          </div>
+          
+          <div className="flex-grow-0">
+            <select
               value={dateFilter}
               onChange={(e) => setDateFilter(e.target.value)}
               className="pl-3 pr-8 py-2 border rounded-md"
@@ -679,6 +748,7 @@ const handleCreateInvoice = async (selectedProjectForInvoice, invoiceData) => {
               setStatusFilter('all');
               setDateFilter('all');
               setProjectFilter('all');
+              setRecurringFilter('all');
               setSortBy('date-desc');
             }}
             className="text-indigo-600 hover:text-indigo-800 text-sm flex items-center"
@@ -726,7 +796,14 @@ const handleCreateInvoice = async (selectedProjectForInvoice, invoiceData) => {
                   return (
                     <tr key={invoice._id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">{invoice.number}</div>
+                        <div className="flex items-center">
+                          <div className="text-sm font-medium text-gray-900">{invoice.number}</div>
+                          {invoice.recurring && invoice.recurring.isRecurring && (
+                            <span title={`Ismétlődő számla (${invoice.recurring.interval})`} className="ml-2">
+                              <Repeat className="h-4 w-4 text-indigo-500" />
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">{invoice.projectName}</div>
@@ -791,6 +868,15 @@ const handleCreateInvoice = async (selectedProjectForInvoice, invoiceData) => {
                           >
                             <Download className="h-5 w-5" />
                           </button>
+                          {invoice.recurring && invoice.recurring.isRecurring && (
+                            <button
+                              onClick={() => handleGenerateRecurring(invoice)}
+                              className="text-indigo-600 hover:text-indigo-900 p-1 rounded hover:bg-indigo-50"
+                              title="Új számla generálása az ismétlődőből"
+                            >
+                              <Repeat className="h-5 w-5" />
+                            </button>
+                          )}
                           <button
                             onClick={() => handleDeleteInvoice(invoice)}
                             className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50"

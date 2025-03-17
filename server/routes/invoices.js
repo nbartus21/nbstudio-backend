@@ -6,6 +6,7 @@ import authMiddleware from '../middleware/auth.js';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import fs from 'fs';
+import { processRecurringInvoices, generateInvoiceManually } from '../services/recurringInvoiceService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -34,7 +35,16 @@ const invoiceSchema = new mongoose.Schema({
     default: 'kiállított'
   },
   notes: String,
-  projectId: { type: mongoose.Schema.Types.ObjectId, ref: 'Project', required: true }
+  projectId: { type: mongoose.Schema.Types.ObjectId, ref: 'Project', required: true },
+  // Ismétlődő számla beállítások
+  recurring: {
+    isRecurring: { type: Boolean, default: false },
+    interval: { type: String, enum: ['havonta', 'negyedévente', 'félévente', 'évente'], default: 'havonta' },
+    nextDate: Date, // Következő számlázási dátum
+    // Opcionálisan adhatunk meg végdátumot vagy maximális számot
+    endDate: Date, // Ha üres, akkor végtelen
+    remainingOccurrences: Number // Ha 0 vagy üres, akkor végtelen
+  }
 });
 
 const Invoice = mongoose.model('Invoice', invoiceSchema);
@@ -516,6 +526,42 @@ router.patch('/projects/:projectId/invoices/:invoiceId', async (req, res) => {
     res.json(project);
   } catch (error) {
     console.error('Hiba a számla frissítésénél:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Ismétlődő számlák generálása (cron job által meghívható)
+router.post('/recurring/process', async (req, res) => {
+  try {
+    const count = await processRecurringInvoices();
+    res.status(200).json({ 
+      message: `Sikeresen feldolgozva ${count} ismétlődő számla`,
+      count 
+    });
+  } catch (error) {
+    console.error('Hiba az ismétlődő számlák feldolgozásakor:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Manuális számla generálás egy adott ismétlődő számlából
+router.post('/projects/:projectId/invoices/:invoiceId/generate', async (req, res) => {
+  try {
+    const { projectId, invoiceId } = req.params;
+    
+    // Ellenőrizzük az ID-k érvényességét
+    if (!mongoose.Types.ObjectId.isValid(projectId) || !mongoose.Types.ObjectId.isValid(invoiceId)) {
+      return res.status(400).json({ message: 'Érvénytelen projekt vagy számla azonosító' });
+    }
+    
+    const newInvoice = await generateInvoiceManually(projectId, invoiceId);
+    
+    res.status(201).json({
+      message: 'Ismétlődő számla sikeresen létrehozva',
+      invoice: newInvoice
+    });
+  } catch (error) {
+    console.error('Hiba a számla manuális generálásakor:', error);
     res.status(500).json({ message: error.message });
   }
 });

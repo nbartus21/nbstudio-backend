@@ -64,7 +64,15 @@ const projectSchema = new mongoose.Schema({
     }],
     totalAmount: Number,
     paidAmount: { type: Number, default: 0 },
-    notes: String
+    notes: String,
+    // Ismétlődő számla beállítások
+    recurring: {
+      isRecurring: { type: Boolean, default: false },
+      interval: { type: String, enum: ['havonta', 'negyedévente', 'félévente', 'évente'], default: 'havonta' },
+      nextDate: Date, // Következő számlázási dátum
+      endDate: Date, // Ha üres, akkor végtelen
+      remainingOccurrences: Number // Ha 0 vagy üres, akkor végtelen
+    }
   }],
   // AI elemzések és javaslatok
   aiAnalysis: {

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Plus, Trash2, Calculator } from 'lucide-react';
+import { X, Plus, Trash2, Calculator, RefreshCw } from 'lucide-react';
 
 const NewInvoiceModal = ({ 
   projects, 
@@ -12,7 +12,14 @@ const NewInvoiceModal = ({
   );
   const [newInvoice, setNewInvoice] = useState({
     items: [{ description: '', quantity: 1, unitPrice: 0 }],
-    notes: ''
+    notes: '',
+    recurring: {
+      isRecurring: false,
+      interval: 'havonta',
+      nextDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // Alapértelmezetten 30 nap múlva
+      endDate: null,
+      remainingOccurrences: null
+    }
   });
 
   // Új tétel hozzáadása
@@ -224,6 +231,130 @@ const NewInvoiceModal = ({
                 rows="3"
                 placeholder="További megjegyzések a számlához..."
               />
+            </div>
+
+            {/* Ismétlődő számla beállítások */}
+            <div className="mb-6 border rounded-lg p-4">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-medium flex items-center">
+                  <RefreshCw className="h-5 w-5 mr-2 text-indigo-600" />
+                  Ismétlődő számla
+                </h3>
+                <div className="flex items-center">
+                  <label className="inline-flex items-center mr-4 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={newInvoice.recurring.isRecurring}
+                      onChange={(e) => {
+                        const isRecurring = e.target.checked;
+                        handleUpdateInvoice({
+                          ...newInvoice,
+                          recurring: {
+                            ...newInvoice.recurring,
+                            isRecurring
+                          }
+                        });
+                      }}
+                      className="form-checkbox h-5 w-5 text-indigo-600 rounded"
+                    />
+                    <span className="ml-2 text-gray-700">Ismétlődő számla létrehozása</span>
+                  </label>
+                </div>
+              </div>
+
+              {newInvoice.recurring.isRecurring && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm text-gray-700 mb-1">Ismétlődés gyakorisága</label>
+                    <select
+                      value={newInvoice.recurring.interval}
+                      onChange={(e) => {
+                        handleUpdateInvoice({
+                          ...newInvoice,
+                          recurring: {
+                            ...newInvoice.recurring,
+                            interval: e.target.value
+                          }
+                        });
+                      }}
+                      className="w-full border rounded p-2"
+                    >
+                      <option value="havonta">Havonta</option>
+                      <option value="negyedévente">Negyedévente</option>
+                      <option value="félévente">Félévente</option>
+                      <option value="évente">Évente</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-700 mb-1">Következő számlázási dátum</label>
+                    <input
+                      type="date"
+                      value={newInvoice.recurring.nextDate ? new Date(newInvoice.recurring.nextDate).toISOString().split('T')[0] : ''}
+                      onChange={(e) => {
+                        handleUpdateInvoice({
+                          ...newInvoice,
+                          recurring: {
+                            ...newInvoice.recurring,
+                            nextDate: new Date(e.target.value)
+                          }
+                        });
+                      }}
+                      className="w-full border rounded p-2"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-700 mb-1">
+                      Befejezés dátuma (opcionális)
+                    </label>
+                    <input
+                      type="date"
+                      value={newInvoice.recurring.endDate ? new Date(newInvoice.recurring.endDate).toISOString().split('T')[0] : ''}
+                      onChange={(e) => {
+                        const date = e.target.value ? new Date(e.target.value) : null;
+                        handleUpdateInvoice({
+                          ...newInvoice,
+                          recurring: {
+                            ...newInvoice.recurring,
+                            endDate: date
+                          }
+                        });
+                      }}
+                      className="w-full border rounded p-2"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Ha üres, akkor nincs határidő</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-700 mb-1">
+                      Ismétlődések száma (opcionális)
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={newInvoice.recurring.remainingOccurrences || ''}
+                      onChange={(e) => {
+                        const count = e.target.value ? parseInt(e.target.value) : null;
+                        handleUpdateInvoice({
+                          ...newInvoice,
+                          recurring: {
+                            ...newInvoice.recurring,
+                            remainingOccurrences: count
+                          }
+                        });
+                      }}
+                      className="w-full border rounded p-2"
+                      placeholder="Korlátlan"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Ha üres, akkor korlátlan számú ismétlődés</p>
+                  </div>
+                </div>
+              )}
+              
+              {newInvoice.recurring.isRecurring && (
+                <div className="mt-4 p-3 bg-blue-50 rounded text-sm text-blue-800">
+                  <p className="font-medium">Ismétlődő számla létrehozása</p>
+                  <p>Az ismétlődő számlák automatikusan létrehozzák az új számlákat a megadott időközönként. A számlák állapota "kiállított" lesz, amíg manuálisan fizetettnek nem jelöli őket.</p>
+                </div>
+              )}
             </div>
 
             {/* Végösszeg */}
