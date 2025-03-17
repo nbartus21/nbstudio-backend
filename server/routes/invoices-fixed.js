@@ -339,17 +339,26 @@ const manuallyGenerateInvoice = async (projectId, invoiceId) => {
 // Új számla létrehozása projekthez
 router.post('/projects/:projectId/invoices', async (req, res) => {
   try {
+    console.log('Számla létrehozási kérés érkezett');
+    console.log('Projekt ID:', req.params.projectId);
+    console.log('Számla adatok:', req.body);
+    
     const project = await Project.findById(req.params.projectId);
     if (!project) {
+      console.log('Projekt nem található');
       return res.status(404).json({ message: 'Projekt nem található' });
     }
+    
+    console.log('Megtalált projekt: Igen');
 
     // Számla adatok előkészítése
     const invoiceData = { ...req.body };
+    console.log('Feldolgozandó számla adatok:', invoiceData);
     
     // Ha vannak tételek és nincs megadva a total mező, számoljuk ki
     if (invoiceData.items && Array.isArray(invoiceData.items)) {
       invoiceData.items = invoiceData.items.map(item => {
+        console.log('Tétel ellenőrzése:', item);
         if (!item.total) {
           // Biztosítsuk, hogy számok legyenek
           const quantity = parseFloat(item.quantity) || 0;
@@ -371,7 +380,46 @@ router.post('/projects/:projectId/invoices', async (req, res) => {
     // Számla hozzáadása a projekthez
     project.invoices = project.invoices || [];
     project.invoices.push(invoice);
+    console.log('Számla hozzáadva a projekthez');
+    
+    // Naplózzuk az új számla létrehozását
+    let logType = 'manual';
+    let logDescription = `Új számla manuális létrehozása: ${invoice.number}`;
+    
+    // Ha ismétlődő számla, akkor azt is jelezzük a naplóban
+    if (invoiceData.recurring && invoiceData.recurring.isRecurring) {
+      logType = 'manual';
+      logDescription = `Új ismétlődő számla létrehozása: ${invoice.number} (${invoiceData.recurring.interval})`;
+    }
+    
+    try {
+      await logRecurringInvoiceActivity(
+        logType,
+        logDescription,
+        1, // Egy számla lett létrehozva
+        true,
+        [{
+          projectId: project._id,
+          projectName: project.name,
+          invoiceId: invoice._id,
+          invoiceNumber: invoice.number,
+          amount: invoice.totalAmount
+        }]
+      );
+    } catch (logError) {
+      console.error('Hiba a napló létrehozásakor:', logError);
+      // A naplózási hiba nem szakítja meg a számla létrehozását
+    }
+    
+    // Financial összegek frissítése a projektben
+    if (project.financial) {
+      const totalBilled = project.invoices.reduce((sum, inv) => sum + (inv.totalAmount || 0), 0);
+      project.financial.totalBilled = totalBilled;
+      console.log('Új teljes számlázott összeg:', totalBilled);
+    }
+    
     await project.save();
+    console.log('Projekt sikeresen mentve');
 
     res.status(201).json(project);
   } catch (error) {
