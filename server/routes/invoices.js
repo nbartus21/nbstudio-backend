@@ -693,6 +693,45 @@ router.post('/recurring/process', async (req, res) => {
   }
 });
 
+// Ismétlődő számlákkal kapcsolatos logok lekérése
+router.get('/recurring/logs', async (req, res) => {
+  try {
+    // Paraméteres szűrés (opcionális)
+    const limit = parseInt(req.query.limit) || 20; // Alapértelmezetten 20 bejegyzés
+    const page = parseInt(req.query.page) || 1;
+    const skip = (page - 1) * limit;
+    const type = req.query.type; // 'auto' vagy 'manual'
+    
+    // Szűrési feltételek
+    const filter = {};
+    if (type) {
+      filter.type = type;
+    }
+    
+    // Összes találat száma (páginációhoz)
+    const total = await RecurringInvoiceLog.countDocuments(filter);
+    
+    // Logok lekérése
+    const logs = await RecurringInvoiceLog.find(filter)
+      .sort({ timestamp: -1 }) // Legújabb elöl
+      .skip(skip)
+      .limit(limit);
+      
+    res.json({
+      logs,
+      pagination: {
+        total,
+        page,
+        limit,
+        pages: Math.ceil(total / limit)
+      }
+    });
+  } catch (error) {
+    console.error('Hiba a logok lekérésekor:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
 // Manuális számla generálás egy adott ismétlődő számlából
 router.post('/projects/:projectId/invoices/:invoiceId/generate', async (req, res) => {
   try {
@@ -703,7 +742,8 @@ router.post('/projects/:projectId/invoices/:invoiceId/generate', async (req, res
       return res.status(400).json({ message: 'Érvénytelen projekt vagy számla azonosító' });
     }
     
-    const newInvoice = await generateNewInvoiceFromRecurring(projectId, invoiceId);
+    // Használjuk az új, logolást is végző függvényt
+    const newInvoice = await manuallyGenerateInvoice(projectId, invoiceId);
     
     res.status(201).json({
       message: 'Ismétlődő számla sikeresen létrehozva',
@@ -714,6 +754,186 @@ router.post('/projects/:projectId/invoices/:invoiceId/generate', async (req, res
     res.status(500).json({ message: error.message });
   }
 });
+
+// Log entry modell létrehozása
+const recurringInvoiceLogSchema = new mongoose.Schema({
+  timestamp: { type: Date, default: Date.now },
+  type: { type: String, enum: ['auto', 'manual'], default: 'auto' },
+  description: String,
+  generatedCount: { type: Number, default: 0 },
+  success: { type: Boolean, default: true },
+  details: [{ 
+    projectId: mongoose.Schema.Types.ObjectId,
+    projectName: String,
+    invoiceId: mongoose.Schema.Types.ObjectId,
+    invoiceNumber: String,
+    newInvoiceId: mongoose.Schema.Types.ObjectId,
+    newInvoiceNumber: String,
+    amount: Number
+  }],
+  error: String
+}, { timestamps: true });
+
+const RecurringInvoiceLog = mongoose.model('RecurringInvoiceLog', recurringInvoiceLogSchema);
+
+// Segédfüggvény a logoláshoz
+const logRecurringInvoiceActivity = async (type, description, generatedCount, success, details = [], error = null) => {
+  try {
+    const logEntry = new RecurringInvoiceLog({
+      type,
+      description,
+      generatedCount,
+      success,
+      details,
+      error: error ? error.message || error.toString() : null
+    });
+    
+    await logEntry.save();
+    console.log(`Log bejegyzés létrehozva: ${description}`);
+    return logEntry;
+  } catch (logError) {
+    console.error('Hiba a tevékenység naplózásakor:', logError);
+    // Naplózási hiba esetén csak konzolra írunk, de nem dobunk hibát, hogy ne akadályozza a fő műveletet
+  }
+};
+
+// Módosított processRecurringInvoices függvény, hogy részletesebb logokat készítsen
+export const processRecurringInvoices = async () => {
+  try {
+    const now = new Date();
+    console.log(`Ismétlődő számlák feldolgozása: ${now.toISOString()}`);
+    
+    // Keressük meg az összes projektet, amelyben van olyan ismétlődő számla, amelynek a nextDate-je lejárt
+    const projects = await Project.find({
+      'invoices.recurring.isRecurring': true,
+      'invoices.recurring.nextDate': { $lte: now }
+    });
+    
+    console.log(`${projects.length} projekt talált ismétlődő számlákkal`);
+    
+    let generatedCount = 0;
+    const logDetails = [];
+    
+    // Projektenként végigmegyünk a számlákon és létrehozzuk az újakat
+    for (const project of projects) {
+      // Szűrjük ki az aktív ismétlődő számlákat, amelyek generálása esedékes
+      const invoicesToGenerate = project.invoices.filter(inv => 
+        inv.recurring && 
+        inv.recurring.isRecurring === true && 
+        new Date(inv.recurring.nextDate) <= now
+      );
+      
+      console.log(`${invoicesToGenerate.length} számla generálása a(z) ${project.name} projektben`);
+      
+      // Minden esedékes számlához generálunk egy újat
+      for (const invoice of invoicesToGenerate) {
+        try {
+          const newInvoice = await generateNewInvoiceFromRecurring(project._id, invoice);
+          generatedCount++;
+          
+          // Részletes információk mentése a loghoz
+          logDetails.push({
+            projectId: project._id,
+            projectName: project.name,
+            invoiceId: invoice._id,
+            invoiceNumber: invoice.number,
+            newInvoiceId: newInvoice._id,
+            newInvoiceNumber: newInvoice.number,
+            amount: newInvoice.totalAmount
+          });
+        } catch (invoiceError) {
+          console.error(`Hiba a számla generálásakor (${project.name}, ${invoice._id}):`, invoiceError);
+          
+          // Hibás számla is kerüljön be a logba
+          logDetails.push({
+            projectId: project._id,
+            projectName: project.name,
+            invoiceId: invoice._id,
+            invoiceNumber: invoice.number,
+            error: invoiceError.message
+          });
+        }
+      }
+    }
+    
+    console.log(`Sikeresen generált ${generatedCount} új számla`);
+    
+    // Mentsük el a logban az aktivitást
+    await logRecurringInvoiceActivity(
+      'auto',
+      `Automatikus ismétlődő számla generálás (${now.toLocaleString('hu-HU')})`,
+      generatedCount,
+      true,
+      logDetails
+    );
+    
+    return generatedCount;
+  } catch (error) {
+    console.error('Hiba az ismétlődő számlák feldolgozásakor:', error);
+    
+    // Hiba esetén is logoljuk az eseményt
+    await logRecurringInvoiceActivity(
+      'auto',
+      `Hiba az automatikus ismétlődő számla generálás során (${new Date().toLocaleString('hu-HU')})`,
+      0,
+      false,
+      [],
+      error
+    );
+    
+    throw error;
+  }
+};
+
+// Módosított manuálisGenerateInvoice függvény a logok miatt
+export const manuallyGenerateInvoice = async (projectId, invoiceId) => {
+  try {
+    const project = await Project.findById(projectId);
+    if (!project) {
+      throw new Error(`Projekt nem található: ${projectId}`);
+    }
+    
+    const invoice = project.invoices.id(invoiceId);
+    if (!invoice) {
+      throw new Error(`Számla nem található: ${invoiceId}`);
+    }
+    
+    const newInvoice = await generateNewInvoiceFromRecurring(projectId, invoice);
+    
+    // Mentsük el a logban az aktivitást
+    await logRecurringInvoiceActivity(
+      'manual',
+      `Manuális ismétlődő számla generálás (${new Date().toLocaleString('hu-HU')})`,
+      1,
+      true,
+      [{
+        projectId: project._id,
+        projectName: project.name,
+        invoiceId: invoice._id,
+        invoiceNumber: invoice.number,
+        newInvoiceId: newInvoice._id,
+        newInvoiceNumber: newInvoice.number,
+        amount: newInvoice.totalAmount
+      }]
+    );
+    
+    return newInvoice;
+  } catch (error) {
+    console.error('Hiba a számla manuális generálásakor:', error);
+    
+    // Hiba esetén is logoljuk az eseményt
+    await logRecurringInvoiceActivity(
+      'manual',
+      `Hiba a manuális ismétlődő számla generálás során (${new Date().toLocaleString('hu-HU')})`,
+      0,
+      false,
+      [],
+      error
+    );
+    
+    throw error;
+  }
+};
 
 // Cron job beállítása az ismétlődő számlák automatikus feldolgozásához
 // Minden nap 00:00-kor lefut

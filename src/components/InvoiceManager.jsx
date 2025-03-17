@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   FileText, Download, Edit, Eye, Trash2, DollarSign, Filter, Search, 
   Plus, ArrowUp, ArrowDown, CheckCircle, XCircle, AlertCircle, Calendar,
-  UserPlus, RefreshCw, Printer, Repeat
+  UserPlus, RefreshCw, Printer, Repeat, List, Clock, Activity, Terminal
 } from 'lucide-react';
 import { api } from '../services/auth';
 import { formatShortDate, showMessage } from './shared/utils';
@@ -11,6 +11,7 @@ import { formatShortDate, showMessage } from './shared/utils';
 import InvoiceViewModal from './shared/InvoiceViewModal';
 import NewInvoiceModal from './project/NewInvoiceModal';
 import UpdateInvoiceStatusModal from './shared/UpdateInvoiceStatusModal';
+import RecurringInvoiceLogsModal from './shared/RecurringInvoiceLogsModal';
 
 const InvoiceManager = () => {
   // Állapotok
@@ -27,6 +28,7 @@ const InvoiceManager = () => {
   const [showNewInvoiceModal, setShowNewInvoiceModal] = useState(false);
   const [showViewInvoiceModal, setShowViewInvoiceModal] = useState(false);
   const [showUpdateStatusModal, setShowUpdateStatusModal] = useState(false);
+  const [showRecurringLogsModal, setShowRecurringLogsModal] = useState(false);
   
   // Szűrési állapotok
   const [searchTerm, setSearchTerm] = useState('');
@@ -581,19 +583,30 @@ const handleCreateInvoice = async (selectedProjectForInvoice, invoiceData) => {
       {/* Fejléc */}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Számla Kezelő</h1>
-        <button
-          onClick={() => {
-            if (projects.length === 0) {
-              setError('Nincsenek projektek a számla létrehozásához. Kérjük, először hozzon létre egy projektet.');
-              return;
-            }
-            setShowNewInvoiceModal(true);
-          }}
-          className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 flex items-center"
-        >
-          <Plus className="h-5 w-5 mr-2" />
-          Új számla
-        </button>
+        <div className="flex space-x-2">
+          <button
+            onClick={() => setShowRecurringLogsModal(true)}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center"
+            title="Ismétlődő számlák napló megtekintése"
+          >
+            <Activity className="h-5 w-5 mr-1" />
+            Naplók
+          </button>
+          
+          <button
+            onClick={() => {
+              if (projects.length === 0) {
+                setError('Nincsenek projektek a számla létrehozásához. Kérjük, először hozzon létre egy projektet.');
+                return;
+              }
+              setShowNewInvoiceModal(true);
+            }}
+            className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 flex items-center"
+          >
+            <Plus className="h-5 w-5 mr-2" />
+            Új számla
+          </button>
+        </div>
       </div>
 
       {/* Statisztikai kártyák */}
@@ -950,6 +963,13 @@ const handleCreateInvoice = async (selectedProjectForInvoice, invoiceData) => {
             handleCreateInvoice(project, invoiceData);
           }}
           initialProjectId={selectedProject?._id}
+        />
+      )}
+
+      {/* Ismétlődő számlák napló modal */}
+      {showRecurringLogsModal && (
+        <RecurringInvoiceLogsModal 
+          onClose={() => setShowRecurringLogsModal(false)}
         />
       )}
     </div>
