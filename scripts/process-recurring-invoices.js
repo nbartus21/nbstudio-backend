@@ -67,14 +67,14 @@ const processRecurringInvoices = async () => {
   try {
     const token = generateToken();
     
-    // Az API base URL összeállítása - használjuk a helyi szervert, 
-    // mivel a távoli szerver nem elérhető
+    // A teszt alapján a 5173-as port működik, a backend nem az 5001-es porton fut
     console.log('Környezeti változók - FRONTEND_URL:', env.FRONTEND_URL, 'PORT:', env.PORT);
     
-    // Közvetlenül a helyi szervert használjuk túlzott URL-manipuláció nélkül
-    const apiUrl = 'http://localhost:5001/api/recurring/process';
+    // A frontend URL-t használjuk, mivel az elérhető, és hozzáfűzzük az API útvonalat
+    const baseUrl = 'http://localhost:5173';
+    const apiUrl = `${baseUrl}/api/recurring/process`;
     
-    console.log('Használt szerver API URL:', apiUrl, '(közvetlenül helyi szervert használunk)');
+    console.log('Használt szerver API URL:', apiUrl, '(frontend URL-t használunk)');
     
     console.log(`Calling API at ${apiUrl}`);
     
