@@ -67,36 +67,43 @@ const processRecurringInvoices = async () => {
   try {
     const token = generateToken();
     
-    // Az API base URL összeállítása
-    const baseUrl = env.FRONTEND_URL || 'http://localhost:5001';
-    let apiBaseUrl = baseUrl;
+    // Az API base URL összeállítása - használjuk a helyi szervert, 
+    // mivel a távoli szerver nem elérhető
+    console.log('Környezeti változók - FRONTEND_URL:', env.FRONTEND_URL, 'PORT:', env.PORT);
     
-    // Ha a FRONTEND_URL tartalmaz portot, azt lecseréljük a szerver portjára
-    if (baseUrl.includes(':5173')) {
-      apiBaseUrl = baseUrl.replace(':5173', ':5001');
-    } else if (env.PORT) {
-      // Ha van PORT környezeti változó, azt használjuk
-      const urlObj = new URL(baseUrl);
-      urlObj.port = env.PORT;
-      apiBaseUrl = urlObj.toString();
-    }
+    // Közvetlenül a helyi szervert használjuk túlzott URL-manipuláció nélkül
+    const apiUrl = 'http://localhost:5001/api/recurring/process';
     
-    // Eltávolítjuk a záró perjelet, ha van
-    if (apiBaseUrl.endsWith('/')) {
-      apiBaseUrl = apiBaseUrl.slice(0, -1);
-    }
-    
-    const apiUrl = `${apiBaseUrl}/api/recurring/process`;
+    console.log('Használt szerver API URL:', apiUrl, '(közvetlenül helyi szervert használunk)');
     
     console.log(`Calling API at ${apiUrl}`);
     
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
+    console.log('Fetching with timeout...');
+    // Időtúllépés kezelése
+    const controller = new AbortController();
+    const timeout = setTimeout(() => {
+      controller.abort();
+    }, 10000); // 10 másodperc időtúllépés
+    
+    let response;
+    try {
+      response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeout); // Töröljük az időtúllépést
+    } catch (error) {
+      clearTimeout(timeout);
+      if (error.name === 'AbortError') {
+        throw new Error('Időtúllépés: a szerver nem válaszolt 10 másodpercen belül');
       }
-    });
+      throw error;
+    }
     
     // Válasz feldolgozása
     const contentType = response.headers.get('content-type');
