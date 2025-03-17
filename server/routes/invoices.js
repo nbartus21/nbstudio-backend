@@ -879,14 +879,49 @@ router.post('/recurring/process', async (req, res) => {
   }
 });
 
+// Teszt log létrehozása
+router.post('/recurring/logs/test', async (req, res) => {
+  try {
+    console.log('Teszt log bejegyzés létrehozása');
+    
+    const testLog = new RecurringInvoiceLog({
+      type: 'manual',
+      description: 'Teszt log bejegyzés - ' + new Date().toLocaleString('hu-HU'),
+      generatedCount: 1,
+      success: true,
+      details: [{
+        projectName: 'Teszt Projekt',
+        invoiceNumber: 'TEST-' + Math.floor(1000 + Math.random() * 9000),
+        amount: 100
+      }]
+    });
+    
+    await testLog.save();
+    console.log('Teszt log sikeresen mentve:', testLog._id);
+    
+    res.status(201).json({ 
+      message: 'Teszt log létrehozva', 
+      log: testLog 
+    });
+  } catch (error) {
+    console.error('Hiba a teszt log létrehozásakor:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
 // Ismétlődő számlákkal kapcsolatos logok lekérése
 router.get('/recurring/logs', async (req, res) => {
   try {
+    console.log('Ismétlődő számlák log lekérési kérés');
+    console.log('Query paraméterek:', req.query);
+    
     // Paraméteres szűrés (opcionális)
     const limit = parseInt(req.query.limit) || 20; // Alapértelmezetten 20 bejegyzés
     const page = parseInt(req.query.page) || 1;
     const skip = (page - 1) * limit;
     const type = req.query.type; // 'auto' vagy 'manual'
+    
+    console.log('Feldolgozott paraméterek:', { limit, page, skip, type });
     
     // Szűrési feltételek
     const filter = {};
@@ -894,14 +929,52 @@ router.get('/recurring/logs', async (req, res) => {
       filter.type = type;
     }
     
+    console.log('Alkalmazott szűrő:', filter);
+    
+    // Ellenőrizzük, hogy egyáltalán van-e RecurringInvoiceLog modell
+    console.log('RecurringInvoiceLog modell ellenőrzése:', !!RecurringInvoiceLog);
+    console.log('Elérhető modellek:', Object.keys(mongoose.models).join(', '));
+    
     // Összes találat száma (páginációhoz)
     const total = await RecurringInvoiceLog.countDocuments(filter);
+    console.log('Összes találat:', total);
     
     // Logok lekérése
     const logs = await RecurringInvoiceLog.find(filter)
       .sort({ timestamp: -1 }) // Legújabb elöl
       .skip(skip)
       .limit(limit);
+    
+    console.log(`${logs.length} log lekérve`);
+    
+    // Ha vannak logok, kiírjuk az elsőt példaként
+    if (logs.length > 0) {
+      console.log('Példa log bejegyzés:', {
+        id: logs[0]._id,
+        timestamp: logs[0].timestamp,
+        type: logs[0].type,
+        description: logs[0].description,
+        generatedCount: logs[0].generatedCount
+      });
+    } else {
+      console.log('Nincsenek logok a szűrési feltételeknek megfelelően');
+      
+      // Ha nincs találat, próbáljuk meg szűrési feltételek nélkül
+      console.log('Összes log lekérése szűrők nélkül:');
+      const allLogs = await RecurringInvoiceLog.find({}).limit(5);
+      console.log(`Összes log száma (szűrők nélkül, max 5): ${allLogs.length}`);
+      
+      if (allLogs.length > 0) {
+        console.log('Példa log az adatbázisból:', {
+          id: allLogs[0]._id,
+          timestamp: allLogs[0].timestamp,
+          type: allLogs[0].type,
+          description: allLogs[0].description
+        });
+      } else {
+        console.log('Az adatbázisban egyáltalán nincsenek log bejegyzések!');
+      }
+    }
       
     res.json({
       logs,

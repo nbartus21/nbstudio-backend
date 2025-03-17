@@ -32,17 +32,60 @@ const RecurringInvoiceLogsModal = ({ onClose }) => {
         queryParams += `&type=${filter.type}`;
       }
       
-      const response = await api.get(`/api/recurring/logs${queryParams}`);
+      console.log('Logok lekérése:', `/api/recurring/logs${queryParams}`);
+      
+      // Először próbáljuk meg közvetlenül a fetch-et használni a jobb hibakezelés érdekében
+      const token = sessionStorage.getItem('token');
+      const response = await fetch(`/api/recurring/logs${queryParams}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      console.log('API válasz státusz:', response.status, response.statusText);
+      const contentType = response.headers.get('content-type');
+      console.log('Válasz content-type:', contentType);
+      
       if (!response.ok) {
-        throw new Error('Hiba a logok lekérésekor');
+        let errorMsg = `Hiba: ${response.status} ${response.statusText}`;
+        try {
+          if (contentType && contentType.includes('application/json')) {
+            const errorData = await response.json();
+            errorMsg = errorData.message || errorMsg;
+          } else {
+            const text = await response.text();
+            console.log('Hiba részletek:', text);
+          }
+        } catch (e) {
+          console.error('Hiba a válasz olvasásakor:', e);
+        }
+        throw new Error(errorMsg);
       }
       
-      const data = await response.json();
-      setLogs(data.logs);
+      // Ha ide eljutottunk, a válasz rendben van
+      let data;
+      if (contentType && contentType.includes('application/json')) {
+        data = await response.json();
+        console.log('API válasz adatok:', data);
+      } else {
+        const text = await response.text();
+        console.log('API válasz szöveg:', text);
+        data = { logs: [], pagination: { total: 0, pages: 0 } };
+      }
+      
+      // Ha a data üres vagy nincs logs tömbje, akkor üres listát mutatunk
+      if (!data || !data.logs) {
+        console.warn('Hiányzó vagy érvénytelen válasz formátum:', data);
+        data = { logs: [], pagination: { total: 0, pages: 0 } };
+      }
+      
+      setLogs(data.logs || []);
       setPagination(prev => ({
         ...prev,
-        total: data.pagination.total,
-        pages: data.pagination.pages
+        total: data.pagination?.total || 0,
+        pages: data.pagination?.pages || 0
       }));
     } catch (err) {
       console.error('Hiba a logok lekérése közben:', err);
