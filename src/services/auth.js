@@ -103,6 +103,11 @@ export const getAuthToken = () => {
       method: 'DELETE',
     }),
 
+    patch: (url, data) => apiFetch(url, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+
     // Token lekérő funkció
     getToken: () => getAuthToken(),
   };
