@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   FileText, X, Download, Printer, Share2, 
   CheckCircle, AlertCircle, Clock, Mail,
-  CreditCard
+  CreditCard, RefreshCw
 } from 'lucide-react';
 import { formatShortDate, debugLog } from './utils';
 import QRCode from 'qrcode.react';
@@ -261,6 +261,12 @@ const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGenerat
           <h3 className="text-lg font-medium flex items-center">
             <FileText className="h-5 w-5 mr-2 text-gray-500" />
             Számla: {invoice.number}
+            {invoice.recurring?.isRecurring && (
+              <span className="ml-2 px-2 py-0.5 bg-purple-100 text-purple-800 text-xs rounded-full border border-purple-200 flex items-center">
+                <RefreshCw className="h-3 w-3 mr-1" />
+                Ismétlődő
+              </span>
+            )}
           </h3>
           <button
             onClick={onClose}
@@ -414,6 +420,25 @@ const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGenerat
                       )}
                     </div>
                   </div>
+                </div>
+              </div>
+            )}
+            
+            {/* Recurring Invoice Info */}
+            {invoice.recurring?.isRecurring && (
+              <div className="mb-8">
+                <h3 className="font-bold mb-2 text-gray-700 flex items-center">
+                  <RefreshCw className="h-4 w-4 mr-2 text-purple-600" />
+                  Ismétlődő számla információ:
+                </h3>
+                <div className="bg-purple-50 p-3 border border-purple-200 rounded">
+                  <p>Ez egy ismétlődő számla, amely rendszeresen kiállításra kerül a megadott időközönként.</p>
+                  {invoice.recurring.interval && (
+                    <p className="mt-1">Ismétlődés gyakorisága: <span className="font-medium">{invoice.recurring.interval}</span></p>
+                  )}
+                  {invoice.recurring.nextDate && (
+                    <p className="mt-1">Következő számla várható dátuma: <span className="font-medium">{formatShortDate(invoice.recurring.nextDate)}</span></p>
+                  )}
                 </div>
               </div>
             )}

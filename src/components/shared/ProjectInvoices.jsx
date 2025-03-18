@@ -1,5 +1,5 @@
 import React from 'react';
-import { Eye, Download, FileText } from 'lucide-react';
+import { Eye, Download, FileText, RefreshCw } from 'lucide-react';
 import { formatShortDate, generateSepaQrData, debugLog } from './utils';
 import QRCode from 'qrcode.react';
 
@@ -21,7 +21,8 @@ const translations = {
     scanQrCode: "Scan QR code with your banking app",
     noInvoices: "No invoices for this project yet",
     noInvoicesDesc: "Invoices for this project will be issued by the administrator.",
-    downloadInProgress: "Download feature is under development."
+    downloadInProgress: "Download feature is under development.",
+    recurring: "Recurring"
   },
   de: {
     invoices: "Rechnungen",
@@ -39,7 +40,8 @@ const translations = {
     scanQrCode: "QR-Code mit Ihrer Banking-App scannen",
     noInvoices: "Noch keine Rechnungen für dieses Projekt",
     noInvoicesDesc: "Rechnungen für dieses Projekt werden vom Administrator ausgestellt.",
-    downloadInProgress: "Download-Funktion ist in Entwicklung."
+    downloadInProgress: "Download-Funktion ist in Entwicklung.",
+    recurring: "Wiederkehrend"
   },
   hu: {
     invoices: "Számlák",
@@ -57,7 +59,8 @@ const translations = {
     scanQrCode: "Szkennelje be a QR kódot a banki alkalmazással",
     noInvoices: "Nincsenek még számlák a projekthez",
     noInvoicesDesc: "A számlákat a projekthez kapcsolódóan a rendszergazda állítja ki.",
-    downloadInProgress: "A letöltés funkció fejlesztés alatt áll."
+    downloadInProgress: "A letöltés funkció fejlesztés alatt áll.",
+    recurring: "Ismétlődő"
   }
 };
 
@@ -111,11 +114,19 @@ const ProjectInvoices = ({ project, onViewInvoice, language = 'hu' }) => {
                 </div>
                 <div className="text-right">
                   <p className="text-2xl font-bold">{invoice.totalAmount} €</p>
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    statusClasses[invoice.status] || "bg-gray-100 text-gray-800"
-                  }`}>
-                    {invoice.status}
-                  </span>
+                  <div className="flex justify-end items-center space-x-2">
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      statusClasses[invoice.status] || "bg-gray-100 text-gray-800"
+                    }`}>
+                      {invoice.status}
+                    </span>
+                    {invoice.recurring?.isRecurring && (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 border border-purple-200">
+                        <RefreshCw className="h-3 w-3 mr-1" />
+                        {t.recurring}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
 
