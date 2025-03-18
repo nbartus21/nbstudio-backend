@@ -158,20 +158,6 @@ const generatedDocumentSchema = new mongoose.Schema({
   clientApprovalComment: {
     type: String
   },
-  // Szerződési feltételek elfogadása
-  agreementAccepted: {
-    type: Boolean,
-    default: false
-  },
-  agreementAcceptedAt: {
-    type: Date
-  },
-  agreementAcceptedBy: {
-    type: String
-  },
-  agreementAcceptedIp: {
-    type: String
-  },
   createdAt: { 
     type: Date, 
     default: Date.now 

@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { FileText, X, Download, Printer, Share2, FileCheck, CheckCircle, XCircle } from 'lucide-react';
+import React, { useState } from 'react';
+import { FileText, X, Download, Printer, Share2, FileCheck } from 'lucide-react';
 import { formatFileSize, formatDate, debugLog } from './utils';
-import axios from 'axios';
 
 // Translation data for all UI elements
 const translations = {
@@ -42,14 +41,7 @@ const translations = {
     size: "Méret",
     uploadedBy: "Feltöltő",
     documentInfo: "Dokumentum adatok",
-    actions: "Műveletek",
-    agreement: "Szerződési feltételek",
-    agreementText: "A dokumentum megtekintésével elfogadom, hogy annak tartalmát bizalmasan kezelem és csak a projekthez kapcsolódó célokra használom fel.",
-    accept: "Elfogadom a feltételeket",
-    reject: "Elutasítom",
-    agreementRequired: "A dokumentum megtekintéséhez el kell fogadnia a szerződési feltételeket",
-    acceptedOn: "Elfogadva",
-    agreementAccepted: "Szerződés elfogadva"
+    actions: "Műveletek"
   }
 };
 
@@ -76,11 +68,6 @@ const categoryTranslations = {
 };
 
 const DocumentViewModal = ({ document: docData, project, onClose, language = 'hu' }) => {
-  // States
-  const [agreementAccepted, setAgreementAccepted] = useState(false);
-  const [acceptanceTimestamp, setAcceptanceTimestamp] = useState(null);
-  const [loading, setLoading] = useState(true);
-  
   // Átnevezzük a 'document' paramétert 'docData'-ra, hogy ne ütközzön a globális document objektummal
   debugLog('DocumentViewModal', 'Rendering document view', { 
     documentName: docData?.name, 
@@ -92,74 +79,10 @@ const DocumentViewModal = ({ document: docData, project, onClose, language = 'hu
   const t = translations[language] || translations.en;
   const categoryT = categoryTranslations[language] || categoryTranslations.en;
 
-  // Check if the user has already accepted agreement for this document
-  useEffect(() => {
-    if (!docData) return;
-    
-    const checkAgreementStatus = async () => {
-      try {
-        setLoading(true);
-        // Call API to check if agreement was already accepted
-        const API_URL = 'https://admin.nb-studio.net:5001/api';
-        const API_KEY = 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0';
-        
-        const response = await axios.get(`${API_URL}/documents/${docData._id}/agreement-status`, {
-          headers: {
-            'X-API-Key': API_KEY
-          }
-        });
-        
-        if (response.data.accepted) {
-          setAgreementAccepted(true);
-          setAcceptanceTimestamp(response.data.acceptedAt);
-        }
-      } catch (error) {
-        console.error('Error checking agreement status:', error);
-        // If there's an error, we'll assume it hasn't been accepted yet
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    checkAgreementStatus();
-  }, [docData]);
-
   if (!docData) {
     debugLog('DocumentViewModal', 'No document provided');
     return null;
   }
-  
-  // Handle agreement acceptance
-  const handleAcceptAgreement = async () => {
-    try {
-      const now = new Date();
-      setAcceptanceTimestamp(now);
-      
-      // Call API to record agreement acceptance
-      const API_URL = 'https://admin.nb-studio.net:5001/api';
-      const API_KEY = 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0';
-      
-      await axios.post(`${API_URL}/documents/${docData._id}/accept-agreement`, {
-        documentId: docData._id,
-        projectId: project?._id,
-        acceptedAt: now.toISOString()
-      }, {
-        headers: {
-          'X-API-Key': API_KEY
-        }
-      });
-      
-      setAgreementAccepted(true);
-    } catch (error) {
-      console.error('Error recording agreement acceptance:', error);
-      alert('Hiba történt a szerződés elfogadásának rögzítésekor.');
-    }
-  };
-  
-  // Handle agreement rejection
-  const handleRejectAgreement = () => {
-    onClose(); // Close the document modal
-  };
 
   // Determine document icon/color based on category
   const getDocumentCategoryStyle = (category) => {
@@ -313,183 +236,125 @@ const DocumentViewModal = ({ document: docData, project, onClose, language = 'hu
           </button>
         </div>
         
-        {/* Agreement Acceptance Section */}
-        {!agreementAccepted && !loading ? (
-          <div className="p-6 flex flex-col items-center justify-center bg-gray-50 flex-1">
-            <div className="max-w-lg w-full bg-white p-6 rounded-lg shadow-md border border-gray-200">
-              <h3 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
-                <FileCheck className="mr-2 h-6 w-6 text-indigo-600" />
-                {t.agreement}
-              </h3>
-              
-              <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-md text-blue-700">
-                <p>{t.agreementText}</p>
-              </div>
-              
-              <p className="text-sm text-gray-500 mb-6">{t.agreementRequired}</p>
-              
-              <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                <button
-                  onClick={handleAcceptAgreement}
-                  className="flex-1 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center justify-center"
-                >
-                  <CheckCircle className="h-5 w-5 mr-2" />
-                  {t.accept}
-                </button>
-                
-                <button
-                  onClick={handleRejectAgreement}
-                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 flex items-center justify-center"
-                >
-                  <XCircle className="h-5 w-5 mr-2" />
-                  {t.reject}
-                </button>
-              </div>
-            </div>
-          </div>
-        ) : loading ? (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
-          </div>
-        ) : (
-          <div className="flex flex-col flex-1">
-            <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
-              {/* Document preview area */}
-              <div className="flex-1 p-6 flex items-center justify-center bg-gray-100 overflow-auto">
-                {isPreviewSupported() ? (
-                  docData.content && docData.type?.startsWith('image/') ? (
-                    <img 
-                      src={docData.content} 
-                      alt={docData.name}
-                      className="max-w-full max-h-[600px] object-contain"
-                    />
-                  ) : docData.content && docData.type === 'application/pdf' ? (
-                    <iframe
-                      src={docData.content}
-                      title={docData.name}
-                      className="w-full h-full min-h-[600px] border-0"
-                    />
-                  ) : docData._id ? (
-                    <div className="text-center p-10">
-                      <FileText className="h-16 w-16 mx-auto text-blue-600 mb-3" />
-                      <p className="text-gray-600 font-medium">A dokumentum tartalmát a szerverről töltheti le</p>
-                      <button
-                        onClick={handleDownload}
-                        className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 flex items-center mx-auto"
-                      >
-                        <Download className="h-4 w-4 mr-2" />
-                        PDF letöltése
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="bg-white p-6 rounded shadow w-full overflow-auto">
-                      <pre className="whitespace-pre-wrap text-sm">
-                        {/* For text files, we would need to decode the content */}
-                        {docData.textContent || "Preview not available for this document type"}
-                      </pre>
-                    </div>
-                  )
-                ) : (
-                  <div className="text-center p-10">
-                    <FileText className={`h-16 w-16 mx-auto ${categoryStyle.color} mb-3`} />
-                    <p className="text-gray-600 font-medium">{t.previewNotSupported}</p>
-                    <p className="text-sm text-gray-500 mt-2">
-                      {docData.name} ({formatFileSize(docData.size)})
-                    </p>
-                    <button
-                      onClick={handleDownload}
-                      className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 flex items-center mx-auto"
-                    >
-                      <Download className="h-4 w-4 mr-2" />
-                      {t.download}
-                    </button>
-                  </div>
-                )}
-              </div>
-              
-              {/* Document info sidebar */}
-              <div className="md:w-64 bg-gray-50 p-4 border-l border-gray-200 overflow-y-auto">
-                <h4 className="font-medium text-gray-700 mb-3">{t.documentInfo}</h4>
-                <div className="space-y-4">
-                  <div>
-                    <span className="text-sm text-gray-500">{t.category}</span>
-                    <div className={`mt-1 px-2 py-1 ${categoryStyle.bgColor} ${categoryStyle.borderColor} border rounded-md inline-block text-sm font-medium ${categoryStyle.color}`}>
-                      {categoryT[docData.category] || docData.category}
-                    </div>
-                  </div>
-                  
-                  {docData.type && (
-                    <div>
-                      <span className="text-sm text-gray-500">Type</span>
-                      <p className="font-medium">{getDocumentTypeLabel(docData.type)}</p>
-                    </div>
-                  )}
-                  
-                  <div>
-                    <span className="text-sm text-gray-500">{t.size}</span>
-                    <p className="font-medium">{formatFileSize(docData.size)}</p>
-                  </div>
-                  
-                  <div>
-                    <span className="text-sm text-gray-500">{t.uploadedBy}</span>
-                    <p className="font-medium">{docData.uploadedBy || "Unknown"}</p>
-                  </div>
-                  
-                  <div>
-                    <span className="text-sm text-gray-500">{t.uploadedOn}</span>
-                    <p className="font-medium">{formatDate(docData.uploadedAt)}</p>
-                  </div>
-                  
-                  {acceptanceTimestamp && (
-                    <div>
-                      <span className="text-sm text-gray-500">{t.acceptedOn}</span>
-                      <p className="font-medium flex items-center">
-                        <CheckCircle className="h-4 w-4 text-green-600 mr-1" />
-                        {formatDate(acceptanceTimestamp)}
-                      </p>
-                    </div>
-                  )}
+        <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
+          {/* Document preview area */}
+          <div className="flex-1 p-6 flex items-center justify-center bg-gray-100 overflow-auto">
+            {isPreviewSupported() ? (
+              docData.content && docData.type?.startsWith('image/') ? (
+                <img 
+                  src={docData.content} 
+                  alt={docData.name}
+                  className="max-w-full max-h-[600px] object-contain"
+                />
+              ) : docData.content && docData.type === 'application/pdf' ? (
+                <iframe
+                  src={docData.content}
+                  title={docData.name}
+                  className="w-full h-full min-h-[600px] border-0"
+                />
+              ) : docData._id ? (
+                <div className="text-center p-10">
+                  <FileText className="h-16 w-16 mx-auto text-blue-600 mb-3" />
+                  <p className="text-gray-600 font-medium">A dokumentum tartalmát a szerverről töltheti le</p>
+                  <button
+                    onClick={handleDownload}
+                    className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 flex items-center mx-auto"
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    PDF letöltése
+                  </button>
                 </div>
-                
-                <div className="mt-6">
-                  <h4 className="font-medium text-gray-700 mb-3">{t.actions}</h4>
-                  <div className="space-y-2">
-                    <button
-                      onClick={handleDownload}
-                      className="w-full px-3 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex items-center justify-center text-sm"
-                    >
-                      <Download className="h-4 w-4 mr-2" />
-                      {t.download}
-                    </button>
-                    
-                    <button
-                      onClick={() => window.print()}
-                      className="w-full px-3 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 flex items-center justify-center text-sm"
-                    >
-                      <Printer className="h-4 w-4 mr-2" />
-                      {t.print}
-                    </button>
-                  </div>
+              ) : (
+                <div className="bg-white p-6 rounded shadow w-full overflow-auto">
+                  <pre className="whitespace-pre-wrap text-sm">
+                    {/* For text files, we would need to decode the content */}
+                    {docData.textContent || "Preview not available for this document type"}
+                  </pre>
                 </div>
+              )
+            ) : (
+              <div className="text-center p-10">
+                <FileText className={`h-16 w-16 mx-auto ${categoryStyle.color} mb-3`} />
+                <p className="text-gray-600 font-medium">{t.previewNotSupported}</p>
+                <p className="text-sm text-gray-500 mt-2">
+                  {docData.name} ({formatFileSize(docData.size)})
+                </p>
+                <button
+                  onClick={handleDownload}
+                  className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 flex items-center mx-auto"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  {t.download}
+                </button>
+              </div>
+            )}
+          </div>
+          
+          {/* Document info sidebar */}
+          <div className="md:w-64 bg-gray-50 p-4 border-l border-gray-200 overflow-y-auto">
+            <h4 className="font-medium text-gray-700 mb-3">{t.documentInfo}</h4>
+            <div className="space-y-4">
+              <div>
+                <span className="text-sm text-gray-500">{t.category}</span>
+                <div className={`mt-1 px-2 py-1 ${categoryStyle.bgColor} ${categoryStyle.borderColor} border rounded-md inline-block text-sm font-medium ${categoryStyle.color}`}>
+                  {categoryT[docData.category] || docData.category}
+                </div>
+              </div>
+              
+              {docData.type && (
+                <div>
+                  <span className="text-sm text-gray-500">Type</span>
+                  <p className="font-medium">{getDocumentTypeLabel(docData.type)}</p>
+                </div>
+              )}
+              
+              <div>
+                <span className="text-sm text-gray-500">{t.size}</span>
+                <p className="font-medium">{formatFileSize(docData.size)}</p>
+              </div>
+              
+              <div>
+                <span className="text-sm text-gray-500">{t.uploadedBy}</span>
+                <p className="font-medium">{docData.uploadedBy || "Unknown"}</p>
+              </div>
+              
+              <div>
+                <span className="text-sm text-gray-500">{t.uploadedOn}</span>
+                <p className="font-medium">{formatDate(docData.uploadedAt)}</p>
               </div>
             </div>
             
-            <div className="flex justify-end items-center p-4 border-t bg-gray-50">
-              {agreementAccepted && (
-                <div className="mr-auto flex items-center text-sm text-green-600">
-                  <CheckCircle className="h-4 w-4 mr-1" />
-                  {t.agreementAccepted}
-                </div>
-              )}
-              <button
-                onClick={onClose}
-                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 text-sm"
-              >
-                {t.close}
-              </button>
+            <div className="mt-6">
+              <h4 className="font-medium text-gray-700 mb-3">{t.actions}</h4>
+              <div className="space-y-2">
+                <button
+                  onClick={handleDownload}
+                  className="w-full px-3 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex items-center justify-center text-sm"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  {t.download}
+                </button>
+                
+                <button
+                  onClick={() => window.print()}
+                  className="w-full px-3 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 flex items-center justify-center text-sm"
+                >
+                  <Printer className="h-4 w-4 mr-2" />
+                  {t.print}
+                </button>
+              </div>
             </div>
           </div>
-        )}
+        </div>
+        
+        <div className="flex justify-end items-center p-4 border-t bg-gray-50">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 text-sm"
+          >
+            {t.close}
+          </button>
+        </div>
       </div>
     </div>
   );
