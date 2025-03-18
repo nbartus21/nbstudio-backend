@@ -639,6 +639,68 @@ router.delete('/documents/:id', async (req, res) => {
   }
 });
 
+// Dokumentum szerződés elfogadási állapot lekérése
+router.get('/documents/:id/agreement-status', apiKeyChecker, async (req, res) => {
+  try {
+    const document = await GeneratedDocument.findById(req.params.id);
+    
+    if (!document) {
+      return res.status(404).json({ message: 'Dokumentum nem található' });
+    }
+    
+    res.json({
+      accepted: document.agreementAccepted,
+      acceptedAt: document.agreementAcceptedAt,
+      acceptedBy: document.agreementAcceptedBy
+    });
+  } catch (error) {
+    console.error('Hiba a dokumentum szerződés állapotának lekérésekor:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Dokumentum szerződés elfogadás rögzítése
+router.post('/documents/:id/accept-agreement', apiKeyChecker, async (req, res) => {
+  try {
+    const { documentId, projectId, acceptedAt } = req.body;
+    
+    // IP cím kinyerése a kérésből
+    const clientIp = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+    
+    const document = await GeneratedDocument.findById(req.params.id);
+    
+    if (!document) {
+      return res.status(404).json({ message: 'Dokumentum nem található' });
+    }
+    
+    // Szerződés elfogadásának rögzítése
+    document.agreementAccepted = true;
+    document.agreementAcceptedAt = acceptedAt || new Date();
+    document.agreementAcceptedBy = req.userData?.email || 'Ügyfél';
+    document.agreementAcceptedIp = clientIp;
+    
+    await document.save();
+    
+    // Rögzítsük kommentként is
+    document.comments.push({
+      user: req.userData?.email || 'Ügyfél',
+      text: 'Dokumentum feltételeit elfogadta',
+      timestamp: acceptedAt || new Date()
+    });
+    
+    await document.save();
+    
+    res.json({
+      success: true,
+      message: 'Szerződés elfogadása sikeresen rögzítve',
+      acceptedAt: document.agreementAcceptedAt
+    });
+  } catch (error) {
+    console.error('Hiba a szerződés elfogadásának rögzítésekor:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
 // Publikus dokumentum információ lekérése (PIN bekérés előtt)
 router.get('/public/documents/:token/info', apiKeyChecker, async (req, res) => {
   try {
