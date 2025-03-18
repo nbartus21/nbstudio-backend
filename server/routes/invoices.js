@@ -13,7 +13,7 @@ const __dirname = dirname(__filename);
 
 const router = express.Router();
 
-// Védett végpontok
+// Védett végpontok 
 router.use(authMiddleware);
 
 // Számla modell létrehozása
