@@ -4,8 +4,8 @@ import Stripe from 'stripe';
 
 const router = express.Router();
 
-// Explicit értéket adunk a Stripe Secret Key-nek
-const STRIPE_SECRET_KEY = 'sk_test_51QmjbrG2Q8BRzYFBotBDVtSaWeDlhZ8fURnDB20HItI29XaqLaMFTStyNo4XWThSge1wRoZTVrKMSA5tXnXVLIZf00jCtmKyXX';
+// Használjuk a környezeti változóban definiált Stripe Secret Key-t
+const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || 'sk_test_51QmjbrG2GB8RzYFBotDBVtSaWeDlhZ8fURnDB20HIIz9XzaqLaMFTStyNo4XWThSge1wRoZTVrKM5At5xnXVLIzf00jCtmKyXX';
 
 // Inicializáljuk a Stripe-ot 
 console.log('Initializing Stripe with key starting with:', STRIPE_SECRET_KEY.substring(0, 10) + '...');

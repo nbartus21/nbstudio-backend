@@ -177,7 +177,12 @@ const validateApiKey = (req, res, next) => {
 // Debug middleware (only in development)
 if (process.env.NODE_ENV !== 'production') {
   app.use((req, res, next) => {
-    console.log(`${req.method} ${req.url}`);
+    // Kihagyjuk a monitoring végpontokat a naplózásból
+    if (!req.url.includes('/monitoring/system') && 
+        !req.url.includes('/monitoring/network') && 
+        !req.url.includes('/monitoring/security')) {
+      console.log(`${req.method} ${req.url}`);
+    }
     next();
   });
 }
