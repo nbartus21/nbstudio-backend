@@ -776,4 +776,408 @@ router.post('/public/documents/:token/response', apiKeyChecker, async (req, res)
   }
 });
 
+// Dokumentum megosztása projekttel
+router.put('/documents/:id/share', async (req, res) => {
+  try {
+    const { projectId, status = 'pendingApproval' } = req.body;
+    
+    // Ellenőrizzük, hogy létezik-e a dokumentum
+    const document = await GeneratedDocument.findById(req.params.id);
+    if (!document) {
+      return res.status(404).json({ message: 'A dokumentum nem található' });
+    }
+    
+    // Ellenőrizzük, hogy létezik-e a projekt
+    const project = await Project.findById(projectId);
+    if (!project) {
+      return res.status(404).json({ message: 'A projekt nem található' });
+    }
+    
+    // Frissítsük a dokumentum státuszát, ha szükséges
+    if (status && document.status !== status) {
+      document.status = status;
+    }
+    
+    // Ellenőrizzük, hogy a dokumentum már meg van-e osztva a projekttel
+    if (!document.sharedWithProjects) {
+      document.sharedWithProjects = [];
+    }
+    
+    // Ha még nincs megosztva, adjuk hozzá
+    const existingShare = document.sharedWithProjects.find(
+      share => share.projectId.toString() === projectId
+    );
+    
+    if (!existingShare) {
+      document.sharedWithProjects.push({
+        projectId,
+        sharedAt: new Date(),
+        sharedBy: req.userData.email,
+        requiresClientApproval: status === 'pendingApproval'
+      });
+    } else {
+      // Frissítsük a meglévő megosztást
+      existingShare.sharedAt = new Date();
+      existingShare.sharedBy = req.userData.email;
+      existingShare.requiresClientApproval = status === 'pendingApproval';
+    }
+    
+    // Mentsük el a dokumentumot
+    await document.save();
+    
+    // Frissítsük a projekt dokumentumlistáját
+    if (!project.documents) {
+      project.documents = [];
+    }
+    
+    // Ellenőrizzük, hogy a dokumentum már hozzá van-e adva a projekthez
+    const existingDocInProject = project.documents.find(
+      doc => doc.documentId.toString() === req.params.id
+    );
+    
+    if (!existingDocInProject) {
+      // Hozzáadjuk a dokumentumot a projekthez
+      project.documents.push({
+        documentId: document._id,
+        name: document.name,
+        type: document.type,
+        status: status,
+        clientStatus: document.clientStatus || 'pending',
+        addedAt: new Date(),
+        addedBy: req.userData.email,
+        lastUpdated: new Date(),
+        requiresClientApproval: status === 'pendingApproval'
+      });
+    } else {
+      // Frissítsük a meglévő dokumentumot
+      existingDocInProject.name = document.name;
+      existingDocInProject.type = document.type;
+      existingDocInProject.status = status;
+      existingDocInProject.lastUpdated = new Date();
+      existingDocInProject.requiresClientApproval = status === 'pendingApproval';
+    }
+    
+    // Mentsük el a projektet
+    await project.save();
+    
+    res.json({ 
+      success: true, 
+      message: 'Dokumentum sikeresen megosztva a projekttel',
+      document,
+      project: {
+        _id: project._id,
+        name: project.name
+      }
+    });
+  } catch (error) {
+    console.error('Hiba a dokumentum projekttel való megosztásakor:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Dokumentum státuszának frissítése ügyfél által
+router.put('/documents/:id/client-status', apiKeyChecker, async (req, res) => {
+  try {
+    const { status, comment, projectId, clientId, updatedBy } = req.body;
+    
+    if (!status || !projectId) {
+      return res.status(400).json({ message: 'A státusz és a projekt ID megadása kötelező' });
+    }
+    
+    // Ellenőrizzük, hogy a státusz érvényes-e
+    if (!['approved', 'rejected', 'pending'].includes(status)) {
+      return res.status(400).json({ message: 'Érvénytelen státusz. Elfogadható értékek: approved, rejected, pending' });
+    }
+    
+    // Keressük meg a dokumentumot
+    const document = await GeneratedDocument.findById(req.params.id);
+    if (!document) {
+      return res.status(404).json({ message: 'A dokumentum nem található' });
+    }
+    
+    // Ellenőrizzük, hogy a dokumentum megosztásra került-e a megadott projekttel
+    const isSharedWithProject = document.sharedWithProjects && 
+      document.sharedWithProjects.some(share => share.projectId.toString() === projectId);
+    
+    if (!isSharedWithProject) {
+      return res.status(403).json({ message: 'A dokumentum nincs megosztva ezzel a projekttel' });
+    }
+    
+    // Frissítsük a dokumentum ügyfél státuszát
+    document.clientStatus = status;
+    document.clientStatusDate = new Date();
+    document.clientComment = comment || '';
+    document.clientId = clientId || null;
+    document.clientUpdatedBy = updatedBy || req.userData.email;
+    
+    // Mentsük el a dokumentumot
+    await document.save();
+    
+    // Frissítsük a projekt dokumentumát is
+    const project = await Project.findById(projectId);
+    if (project && project.documents) {
+      const projectDocument = project.documents.find(
+        doc => doc.documentId.toString() === req.params.id
+      );
+      
+      if (projectDocument) {
+        projectDocument.clientStatus = status;
+        projectDocument.clientStatusDate = new Date();
+        projectDocument.clientComment = comment || '';
+        
+        // Ha elfogadták vagy elutasították, akkor már nem igényel jóváhagyást
+        if (status === 'approved' || status === 'rejected') {
+          projectDocument.requiresClientApproval = false;
+        }
+        
+        // Mentsük el a projektet
+        await project.save();
+      }
+    }
+    
+    res.json({ 
+      success: true, 
+      message: `Dokumentum sikeresen ${status === 'approved' ? 'jóváhagyva' : status === 'rejected' ? 'elutasítva' : 'frissítve'}`,
+      document
+    });
+  } catch (error) {
+    console.error('Hiba a dokumentum ügyfél státuszának frissítésekor:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Projekt dokumentumainak lekérése
+router.get('/projects/:id/documents', async (req, res) => {
+  try {
+    const project = await Project.findById(req.params.id)
+      .select('documents name client');
+    
+    if (!project) {
+      return res.status(404).json({ message: 'A projekt nem található' });
+    }
+    
+    // Ha nincsenek dokumentumok, üres tömböt adunk vissza
+    if (!project.documents || project.documents.length === 0) {
+      return res.json({ 
+        project: { _id: project._id, name: project.name },
+        documents: [] 
+      });
+    }
+    
+    // Lekérjük a teljes dokumentum információkat minden projektben lévő dokumentumhoz
+    const documentIds = project.documents.map(doc => doc.documentId);
+    const documents = await GeneratedDocument.find({ _id: { $in: documentIds } });
+    
+    // Kombinált adatok összeállítása
+    const combinedDocuments = project.documents.map(projectDoc => {
+      const fullDocument = documents.find(
+        doc => doc._id.toString() === projectDoc.documentId.toString()
+      );
+      
+      return {
+        ...projectDoc.toObject(),
+        _id: fullDocument ? fullDocument._id : projectDoc.documentId,
+        content: fullDocument ? fullDocument.content : null,
+        htmlVersion: fullDocument ? fullDocument.htmlVersion : null,
+        variables: fullDocument ? fullDocument.variables : {},
+        type: fullDocument ? fullDocument.type : projectDoc.type,
+        name: fullDocument ? fullDocument.name : projectDoc.name,
+        status: fullDocument ? fullDocument.status : projectDoc.status,
+        clientStatus: fullDocument ? fullDocument.clientStatus : projectDoc.clientStatus,
+        createdAt: fullDocument ? fullDocument.createdAt : projectDoc.addedAt
+      };
+    });
+    
+    res.json({ 
+      project: { 
+        _id: project._id, 
+        name: project.name,
+        client: project.client 
+      },
+      documents: combinedDocuments 
+    });
+  } catch (error) {
+    console.error('Hiba a projekt dokumentumainak lekérésekor:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Nyilvános végpontok a megosztott projektek számára
+// Dokumentum lekérése projektben
+router.get('/public/documents/:id', apiKeyChecker, async (req, res) => {
+  try {
+    const document = await GeneratedDocument.findById(req.params.id);
+    if (!document) {
+      return res.status(404).json({ message: 'A dokumentum nem található' });
+    }
+    
+    // Alapvető dokumentum információk visszaadása
+    const publicDocument = {
+      _id: document._id,
+      name: document.name,
+      type: document.type,
+      status: document.status,
+      clientStatus: document.clientStatus || 'pending',
+      clientStatusDate: document.clientStatusDate,
+      clientComment: document.clientComment,
+      createdAt: document.createdAt,
+      htmlVersion: document.htmlVersion
+    };
+    
+    res.json(publicDocument);
+  } catch (error) {
+    console.error('Hiba a nyilvános dokumentum lekérésekor:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Projekt dokumentumainak nyilvános lekérése
+router.get('/public/projects/:id/documents', apiKeyChecker, async (req, res) => {
+  try {
+    const project = await Project.findById(req.params.id)
+      .select('documents name client');
+    
+    if (!project) {
+      return res.status(404).json({ message: 'A projekt nem található' });
+    }
+    
+    // Ha nincsenek dokumentumok, üres tömböt adunk vissza
+    if (!project.documents || project.documents.length === 0) {
+      return res.json({ documents: [] });
+    }
+    
+    // Lekérjük a teljes dokumentum információkat minden projektben lévő dokumentumhoz
+    const documentIds = project.documents.map(doc => doc.documentId);
+    const documents = await GeneratedDocument.find({ _id: { $in: documentIds } });
+    
+    // Csak a nyilvános információkat adjuk vissza
+    const publicDocuments = documents.map(doc => ({
+      _id: doc._id,
+      name: doc.name,
+      type: doc.type,
+      status: doc.status,
+      clientStatus: doc.clientStatus || 'pending',
+      clientStatusDate: doc.clientStatusDate,
+      clientComment: doc.clientComment,
+      createdAt: doc.createdAt,
+      htmlVersion: doc.htmlVersion
+    }));
+    
+    res.json({ documents: publicDocuments });
+  } catch (error) {
+    console.error('Hiba a nyilvános projekt dokumentumok lekérésekor:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Dokumentum ügyfél státuszának nyilvános frissítése
+router.put('/public/documents/:id/client-status', apiKeyChecker, async (req, res) => {
+  try {
+    const { status, comment, projectId, clientId } = req.body;
+    
+    if (!status || !projectId) {
+      return res.status(400).json({ message: 'A státusz és a projekt ID megadása kötelező' });
+    }
+    
+    // Ellenőrizzük, hogy a státusz érvényes-e
+    if (!['approved', 'rejected', 'pending'].includes(status)) {
+      return res.status(400).json({ message: 'Érvénytelen státusz. Elfogadható értékek: approved, rejected, pending' });
+    }
+    
+    // Keressük meg a dokumentumot
+    const document = await GeneratedDocument.findById(req.params.id);
+    if (!document) {
+      return res.status(404).json({ message: 'A dokumentum nem található' });
+    }
+    
+    // Frissítsük a dokumentum ügyfél státuszát
+    document.clientStatus = status;
+    document.clientStatusDate = new Date();
+    document.clientComment = comment || '';
+    document.clientId = clientId || null;
+    
+    // Mentsük el a dokumentumot
+    await document.save();
+    
+    // Frissítsük a projekt dokumentumát is
+    const project = await Project.findById(projectId);
+    if (project && project.documents) {
+      const projectDocument = project.documents.find(
+        doc => doc.documentId.toString() === req.params.id
+      );
+      
+      if (projectDocument) {
+        projectDocument.clientStatus = status;
+        projectDocument.clientStatusDate = new Date();
+        projectDocument.clientComment = comment || '';
+        
+        // Ha elfogadták vagy elutasították, akkor már nem igényel jóváhagyást
+        if (status === 'approved' || status === 'rejected') {
+          projectDocument.requiresClientApproval = false;
+        }
+        
+        // Mentsük el a projektet
+        await project.save();
+      }
+    }
+    
+    // Csak a nyilvános információkat adjuk vissza
+    const publicDocument = {
+      _id: document._id,
+      name: document.name,
+      type: document.type,
+      status: document.status,
+      clientStatus: document.clientStatus,
+      clientStatusDate: document.clientStatusDate,
+      clientComment: document.clientComment,
+      createdAt: document.createdAt
+    };
+    
+    res.json({ 
+      success: true, 
+      message: `Dokumentum ${status === 'approved' ? 'elfogadva' : status === 'rejected' ? 'elutasítva' : 'frissítve'}`,
+      document: publicDocument
+    });
+  } catch (error) {
+    console.error('Hiba a nyilvános dokumentum ügyfél státuszának frissítésekor:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Dokumentum PDF letöltése nyilvánosan
+router.get('/public/documents/:id/pdf', apiKeyChecker, async (req, res) => {
+  try {
+    const document = await GeneratedDocument.findById(req.params.id);
+    if (!document) {
+      return res.status(404).json({ message: 'A dokumentum nem található' });
+    }
+    
+    // Használjuk a dokumentum HTML verzióját a PDF generáláshoz
+    const htmlContent = document.htmlVersion || document.content;
+    
+    // Cél fájl neve
+    const fileName = `${document.name.replace(/\s+/g, '_')}_${Date.now()}.pdf`;
+    const filePath = path.join(uploadsDir, fileName);
+    
+    // PDF generálás
+    const pdf = new PDFDocument();
+    const stream = fs.createWriteStream(filePath);
+    
+    pdf.pipe(stream);
+    pdf.fontSize(16).text(document.name, { align: 'center' });
+    pdf.moveDown();
+    pdf.fontSize(12).text(htmlContent.replace(/<[^>]*>/g, ''));
+    pdf.end();
+    
+    stream.on('finish', () => {
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+      fs.createReadStream(filePath).pipe(res);
+    });
+  } catch (error) {
+    console.error('Hiba a nyilvános dokumentum PDF letöltésekor:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
 export default router;
