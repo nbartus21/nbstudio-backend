@@ -83,6 +83,8 @@ const SharedDocumentView = () => {
     try {
       const response = await fetch(`${API_URL}/public/shared-document/${token}/info`, {
         headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
           'X-API-Key': API_KEY
         }
       });
@@ -116,6 +118,7 @@ const SharedDocumentView = () => {
       const response = await fetch(`${API_URL}/public/shared-document/${token}/verify`, {
         method: 'POST',
         headers: {
+          'Accept': 'application/json',
           'Content-Type': 'application/json',
           'X-API-Key': API_KEY
         },

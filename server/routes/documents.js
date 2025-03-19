@@ -634,7 +634,7 @@ router.post('/documents/:id/share-document', async (req, res) => {
   }
 });
 
-// Dokumentum publikus adatainak lekérése token alapján
+// Publikus dokumentum információ lekérése (PIN bekérés előtt)
 router.get('/public/shared-document/:token/info', corsMiddleware, apiKeyChecker, async (req, res) => {
   try {
     const document = await GeneratedDocument.findOne({ 'sharing.token': req.params.token });
