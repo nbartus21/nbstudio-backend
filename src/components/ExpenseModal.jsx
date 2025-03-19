@@ -96,7 +96,7 @@ const ExpenseModal = ({ isOpen, onClose, onSave, expense = null }) => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Összeg
+                Összeg (EUR)
               </label>
               <input
                 type="number"
