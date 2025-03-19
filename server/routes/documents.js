@@ -24,10 +24,18 @@ const corsMiddleware = (req, res, next) => {
   next();
 };
 
+// Védett végpontok
+router.use(authMiddleware);
+
 // FONTOS: Engedélyezzük a hozzáférést a dokumentum létrehozásához API kulccsal IS,
 // hogy a publikus kliensek is tudják használni
 const apiKeyChecker = (req, res, next) => {
-  // Ellenőrizzük az API kulcsot
+  // Ha van érvényes token, akkor engedjük tovább
+  if (req.userData) {
+    return next();
+  }
+  
+  // Ha nincs token, ellenőrizzük az API kulcsot
   const apiKey = req.headers['x-api-key'];
   if (apiKey === 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0') {
     // Ha érvényes az API kulcs, állítsuk be egy alap userData objektumot
@@ -35,89 +43,9 @@ const apiKeyChecker = (req, res, next) => {
     return next();
   }
   
-  // Ha nincs érvényes API kulcs, akkor 401
+  // Ha sem token, sem érvényes API kulcs nincs, akkor 401
   return res.status(401).json({ message: 'Unauthorized access' });
 };
-
-// ==============================================
-// PUBLIC ENDPOINTS (No authentication required)
-// ==============================================
-
-// Publikus dokumentum információ lekérése (PIN bekérés előtt)
-router.get('/public/shared-document/:token/info', corsMiddleware, apiKeyChecker, async (req, res) => {
-  try {
-    const document = await GeneratedDocument.findOne({ 'sharing.token': req.params.token });
-    
-    if (!document) {
-      return res.status(404).json({ message: 'Dokumentum nem található vagy a link érvénytelen' });
-    }
-    
-    // Ellenőrizzük a lejárati dátumot
-    if (document.sharing.expiresAt && new Date() > document.sharing.expiresAt) {
-      return res.status(403).json({ message: 'A megtekintési link lejárt' });
-    }
-    
-    // Csak minimális adatokat küldünk vissza PIN bekéréshez
-    const basicInfo = {
-      id: document._id,
-      name: document.name,
-      expiresAt: document.sharing.expiresAt,
-      requiresPin: true,
-      createdAt: document.createdAt
-    };
-    
-    res.json(basicInfo);
-  } catch (error) {
-    console.error('Hiba a megosztott dokumentum információ lekérésekor:', error);
-    res.status(500).json({ message: error.message });
-  }
-});
-
-// Dokumentum PIN kód ellenőrzése
-router.post('/public/shared-document/:token/verify', corsMiddleware, apiKeyChecker, async (req, res) => {
-  try {
-    const { pin } = req.body;
-    
-    if (!pin) {
-      return res.status(400).json({ message: 'PIN kód megadása kötelező' });
-    }
-    
-    const document = await GeneratedDocument.findOne({ 'sharing.token': req.params.token });
-    
-    if (!document) {
-      return res.status(404).json({ message: 'Dokumentum nem található vagy a link érvénytelen' });
-    }
-    
-    // Lejárat ellenőrzése
-    if (document.sharing.expiresAt && new Date() > document.sharing.expiresAt) {
-      return res.status(403).json({ message: 'A megosztási link lejárt' });
-    }
-
-    if (document.sharing.pin !== pin) {
-      return res.status(403).json({ message: 'Érvénytelen PIN kód' });
-    }
-    
-    const documentData = {
-      id: document._id,
-      name: document.name,
-      content: document.htmlVersion || document.content,
-      createdAt: document.createdAt,
-      updatedAt: document.updatedAt
-    };
-    
-    res.json(documentData);
-  } catch (error) {
-    console.error('Hiba a dokumentum megtekintésnél:', error);
-    res.status(500).json({ message: error.message });
-  }
-});
-
-// ==============================================
-// PROTECTED ENDPOINTS (Require authentication)
-// ==============================================
-
-// Védett végpontok
-router.use(authMiddleware);
 
 // Fájl útvonalak beállítása
 const __filename = fileURLToPath(import.meta.url);
@@ -706,6 +634,96 @@ router.post('/documents/:id/share-document', async (req, res) => {
   }
 });
 
+// Dokumentum publikus adatainak lekérése token alapján
+router.get('/public/shared-document/:token/info', corsMiddleware, apiKeyChecker, async (req, res) => {
+  try {
+    const document = await GeneratedDocument.findOne({ 'sharing.token': req.params.token });
+    
+    if (!document) {
+      return res.status(404).json({ message: 'Dokumentum nem található vagy a link érvénytelen' });
+    }
+    
+    // Ellenőrizzük a lejárati dátumot
+    if (document.sharing.expiresAt && new Date() > document.sharing.expiresAt) {
+      return res.status(403).json({ message: 'A megtekintési link lejárt' });
+    }
+    
+    // Csak minimális adatokat küldünk vissza PIN bekéréshez
+    const basicInfo = {
+      id: document._id,
+      name: document.name,
+      expiresAt: document.sharing.expiresAt,
+      requiresPin: true,
+      createdAt: document.createdAt
+    };
+    
+    res.json(basicInfo);
+  } catch (error) {
+    console.error('Hiba a megosztott dokumentum információ lekérésekor:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Dokumentum PIN kód ellenőrzése
+router.post('/public/shared-document/:token/verify', corsMiddleware, apiKeyChecker, async (req, res) => {
+  try {
+    const { pin } = req.body;
+    
+    if (!pin) {
+      return res.status(400).json({ message: 'PIN kód megadása kötelező' });
+    }
+    
+    const document = await GeneratedDocument.findOne({ 'sharing.token': req.params.token });
+    
+    if (!document) {
+      return res.status(404).json({ message: 'Dokumentum nem található vagy a link érvénytelen' });
+    }
+    
+    // Lejárat ellenőrzése
+    if (document.sharing.expiresAt && new Date() > document.sharing.expiresAt) {
+      return res.status(403).json({ message: 'A megosztási link lejárt' });
+    }
+
+    if (document.sharing.pin !== pin) {
+      return res.status(403).json({ message: 'Érvénytelen PIN kód' });
+    }
+    
+    const documentData = {
+      id: document._id,
+      name: document.name,
+      content: document.htmlVersion || document.content,
+      createdAt: document.createdAt,
+      updatedAt: document.updatedAt
+    };
+    
+    res.json(documentData);
+  } catch (error) {
+    console.error('Hiba a dokumentum megtekintésnél:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Dokumentum törlése
+router.delete('/documents/:id', async (req, res) => {
+  try {
+    const document = await GeneratedDocument.findById(req.params.id);
+    
+    if (!document) {
+      return res.status(404).json({ message: 'Dokumentum nem található' });
+    }
+    
+    await GeneratedDocument.deleteOne({ _id: req.params.id });
+    
+    res.json({ 
+      success: true, 
+      message: 'Dokumentum sikeresen törölve' 
+    });
+  } catch (error) {
+    console.error('Hiba a dokumentum törlésekor:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
 // Publikus dokumentum információ lekérése (PIN bekérés előtt)
 router.get('/public/documents/:token/info', corsMiddleware, apiKeyChecker, async (req, res) => {
   try {
@@ -839,27 +857,6 @@ router.post('/public/documents/:token/response', corsMiddleware, apiKeyChecker, 
     });
   } catch (error) {
     console.error('Hiba a dokumentum ügyfél válaszának feldolgozásakor:', error);
-    res.status(500).json({ message: error.message });
-  }
-});
-
-// Dokumentum törlése
-router.delete('/documents/:id', async (req, res) => {
-  try {
-    const document = await GeneratedDocument.findById(req.params.id);
-    
-    if (!document) {
-      return res.status(404).json({ message: 'Dokumentum nem található' });
-    }
-    
-    await GeneratedDocument.deleteOne({ _id: req.params.id });
-    
-    res.json({ 
-      success: true, 
-      message: 'Dokumentum sikeresen törölve' 
-    });
-  } catch (error) {
-    console.error('Hiba a dokumentum törlésekor:', error);
     res.status(500).json({ message: error.message });
   }
 });

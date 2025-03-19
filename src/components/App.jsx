@@ -8,20 +8,22 @@ import BlogCreator from './BlogCreator';
 import ContactAdmin from './ContactAdmin';
 import CalculatorAdmin from './CalculatorAdmin';
 import Login from './Login';
+import MagicLogin from './MagicLogin';
 import ProjectManager from './ProjectManager';
 import DomainManager from './domain/DomainManager';
 import SharedProjectView from './SharedProjectView';
 import InvoiceManager from './InvoiceManager';
 import AccountingManager from './AccountingManager';
 import HostingManager from './HostingManager';
-import TranslationTool from './TranslationTool';
+import TranslationTool from './TranslationTool'; // Új komponens importálása
 import SupportTicketManager from './SupportTicketManager';
 import QRLogin from './QRLogin';
 import DocumentManager from './DocumentManager';
-import AIChat from './AIChat';
-import SideChat from './SideChat';
+import AIChat from './AIChat'; // AI Chat importálása
+import SideChat from './SideChat'; // Side chat importálása
 import Help from './Help';
-import SharedDocumentView from './SharedDocumentView';
+
+
 
 const App = () => {
  const PrivateRoute = ({ children }) => {
@@ -43,6 +45,7 @@ const App = () => {
  return (
    <Routes>
      <Route path="/login" element={<Login />} />
+     <Route path="/magic-login" element={<MagicLogin />} />
      
      <Route
        path="/"
@@ -165,9 +168,8 @@ const App = () => {
          </PrivateRoute>
        }
      />
-     <Route path="*" element={<Navigate to="/login" />} />
+     <Route path="*" element={<Navigate to="/magic-login" />} />
      <Route path="/shared-project/:token" element={<SharedProjectView />} />
-     <Route path="/shared-document/:token" element={<SharedDocumentView />} />
      <Route 
        path="/ai-chat" 
        element={
