@@ -587,8 +587,8 @@ router.post('/documents/:id/send', async (req, res) => {
   }
 });
 
-// Dokumentum megosztási link generálása
-router.post('/documents/:id/share', async (req, res) => {
+// Dokumentum megosztási link generálása (új verzió - sharing field használatával)
+router.post('/documents/:id/share-document', async (req, res) => {
   try {
     const { expiryDays = 30 } = req.body;
     
@@ -604,30 +604,101 @@ router.post('/documents/:id/share', async (req, res) => {
     
     // Token generálása
     const { v4: uuidv4 } = await import('uuid');
-    const publicToken = uuidv4();
+    const shareToken = uuidv4();
     
     // 6 jegyű PIN kód generálása
-    const publicPin = Math.floor(100000 + Math.random() * 900000).toString();
+    const pin = Math.floor(100000 + Math.random() * 900000).toString();
     
-    // Dokumentum frissítése
-    document.publicToken = publicToken;
-    document.publicPin = publicPin;
-    document.publicViewExpires = expiryDate;
+    // Megosztási link generálása
+    const shareLink = `https://project.nb-studio.net/shared-document/${shareToken}`;
+    
+    // Megosztási adatok mentése
+    document.sharing = {
+      token: shareToken,
+      pin: pin,
+      link: shareLink,
+      expiresAt: expiryDate,
+      createdAt: new Date()
+    };
     
     await document.save();
     
-    // Megosztási link generálása
-    const shareLink = `https://project.nb-studio.net/public/documents/${publicToken}`;
-    
-    res.json({ 
-      success: true, 
+    res.status(200).json({ 
       shareLink,
-      pin: publicPin,
+      pin,
       expiresAt: expiryDate,
-      documentName: document.name
+      createdAt: document.sharing.createdAt
     });
   } catch (error) {
-    console.error('Hiba a dokumentum megosztási link generálásakor:', error);
+    res.status(500).json({ message: 'Szerver hiba történt', error: error.message });
+  }
+});
+
+// Dokumentum publikus adatainak lekérése token alapján
+router.get('/public/shared-document/:token/info', corsMiddleware, apiKeyChecker, async (req, res) => {
+  try {
+    const document = await GeneratedDocument.findOne({ 'sharing.token': req.params.token });
+    
+    if (!document) {
+      return res.status(404).json({ message: 'Dokumentum nem található vagy a link érvénytelen' });
+    }
+    
+    // Ellenőrizzük a lejárati dátumot
+    if (document.sharing.expiresAt && new Date() > document.sharing.expiresAt) {
+      return res.status(403).json({ message: 'A megtekintési link lejárt' });
+    }
+    
+    // Csak minimális adatokat küldünk vissza PIN bekéréshez
+    const basicInfo = {
+      id: document._id,
+      name: document.name,
+      expiresAt: document.sharing.expiresAt,
+      requiresPin: true,
+      createdAt: document.createdAt
+    };
+    
+    res.json(basicInfo);
+  } catch (error) {
+    console.error('Hiba a megosztott dokumentum információ lekérésekor:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Dokumentum PIN kód ellenőrzése
+router.post('/public/shared-document/:token/verify', corsMiddleware, apiKeyChecker, async (req, res) => {
+  try {
+    const { pin } = req.body;
+    
+    if (!pin) {
+      return res.status(400).json({ message: 'PIN kód megadása kötelező' });
+    }
+    
+    const document = await GeneratedDocument.findOne({ 'sharing.token': req.params.token });
+    
+    if (!document) {
+      return res.status(404).json({ message: 'Dokumentum nem található vagy a link érvénytelen' });
+    }
+    
+    // Lejárat ellenőrzése
+    if (document.sharing.expiresAt && new Date() > document.sharing.expiresAt) {
+      return res.status(403).json({ message: 'A megosztási link lejárt' });
+    }
+
+    if (document.sharing.pin !== pin) {
+      return res.status(403).json({ message: 'Érvénytelen PIN kód' });
+    }
+    
+    const documentData = {
+      id: document._id,
+      name: document.name,
+      content: document.htmlVersion || document.content,
+      createdAt: document.createdAt,
+      updatedAt: document.updatedAt
+    };
+    
+    res.json(documentData);
+  } catch (error) {
+    console.error('Hiba a dokumentum megtekintésnél:', error);
     res.status(500).json({ message: error.message });
   }
 });

@@ -158,6 +158,21 @@ const generatedDocumentSchema = new mongoose.Schema({
   clientApprovalComment: {
     type: String
   },
+  // Dokumentum megosztás adatok
+  sharing: {
+    token: {
+      type: String,
+      unique: true,
+      sparse: true
+    },
+    pin: {
+      type: String,
+      sparse: true
+    },
+    link: String,
+    expiresAt: Date,
+    createdAt: Date
+  },
   createdAt: { 
     type: Date, 
     default: Date.now 

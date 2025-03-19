@@ -390,7 +390,7 @@ const DocumentManager = () => {
   const handleCreateShareLink = async () => {
     try {
       const response = await api.post(
-        `/api/documents/${shareData.documentId}/share`, 
+        `/api/documents/${shareData.documentId}/share-document`, 
         { expiryDays: shareData.expiryDays }
       );
       
@@ -751,10 +751,10 @@ const DocumentManager = () => {
                                 <Clock className="h-3.5 w-3.5 mr-1" />
                                 Létrehozva: {new Date(doc.createdAt).toLocaleDateString('hu-HU')}
                               </span>
-                              {doc.publicToken && (
+                              {doc.sharing?.token && doc.sharing?.pin && (
                                 <span className="text-blue-500 flex items-center" title="Megosztási link és PIN">
                                   <Link className="h-3.5 w-3.5 mr-1" />
-                                  Megosztott {doc.publicPin ? `(PIN: ${doc.publicPin})` : ''}
+                                  Megosztott {doc.sharing.pin ? `(PIN: ${doc.sharing.pin})` : ''}
                                 </span>
                               )}
                             </div>
@@ -810,8 +810,8 @@ const DocumentManager = () => {
                                     email: doc.projectId?.client?.email || '',
                                     subject: `Dokumentum: ${doc.name}`,
                                     message: `Tisztelt Ügyfelünk!\n\nMellékelten küldjük a következő dokumentumot: ${doc.name}.\n\n` +
-                                    (doc.publicToken && doc.publicPin ? 
-                                    `A dokumentum online is megtekinthető és jóváhagyható az alábbi linken:\nLink: https://project.nb-studio.net/public/documents/${doc.publicToken}\nPIN kód: ${doc.publicPin}\n\nA hozzáférés lejár: ${doc.publicViewExpires ? new Date(doc.publicViewExpires).toLocaleDateString('hu-HU') : 'N/A'}` : '')
+                                    (doc.sharing?.token && doc.sharing?.pin ? 
+                                    `A dokumentum online is megtekinthető az alábbi linken:\nLink: ${doc.sharing.link}\nPIN kód: ${doc.sharing.pin}\n\nA hozzáférés lejár: ${doc.sharing.expiresAt ? new Date(doc.sharing.expiresAt).toLocaleDateString('hu-HU') : 'N/A'}` : '')
                                   });
                                 }}
                                 className="p-1 text-blue-600 hover:text-blue-800 rounded hover:bg-blue-50"
