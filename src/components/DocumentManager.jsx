@@ -820,7 +820,7 @@ const DocumentManager = () => {
                         <div className="text-sm text-gray-900">
                           {document.projectId ? (
                             <span className="flex items-center">
-                              {projects.find(p => p._id === document.projectId)?.name || document.projectId}
+                              {projects.find(p => p._id === document.projectId)?.name || document.projectName || "Ismeretlen projekt"}
                               {document.sharedWithProject && (
                                 <span className="ml-1 text-xs text-green-600 flex items-center">
                                   <CheckCircle className="h-3 w-3 mr-1" />
