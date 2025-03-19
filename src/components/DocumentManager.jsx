@@ -434,6 +434,104 @@ const DocumentManager = () => {
     });
   };
 
+  // Projekt megosztás form
+  const renderProjectShareForm = () => {
+    if (!showProjectShareForm) return null;
+    
+    const document = documents.find(doc => doc._id === projectSharingData.documentId);
+    
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <h3 className="text-lg font-medium">Dokumentum megosztása projektben</h3>
+          </div>
+          
+          <div className="p-6">
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Dokumentum
+              </label>
+              <div className="border rounded-md px-3 py-2 bg-gray-50">
+                {document ? document.name : 'Nincs kiválasztott dokumentum'}
+              </div>
+            </div>
+            
+            <div className="mb-4">
+              <label htmlFor="projectId" className="block text-sm font-medium text-gray-700 mb-1">
+                Projekt
+              </label>
+              {document && document.projectId ? (
+                <div className="border rounded-md px-3 py-2 bg-gray-50">
+                  {document.projectName || 'Kiválasztott projekt'}
+                </div>
+              ) : (
+                <select
+                  id="projectId"
+                  value={projectSharingData.projectId}
+                  onChange={(e) => setProjectSharingData({...projectSharingData, projectId: e.target.value})}
+                  className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">Válassz projektet</option>
+                  {projects.map(project => (
+                    <option key={project._id} value={project._id}>
+                      {project.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+            
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Állapot
+              </label>
+              <select
+                value={projectSharingData.status}
+                onChange={(e) => setProjectSharingData({...projectSharingData, status: e.target.value})}
+                className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="pendingApproval">Jóváhagyásra vár</option>
+                <option value="viewOnly">Csak megtekintés</option>
+              </select>
+              <p className="text-xs text-gray-500 mt-1">
+                "Jóváhagyásra vár" esetén az ügyfél elfogadhatja vagy elutasíthatja a dokumentumot.
+              </p>
+            </div>
+            
+            <div className="flex justify-end space-x-2 mt-6">
+              <button
+                type="button"
+                onClick={() => setShowProjectShareForm(false)}
+                className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Mégse
+              </button>
+              <button
+                type="button"
+                onClick={handleShareDocumentWithProject}
+                className="px-4 py-2 bg-blue-600 border border-transparent rounded-md text-sm font-medium text-white hover:bg-blue-700 flex items-center"
+                disabled={loading}
+              >
+                {loading ? (
+                  <span className="inline-flex items-center">
+                    <span className="loading loading-spinner loading-xs mr-2"></span>
+                    Megosztás...
+                  </span>
+                ) : (
+                  <>
+                    <FileSymlink className="h-4 w-4 mr-2" />
+                    Megosztás
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   if (loading && templates.length === 0 && documents.length === 0) {
     return (
       <div className="flex justify-center items-center h-64">

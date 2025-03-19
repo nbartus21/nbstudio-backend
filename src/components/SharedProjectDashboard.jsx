@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Upload, Check, AlertTriangle, LogOut, Users, Calendar, 
-  Globe, ChevronDown, File, Download, FileText, Home, DollarSign, FileCheck, MessageCircle, X 
+  Globe, ChevronDown, File, Download, FileText, Home, DollarSign, FileCheck, MessageCircle, X,
+  CheckCircle, XCircle 
 } from 'lucide-react';
 import { formatShortDate, debugLog, loadFromLocalStorage, getProjectId } from './shared/utils';
 
@@ -68,7 +69,10 @@ const translations = {
       updateError: "Error updating document status",
       view: "View",
       download: "Download",
-      commentPlaceholder: "Add a comment"
+      approve: "Approve",
+      reject: "Reject",
+      commentPlaceholder: "Add a comment",
+      noContent: "No content available"
     }
   },
   de: {
@@ -122,7 +126,10 @@ const translations = {
       updateError: "Fehler beim Aktualisieren des Dokumentstatus",
       view: "Anzeigen",
       download: "Herunterladen",
-      commentPlaceholder: "Kommentar hinzufügen"
+      approve: "Genehmigen",
+      reject: "Ablehnen",
+      commentPlaceholder: "Kommentar hinzufügen",
+      noContent: "Kein Inhalt verfügbar"
     }
   },
   hu: {
@@ -176,7 +183,10 @@ const translations = {
       updateError: "Hiba történt a dokumentum állapotának frissítésekor",
       view: "Megtekintés",
       download: "Letöltés",
-      commentPlaceholder: "Megjegyzés hozzáadása"
+      approve: "Elfogadás",
+      reject: "Elutasítás",
+      commentPlaceholder: "Megjegyzés hozzáadása",
+      noContent: "Nincs elérhető tartalom"
     }
   }
 };
@@ -348,6 +358,7 @@ const SharedProjectDashboard = ({
   const [viewingDocument, setViewingDocument] = useState(null);
   const [adminMode, setAdminMode] = useState(isAdmin);
   const [showLanguageDropdown, setShowLanguageDropdown] = useState(false);
+  const [approvalComment, setApprovalComment] = useState('');
   
   // Tároljuk a felhasználó adatait state-ben
   const [userData, setUserData] = useState(() => {
@@ -874,6 +885,7 @@ const SharedProjectDashboard = ({
   // Dokumentum bezárása
   const handleCloseDocumentView = () => {
     setViewingDocument(null);
+    setApprovalComment(''); // Töröljük a megjegyzést bezáráskor
   };
   
   // Dokumentum letöltése PDF-ként
