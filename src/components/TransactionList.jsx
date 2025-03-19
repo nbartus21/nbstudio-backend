@@ -196,28 +196,6 @@ const TransactionList = ({
                     {transaction.paymentStatus === 'paid' ? 'Fizetve' :
                      transaction.paymentStatus === 'pending' ? 'Függőben' :
                      transaction.paymentStatus === 'overdue' ? 'Késedelmes' : 'Törölt'}
-                    
-                    {/* Ha Stripe fizetésről van szó, jelezzük külön ikonnal */}
-                    {transaction.paymentStatus === 'paid' && 
-                     (transaction.paymentMethod === 'card' || 
-                      (transaction.notes && 
-                       (transaction.notes.includes('Stripe') || 
-                        transaction.notes.includes('bankkártyás fizetés')))) && (
-                      <span className="ml-1 inline-flex items-center">
-                        <svg 
-                          className="h-3 w-3" 
-                          viewBox="0 0 24 24" 
-                          fill="none" 
-                          stroke="currentColor" 
-                          strokeWidth="2" 
-                          strokeLinecap="round" 
-                          strokeLinejoin="round"
-                        >
-                          <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
-                          <line x1="1" y1="10" x2="23" y2="10"></line>
-                        </svg>
-                      </span>
-                    )}
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">

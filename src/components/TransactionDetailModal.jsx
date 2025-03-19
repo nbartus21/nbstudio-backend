@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Upload, X, Check, CreditCard, ExternalLink, Download } from 'lucide-react';
+import { FileText, Upload, X, Check } from 'lucide-react';
 
 const TransactionDetailModal = ({ isOpen, onClose, transaction, onSave }) => {
   const [paymentDetails, setPaymentDetails] = useState({
@@ -9,29 +9,20 @@ const TransactionDetailModal = ({ isOpen, onClose, transaction, onSave }) => {
     notes: '',
     files: []
   });
-  
-  // Ellenőrizzük, hogy ez automatikusan generált Stripe tranzakció-e
-  const isStripeTransaction = transaction?.notes?.includes('Stripe') || 
-                             transaction?.paymentMethod === 'card' || 
-                             transaction?.notes?.includes('bankkártyás fizetés');
 
   // Betöltjük a tranzakció meglévő részleteit, ha vannak
   useEffect(() => {
-    if (transaction) {
-      // Az alapvető tranzakció adatokat mindig betöltjük
-      const paymentDate = transaction.date || transaction.paidDate || new Date();
-      const paymentMethod = isStripeTransaction ? 'credit_card' : (transaction.paymentMethod || 'bank_transfer');
-      const notes = transaction.notes || '';
-      
+    if (transaction && transaction.paymentDetails) {
+      const { paymentDate, paymentMethod, notes, attachmentDescription } = transaction.paymentDetails;
       setPaymentDetails(prev => ({
         ...prev,
-        paymentDate: new Date(paymentDate).toISOString().split('T')[0],
-        paymentMethod: paymentMethod,
-        notes: notes,
-        attachmentDescription: transaction.attachmentDescription || '',
+        paymentDate: paymentDate ? new Date(paymentDate).toISOString().split('T')[0] : '',
+        paymentMethod: paymentMethod || 'bank_transfer',
+        notes: notes || '',
+        attachmentDescription: attachmentDescription || '',
       }));
     }
-  }, [transaction, isStripeTransaction]);
+  }, [transaction]);
 
   const handleFileChange = (e) => {
     const newFiles = Array.from(e.target.files);
@@ -82,15 +73,7 @@ const TransactionDetailModal = ({ isOpen, onClose, transaction, onSave }) => {
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-lg max-w-2xl w-full p-6">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-semibold">
-            Tranzakció részletek
-            {isStripeTransaction && (
-              <span className="ml-2 px-2 py-0.5 inline-flex items-center text-xs font-medium rounded-full bg-green-100 text-green-800">
-                <CreditCard className="h-3 w-3 mr-1" />
-                Stripe fizetés
-              </span>
-            )}
-          </h2>
+          <h2 className="text-xl font-semibold">Tranzakció részletek</h2>
           <button
             onClick={onClose}
             className="text-gray-500 hover:text-gray-700"
@@ -98,52 +81,6 @@ const TransactionDetailModal = ({ isOpen, onClose, transaction, onSave }) => {
             <X className="h-6 w-6" />
           </button>
         </div>
-        
-        {/* Stripe tranzakció esetén mutassuk az adatokat */}
-        {isStripeTransaction && (
-          <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-md">
-            <h3 className="font-medium text-green-700 mb-2 flex items-center">
-              <CreditCard className="h-4 w-4 mr-2" />
-              Bankkártyás fizetés adatai
-            </h3>
-            
-            <div className="space-y-2 text-sm">
-              {transaction.paymentStatus === 'paid' && (
-                <div className="flex items-center text-green-700">
-                  <Check className="h-4 w-4 mr-1" />
-                  <span>Sikeres fizetés</span>
-                </div>
-              )}
-              
-              {transaction.notes && (
-                <p className="whitespace-pre-line">{transaction.notes}</p>
-              )}
-              
-              {/* Bizonylat megjelenítése, ha van */}
-              {transaction.attachments && transaction.attachments.length > 0 && (
-                <div className="mt-2 pt-2 border-t border-green-200">
-                  <div className="font-medium mb-1">Csatolt bizonylatok:</div>
-                  <ul className="space-y-1">
-                    {transaction.attachments.map((attachment, index) => (
-                      <li key={index} className="flex items-center">
-                        <FileText className="h-4 w-4 mr-1 text-green-700" />
-                        <a 
-                          href={attachment.url}
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:text-blue-800 hover:underline flex items-center"
-                        >
-                          {attachment.name || "Stripe fizetési bizonylat"}
-                          <ExternalLink className="h-3 w-3 ml-1" />
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
@@ -266,10 +203,9 @@ const TransactionDetailModal = ({ isOpen, onClose, transaction, onSave }) => {
             <button
               type="submit"
               className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 flex items-center"
-              disabled={isStripeTransaction && transaction.paymentStatus === 'paid'}
             >
               <Check className="h-4 w-4 mr-2" />
-              {isStripeTransaction && transaction.paymentStatus === 'paid' ? 'Stripe fizetés befejezve' : 'Mentés'}
+              Mentés
             </button>
           </div>
         </form>

@@ -582,88 +582,27 @@ router.post('/webhook', (req, res, next) => {
               // Még ha nem sikerül a részletes adatok lekérése, a fizetés ettől sikeres lehet
             }
             
-            // Létrehozunk egy bejegyzést az Accounting modellben is részletes tranzakció információkkal
+            // Létrehozunk egy bejegyzést az Accounting modellben is
             try {
               const Accounting = mongoose.model('Accounting');
               
-              // Ellenőrizzük, létezik-e már ilyen számla a könyvelésben
-              const existingTransaction = await Accounting.findOne({
+              await Accounting.create({
+                type: 'income',
+                category: 'project_invoice',
+                amount: invoice.paidAmount,
+                currency: session.currency.toUpperCase(),
+                date: new Date(),
+                description: `Számla fizetés: ${invoice.number} - ${project.name}`,
                 invoiceNumber: invoice.number,
-                projectId: project._id
+                paymentStatus: 'paid',
+                projectId: project._id,
+                notes: `Stripe fizetés (${session.payment_intent})`,
+                createdBy: 'system'
               });
               
-              if (existingTransaction) {
-                // Ha létezik, frissítjük a státuszát és fizetési adatait
-                console.log(`Updating existing accounting record for invoice ${invoice.number}`);
-                
-                existingTransaction.paymentStatus = 'paid';
-                existingTransaction.date = new Date(invoice.paidDate || new Date());
-                existingTransaction.notes = `Stripe bankkártyás fizetés (${session.payment_intent})`;
-                
-                // Tranzakció részletek hozzáadása a könyvelési tételhez
-                if (!existingTransaction.attachments) {
-                  existingTransaction.attachments = [];
-                }
-                
-                // Hozzáadjuk a fizetési bizonylatot, ha van
-                if (paymentIntent && paymentIntent.latest_charge && paymentIntent.latest_charge.receipt_url) {
-                  existingTransaction.attachments.push({
-                    name: `Stripe fizetési bizonylat (${invoice.number})`,
-                    url: paymentIntent.latest_charge.receipt_url,
-                    uploadDate: new Date()
-                  });
-                }
-                
-                // Egyéb fizetési adatok
-                existingTransaction.paymentMethod = 'card';
-                if (paymentIntent && paymentIntent.payment_method && paymentIntent.payment_method.card) {
-                  const card = paymentIntent.payment_method.card;
-                  existingTransaction.notes = `Stripe bankkártyás fizetés (${session.payment_intent})\nKártya: ${card.brand?.toUpperCase()} ••••${card.last4}`;
-                }
-                
-                await existingTransaction.save();
-                console.log(`Accounting record updated for invoice ${invoiceId}`);
-              } else {
-                // Ha nem létezik, létrehozunk egy új bejegyzést
-                console.log(`Creating new accounting record for invoice ${invoice.number}`);
-                
-                // Alap könyvelési adatok
-                const accountingData = {
-                  type: 'income',
-                  category: 'project_invoice',
-                  amount: invoice.paidAmount,
-                  currency: session.currency.toUpperCase(),
-                  date: new Date(),
-                  description: `Számla fizetés: ${invoice.number} - ${project.name}`,
-                  invoiceNumber: invoice.number,
-                  paymentStatus: 'paid',
-                  projectId: project._id,
-                  paymentMethod: 'card',
-                  notes: `Stripe fizetés (${session.payment_intent})`,
-                  createdBy: 'system'
-                };
-                
-                // Fizetési részletek hozzáadása
-                if (paymentIntent && paymentIntent.payment_method && paymentIntent.payment_method.card) {
-                  const card = paymentIntent.payment_method.card;
-                  accountingData.notes = `Stripe bankkártyás fizetés (${session.payment_intent})\nKártya: ${card.brand?.toUpperCase()} ••••${card.last4}`;
-                }
-                
-                // Csatolmányok hozzáadása
-                if (paymentIntent && paymentIntent.latest_charge && paymentIntent.latest_charge.receipt_url) {
-                  accountingData.attachments = [{
-                    name: `Stripe fizetési bizonylat (${invoice.number})`,
-                    url: paymentIntent.latest_charge.receipt_url,
-                    uploadDate: new Date()
-                  }];
-                }
-                
-                // Létrehozzuk a könyvelési tételt
-                const accounting = await Accounting.create(accountingData);
-                console.log(`New accounting record created for invoice ${invoiceId} with ID: ${accounting._id}`);
-              }
+              console.log(`Accounting record created for invoice ${invoiceId}`);
             } catch (accountingError) {
-              console.error('Error managing accounting record:', accountingError);
+              console.error('Error creating accounting record:', accountingError);
             }
             
             await project.save();
