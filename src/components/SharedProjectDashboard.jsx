@@ -202,18 +202,64 @@ const SharedProjectDashboard = ({
         const API_URL = 'https://admin.nb-studio.net:5001/api';
         const API_KEY = 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0';
         
-        // Újra lekérjük a projektet
-        const response = await fetch(`${API_URL}/public/projects/verify-pin`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-API-Key': API_KEY
-          },
-          body: JSON.stringify({ 
-            token: normalizedProject.sharing?.token,
-            pin: session.pin || ''
-          })
-        });
+        // Újra lekérjük a projektet - több végpontot is megpróbálunk
+        let response;
+        
+        // Először megpróbáljuk a legvalószínűbb végponton
+        try {
+          console.log('Trying to refresh project data with first endpoint: /api/public/projects/verify-pin');
+          response = await fetch(`${API_URL}/public/projects/verify-pin`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-API-Key': API_KEY,
+              'Accept': 'application/json',
+              'Origin': window.location.origin
+            },
+            body: JSON.stringify({ 
+              token: normalizedProject.sharing?.token,
+              pin: session.pin || ''
+            }),
+            credentials: 'include'
+          });
+          
+          // Ha nem sikerült, próbáljuk a következő végpontot
+          if (response.status === 403 || response.status === 404) {
+            console.log('First endpoint failed, trying second endpoint: /verify-pin');
+            response = await fetch(`${API_URL}/verify-pin`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-API-Key': API_KEY,
+                'Accept': 'application/json',
+                'Origin': window.location.origin
+              },
+              body: JSON.stringify({ 
+                token: normalizedProject.sharing?.token,
+                pin: session.pin || ''
+              }),
+              credentials: 'include'
+            });
+          }
+        } catch (fetchError) {
+          console.error('Error during project refresh fetch:', fetchError);
+          // Ha hiba történt az első kérésnél, próbáljuk újra más végponton
+          console.log('Fetch error, trying final endpoint: /api/verify-pin');
+          response = await fetch(`${API_URL}/api/verify-pin`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-API-Key': API_KEY,
+              'Accept': 'application/json',
+              'Origin': window.location.origin
+            },
+            body: JSON.stringify({ 
+              token: normalizedProject.sharing?.token,
+              pin: session.pin || ''
+            }),
+            credentials: 'include'
+          });
+        }
         
         if (response.ok) {
           const data = await response.json();

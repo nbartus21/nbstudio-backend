@@ -49,6 +49,14 @@ import authMiddleware from './middleware/auth.js';
 // Load environment variables
 dotenv.config();
 
+// CORS fejléc segédmetódus létrehozása
+const allowCors = (res) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key');
+  res.header('Access-Control-Max-Age', '86400');
+};
+
 // Initialize Express app
 const app = express();
 const host = process.env.HOST || '0.0.0.0';
@@ -130,6 +138,19 @@ const corsOptions = {
 };
 
 // Apply middlewares
+app.use((req, res, next) => {
+  // CORS előkezelés minden kérésre
+  allowCors(res);
+  
+  // OPTIONS kérés kezelése közvetlenül
+  if (req.method === 'OPTIONS') {
+    console.log('OPTIONS kérés kezelése közvetlenül');
+    return res.status(200).end();
+  }
+  
+  next();
+});
+
 app.use(cors(corsOptions));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
