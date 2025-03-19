@@ -21,6 +21,7 @@ import DocumentManager from './DocumentManager';
 import AIChat from './AIChat';
 import SideChat from './SideChat';
 import Help from './Help';
+import SharedDocumentView from './SharedDocumentView';
 
 const App = () => {
  const PrivateRoute = ({ children }) => {
@@ -164,8 +165,9 @@ const App = () => {
          </PrivateRoute>
        }
      />
-     <Route path="*" element={<Navigate to="/magic-login" />} />
+     <Route path="*" element={<Navigate to="/login" />} />
      <Route path="/shared-project/:token" element={<SharedProjectView />} />
+     <Route path="/shared-document/:token" element={<SharedDocumentView />} />
      <Route 
        path="/ai-chat" 
        element={
