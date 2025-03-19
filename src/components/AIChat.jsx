@@ -365,7 +365,10 @@ const AIChat = () => {
           // Ha a sor üres, akkor egy üres paragrafust adunk
           if (!line.trim()) return <p key={i} className="my-2"></p>;
           
-          // Ha a sor egy címsor (## vagy #), akkor formázzuk
+          // Ha a sor egy címsor (###, ## vagy #), akkor formázzuk
+          if (line.startsWith('### ')) {
+            return <h3 key={i} className="text-base font-semibold mt-3 mb-2">{line.slice(4)}</h3>;
+          }
           if (line.startsWith('## ')) {
             return <h2 key={i} className="text-lg font-semibold mt-4 mb-2">{line.slice(3)}</h2>;
           }
@@ -380,7 +383,7 @@ const AIChat = () => {
           
           // Ha a sor egy kódblokk (```), akkor formázzuk
           if (line.trim().startsWith('```')) {
-            const language = line.trim().slice(3) || 'plaintext';
+            const language = line.trim().slice(3);
             const codeBlock = [];
             let j = i + 1;
             
