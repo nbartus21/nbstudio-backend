@@ -563,29 +563,10 @@ const SharedProjectDashboard = ({
   };
   
   // Update invoice status after payment
-  const handleUpdateInvoiceStatus = async (invoiceId, newStatus) => {
-    console.log('🔍 [SharedProjectDashboard] handleUpdateInvoiceStatus INDÍTÁS', {
-      invoiceId,
-      newStatus,
-      timestamp: new Date().toISOString()
-    });
-    
+  const handleUpdateInvoiceStatus = (invoiceId, newStatus) => {
     debugLog('handleUpdateInvoiceStatus', `Updating invoice ${invoiceId} status to ${newStatus}`);
     
-    if (!normalizedProject || !normalizedProject.invoices) {
-      console.error('❌ [SharedProjectDashboard] Hiányzó projekt vagy számlák tömb:', {
-        hasProject: !!normalizedProject,
-        hasInvoices: normalizedProject ? !!normalizedProject.invoices : false
-      });
-      return;
-    }
-    
-    console.log('📋 [SharedProjectDashboard] Számlák a projektben:', normalizedProject.invoices.map(inv => ({
-      id: inv._id || inv.id,
-      number: inv.number,
-      status: inv.status,
-      amount: inv.totalAmount
-    })));
+    if (!normalizedProject || !normalizedProject.invoices) return;
     
     // Update invoice status in project locally
     const updatedProject = { ...normalizedProject };
@@ -594,22 +575,7 @@ const SharedProjectDashboard = ({
       (inv.id && inv.id.toString() === invoiceId)
     );
     
-    console.log('🔍 [SharedProjectDashboard] Számla keresés eredmény:', {
-      invoiceIndex,
-      invoiceFound: invoiceIndex >= 0,
-      invoiceId
-    });
-    
     if (invoiceIndex >= 0) {
-      console.log('✅ [SharedProjectDashboard] Számla állapot ELŐTT:', {
-        number: updatedProject.invoices[invoiceIndex].number,
-        currentStatus: updatedProject.invoices[invoiceIndex].status,
-        newStatus,
-        paidDate: updatedProject.invoices[invoiceIndex].paidDate,
-        paidAmount: updatedProject.invoices[invoiceIndex].paidAmount,
-      });
-      
-      const oldStatus = updatedProject.invoices[invoiceIndex].status;
       updatedProject.invoices[invoiceIndex].status = newStatus;
       
       if (newStatus === 'fizetett' || newStatus === 'paid' || newStatus === 'bezahlt') {
@@ -617,93 +583,14 @@ const SharedProjectDashboard = ({
         updatedProject.invoices[invoiceIndex].paidAmount = updatedProject.invoices[invoiceIndex].totalAmount;
       }
       
-      console.log('✅ [SharedProjectDashboard] Számla állapot UTÁN:', {
-        number: updatedProject.invoices[invoiceIndex].number,
-        oldStatus,
-        newStatus: updatedProject.invoices[invoiceIndex].status,
-        paidDate: updatedProject.invoices[invoiceIndex].paidDate,
-        paidAmount: updatedProject.invoices[invoiceIndex].paidAmount,
-      });
-      
       // Update project state
-      console.log('⚙️ [SharedProjectDashboard] onUpdate hívása a frissített projekttel');
       onUpdate(updatedProject);
-
-      // Also update on server via API
-      try {
-        const projectId = updatedProject._id || updatedProject.id;
-        const API_URL = 'https://admin.nb-studio.net:5001';
-        const API_KEY = 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0';
-        
-        console.log('🌐 [SharedProjectDashboard] API kérés INDÍTÁSA:', {
-          method: 'PUT',
-          url: `${API_URL}/api/projects/${projectId}/invoices/${invoiceId}`,
-          requestBody: {
-            status: newStatus,
-            paidDate: newStatus === 'fizetett' ? new Date().toISOString() : undefined,
-            paidAmount: newStatus === 'fizetett' ? updatedProject.invoices[invoiceIndex].totalAmount : undefined
-          }
-        });
-        
-        const response = await fetch(`${API_URL}/api/projects/${projectId}/invoices/${invoiceId}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-API-Key': API_KEY,
-            'Accept': 'application/json'
-          },
-          body: JSON.stringify({
-            status: newStatus,
-            paidDate: newStatus === 'fizetett' ? new Date().toISOString() : undefined,
-            paidAmount: newStatus === 'fizetett' ? updatedProject.invoices[invoiceIndex].totalAmount : undefined
-          })
-        });
-
-        console.log('🌐 [SharedProjectDashboard] API válasz státusz:', {
-          ok: response.ok,
-          status: response.status,
-          statusText: response.statusText
-        });
-
-        if (response.ok) {
-          const responseData = await response.json();
-          console.log('🌐 [SharedProjectDashboard] API válasz adatok:', responseData);
-          
-          debugLog('handleUpdateInvoiceStatus', 'Successfully updated invoice status on server');
-          console.log('✅ [SharedProjectDashboard] Számla státusz sikeresen frissítve a szerveren');
-        } else {
-          console.error('❌ [SharedProjectDashboard] Hiba a számla státusz szerver frissítése során:', {
-            status: response.status,
-            statusText: response.statusText
-          });
-          
-          try {
-            const errorData = await response.json();
-            console.error('❌ [SharedProjectDashboard] API hibaüzenet:', errorData);
-          } catch (jsonError) {
-            console.error('❌ [SharedProjectDashboard] Nem sikerült a hibaüzenet JSON feldolgozása:', jsonError);
-          }
-        }
-      } catch (error) {
-        console.error('❌ [SharedProjectDashboard] Kivétel a számla státusz frissítése során:', error);
-        console.error('❌ [SharedProjectDashboard] Hiba részletek:', {
-          message: error.message,
-          stack: error.stack
-        });
-      }
       
       // Show success message
-      console.log('✅ [SharedProjectDashboard] Felhasználói értesítés megjelenítése a sikeres frissítésről');
       showSuccessMessage('A számla státusza sikeresen frissítve');
     } else {
-      console.error('❌ [SharedProjectDashboard] A számla nem található a projektben:', {
-        invoiceId,
-        allInvoiceIds: normalizedProject.invoices.map(inv => inv._id || inv.id)
-      });
       debugLog('handleUpdateInvoiceStatus', `Invoice ${invoiceId} not found in project`);
     }
-    
-    console.log('🔍 [SharedProjectDashboard] handleUpdateInvoiceStatus BEFEJEZVE');
   };
 
   // Handle file input change

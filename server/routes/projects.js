@@ -144,62 +144,18 @@ router.post('/projects/:id/invoices', async (req, res) => {
 
 // Számla státusz frissítése
 router.put('/projects/:projectId/invoices/:invoiceId', async (req, res) => {
-  console.log('🌐 [projects.js] Számla státusz frissítési kérés érkezett:', {
-    projectId: req.params.projectId,
-    invoiceId: req.params.invoiceId,
-    requestBody: req.body,
-    requestHeaders: {
-      contentType: req.headers['content-type'],
-      apiKey: req.headers['x-api-key'] ? '***' : 'nincs',
-      origin: req.headers['origin'],
-      referer: req.headers['referer']
-    },
-    timestamp: new Date().toISOString()
-  });
-
   try {
-    console.log('🔍 [projects.js] Projekt keresése az adatbázisban...');
     const project = await Project.findById(req.params.projectId);
-    
     if (!project) {
-      console.error('❌ [projects.js] A projekt nem található:', req.params.projectId);
       return res.status(404).json({ message: 'Project not found' });
     }
 
-    console.log('✅ [projects.js] Projekt megtalálva:', {
-      id: project._id,
-      name: project.name,
-      status: project.status,
-      hasInvoices: project.invoices && project.invoices.length > 0,
-      invoicesCount: project.invoices ? project.invoices.length : 0
-    });
-
-    console.log('🔍 [projects.js] Számla keresése a projektben...');
     const invoice = project.invoices.id(req.params.invoiceId);
-    
     if (!invoice) {
-      console.error('❌ [projects.js] A számla nem található a projektben:', {
-        invoiceId: req.params.invoiceId,
-        allInvoiceIds: project.invoices.map(inv => inv._id)
-      });
       return res.status(404).json({ message: 'Invoice not found' });
     }
 
-    console.log('✅ [projects.js] Számla megtalálva:', {
-      id: invoice._id,
-      number: invoice.number,
-      date: invoice.date,
-      dueDate: invoice.dueDate,
-      currrentStatus: invoice.status,
-      newStatus: req.body.status,
-      totalAmount: invoice.totalAmount,
-      paidAmount: invoice.paidAmount
-    });
-
     // Update invoice fields
-    console.log('🔄 [projects.js] Számla adatok frissítése...');
-    const oldStatus = invoice.status;
-    
     Object.assign(invoice, {
       ...req.body,
       updatedAt: new Date()
@@ -207,33 +163,14 @@ router.put('/projects/:projectId/invoices/:invoiceId', async (req, res) => {
 
     // If marking as paid, ensure proper paid amount and date
     if (req.body.status === 'fizetett') {
-      console.log('💰 [projects.js] Számla fizetettnek jelölése, fizetési adatok beállítása');
       invoice.paidAmount = invoice.totalAmount;
       invoice.paidDate = new Date();
     }
 
-    console.log('💾 [projects.js] Projekt mentése az adatbázisba...');
     await project.save();
-    
-    console.log('✅ [projects.js] Számla státusz sikeresen frissítve:', {
-      id: invoice._id,
-      number: invoice.number,
-      oldStatus,
-      newStatus: invoice.status,
-      paidDate: invoice.paidDate,
-      paidAmount: invoice.paidAmount
-    });
-    
     res.json(project);
   } catch (error) {
-    console.error('❌ [projects.js] Hiba a számla frissítése során:', error);
-    console.error('❌ [projects.js] Hiba részletek:', {
-      message: error.message,
-      stack: error.stack,
-      code: error.code,
-      name: error.name
-    });
-    
+    console.error('Invoice update error:', error);
     res.status(500).json({ 
       message: 'Server error while updating invoice',
       error: error.message 
