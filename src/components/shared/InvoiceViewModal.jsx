@@ -31,54 +31,13 @@ const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGenerat
     const canceled = url.searchParams.get('canceled');
     const invoiceId = url.searchParams.get('invoice');
     
-    debugLog('InvoiceViewModal', 'Checking URL params for payment status', { 
-      success, 
-      canceled, 
-      invoiceId,
-      currentInvoiceId: invoice._id
-    });
-    
-    // Szélesebb körű ellenőrzés az invoice ID-ra
-    // Ez figyelembe veszi, hogy a számla ID különböző formátumokban érkezhet és tárolódhat
-    const isCurrentInvoice = invoiceId && (
-      invoiceId === invoice._id?.toString() || 
-      invoiceId === invoice.id?.toString() || 
-      invoiceId === invoice.number?.toString()
-    );
-    
-    if (success === 'true' && isCurrentInvoice) {
-      debugLog('InvoiceViewModal', 'Payment was successful', { 
-        invoiceId,
-        currentInvoiceId: invoice._id,
-        invoiceStatus: invoice.status 
-      });
-      
-      // Csak akkor frissítsük, ha még nincs fizetve
-      if (invoice.status !== 'fizetett' && invoice.status !== 'paid' && invoice.status !== 'bezahlt') {
-        // Update invoice status locally or refresh data
-        if (onUpdateStatus) {
-          debugLog('InvoiceViewModal', 'Updating invoice status to paid');
-          onUpdateStatus(invoice._id, 'fizetett');
-          
-          // Mentjük a fizetést localStorage-ba is a hibakeresés érdekében
-          try {
-            const paymentInfo = {
-              timestamp: new Date().toISOString(),
-              invoiceId: invoice._id,
-              invoiceNumber: invoice.number,
-              status: 'success',
-              fromUrl: true
-            };
-            localStorage.setItem(`payment_${invoice._id}`, JSON.stringify(paymentInfo));
-            debugLog('InvoiceViewModal', 'Payment info saved to localStorage', paymentInfo);
-          } catch (storageError) {
-            console.error('Error saving payment info to localStorage:', storageError);
-          }
-        }
-      } else {
-        debugLog('InvoiceViewModal', 'Invoice already paid, not updating status');
+    if (success === 'true' && invoiceId === invoice._id) {
+      debugLog('InvoiceViewModal', 'Payment was successful', { invoiceId });
+      // Update invoice status locally or refresh data
+      if (onUpdateStatus) {
+        onUpdateStatus(invoice._id, 'fizetett');
       }
-    } else if (canceled === 'true' && isCurrentInvoice) {
+    } else if (canceled === 'true' && invoiceId === invoice._id) {
       debugLog('InvoiceViewModal', 'Payment was canceled', { invoiceId });
       setPaymentError('A fizetés meg lett szakítva vagy elutasításra került.');
     }
@@ -88,7 +47,7 @@ const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGenerat
       const cleanUrl = window.location.pathname;
       window.history.replaceState({}, document.title, cleanUrl);
     }
-  }, [invoice._id, invoice.id, invoice.number, invoice.status]);
+  }, [invoice._id]);
 
   const currency = invoice?.currency || project?.financial?.currency || 'EUR';
 
@@ -191,61 +150,15 @@ const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGenerat
   
   // Bankkártyás fizetés Stripe-pal
   const handleCardPayment = async () => {
-    debugLog('InvoiceViewModal-cardPayment', 'Creating Stripe payment link', { 
-      invoiceId: invoice._id,
-      invoiceStatus: invoice.status
-    });
-    
-    // Ellenőrizzük, hogy a számla nincs-e már kifizetve
-    if (invoice.status === 'fizetett' || invoice.status === 'paid' || invoice.status === 'bezahlt') {
-      setPaymentError('Ez a számla már ki lett fizetve.');
-      debugLog('InvoiceViewModal-cardPayment', 'Payment aborted - invoice already paid');
-      return;
-    }
-    
+    debugLog('InvoiceViewModal-cardPayment', 'Creating Stripe payment link', { invoiceId: invoice._id });
     setIsLoadingPayment(true);
     setPaymentError(null);
-    
-    // Tranzakció követési adatok - localStorage-ba mentjük a folyamat nyomon követéséhez
-    const paymentTrackingId = `payment_tracking_${Date.now()}`;
-    const trackPayment = (step, data = {}) => {
-      try {
-        // Megpróbáljuk betölteni a meglévő adatokat
-        const existingData = localStorage.getItem(paymentTrackingId);
-        const trackingData = existingData ? JSON.parse(existingData) : { steps: [] };
-        
-        // Hozzáadjuk az új lépést
-        trackingData.steps.push({
-          step,
-          timestamp: new Date().toISOString(),
-          data
-        });
-        
-        // Mentjük az adatokat
-        localStorage.setItem(paymentTrackingId, JSON.stringify(trackingData));
-        debugLog('PaymentTracking', `Step: ${step}`, data);
-      } catch (e) {
-        console.error('Error tracking payment:', e);
-      }
-    };
-    
-    trackPayment('init', { 
-      invoiceId: invoice._id, 
-      invoiceNumber: invoice.number,
-      amount: invoice.totalAmount,
-      projectId: project._id
-    });
     
     try {
       // Get project sharing info from localStorage to retrieve PIN
       const savedSession = localStorage.getItem(`project_session_${project.sharing?.token}`);
       const sessionData = savedSession ? JSON.parse(savedSession) : {};
       const pin = sessionData.pin || '';
-      
-      trackPayment('session_loaded', { 
-        hasSession: !!savedSession,
-        sharingToken: project.sharing?.token
-      });
       
       // Create payment link through API - log additional debug information
       const API_URL = 'https://admin.nb-studio.net:5001';
@@ -255,40 +168,19 @@ const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGenerat
       const invoiceId = invoice._id?.toString() || invoice.id?.toString();
       const projectId = project._id?.toString() || project.id?.toString();
       
-      // Ha nincs projectId, de van megosztási token, használjuk azt projektazonosítóként
-      const finalProjectId = projectId || project.sharing?.token;
+      console.log('Sending payment request to API');
+      console.log('Final API URL:', `${API_URL}/api/payments/create-payment-link`);
+      console.log('Invoice ID:', invoiceId, 'Type:', typeof invoiceId);
+      console.log('Project ID:', projectId, 'Type:', typeof projectId);
       
-      trackPayment('preparing_request', {
-        invoiceId,
-        projectId: finalProjectId,
-        apiUrl: `${API_URL}/api/payments/create-payment-link`
-      });
-      
-      if (!invoiceId || !finalProjectId) {
-        trackPayment('missing_ids', {
-          hasInvoiceId: !!invoiceId,
-          hasProjectId: !!finalProjectId
-        });
+      if (!invoiceId || !projectId) {
         throw new Error('Hiányzó számla vagy projekt azonosító');
       }
       
       // Részletes adatok kiírása a konzolra
-      debugLog('InvoiceViewModal-cardPayment', 'Sending payment request', {
-        invoiceId,
-        projectId: finalProjectId,
-        currentUrl: window.location.href
-      });
+      console.log('Invoice details:', JSON.stringify(invoice, null, 2));
       
-      const requestBody = {
-        invoiceId: invoiceId,
-        projectId: finalProjectId,
-        pin: pin
-      };
-      
-      trackPayment('sending_request', requestBody);
-      
-      // CORS hibák elkerülése érdekében opciók
-      const corsOptions = {
+      const response = await fetch(`${API_URL}/api/payments/create-payment-link`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -296,92 +188,51 @@ const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGenerat
           'Accept': 'application/json',
           'Origin': window.location.origin
         },
-        body: JSON.stringify(requestBody)
-      };
-      
-      // Először try-with-credentials
-      let response;
-      try {
-        trackPayment('fetch_with_credentials');
-        response = await fetch(`${API_URL}/api/payments/create-payment-link`, {
-          ...corsOptions,
-          credentials: 'include'
-        });
-      } catch (corsError) {
-        debugLog('InvoiceViewModal-cardPayment', 'CORS error with credentials, retrying without', { 
-          error: corsError.message 
-        });
-        trackPayment('fetch_error_retry', { error: corsError.message });
-        
-        // Újrapróbálkozás credentials nélkül
-        response = await fetch(`${API_URL}/api/payments/create-payment-link`, {
-          ...corsOptions,
-          credentials: 'omit'
-        });
-      }
-      
-      trackPayment('response_received', { 
-        status: response.status,
-        statusText: response.statusText,
-        ok: response.ok
+        body: JSON.stringify({
+          invoiceId: invoiceId,
+          projectId: projectId,
+          pin: pin
+        }),
+        credentials: 'include'
       });
+      
+      // Részletes válasz feldolgozás
+      console.log('Response status:', response.status);
+      console.log('Response headers:', response.headers);
       
       try {
         const data = await response.json();
-        trackPayment('response_parsed', data);
+        console.log('Response data:', data);
         
         if (response.ok && data.success) {
           setStripePaymentUrl(data.url);
-          debugLog('InvoiceViewModal-cardPayment', 'Payment link created successfully', { 
+          debugLog('InvoiceViewModal-cardPayment', 'Payment link created', { 
             url: data.url,
             sessionId: data.sessionId 
           });
           
           // Sikeres fizetési link - mentjük localStorage-ba is a későbbi ellenőrzéshez
           try {
-            const sessionInfo = {
+            localStorage.setItem('stripe_session_' + invoiceId, JSON.stringify({
               sessionId: data.sessionId,
               url: data.url,
               timestamp: new Date().toISOString(),
-              invoiceId: invoiceId,
-              trackingId: paymentTrackingId
-            };
-            
-            localStorage.setItem('stripe_session_' + invoiceId, JSON.stringify(sessionInfo));
-            trackPayment('session_saved', sessionInfo);
+              invoiceId: invoiceId
+            }));
           } catch (storageError) {
             console.warn('Could not save stripe session to localStorage', storageError);
-            trackPayment('session_save_error', { error: storageError.message });
           }
-          
-          // Beállítunk egy flag-et, hogy tudjuk, hogy a fizetési folyamat elindult
-          try {
-            sessionStorage.setItem('payment_in_progress', JSON.stringify({
-              invoiceId,
-              timestamp: new Date().toISOString(),
-              returnUrl: window.location.href
-            }));
-          } catch (e) {
-            console.warn('Could not save payment status to sessionStorage', e);
-          }
-          
-          trackPayment('redirecting', { url: data.url });
           
           // Átirányítás a Stripe oldalára némi késleltetéssel, hogy a hibaüzenetek el tudjanak tűnni
           setTimeout(() => {
             window.location.href = data.url;
-          }, 800);
+          }, 500);
         } else {
           // Részletes hibaüzenet megjelenítése
-          const errorMessage = data.message || 
-            (data.error ? `Hiba: ${data.error}` : 'Hiba történt a fizetési link létrehozásakor');
-          
-          setPaymentError(errorMessage);
-          trackPayment('error_from_api', { 
-            message: errorMessage,
-            details: data
-          });
-          
+          setPaymentError(
+            data.message || 
+            (data.error ? `Hiba: ${data.error}` : 'Hiba történt a fizetési link létrehozásakor')
+          );
           debugLog('InvoiceViewModal-cardPayment', 'Error creating payment link', { 
             error: data.message,
             details: data
@@ -389,29 +240,17 @@ const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGenerat
         }
       } catch (jsonError) {
         console.error('Failed to parse response as JSON:', jsonError);
-        trackPayment('json_parse_error', { 
-          error: jsonError.message,
-          responseStatus: response.status
-        });
-        
         setPaymentError(`Hiba: ${response.status} - ${response.statusText}`);
       }
     } catch (error) {
       console.error('Stripe payment error:', error);
       setPaymentError(`Kapcsolati hiba: ${error.message}`);
-      
-      trackPayment('exception', { 
-        error: error.message,
-        stack: error.stack
-      });
-      
       debugLog('InvoiceViewModal-cardPayment', 'Exception during payment link creation', { 
         error: error.message,
         stack: error.stack
       });
     } finally {
       setIsLoadingPayment(false);
-      trackPayment('request_completed');
     }
   };
 

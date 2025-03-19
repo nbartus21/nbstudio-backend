@@ -7,8 +7,7 @@
     "dev": "npx --yes vite",
     "build": "npx --yes vite build",
     "preview": "npx --yes vite preview",
-    "setup": "npm install -D tailwindcss postcss autoprefixer && npx tailwindcss init -p",
-    "test:stripe": "node scripts/test-stripe-webhook.js"
+    "setup": "npm install -D tailwindcss postcss autoprefixer && npx tailwindcss init -p"
   },
   "dependencies": {
     "express": "^4.18.2",
