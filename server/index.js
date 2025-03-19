@@ -42,8 +42,6 @@ import documentsRouter from './routes/documents.js';
 import chatApiRouter from './routes/chatApi.js';
 import paymentsRouter from './routes/payments.js';
 import invoicesRouter from './routes/invoices.js';
-import socialMediaRoutes from './routes/socialMedia.js';
-import './cron/socialMediaCron.js';
 
 // Import middleware
 import authMiddleware from './middleware/auth.js';
@@ -675,7 +673,6 @@ app.use('/api/notes', notesRoutes);
 app.use('/api/support', supportTicketRouter);
 app.use('/api', documentsRouter);
 app.use('/api', invoicesRouter);
-app.use('/api/social-media', socialMediaRoutes);
 
 // Fix for transactions endpoint directly accessing the accountingRoutes
 app.use('/api/transactions', (req, res, next) => {

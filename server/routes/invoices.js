@@ -502,26 +502,27 @@ router.get('/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => {
 
     // Modern design - színek és stílusok
     const colors = {
-      primary: '#1E40AF',    // Sötét kék
-      secondary: '#1E293B',  // Sötét szürke
-      accent: '#3B82F6',     // Világos kék
-      text: '#1E293B',       // Sötét szöveg
-      light: '#F8FAFC',      // Világos háttér
-      success: '#059669',    // Zöld (fizetett)
-      warning: '#D97706',    // Narancs (lejárt)
-      border: '#E2E8F0',     // Szegély szín
+      primary: '#1E40AF', // Sötét kék
+      secondary: '#1E293B', // Sötét szürke
+      accent: '#3B82F6', // Világos kék
+      text: '#1E293B', // Sötét szöveg
+      light: '#F8FAFC', // Világos háttér
+      success: '#059669', // Zöld (fizetett)
+      warning: '#D97706', // Narancs (lejárt)
+      border: '#E2E8F0', // Szegély szín
       background: '#FFFFFF', // Fehér háttér
     };
 
-    // Fejléc háttér
-    doc.rect(0, 0, doc.page.width, 180)
+    // Fejléc háttér téglalap
+    doc.rect(0, 0, doc.page.width, 200)
        .fill(colors.primary);
 
     // Logo hozzáadása (ha létezik)
     try {
       const logoPath = join(__dirname, '..', 'public', 'logo.png');
       if (fs.existsSync(logoPath)) {
-        doc.image(logoPath, 50, 50, { width: 120 });
+        doc.image(logoPath, 50, 50, { width: 120 })
+           .moveDown();
       }
     } catch (logoError) {
       console.warn('Logo betöltési hiba:', logoError.message);
@@ -529,76 +530,86 @@ router.get('/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => {
 
     // Fejléc szöveg
     doc.font('Helvetica-Bold')
-       .fontSize(36)
+       .fontSize(40)
        .fillColor('white')
-       .text('SZÁMLA', 50, 50)
+       .text('SZÁMLA', 50, 80)
+       .fontSize(16)
+       .font('Helvetica')
+       .text(`#${invoice.number}`, 50, 130);
+
+    // Jobbra igazított fejléc info
+    const rightColumnX = 400;
+    doc.fontSize(12)
+       .fillColor('rgba(255, 255, 255, 0.9)')
+       .text('Kiállítás dátuma:', rightColumnX, 80, { align: 'right' })
        .fontSize(14)
-       .font('Helvetica')
-       .text(`Számlaszám: ${invoice.number}`, 50, 95);
-
-    // Fejléc jobb oldali információk
-    doc.font('Helvetica')
+       .fillColor('white')
+       .text(new Date(invoice.date).toLocaleDateString('hu-HU'), rightColumnX, 95, { align: 'right' })
        .fontSize(12)
-       .text('Kiállítás dátuma:', 400, 50)
-       .font('Helvetica-Bold')
-       .text(new Date(invoice.date).toLocaleDateString('hu-HU'), 400, 70)
-       .font('Helvetica')
-       .text('Fizetési határidő:', 400, 100)
-       .font('Helvetica-Bold')
-       .text(new Date(invoice.dueDate).toLocaleDateString('hu-HU'), 400, 120);
+       .fillColor('rgba(255, 255, 255, 0.9)')
+       .text('Fizetési határidő:', rightColumnX, 120, { align: 'right' })
+       .fontSize(14)
+       .fillColor('white')
+       .text(new Date(invoice.dueDate).toLocaleDateString('hu-HU'), rightColumnX, 135, { align: 'right' });
 
-    // Színes elválasztó sáv
-    doc.rect(0, 180, doc.page.width, 3)
+    // Színsáv a fejléc alatt
+    doc.rect(0, 200, doc.page.width, 4)
        .fill(colors.accent);
 
-    // Kiállító és vevő adatok konténer
-    doc.rect(50, 210, 520, 160)
-       .fill(colors.light);
-
+    // Kiállító és vevő adatok
+    const startY = 240;
+    
     // Kiállító adatok
     doc.font('Helvetica-Bold')
-       .fontSize(14)
+       .fontSize(16)
        .fillColor(colors.secondary)
-       .text('Kiállító:', 70, 230)
-       .font('Helvetica')
+       .text('Kiállító:', 50, startY)
+       .moveDown(0.3);
+    
+    doc.font('Helvetica')
        .fontSize(12)
        .fillColor(colors.text)
-       .text('NB Studio', 70, 255)
-       .text('Bartus Norbert', 70, 275)
-       .text('Adószám: 12345678-1-42', 70, 295)
-       .text('1234 Budapest, Példa utca 1.', 70, 315)
-       .text('info@nb-studio.net', 70, 335);
+       .text('NB Studio', { continued: true })
+       .fillColor(colors.primary)
+       .text(' (Bartus Norbert)')
+       .fillColor(colors.text)
+       .text('Adószám: 12345678-1-42')
+       .text('Cím: 1234 Budapest, Példa utca 1.')
+       .text('Email: info@nb-studio.net')
+       .text('Telefon: +36 30 123 4567')
+       .moveDown();
 
     // Vevő adatok
     if (project.client) {
       doc.font('Helvetica-Bold')
-         .fontSize(14)
+         .fontSize(16)
          .fillColor(colors.secondary)
-         .text('Vevő:', 320, 230)
-         .font('Helvetica')
+         .text('Vevő:', 300, startY)
+         .moveDown(0.3);
+
+      doc.font('Helvetica')
          .fontSize(12)
          .fillColor(colors.text)
-         .text(project.client.name || '', 320, 255)
-         .text(project.client.companyName || '', 320, 275);
-
+         .text(project.client.name || '', 300)
+         .text(project.client.companyName || '', 300);
+      
       if (project.client.taxNumber) {
-        doc.text(`Adószám: ${project.client.taxNumber}`, 320, 295);
+        doc.text(`Adószám: ${project.client.taxNumber}`, 300);
       }
-
+      
+      doc.text(`Email: ${project.client.email || ''}`, 300);
+      
       if (project.client.address) {
-        const { city, street, postalCode } = project.client.address;
+        const { city, street, postalCode, country } = project.client.address;
         if (city || street || postalCode) {
-          doc.text(`${postalCode || ''} ${city || ''}, ${street || ''}`, 320, 315);
+          doc.text(`${postalCode || ''} ${city || ''}, ${street || ''}`, 300);
         }
-      }
-
-      if (project.client.email) {
-        doc.text(project.client.email, 320, 335);
+        if (country) doc.text(country, 300);
       }
     }
 
-    // Tételek táblázat
-    const tableTop = 400;
+    // Tételek táblázat fejléc
+    const tableTop = Math.max(doc.y + 30, 360);
     const tableHeaders = ['Tétel', 'Mennyiség', 'Egységár', 'Összesen'];
     const tableColumnWidths = [240, 80, 100, 100];
     const columnPositions = [50];
@@ -607,7 +618,7 @@ router.get('/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => {
       columnPositions[i] = columnPositions[i-1] + tableColumnWidths[i-1];
     }
 
-    // Táblázat fejléc háttér
+    // Táblázat fejléc háttere
     doc.rect(50, tableTop, 520, 30)
        .fill(colors.secondary);
 
@@ -618,38 +629,71 @@ router.get('/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => {
     
     tableHeaders.forEach((header, i) => {
       const position = columnPositions[i];
-      doc.text(header, position + 5, tableTop + 10, { 
-        width: tableColumnWidths[i] - 10,
-        align: i === 0 ? 'left' : 'right'
-      });
+      doc.text(header, position + 5, tableTop + 8, { width: tableColumnWidths[i] - 10 });
     });
 
     // Táblázat sorok
     let currentY = tableTop + 30;
+    let currentPage = 1;
     let rowBackground = true;
 
-    invoice.items.forEach((item) => {
-      // Váltakozó háttérszín
-      if (rowBackground) {
+    invoice.items.forEach((item, index) => {
+      if (!item || typeof item !== 'object') {
+        console.log(`Hibás tétel formátum a(z) ${index}. indexnél:`, item);
+        return;
+      }
+      
+      item.description = item.description || 'Nincs leírás';
+      item.quantity = typeof item.quantity === 'number' ? item.quantity : 0;
+      item.unitPrice = typeof item.unitPrice === 'number' ? item.unitPrice : 0;
+      item.total = typeof item.total === 'number' ? item.total : 0;
+      
+      if (currentY > 700) {
+        doc.addPage();
+        currentPage++;
+        currentY = 50;
+        
         doc.rect(50, currentY, 520, 30)
-           .fill(colors.light);
+           .fill(colors.secondary);
+
+        doc.font('Helvetica-Bold')
+           .fillColor('white')
+           .fontSize(12);
+        
+        tableHeaders.forEach((header, i) => {
+          const position = columnPositions[i];
+          doc.text(header, position + 5, currentY + 8, { width: tableColumnWidths[i] - 10 });
+        });
+        
+        currentY += 30;
+        rowBackground = true;
       }
 
-      const row = [
-        item.description || '',
-        item.quantity?.toString() || '',
-        `${item.unitPrice || 0} EUR`,
-        `${item.total || 0} EUR`
-      ];
+      if (rowBackground) {
+        doc.rect(50, currentY, 520, 30)
+           .fillColor(colors.light)
+           .fill();
+      }
       
       doc.font('Helvetica')
          .fillColor(colors.text)
          .fontSize(11);
-
+         
+      const row = [
+        item.description,
+        item.quantity.toString(),
+        `${item.unitPrice} EUR`,
+        `${item.total} EUR`
+      ];
+      
       row.forEach((cell, i) => {
-        doc.text(cell, columnPositions[i] + 5, currentY + 10, { 
-          width: tableColumnWidths[i] - 10,
-          align: i === 0 ? 'left' : 'right'
+        const position = columnPositions[i];
+        const align = i === 0 ? 'left' : 'right';
+        const padding = i === 0 ? 5 : 10;
+        
+        doc.text(cell, position + padding, currentY + 8, { 
+          width: tableColumnWidths[i] - (padding * 2),
+          align: align
         });
       });
 
@@ -657,66 +701,57 @@ router.get('/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => {
       rowBackground = !rowBackground;
     });
 
-    // Végösszeg doboz
+    // Összegzés táblázat
     const summaryStartY = currentY + 20;
     
-    // Végösszeg háttér
-    doc.rect(350, summaryStartY, 220, 40)
-       .fill(colors.primary);
-
-    // Végösszeg szöveg
+    // Vonalak és dobozok a végösszeg kiemelésére
+    doc.rect(350, summaryStartY, 220, 1)
+       .fillColor(colors.border)
+       .fill();
+       
+    doc.rect(350, summaryStartY + 5, 220, 35)
+       .fillColor(colors.primary)
+       .fill();
+       
+    // Végösszeg kiírása
     doc.font('Helvetica-Bold')
        .fillColor('white')
        .fontSize(14)
-       .text('Végösszeg:', 370, summaryStartY + 12)
+       .text('Végösszeg:', 360, summaryStartY + 15)
        .fontSize(16)
-       .text(`${invoice.totalAmount} EUR`, 530, summaryStartY + 12, { align: 'right' });
+       .text(`${invoice.totalAmount} EUR`, 530, summaryStartY + 15, { align: 'right' });
 
     // Fizetési információk
-    const paymentInfoY = summaryStartY + 80;
+    const paymentInfoY = summaryStartY + 60;
     
-    doc.rect(50, paymentInfoY, 520, 100)
-       .fill(colors.light);
-
     doc.font('Helvetica-Bold')
-       .fontSize(14)
+       .fontSize(16)
        .fillColor(colors.secondary)
-       .text('Fizetési információk', 70, paymentInfoY + 15)
-       .font('Helvetica')
+       .text('Fizetési információk', 50, paymentInfoY)
+       .moveDown(0.3);
+       
+    doc.font('Helvetica')
        .fontSize(11)
        .fillColor(colors.text)
+       .text('IBAN: DE47 6634 0014 0743 4638 00')
+       .text('SWIFT/BIC: COBADEFFXXX')
+       .text('Bank: Commerzbank AG')
+       .text(`Közlemény: ${invoice.number}`)
        .moveDown(0.5);
 
-    doc.text('IBAN: DE47 6634 0014 0743 4638 00', 70, paymentInfoY + 40)
-       .text('SWIFT/BIC: COBADEFFXXX', 70, paymentInfoY + 55)
-       .text('Bank: Commerzbank AG', 70, paymentInfoY + 70)
-       .text(`Közlemény: ${invoice.number}`, 70, paymentInfoY + 85);
-
-    // Státusz jelzés (ha van)
-    if (invoice.status === 'fizetett') {
-      doc.rotate(-30, { origin: [350, summaryStartY - 20] })
-         .rect(280, summaryStartY - 80, 140, 40)
-         .fill(colors.success)
-         .fillColor('white')
-         .fontSize(20)
-         .font('Helvetica-Bold')
-         .text('FIZETVE', 300, summaryStartY - 70, { align: 'center' })
-         .rotate(30, { origin: [350, summaryStartY - 20] });
-    }
-
     // Lábléc
-    const footerTop = doc.page.height - 80;
+    const footerTop = doc.page.height - 60;
     
-    // Lábléc vonal
-    doc.moveTo(50, footerTop)
-       .lineTo(570, footerTop)
-       .stroke(colors.border);
-
+    // Vonal a lábléc előtt
+    doc.rect(50, footerTop - 20, 520, 1)
+       .fillColor(colors.border)
+       .fill();
+       
     // Lábléc szöveg
     doc.font('Helvetica')
        .fontSize(10)
        .fillColor(colors.secondary)
-       .text('NB Studio - Bartus Norbert | www.nb-studio.net', 50, footerTop + 20, { align: 'center' })
+       .text('NB Studio - Bartus Norbert | www.nb-studio.net', 50, footerTop, { align: 'center' })
        .moveDown(0.3)
        .fontSize(8)
        .fillColor(colors.text)
@@ -724,9 +759,11 @@ router.get('/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => {
 
     // Oldalszám
     doc.fontSize(9)
-       .text('1/1', 500, footerTop + 20, { align: 'right' });
+       .fillColor(colors.text)
+       .text(`Oldal: ${currentPage}`, 500, footerTop, { align: 'right' });
 
     // PDF lezárása
+    console.log('PDF generálás sikeres, küldés...');
     doc.end();
 
   } catch (error) {
