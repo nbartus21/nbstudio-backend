@@ -5,7 +5,8 @@ import Stripe from 'stripe';
 const router = express.Router();
 
 // Használjuk a környezeti változóban definiált Stripe Secret Key-t
-const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || 'sk_test_51QmjbrG2GB8RzYFBotDBVtSaWeDlhZ8fURnDB20HIIz9XzaqLaMFTStyNo4XWThSge1wRoZTVrKM5At5xnXVLIzf00jCtmKyXX';
+// FIGYELEM: Új helyes kulcsot használunk minden alkalommal
+const STRIPE_SECRET_KEY = 'sk_test_51QmjbrG2GB8RzYFBotDBVtSaWeDlhZ8fURnDB20HIIz9XzaqLaMFTStyNo4XWThSge1wRoZTVrKM5At5xnXVLIzf00jCtmKyXX';
 
 // Inicializáljuk a Stripe-ot 
 console.log('Initializing Stripe with key starting with:', STRIPE_SECRET_KEY.substring(0, 10) + '...');
@@ -361,7 +362,34 @@ router.post('/create-payment-link', async (req, res) => {
         const test = await stripe.customers.list({ limit: 1 });
         console.log('Stripe API test successful, found customers:', test.data.length);
       } catch (testError) {
-        console.error('Stripe API test failed:', testError.message);
+        console.error('Stripe API test failed:', testError);
+        
+        // Probáljuk újra inicializálni a Stripe-ot
+        console.log('Attempting to re-initialize Stripe with correct key...');
+        try {
+          stripe = new Stripe(STRIPE_SECRET_KEY, {
+            apiVersion: '2023-10-16',
+            typescript: false,
+            appInfo: {
+              name: 'NB Studio',
+              version: '1.0.0',
+            },
+            maxNetworkRetries: 3,
+            timeout: 30000,
+            protocol: 'https'
+          });
+          
+          // Ellenőrizzük, hogy működik-e
+          const test2 = await stripe.customers.list({ limit: 1 });
+          console.log('Stripe re-initialization successful, found customers:', test2.data.length);
+        } catch (reinitError) {
+          console.error('Stripe re-initialization failed:', reinitError);
+          return res.status(500).json({ 
+            success: false, 
+            message: 'A fizetési rendszer jelenleg nem elérhető. Kérjük próbálja meg később vagy válasszon másik fizetési módot.',
+            error: 'Stripe API initialization error'
+          });
+        }
       }
       
       // Adatok tisztítása és előkészítése
