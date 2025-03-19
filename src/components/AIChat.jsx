@@ -380,12 +380,80 @@ const AIChat = () => {
           
           // Ha a sor egy kódblokk (```), akkor formázzuk
           if (line.trim().startsWith('```')) {
-            return <pre key={i} className="bg-gray-100 p-2 rounded my-2 overflow-x-auto">{line.slice(3)}</pre>;
+            const language = line.trim().slice(3) || 'plaintext';
+            const codeBlock = [];
+            let j = i + 1;
+            
+            // Gyűjtjük a kódblokk tartalmát
+            while (j < msg.content.split('\n').length && !msg.content.split('\n')[j].trim().startsWith('```')) {
+              codeBlock.push(msg.content.split('\n')[j]);
+              j++;
+            }
+            
+            // Kódblokk megjelenítése
+            return (
+              <div key={i} className="my-2">
+                <div className="bg-gray-800 text-gray-100 rounded-t-lg px-3 py-1 text-xs font-mono">
+                  {language}
+                </div>
+                <pre className="bg-gray-900 text-gray-100 p-4 rounded-b-lg overflow-x-auto">
+                  <code className="font-mono text-sm">
+                    {codeBlock.join('\n')}
+                  </code>
+                </pre>
+              </div>
+            );
           }
           
           // Ha a sor egy inline kód (`), akkor formázzuk
           if (line.includes('`')) {
-            return <p key={i} className="whitespace-pre-wrap">{line.replace(/`([^`]+)`/g, '<code class="bg-gray-100 px-1 rounded">$1</code>')}</p>;
+            return (
+              <p key={i} className="whitespace-pre-wrap">
+                {line.split('`').map((part, j) => 
+                  j % 2 === 0 ? part : (
+                    <code key={j} className="bg-gray-100 px-1.5 py-0.5 rounded font-mono text-sm">
+                      {part}
+                    </code>
+                  )
+                )}
+              </p>
+            );
+          }
+          
+          // Ha a sor HTML kódot tartalmaz
+          if (line.includes('<') && line.includes('>')) {
+            return (
+              <div key={i} className="my-2">
+                <div className="bg-gray-800 text-gray-100 rounded-t-lg px-3 py-1 text-xs font-mono">
+                  HTML
+                </div>
+                <pre className="bg-gray-900 text-gray-100 p-4 rounded-b-lg overflow-x-auto">
+                  <code className="font-mono text-sm">
+                    {line}
+                  </code>
+                </pre>
+              </div>
+            );
+          }
+          
+          // Ha a sor táblázatot tartalmaz
+          if (line.includes('|')) {
+            const cells = line.split('|').filter(cell => cell.trim());
+            return (
+              <div key={i} className="overflow-x-auto my-2">
+                <table className="min-w-full border-collapse border border-gray-300">
+                  <tbody>
+                    <tr>
+                      {cells.map((cell, j) => (
+                        <td key={j} className="border border-gray-300 px-2 py-1">
+                          {cell.trim()}
+                        </td>
+                      ))}
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            );
           }
           
           // Egyéb esetben normál szövegként jelenítjük meg
