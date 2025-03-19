@@ -64,7 +64,29 @@ const projectSchema = new mongoose.Schema({
     }],
     totalAmount: Number,
     paidAmount: { type: Number, default: 0 },
+    paymentMethod: String, // Fizetési mód (card, transfer, cash, stb.)
+    paymentReference: String, // Fizetési referencia (pl. Stripe payment_intent)
+    paidDate: Date, // Fizetés dátuma
     notes: String,
+    // Tranzakció adatok (Stripe vagy más fizetés esetén)
+    transactions: [{
+      transactionId: String, // Stripe tranzakció azonosító
+      paymentIntentId: String, // Stripe payment intent ID
+      amount: Number, // Tranzakció összege
+      currency: String, // Tranzakció pénzneme
+      status: String, // Tranzakció státusza
+      paymentMethod: {
+        type: String, // Fizetési mód típusa (card, sepa, stb.)
+        brand: String, // Kártya típusa (visa, mastercard, stb.)
+        last4: String, // Kártya utolsó 4 számjegye
+        country: String // Kibocsátó ország
+      },
+      processingFee: Number, // Feldolgozási díj
+      netAmount: Number, // Nettó összeg (feldolgozási díj levonása után)
+      created: Date, // Tranzakció létrehozásának ideje
+      updated: Date, // Tranzakció utolsó frissítésének ideje
+      metadata: Object // Egyéb metaadatok a tranzakcióról
+    }],
     // Ismétlődő számla beállítások
     recurring: {
       isRecurring: { type: Boolean, default: false },

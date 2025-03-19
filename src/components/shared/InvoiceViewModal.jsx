@@ -423,6 +423,64 @@ const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGenerat
                 </div>
               </div>
             )}
+
+            {/* Fizetési tranzakció adatok - csak fizetett számláknál */}
+            {invoice.status === 'fizetett' && invoice.transactions && invoice.transactions.length > 0 && (
+              <div className="mb-8">
+                <h3 className="font-bold mb-2 text-gray-700">Fizetési tranzakció részletei:</h3>
+                <div className="bg-green-50 p-4 border border-green-200 rounded">
+                  {invoice.transactions.map((transaction, idx) => (
+                    <div key={transaction.transactionId || idx} className="mb-3 last:mb-0">
+                      <div className="flex flex-wrap items-center justify-between mb-2">
+                        <div className="font-medium text-green-700 flex items-center">
+                          <CheckCircle className="h-4 w-4 mr-2" />
+                          Sikeres fizetés
+                          <span className="ml-2 text-xs bg-green-200 text-green-800 px-2 py-0.5 rounded-full">
+                            {transaction.paymentMethod?.type || 'card'}
+                          </span>
+                        </div>
+                        <div className="text-sm text-gray-600">
+                          {transaction.created ? new Date(transaction.created).toLocaleDateString() : 'N/A'}
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <p><span className="font-medium">Tranzakció azonosító:</span> {transaction.transactionId || 'N/A'}</p>
+                          <p><span className="font-medium">Összeg:</span> {transaction.amount} {transaction.currency?.toUpperCase()}</p>
+                          {transaction.paymentMethod?.brand && (
+                            <p>
+                              <span className="font-medium">Kártyatípus:</span> {transaction.paymentMethod.brand?.toUpperCase()}
+                              {transaction.paymentMethod.last4 && ` (xxxx-xxxx-xxxx-${transaction.paymentMethod.last4})`}
+                            </p>
+                          )}
+                          <p><span className="font-medium">Státusz:</span> {transaction.status}</p>
+                        </div>
+                        
+                        {transaction.metadata && (
+                          <div>
+                            {transaction.metadata.receiptUrl && (
+                              <a 
+                                href={transaction.metadata.receiptUrl} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center text-blue-600 hover:text-blue-800"
+                              >
+                                <Download className="h-4 w-4 mr-1" />
+                                Letölthető bizonylat
+                              </a>
+                            )}
+                            {transaction.metadata.receiptNumber && (
+                              <p><span className="font-medium">Bizonylat száma:</span> {transaction.metadata.receiptNumber}</p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             
             {/* Recurring Invoice Info */}
             {invoice.recurring?.isRecurring && (

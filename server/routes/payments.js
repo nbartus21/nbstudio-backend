@@ -497,6 +497,13 @@ router.post('/webhook', (req, res, next) => {
     // Extract metadata
     const { invoiceId, projectId } = session.metadata;
     
+    console.log('Payment successful, received checkout.session.completed webhook', {
+      sessionId: session.id,
+      paymentIntentId: session.payment_intent,
+      amount: session.amount_total / 100,
+      currency: session.currency
+    });
+    
     if (invoiceId && projectId) {
       try {
         // Update invoice status in the project
@@ -507,11 +514,96 @@ router.post('/webhook', (req, res, next) => {
           const invoice = project.invoices.id(invoiceId);
           
           if (invoice) {
+            // Frissítsük a számla alapadatait
             invoice.status = 'fizetett';
             invoice.paidDate = new Date();
             invoice.paidAmount = session.amount_total / 100; // Convert from cents
             invoice.paymentMethod = 'card';
             invoice.paymentReference = session.payment_intent;
+            
+            // Most szerezzük be a részletes fizetési adatokat
+            try {
+              // Lekérjük a payment intent részleteit a Stripe-tól
+              console.log(`Fetching payment intent details for: ${session.payment_intent}`);
+              const paymentIntent = await stripe.paymentIntents.retrieve(session.payment_intent, {
+                expand: ['payment_method', 'latest_charge', 'customer']
+              });
+              
+              console.log('Payment intent details retrieved:', {
+                id: paymentIntent.id,
+                status: paymentIntent.status,
+                amount: paymentIntent.amount / 100
+              });
+              
+              // Lekérjük a tranzakció részleteket a charge-ból
+              const charge = paymentIntent.latest_charge;
+              
+              // Inicializáljuk a tranzakciók tömböt, ha még nem létezik
+              if (!invoice.transactions) {
+                invoice.transactions = [];
+              }
+              
+              // Létrehozzuk az új tranzakciót
+              const transaction = {
+                transactionId: charge.id,
+                paymentIntentId: paymentIntent.id,
+                amount: paymentIntent.amount / 100,
+                currency: paymentIntent.currency,
+                status: paymentIntent.status,
+                paymentMethod: {
+                  type: paymentIntent.payment_method_types?.[0] || 'card'
+                },
+                processingFee: charge.application_fee_amount ? charge.application_fee_amount / 100 : 0,
+                netAmount: charge.net ? charge.net / 100 : (paymentIntent.amount / 100),
+                created: new Date(paymentIntent.created * 1000),
+                updated: new Date(),
+                metadata: {
+                  sessionId: session.id,
+                  customerEmail: paymentIntent.customer?.email,
+                  receiptUrl: charge.receipt_url,
+                  receiptNumber: charge.receipt_number
+                }
+              };
+              
+              // Ha van kártya adatok, azokat is eltároljuk
+              if (paymentIntent.payment_method && paymentIntent.payment_method.card) {
+                const card = paymentIntent.payment_method.card;
+                transaction.paymentMethod.brand = card.brand;
+                transaction.paymentMethod.last4 = card.last4;
+                transaction.paymentMethod.country = card.country;
+              }
+              
+              // Hozzáadjuk a tranzakciót a számlához
+              invoice.transactions.push(transaction);
+              
+              console.log(`Payment transaction details saved to invoice ${invoiceId}`);
+            } catch (stripeError) {
+              console.error('Error retrieving payment details from Stripe:', stripeError);
+              // Még ha nem sikerül a részletes adatok lekérése, a fizetés ettől sikeres lehet
+            }
+            
+            // Létrehozunk egy bejegyzést az Accounting modellben is
+            try {
+              const Accounting = mongoose.model('Accounting');
+              
+              await Accounting.create({
+                type: 'income',
+                category: 'project_invoice',
+                amount: invoice.paidAmount,
+                currency: session.currency.toUpperCase(),
+                date: new Date(),
+                description: `Számla fizetés: ${invoice.number} - ${project.name}`,
+                invoiceNumber: invoice.number,
+                paymentStatus: 'paid',
+                projectId: project._id,
+                notes: `Stripe fizetés (${session.payment_intent})`,
+                createdBy: 'system'
+              });
+              
+              console.log(`Accounting record created for invoice ${invoiceId}`);
+            } catch (accountingError) {
+              console.error('Error creating accounting record:', accountingError);
+            }
             
             await project.save();
             console.log(`Invoice ${invoiceId} marked as paid via Stripe payment in project ${projectId}`);
