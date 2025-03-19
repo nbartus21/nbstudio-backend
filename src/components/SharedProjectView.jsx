@@ -52,8 +52,16 @@ const translations = {
 // Helper functions to simulate routing
 const useParams = () => {
   const url = window.location.href;
-  const tokenMatch = url.match(/\/shared-project\/([^\/]+)/);
-  return { token: tokenMatch ? tokenMatch[1] : '' };
+  // Ha van token és kérdőjelet tartalmaz, akkor csak a kérdőjel előtti részt vesszük
+  const tokenMatch = url.match(/\/shared-project\/([^\/\?]+)/);
+  let token = tokenMatch ? tokenMatch[1] : '';
+  
+  // Ha van a tokenben még mindig kérdőjel, vágjuk le onnan
+  if (token.includes('?')) {
+    token = token.split('?')[0];
+  }
+  
+  return { token: token };
 };
 
 const useNavigate = () => {
@@ -101,10 +109,13 @@ const SharedProjectView = () => {
         debugLog('checkExistingSession', 'No token provided');
         return;
       }
+      
+      // Tisztítsuk meg a tokent minden extra paramétertől
+      const cleanToken = token.split('?')[0];
 
       try {
-        debugLog('checkExistingSession', 'Checking for saved session', { token });
-        const savedSession = localStorage.getItem(`project_session_${token}`);
+        debugLog('checkExistingSession', 'Checking for saved session', { token: cleanToken });
+        const savedSession = localStorage.getItem(`project_session_${cleanToken}`);
         
         if (savedSession) {
           const session = JSON.parse(savedSession);
@@ -128,23 +139,27 @@ const SharedProjectView = () => {
             
             // Ensure project has _id field for compatibility
             const projectData = session.project;
-            if (!projectData._id && projectData.id) {
-              debugLog('checkExistingSession', 'Adding _id from id field');
-              projectData._id = projectData.id;
+            if (projectData) {
+              if (!projectData._id && projectData.id) {
+                debugLog('checkExistingSession', 'Adding _id from id field');
+                projectData._id = projectData.id;
+              }
+              
+              setProject(projectData);
+              setIsVerified(true);
+            } else {
+              debugLog('checkExistingSession', 'Project data missing from session');
             }
-            
-            setProject(projectData);
-            setIsVerified(true);
           } else {
             debugLog('checkExistingSession', 'Session expired, removing');
-            localStorage.removeItem(`project_session_${token}`);
+            localStorage.removeItem(`project_session_${cleanToken}`);
           }
         } else {
           debugLog('checkExistingSession', 'No saved session found');
         }
       } catch (error) {
         debugLog('checkExistingSession', 'Error checking session', { error });
-        localStorage.removeItem(`project_session_${token}`);
+        localStorage.removeItem(`project_session_${cleanToken}`);
       }
     };
 
@@ -157,7 +172,10 @@ const SharedProjectView = () => {
     setLoading(true);
     setError(null);
     
-    debugLog('verifyPin', 'Verifying PIN', { token, pinLength: pin.length, language });
+    // Tisztítsuk meg a tokent minden extra paramétertől
+    const cleanToken = token.split('?')[0];
+    
+    debugLog('verifyPin', 'Verifying PIN', { token: cleanToken, pinLength: pin.length, language });
     
     try {
       // Közvetlenül a /verify-pin végpontot használjuk, elkerülve a CORS problémákat
@@ -169,7 +187,7 @@ const SharedProjectView = () => {
           'X-API-Key': API_KEY,
           'Accept': 'application/json'
         },
-        body: JSON.stringify({ token, pin }),
+        body: JSON.stringify({ token: cleanToken, pin }),
         credentials: 'omit'  // Nem küldünk sütit a CORS problémák elkerülése érdekében
       });
       
@@ -187,7 +205,7 @@ const SharedProjectView = () => {
               'X-API-Key': API_KEY,
               'Accept': 'application/json'
             },
-            body: JSON.stringify({ token, pin }),
+            body: JSON.stringify({ token: cleanToken, pin }),
             credentials: 'omit'
           });
           
@@ -200,7 +218,7 @@ const SharedProjectView = () => {
                 'X-API-Key': API_KEY,
                 'Accept': 'application/json'
               },
-              body: JSON.stringify({ token, pin }),
+              body: JSON.stringify({ token: cleanToken, pin }),
               credentials: 'omit'
             });
             
@@ -213,7 +231,7 @@ const SharedProjectView = () => {
                   'X-API-Key': API_KEY,
                   'Accept': 'application/json'
                 },
-                body: JSON.stringify({ token, pin }),
+                body: JSON.stringify({ token: cleanToken, pin }),
                 credentials: 'omit'
               });
             }
@@ -269,7 +287,7 @@ const SharedProjectView = () => {
         language: language,
         pin: pin // Mentjük a PIN kódot, hogy később is tudjuk használni a frissítéshez
       };
-        localStorage.setItem(`project_session_${token}`, JSON.stringify(session));
+        localStorage.setItem(`project_session_${cleanToken}`, JSON.stringify(session));
         
         debugLog('verifyPin', 'Session saved with language preference');
       } else {
@@ -347,13 +365,16 @@ const SharedProjectView = () => {
     if (window.confirm(t.logoutConfirm)) {
       debugLog('handleLogout', 'User confirmed logout');
       
+      // Biztosítsuk, hogy a token tisztított formátumú
+      const cleanToken = token.split('?')[0];
+      
       // Remove session but keep project-specific files and documents
-      localStorage.removeItem(`project_session_${token}`);
+      localStorage.removeItem(`project_session_${cleanToken}`);
       
       setIsVerified(false);
       setProject(null);
       setPin('');
-      navigate(`/shared-project/${token}`);
+      navigate(`/shared-project/${cleanToken}`);
       
       debugLog('handleLogout', 'Logout completed');
     } else {
