@@ -11,7 +11,6 @@ import Login from './Login';
 import MagicLogin from './MagicLogin';
 import ProjectManager from './ProjectManager';
 import DomainManager from './domain/DomainManager';
-import InfrastructureManager from './InfrastructureManager';
 import SharedProjectView from './SharedProjectView';
 import InvoiceManager from './InvoiceManager';
 import AccountingManager from './AccountingManager';
