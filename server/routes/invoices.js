@@ -391,25 +391,21 @@ router.post('/projects/:projectId/invoices', async (req, res) => {
       logType = 'manual';
       logDescription = `Új ismétlődő számla létrehozása: ${invoice.number} (${invoiceData.recurring.interval})`;
     }
-    
-    try {
-      await logRecurringInvoiceActivity(
-        logType,
-        logDescription,
-        1, // Egy számla lett létrehozva
-        true,
-        [{
-          projectId: project._id,
-          projectName: project.name,
-          invoiceId: invoice._id,
-          invoiceNumber: invoice.number,
-          amount: invoice.totalAmount
-        }]
-      );
-    } catch (logError) {
-      console.error('Hiba a napló létrehozásakor:', logError);
-      // A naplózási hiba nem szakítja meg a számla létrehozását
-    }
+
+    // Napló bejegyzés létrehozása
+    await logRecurringInvoiceActivity(
+      logType,
+      logDescription,
+      1,
+      true,
+      [{
+        projectId: project._id,
+        projectName: project.name,
+        invoiceId: invoice._id,
+        invoiceNumber: invoice.number,
+        amount: invoice.totalAmount
+      }]
+    );
     
     // Financial összegek frissítése a projektben
     if (project.financial) {
