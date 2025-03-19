@@ -293,8 +293,7 @@ const DocumentManager = () => {
   };
 
   // View document
-// A handleViewDocument függvényben
-const handleViewDocument = async (documentId) => {
+  const handleViewDocument = async (documentId) => {
     try {
       console.log('Megtekinteni kívánt dokumentum ID:', documentId);
       
@@ -812,7 +811,7 @@ const handleViewDocument = async (documentId) => {
                                     subject: `Dokumentum: ${doc.name}`,
                                     message: `Tisztelt Ügyfelünk!\n\nMellékelten küldjük a következő dokumentumot: ${doc.name}.\n\n` +
                                     (doc.publicToken && doc.publicPin ? 
-                                    `A dokumentum online is megtekinthető és jóváhagyható az alábbi linken:\nLink: https://admin.nb-studio.net/public/documents/${doc.publicToken}\nPIN kód: ${doc.publicPin}\n\nA hozzáférés lejár: ${doc.publicViewExpires ? new Date(doc.publicViewExpires).toLocaleDateString('hu-HU') : 'N/A'}` : '')
+                                    `A dokumentum online is megtekinthető és jóváhagyható az alábbi linken:\nLink: https://project.nb-studio.net/public/documents/${doc.publicToken}\nPIN kód: ${doc.publicPin}\n\nA hozzáférés lejár: ${doc.publicViewExpires ? new Date(doc.publicViewExpires).toLocaleDateString('hu-HU') : 'N/A'}` : '')
                                   });
                                 }}
                                 className="p-1 text-blue-600 hover:text-blue-800 rounded hover:bg-blue-50"
@@ -1116,92 +1115,92 @@ const handleViewDocument = async (documentId) => {
         </div>
       )}
 
-{/* Document Preview Modal */}
-{previewMode && selectedDocument && (
-  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-    <div className="bg-white rounded-lg shadow-xl max-w-5xl w-full max-h-[90vh] flex flex-col">
-      <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-        <h2 className="text-xl font-medium">
-          {selectedDocument.name} 
-          <span className="ml-2 text-xs text-gray-500">(ID: {selectedDocument._id})</span>
-        </h2>
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={() => handleDownloadPDF(selectedDocument._id)}
-            className="px-3 py-1 bg-indigo-600 text-white rounded text-sm font-medium hover:bg-indigo-700 flex items-center"
-          >
-            <Download className="h-4 w-4 mr-1" />
-            PDF letöltése
-          </button>
-          <button
-            onClick={() => {
-              // Explicit bezárás és state reset
-              setPreviewMode(false);
-              setSelectedDocument(null);
-            }}
-            className="text-gray-400 hover:text-gray-500"
-          >
-            <XCircle className="h-6 w-6" />
-          </button>
-        </div>
-      </div>
-      
-      <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
-        {/* Kulcs hozzáadása a tartalom komponenshez, hogy minden új dokumentumnál újra renderelődjön */}
-        <div key={`document-content-${selectedDocument._id}`} className="max-w-3xl mx-auto bg-white shadow-sm rounded-lg p-8 min-h-[800px]">
-          <div dangerouslySetInnerHTML={{ __html: selectedDocument.htmlVersion || selectedDocument.content }} />
-        </div>
-      </div>
-      
-      <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
-        <div className="flex items-center">
-          <span className="text-sm text-gray-500 mr-2">Állapot:</span>
-          <span className={`px-2 py-0.5 rounded-full text-sm ${
-            DOCUMENT_STATUSES.find(s => s.value === selectedDocument.approvalStatus)?.color || 'bg-gray-100 text-gray-800'
-          }`}>
-            {DOCUMENT_STATUSES.find(s => s.value === selectedDocument.approvalStatus)?.label || 'Piszkozat'}
-          </span>
-        </div>
-        
-        {selectedDocument.approvalStatus === 'pendingApproval' && (
-          <div className="flex items-center space-x-2">
-            <textarea
-              value={approvalComment}
-              onChange={(e) => setApprovalComment(e.target.value)}
-              placeholder="Jóváhagyási megjegyzés (opcionális)"
-              className="block w-64 border-gray-300 rounded-md shadow-sm text-sm"
-              rows={1}
-            />
-            <button
-              onClick={() => {
-                handleUpdateDocumentStatus(selectedDocument._id, 'approved');
-                // Állapot frissítése után töröljük a kiválasztást is
-                setPreviewMode(false);
-                setSelectedDocument(null);
-              }}
-              className="px-3 py-1 bg-green-600 text-white rounded text-sm font-medium hover:bg-green-700 flex items-center"
-            >
-              <CheckCircle className="h-4 w-4 mr-1" />
-              Jóváhagyás
-            </button>
-            <button
-              onClick={() => {
-                handleUpdateDocumentStatus(selectedDocument._id, 'rejected');
-                // Állapot frissítése után töröljük a kiválasztást is
-                setPreviewMode(false);
-                setSelectedDocument(null);
-              }}
-              className="px-3 py-1 bg-red-600 text-white rounded text-sm font-medium hover:bg-red-700 flex items-center"
-            >
-              <XCircle className="h-4 w-4 mr-1" />
-              Elutasítás
-            </button>
+      {/* Document Preview Modal */}
+      {previewMode && selectedDocument && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-5xl w-full max-h-[90vh] flex flex-col">
+            <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+              <h2 className="text-xl font-medium">
+                {selectedDocument.name} 
+                <span className="ml-2 text-xs text-gray-500">(ID: {selectedDocument._id})</span>
+              </h2>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => handleDownloadPDF(selectedDocument._id)}
+                  className="px-3 py-1 bg-indigo-600 text-white rounded text-sm font-medium hover:bg-indigo-700 flex items-center"
+                >
+                  <Download className="h-4 w-4 mr-1" />
+                  PDF letöltése
+                </button>
+                <button
+                  onClick={() => {
+                    // Explicit bezárás és state reset
+                    setPreviewMode(false);
+                    setSelectedDocument(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-500"
+                >
+                  <XCircle className="h-6 w-6" />
+                </button>
+              </div>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
+              {/* Kulcs hozzáadása a tartalom komponenshez, hogy minden új dokumentumnál újra renderelődjön */}
+              <div key={`document-content-${selectedDocument._id}`} className="max-w-3xl mx-auto bg-white shadow-sm rounded-lg p-8 min-h-[800px]">
+                <div dangerouslySetInnerHTML={{ __html: selectedDocument.htmlVersion || selectedDocument.content }} />
+              </div>
+            </div>
+            
+            <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
+              <div className="flex items-center">
+                <span className="text-sm text-gray-500 mr-2">Állapot:</span>
+                <span className={`px-2 py-0.5 rounded-full text-sm ${
+                  DOCUMENT_STATUSES.find(s => s.value === selectedDocument.approvalStatus)?.color || 'bg-gray-100 text-gray-800'
+                }`}>
+                  {DOCUMENT_STATUSES.find(s => s.value === selectedDocument.approvalStatus)?.label || 'Piszkozat'}
+                </span>
+              </div>
+              
+              {selectedDocument.approvalStatus === 'pendingApproval' && (
+                <div className="flex items-center space-x-2">
+                  <textarea
+                    value={approvalComment}
+                    onChange={(e) => setApprovalComment(e.target.value)}
+                    placeholder="Jóváhagyási megjegyzés (opcionális)"
+                    className="block w-64 border-gray-300 rounded-md shadow-sm text-sm"
+                    rows={1}
+                  />
+                  <button
+                    onClick={() => {
+                      handleUpdateDocumentStatus(selectedDocument._id, 'approved');
+                      // Állapot frissítése után töröljük a kiválasztást is
+                      setPreviewMode(false);
+                      setSelectedDocument(null);
+                    }}
+                    className="px-3 py-1 bg-green-600 text-white rounded text-sm font-medium hover:bg-green-700 flex items-center"
+                  >
+                    <CheckCircle className="h-4 w-4 mr-1" />
+                    Jóváhagyás
+                  </button>
+                  <button
+                    onClick={() => {
+                      handleUpdateDocumentStatus(selectedDocument._id, 'rejected');
+                      // Állapot frissítése után töröljük a kiválasztást is
+                      setPreviewMode(false);
+                      setSelectedDocument(null);
+                    }}
+                    className="px-3 py-1 bg-red-600 text-white rounded text-sm font-medium hover:bg-red-700 flex items-center"
+                  >
+                    <XCircle className="h-4 w-4 mr-1" />
+                    Elutasítás
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
-        )}
-      </div>
-    </div>
-  </div>
-)}
+        </div>
+      )}
 
       {/* Send Email Modal */}
       {showSendForm && selectedDocument && (

@@ -603,7 +603,7 @@ router.post('/documents/:id/share', async (req, res) => {
     await document.save();
     
     // Megosztási link generálása
-    const shareLink = `https://admin.nb-studio.net/public/documents/${publicToken}`;
+    const shareLink = `https://project.nb-studio.net/public/documents/${publicToken}`;
     
     res.json({ 
       success: true, 
@@ -642,6 +642,11 @@ router.delete('/documents/:id', async (req, res) => {
 // Publikus dokumentum információ lekérése (PIN bekérés előtt)
 router.get('/public/documents/:token/info', apiKeyChecker, async (req, res) => {
   try {
+    // CORS header-ek beállítása a project.nb-studio.net domainhez
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key');
+    
     const document = await GeneratedDocument.findOne({ publicToken: req.params.token });
     
     if (!document) {
@@ -673,6 +678,11 @@ router.get('/public/documents/:token/info', apiKeyChecker, async (req, res) => {
 // Publikus dokumentum megtekintési végpont PIN ellenőrzéssel
 router.post('/public/documents/:token/verify', apiKeyChecker, async (req, res) => {
   try {
+    // CORS header-ek beállítása a project.nb-studio.net domainhez
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key');
+    
     const { pin } = req.body;
     
     if (!pin) {
@@ -718,6 +728,11 @@ router.post('/public/documents/:token/verify', apiKeyChecker, async (req, res) =
 // Ügyfél dokumentum elfogadás/elutasítás
 router.post('/public/documents/:token/response', apiKeyChecker, async (req, res) => {
   try {
+    // CORS header-ek beállítása a project.nb-studio.net domainhez
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key');
+    
     const { response, comment, pin } = req.body;
     
     if (!response || !['approve', 'reject'].includes(response)) {

@@ -724,8 +724,62 @@ function setupProjectDomain() {
   
   // Proxy all other requests to the frontend app running on port 5173
   projectApp.use((req, res) => {
-    console.log(`Proxying request to local frontend: ${req.method} ${req.url}`);
-    proxyRequest(req, res);
+    // A /public/documents/ elérési útvonalat az API szerverre irányítjuk
+    if (req.url.startsWith('/public/documents/')) {
+      console.log(`Redirecting document request to API server: ${req.method} ${req.url}`);
+      const apiOptions = {
+        hostname: 'localhost',
+        port: port, // Az API port
+        path: `/api${req.url}`,
+        method: req.method,
+        headers: { ...req.headers }
+      };
+      
+      // Frissítjük a host header-t a helyi irányításhoz
+      apiOptions.headers.host = `localhost:${port}`;
+      apiOptions.headers['x-api-key'] = 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0';
+      
+      const proxyReq = http.request(apiOptions, (proxyRes) => {
+        // Átküldjük a válasz header-eket
+        Object.keys(proxyRes.headers).forEach(key => {
+          res.setHeader(key, proxyRes.headers[key]);
+        });
+        
+        // Ugyanazt a státuszkódot használjuk
+        res.statusCode = proxyRes.statusCode;
+        
+        // Átküldjük a választ
+        proxyRes.pipe(res);
+      });
+      
+      // Kezeljük a proxy hibákat
+      proxyReq.on('error', (err) => {
+        console.error('API Proxy error:', err);
+        if (!res.headersSent) {
+          res.writeHead(502, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ 
+            error: 'API Proxy error', 
+            message: err.message 
+          }));
+        }
+      });
+      
+      // Átküldjük a kérés törzsét, ha van
+      if (req.body) {
+        proxyReq.write(JSON.stringify(req.body));
+      }
+      
+      // Átküldjük a kérés adatait, ha streamelünk
+      if (req.readable) {
+        req.pipe(proxyReq);
+      } else {
+        proxyReq.end();
+      }
+    } else {
+      // Minden más kérést átirányítunk a frontendes alkalmazáshoz
+      console.log(`Proxying request to local frontend: ${req.method} ${req.url}`);
+      proxyRequest(req, res);
+    }
   });
   
   // Request proxying function
