@@ -359,6 +359,40 @@ const AIChat = () => {
     // Az URL alapján ellenőrizzük, hogy a dedicated AI Chat oldalon vagyunk-e
     const isAIChatPage = window.location.pathname === '/ai-chat';
     
+    // A válasz tartalmát feldolgozzuk és formázzuk
+    const formattedContent = msg.role === 'assistant' 
+      ? msg.content.split('\n').map((line, i) => {
+          // Ha a sor üres, akkor egy üres paragrafust adunk
+          if (!line.trim()) return <p key={i} className="my-2"></p>;
+          
+          // Ha a sor egy címsor (## vagy #), akkor formázzuk
+          if (line.startsWith('## ')) {
+            return <h2 key={i} className="text-lg font-semibold mt-4 mb-2">{line.slice(3)}</h2>;
+          }
+          if (line.startsWith('# ')) {
+            return <h1 key={i} className="text-xl font-bold mt-4 mb-2">{line.slice(2)}</h1>;
+          }
+          
+          // Ha a sor egy lista elem (- vagy *), akkor formázzuk
+          if (line.trim().startsWith('- ') || line.trim().startsWith('* ')) {
+            return <li key={i} className="ml-4">{line.trim().slice(2)}</li>;
+          }
+          
+          // Ha a sor egy kódblokk (```), akkor formázzuk
+          if (line.trim().startsWith('```')) {
+            return <pre key={i} className="bg-gray-100 p-2 rounded my-2 overflow-x-auto">{line.slice(3)}</pre>;
+          }
+          
+          // Ha a sor egy inline kód (`), akkor formázzuk
+          if (line.includes('`')) {
+            return <p key={i} className="whitespace-pre-wrap">{line.replace(/`([^`]+)`/g, '<code class="bg-gray-100 px-1 rounded">$1</code>')}</p>;
+          }
+          
+          // Egyéb esetben normál szövegként jelenítjük meg
+          return <p key={i} className="whitespace-pre-wrap">{line}</p>;
+        })
+      : msg.content;
+    
     return (
       <div 
         key={index}
@@ -371,7 +405,7 @@ const AIChat = () => {
               : 'bg-gray-200 text-gray-800 rounded-bl-none'
           }`}
         >
-          {msg.content}
+          {formattedContent}
         </div>
       </div>
     );

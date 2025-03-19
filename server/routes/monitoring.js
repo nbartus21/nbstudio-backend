@@ -92,269 +92,6 @@ router.post('/monitoring/register', validateMonitorApiKey, async (req, res) => {
   }
 });
 
-// Hálózati információk fogadása
-router.post('/monitoring/network', validateMonitorApiKey, async (req, res) => {
-  try {
-    const { server_id, speedtest, ping, timestamp } = req.body;
-    
-    // Szerver keresése az adatbázisban
-    let server = await ServerMonitor.findOne({ server_id });
-    
-    if (!server) {
-      return res.status(404).json({
-        success: false,
-        message: 'Szerver nem található, először regisztrálja'
-      });
-    }
-    
-    // Hálózati adatok frissítése
-    if (!server.network) server.network = {};
-    
-    if (speedtest) {
-      server.network.speedtest = {
-        download: speedtest.download,
-        upload: speedtest.upload,
-        ping: speedtest.ping,
-        server: speedtest.server,
-        timestamp: new Date(timestamp) || new Date()
-      };
-    }
-    
-    if (ping) {
-      server.network.ping_results = ping;
-    }
-    
-    // Történeti adatok frissítése
-    if (server.history.length > 0) {
-      const lastIndex = server.history.length - 1;
-      if (speedtest && speedtest.ping) {
-        server.history[lastIndex].network_latency = speedtest.ping;
-      }
-    }
-    
-    server.last_seen = new Date();
-    await server.save();
-    
-    res.status(200).json({
-      success: true,
-      message: 'Hálózati információk sikeresen frissítve'
-    });
-  } catch (error) {
-    console.error('Hiba a hálózati információk frissítésekor:', error);
-    res.status(500).json({ 
-      success: false,
-      message: 'Szerver hiba a hálózati adatok mentése során', 
-      error: error.message 
-    });
-  }
-});
-
-// Biztonsági információk fogadása
-router.post('/monitoring/security', validateMonitorApiKey, async (req, res) => {
-  try {
-    const { server_id, open_ports, active_ssh_connections, failed_login_attempts, updates_available, security_updates, timestamp } = req.body;
-    
-    // Szerver keresése az adatbázisban
-    let server = await ServerMonitor.findOne({ server_id });
-    
-    if (!server) {
-      return res.status(404).json({
-        success: false,
-        message: 'Szerver nem található, először regisztrálja'
-      });
-    }
-    
-    // Biztonsági adatok frissítése
-    if (!server.security) server.security = {};
-    
-    server.security = {
-      open_ports: open_ports || server.security.open_ports,
-      active_ssh_connections: active_ssh_connections !== undefined ? active_ssh_connections : server.security.active_ssh_connections,
-      failed_login_attempts: failed_login_attempts || server.security.failed_login_attempts,
-      updates_available: updates_available !== undefined ? updates_available : server.security.updates_available,
-      security_updates: security_updates !== undefined ? security_updates : server.security.security_updates,
-      last_security_check: new Date(timestamp) || new Date()
-    };
-    
-    // Biztonsági riasztások ellenőrzése
-    if (security_updates && parseInt(security_updates) > 0) {
-      // Biztonsági frissítések riasztás
-      const existingAlert = server.alerts.find(alert => 
-        alert.type === 'security' && 
-        alert.message.includes('biztonsági frissítés') &&
-        !alert.acknowledged
-      );
-      
-      if (!existingAlert) {
-        server.alerts.push({
-          type: 'security',
-          severity: 'warning',
-          message: `${security_updates} biztonsági frissítés elérhető`,
-          timestamp: new Date()
-        });
-        
-        // Értesítés küldése
-        const notification = new Notification({
-          userId: process.env.ADMIN_EMAIL || 'admin@example.com',
-          type: 'server',
-          title: 'Biztonsági figyelmeztetés',
-          message: `${server.hostname}: ${security_updates} biztonsági frissítés elérhető`,
-          severity: 'warning',
-          link: '/infrastructure/monitoring'
-        });
-        
-        await notification.save();
-      }
-    }
-    
-    if (failed_login_attempts && failed_login_attempts.length > 0) {
-      // Sikertelen bejelentkezési kísérletek riasztás
-      const existingAlert = server.alerts.find(alert => 
-        alert.type === 'security' && 
-        alert.message.includes('sikertelen bejelentkezés') &&
-        !alert.acknowledged
-      );
-      
-      if (!existingAlert) {
-        server.alerts.push({
-          type: 'security',
-          severity: 'warning',
-          message: 'Sikertelen bejelentkezési kísérletek észlelve',
-          timestamp: new Date()
-        });
-      }
-    }
-    
-    server.last_seen = new Date();
-    await server.save();
-    
-    res.status(200).json({
-      success: true,
-      message: 'Biztonsági információk sikeresen frissítve'
-    });
-  } catch (error) {
-    console.error('Hiba a biztonsági információk frissítésekor:', error);
-    res.status(500).json({ 
-      success: false,
-      message: 'Szerver hiba a biztonsági adatok mentése során', 
-      error: error.message 
-    });
-  }
-});
-
-// Riasztások generálása a szerver adatai alapján
-async function generateAlerts(server) {
-  try {
-    // CPU terhelés ellenőrzése
-    if (server.system_info?.cpu?.usage_percent >= server.settings?.alert_cpu_threshold || 90) {
-      const existingAlert = server.alerts.find(alert => 
-        alert.type === 'cpu' && 
-        !alert.acknowledged
-      );
-      
-      if (!existingAlert) {
-        server.alerts.push({
-          type: 'cpu',
-          severity: 'warning',
-          message: `Magas CPU használat: ${server.system_info.cpu.usage_percent}%`,
-          timestamp: new Date()
-        });
-        
-        // Értesítés küldése
-        const notification = new Notification({
-          userId: process.env.ADMIN_EMAIL || 'admin@example.com',
-          type: 'server',
-          title: 'CPU figyelmeztetés',
-          message: `${server.hostname}: Magas CPU használat (${server.system_info.cpu.usage_percent}%)`,
-          severity: 'warning',
-          link: '/infrastructure/monitoring'
-        });
-        
-        await notification.save();
-      }
-    }
-    
-    // Memória használat ellenőrzése
-    if (server.system_info?.memory?.usage_percent >= server.settings?.alert_memory_threshold || 90) {
-      const existingAlert = server.alerts.find(alert => 
-        alert.type === 'memory' && 
-        !alert.acknowledged
-      );
-      
-      if (!existingAlert) {
-        server.alerts.push({
-          type: 'memory',
-          severity: 'warning',
-          message: `Magas memória használat: ${server.system_info.memory.usage_percent}%`,
-          timestamp: new Date()
-        });
-        
-        // Értesítés küldése
-        const notification = new Notification({
-          userId: process.env.ADMIN_EMAIL || 'admin@example.com',
-          type: 'server',
-          title: 'Memória figyelmeztetés',
-          message: `${server.hostname}: Magas memória használat (${server.system_info.memory.usage_percent}%)`,
-          severity: 'warning',
-          link: '/infrastructure/monitoring'
-        });
-        
-        await notification.save();
-      }
-    }
-    
-    // Lemezterület ellenőrzése
-    if (server.system_info?.disk?.usage_percent >= server.settings?.alert_disk_threshold || 90) {
-      const existingAlert = server.alerts.find(alert => 
-        alert.type === 'disk' && 
-        !alert.acknowledged
-      );
-      
-      if (!existingAlert) {
-        server.alerts.push({
-          type: 'disk',
-          severity: 'warning',
-          message: `Alacsony szabad lemezterület: ${server.system_info.disk.usage_percent}% foglalt`,
-          timestamp: new Date()
-        });
-        
-        // Értesítés küldése
-        const notification = new Notification({
-          userId: process.env.ADMIN_EMAIL || 'admin@example.com',
-          type: 'server',
-          title: 'Lemezterület figyelmeztetés',
-          message: `${server.hostname}: Alacsony szabad lemezterület (${server.system_info.disk.usage_percent}% foglalt)`,
-          severity: 'warning',
-          link: '/infrastructure/monitoring'
-        });
-        
-        await notification.save();
-      }
-    }
-  } catch (error) {
-    console.error('Hiba a riasztások generálása során:', error);
-  }
-}
-
-// Védett végpontok - csak bejelentkezett felhasználóknak
-
-// Middleware a védett végpontokhoz
-router.use(authMiddleware);
-
-// Minden szerver lekérése
-router.get('/monitoring/servers', async (req, res) => {
-  try {
-    const servers = await ServerMonitor.find()
-      .select('-history')  // Ne küldje el a teljes történeti adatokat
-      .sort({ hostname: 1 });
-    
-    res.json(servers);
-  } catch (error) {
-    console.error('Hiba a szerverek lekérésekor:', error);
-    res.status(500).json({ message: error.message });
-  }
-});
-
 // Egy szerver részletes adatainak lekérése
 router.get('/monitoring/servers/:id', async (req, res) => {
   try {
@@ -602,6 +339,25 @@ PING_HOSTS=("8.8.8.8" "1.1.1.1")
 # Teljes monitorozó szkript...
 # (Itt az eredeti server_monitor.sh teljes tartalma következne)
 `);
+});
+
+// Védett végpontok - csak bejelentkezett felhasználóknak
+
+// Middleware a védett végpontokhoz
+router.use(authMiddleware);
+
+// Minden szerver lekérése
+router.get('/monitoring/servers', async (req, res) => {
+  try {
+    const servers = await ServerMonitor.find()
+      .select('-history')  // Ne küldje el a teljes történeti adatokat
+      .sort({ hostname: 1 });
+    
+    res.json(servers);
+  } catch (error) {
+    console.error('Hiba a szerverek lekérésekor:', error);
+    res.status(500).json({ message: error.message });
+  }
 });
 
 export default router;
