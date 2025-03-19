@@ -945,8 +945,8 @@ router.post('/projects/:projectId/invoices/:invoiceId/generate', async (req, res
 });
 
 // Cron job beállítása az ismétlődő számlák automatikus feldolgozásához
-// Minden nap 00:00-kor lefut
-cron.schedule('0 0 * * *', async () => {
+// Minden nap 00:00-kor és 12:00-kor lefut
+cron.schedule('0 0,12 * * *', async () => {
   try {
     console.log('Ismétlődő számlák automatikus feldolgozása indul...');
     const count = await processRecurringInvoices();
