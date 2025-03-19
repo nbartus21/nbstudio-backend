@@ -205,10 +205,24 @@ const SharedProjectDashboard = ({
         // Újra lekérjük a projektet - több végpontot is megpróbálunk
         let response;
         
-        // Először megpróbáljuk a legvalószínűbb végponton
+        // Közvetlenül a /verify-pin útvonalat használjuk, amely teljes prioritást élvez
         try {
-          console.log('Trying to refresh project data with first endpoint: /api/public/projects/verify-pin');
-          response = await fetch(`${API_URL}/public/projects/verify-pin`, {
+          console.log('Trying to refresh project data with /verify-pin endpoint directly');
+          
+          // Ellenőrizzük a PIN legalitását
+          if (session.pin === undefined || session.pin === null) {
+            console.log('No PIN in session, setting empty string');
+            session.pin = '';
+          }
+          
+          // Előkészítjük a kérés tartalmát, részletes naplózással
+          const requestData = { 
+            token: normalizedProject.sharing?.token,
+            pin: session.pin || ''
+          };
+          console.log('Request body prepared:', JSON.stringify(requestData, null, 2));
+          
+          response = await fetch(`${API_URL}/verify-pin`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -216,31 +230,12 @@ const SharedProjectDashboard = ({
               'Accept': 'application/json',
               'Origin': window.location.origin
             },
-            body: JSON.stringify({ 
-              token: normalizedProject.sharing?.token,
-              pin: session.pin || ''
-            }),
+            body: JSON.stringify(requestData),
             credentials: 'include'
           });
+          console.log('Response status from verify-pin:', response.status);
           
-          // Ha nem sikerült, próbáljuk a következő végpontot
-          if (response.status === 403 || response.status === 404) {
-            console.log('First endpoint failed, trying second endpoint: /verify-pin');
-            response = await fetch(`${API_URL}/verify-pin`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'X-API-Key': API_KEY,
-                'Accept': 'application/json',
-                'Origin': window.location.origin
-              },
-              body: JSON.stringify({ 
-                token: normalizedProject.sharing?.token,
-                pin: session.pin || ''
-              }),
-              credentials: 'include'
-            });
-          }
+          // Ha nem sikerült, ne próbálkozzunk más végpontokkal a frissítési folyamat során
         } catch (fetchError) {
           console.error('Error during project refresh fetch:', fetchError);
           // Ha hiba történt az első kérésnél, próbáljuk újra más végponton

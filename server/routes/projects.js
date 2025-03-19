@@ -282,9 +282,19 @@ router.post('/projects/:id/share', async (req, res) => {
   }
 });
 
-// Publikus végpont a PIN ellenőrzéshez (nem kell auth middleware, de API key validálás a router használatánál)
-router.post('/verify-pin', async (req, res) => {
+// Külön definiáljuk a PIN ellenőrző függvényt, hogy közvetlenül hívható legyen
+export const verifyPin = async (req, res) => {
+  // CORS fejlécek beállítása
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key');
+  
+  // Debug információk
+  console.log(`PIN verify request received on endpoint: ${req.originalUrl}`);
+  console.log(`Request headers:`, JSON.stringify(req.headers, null, 2));
+  
   console.log('PIN ellenőrzés kérés érkezett:', req.body);
+  
   try {
     const { token, pin, updateProject } = req.body;
     
@@ -432,12 +442,22 @@ router.post('/verify-pin', async (req, res) => {
       }
     };
 
-    res.json({ project: sanitizedProject });
+    const response = { project: sanitizedProject };
+    console.log('Sikeres PIN ellenőrzés, visszaküldött projekt adatok:', {
+      projektNév: response.project.name,
+      számlákSzáma: response.project.invoices.length
+    });
+    res.json(response);
   } catch (error) {
-    console.error('Szerver hiba:', error);
-    res.status(500).json({ message: 'Szerver hiba történt' });
+    console.error('Szerver hiba a PIN ellenőrzés során:', error);
+    console.error('Hibastack:', error.stack);
+    res.status(500).json({ message: 'Szerver hiba történt', error: error.message });
   }
-});
+};
+
+// Publikus végpont a PIN ellenőrzéshez (nem kell auth middleware, de API key validálás a router használatánál)
+// Az alábbi végpont több útvonalon is elérhető lesz a router mount helyétől függően
+router.post('/verify-pin', verifyPin);
 
 // Módosított megosztott projekt lekérés
 router.get('/shared-project/:token', async (req, res) => {

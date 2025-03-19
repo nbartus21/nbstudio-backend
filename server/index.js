@@ -377,8 +377,26 @@ app.get('/api/posts', async (req, res) => {
   }
 });
 
-// Public project endpoints
+// Importáljuk a PIN ellenőrző függvényt
+import { verifyPin } from './routes/projects.js';
+
+// Különböző útvonalon regisztráljuk ugyanazt a PIN ellenőrző végpontot
+// Így biztosítjuk, hogy több URL-ről is elérhető legyen
+
+// 1. A public/projects alá
 app.use('/api/public/projects', validateApiKey, projectRoutes);
+
+// 2. Közvetlenül az api alá is
+app.post('/api/verify-pin', validateApiKey, async (req, res) => {
+  console.log('Request from /api/verify-pin route');
+  await verifyPin(req, res);
+});
+
+// 3. Gyökérkönyvtárba is
+app.post('/verify-pin', validateApiKey, async (req, res) => {
+  console.log('Request from root /verify-pin route');
+  await verifyPin(req, res);
+});
 
 // Email API routes
 app.use('/api/email', emailApiRouter);
