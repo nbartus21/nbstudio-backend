@@ -708,6 +708,10 @@ function setupProjectDomain() {
   // Create a separate Express app for project.nb-studio.net
   const projectApp = express();
   
+  // Alkalmazzuk a body parser-t a projekt alkalmazáshoz is
+  projectApp.use(express.json({ limit: '50mb' }));
+  projectApp.use(express.urlencoded({ extended: true, limit: '50mb' }));
+  
   // Apply CORS settings for project app
   projectApp.use(cors({
     origin: '*',
@@ -721,59 +725,33 @@ function setupProjectDomain() {
     console.log('Proxying socket.io request');
     proxyRequest(req, res, 'socket.io');
   });
+
+  // OPTIONS kérés kezelése
+  projectApp.use((req, res, next) => {
+    if (req.method === 'OPTIONS') {
+      console.log('OPTIONS kérés kezelése');
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key');
+      res.setHeader('Access-Control-Max-Age', '86400');
+      res.status(200).end();
+      return;
+    }
+    next();
+  });
   
   // Proxy all other requests to the frontend app running on port 5173
   projectApp.use((req, res) => {
     // A /public/documents/ elérési útvonalat az API szerverre irányítjuk
     if (req.url.startsWith('/public/documents/')) {
       console.log(`Redirecting document request to API server: ${req.method} ${req.url}`);
-      const apiOptions = {
-        hostname: 'localhost',
-        port: port, // Az API port
-        path: `/api${req.url}`,
-        method: req.method,
-        headers: { ...req.headers }
-      };
       
-      // Frissítjük a host header-t a helyi irányításhoz
-      apiOptions.headers.host = `localhost:${port}`;
-      apiOptions.headers['x-api-key'] = 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0';
-      
-      const proxyReq = http.request(apiOptions, (proxyRes) => {
-        // Átküldjük a válasz header-eket
-        Object.keys(proxyRes.headers).forEach(key => {
-          res.setHeader(key, proxyRes.headers[key]);
-        });
-        
-        // Ugyanazt a státuszkódot használjuk
-        res.statusCode = proxyRes.statusCode;
-        
-        // Átküldjük a választ
-        proxyRes.pipe(res);
-      });
-      
-      // Kezeljük a proxy hibákat
-      proxyReq.on('error', (err) => {
-        console.error('API Proxy error:', err);
-        if (!res.headersSent) {
-          res.writeHead(502, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ 
-            error: 'API Proxy error', 
-            message: err.message 
-          }));
-        }
-      });
-      
-      // Átküldjük a kérés törzsét, ha van
-      if (req.body) {
-        proxyReq.write(JSON.stringify(req.body));
-      }
-      
-      // Átküldjük a kérés adatait, ha streamelünk
-      if (req.readable) {
-        req.pipe(proxyReq);
+      // Csak POST és PUT kérések esetén csomagoljuk a body-t 
+      if (['POST', 'PUT'].includes(req.method) && req.body) {
+        handleAPIProxyWithBody(req, res);
       } else {
-        proxyReq.end();
+        // GET, DELETE, OPTIONS stb. esetén nincs szükség body-ra
+        handleAPIProxyWithoutBody(req, res);
       }
     } else {
       // Minden más kérést átirányítunk a frontendes alkalmazáshoz
@@ -782,54 +760,184 @@ function setupProjectDomain() {
     }
   });
   
-  // Request proxying function
-  function proxyRequest(req, res, path) {
-    const options = {
-      hostname: 'localhost',
-      port: 5173,
-      path: path ? `/${path}${req.url}` : req.url,
-      method: req.method,
-      headers: { ...req.headers }
-    };
-    
-    // Update host header for local routing
-    options.headers.host = 'localhost:5173';
-    
-    const proxyReq = http.request(options, (proxyRes) => {
-      // Forward response headers
-      Object.keys(proxyRes.headers).forEach(key => {
-        res.setHeader(key, proxyRes.headers[key]);
+  // API Proxy kezelése body-val
+  function handleAPIProxyWithBody(req, res) {
+    try {
+      const bodyData = JSON.stringify(req.body);
+      
+      const apiOptions = {
+        hostname: 'localhost',
+        port: port,
+        path: `/api${req.url}`,
+        method: req.method,
+        headers: { ...req.headers }
+      };
+      
+      // Header-ek beállítása
+      apiOptions.headers.host = `localhost:${port}`;
+      apiOptions.headers['x-api-key'] = 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0';
+      apiOptions.headers['content-type'] = 'application/json';
+      apiOptions.headers['content-length'] = Buffer.byteLength(bodyData);
+      
+      const proxyReq = http.request(apiOptions, (proxyRes) => {
+        // Válasz header-ek továbbítása
+        Object.keys(proxyRes.headers).forEach(key => {
+          res.setHeader(key, proxyRes.headers[key]);
+        });
+        
+        res.statusCode = proxyRes.statusCode;
+        
+        // Válasz pipe-olása
+        proxyRes.pipe(res);
       });
       
-      // Use same status code
-      res.statusCode = proxyRes.statusCode;
+      // Időtúllépés és hibaellenőrzés
+      proxyReq.setTimeout(30000, () => {
+        console.error('API Proxy request timeout');
+        proxyReq.abort();
+        sendErrorResponse(res, 504, 'API Proxy timeout', 'A kérés időtúllépés miatt megszakadt');
+      });
       
-      // Pipe response body
-      proxyRes.pipe(res);
-    });
-    
-    // Handle proxy errors
-    proxyReq.on('error', (err) => {
-      console.error('Proxy error:', err);
-      if (!res.headersSent) {
-        res.writeHead(502, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ 
-          error: 'Proxy error', 
-          message: err.message 
-        }));
-      }
-    });
-    
-    // Forward request body if present
-    if (req.body) {
-      proxyReq.write(JSON.stringify(req.body));
-    }
-    
-    // Pipe request data if streaming
-    if (req.readable) {
-      req.pipe(proxyReq);
-    } else {
+      proxyReq.on('error', (err) => {
+        console.error('API Proxy error:', err);
+        sendErrorResponse(res, 502, 'API Proxy error', err.message);
+      });
+      
+      // Kérés küldése a body-val
+      proxyReq.write(bodyData);
       proxyReq.end();
+      
+    } catch (error) {
+      console.error('Error in handleAPIProxyWithBody:', error);
+      sendErrorResponse(res, 500, 'API Proxy error', 'Hiba a kérés feldolgozása során');
+    }
+  }
+  
+  // API Proxy kezelése body nélkül
+  function handleAPIProxyWithoutBody(req, res) {
+    try {
+      const apiOptions = {
+        hostname: 'localhost',
+        port: port,
+        path: `/api${req.url}`,
+        method: req.method,
+        headers: { ...req.headers }
+      };
+      
+      // Header-ek beállítása
+      apiOptions.headers.host = `localhost:${port}`;
+      apiOptions.headers['x-api-key'] = 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0';
+      
+      const proxyReq = http.request(apiOptions, (proxyRes) => {
+        // Válasz header-ek továbbítása
+        Object.keys(proxyRes.headers).forEach(key => {
+          res.setHeader(key, proxyRes.headers[key]);
+        });
+        
+        res.statusCode = proxyRes.statusCode;
+        
+        // Válasz pipe-olása
+        proxyRes.pipe(res);
+      });
+      
+      // Időtúllépés és hibaellenőrzés
+      proxyReq.setTimeout(30000, () => {
+        console.error('API Proxy request timeout');
+        proxyReq.abort();
+        sendErrorResponse(res, 504, 'API Proxy timeout', 'A kérés időtúllépés miatt megszakadt');
+      });
+      
+      proxyReq.on('error', (err) => {
+        console.error('API Proxy error:', err);
+        sendErrorResponse(res, 502, 'API Proxy error', err.message);
+      });
+      
+      // Kérés lezárása (body nélkül)
+      proxyReq.end();
+      
+    } catch (error) {
+      console.error('Error in handleAPIProxyWithoutBody:', error);
+      sendErrorResponse(res, 500, 'API Proxy error', 'Hiba a kérés feldolgozása során');
+    }
+  }
+  
+  // Hibaüzenet küldése
+  function sendErrorResponse(res, statusCode, title, message) {
+    if (!res.headersSent) {
+      res.writeHead(statusCode, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ 
+        error: title, 
+        message: message 
+      }));
+    }
+  }
+  
+  // Frontend alkalmazáshoz való átirányítás
+  function proxyRequest(req, res, path) {
+    try {
+      let bodyData = '';
+      
+      if (['POST', 'PUT'].includes(req.method) && req.body) {
+        bodyData = JSON.stringify(req.body);
+      }
+      
+      const options = {
+        hostname: 'localhost',
+        port: 5173,
+        path: path ? `/${path}${req.url}` : req.url,
+        method: req.method,
+        headers: { ...req.headers }
+      };
+      
+      // Update host header for local routing
+      options.headers.host = 'localhost:5173';
+      
+      // Állítsuk be a content-length header-t, ha van body
+      if (bodyData) {
+        options.headers['content-type'] = 'application/json';
+        options.headers['content-length'] = Buffer.byteLength(bodyData);
+      }
+      
+      const proxyReq = http.request(options, (proxyRes) => {
+        // Forward response headers
+        Object.keys(proxyRes.headers).forEach(key => {
+          res.setHeader(key, proxyRes.headers[key]);
+        });
+        
+        // Use same status code
+        res.statusCode = proxyRes.statusCode;
+        
+        // Pipe response body
+        proxyRes.pipe(res);
+      });
+      
+      // Időtúllépés beállítása
+      proxyReq.setTimeout(30000, () => {
+        console.error('Frontend Proxy request timeout');
+        proxyReq.abort();
+        sendErrorResponse(res, 504, 'Frontend Proxy timeout', 'A kérés időtúllépés miatt megszakadt');
+      });
+      
+      // Handle proxy errors
+      proxyReq.on('error', (err) => {
+        console.error('Frontend Proxy error:', err);
+        sendErrorResponse(res, 502, 'Frontend Proxy error', err.message);
+      });
+      
+      // Átküldjük a kérés törzsét, ha van
+      if (bodyData) {
+        proxyReq.write(bodyData);
+        proxyReq.end();
+      } else if (req.readable) {
+        // Adatok streamelése, ha van
+        req.pipe(proxyReq);
+      } else {
+        // Kérés befejezése
+        proxyReq.end();
+      }
+    } catch (error) {
+      console.error('Error in proxyRequest:', error);
+      sendErrorResponse(res, 500, 'Frontend Proxy error', 'Hiba a kérés feldolgozása során');
     }
   }
   

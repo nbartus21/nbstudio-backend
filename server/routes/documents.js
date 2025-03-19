@@ -10,6 +10,20 @@ import { dirname } from 'path';
 
 const router = express.Router();
 
+// Egyszerű CORS middleware a nyilvános dokumentum végpontokhoz
+const corsMiddleware = (req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key');
+  
+  // OPTIONS kérések kezelése
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  
+  next();
+};
+
 // Védett végpontok
 router.use(authMiddleware);
 
@@ -640,13 +654,8 @@ router.delete('/documents/:id', async (req, res) => {
 });
 
 // Publikus dokumentum információ lekérése (PIN bekérés előtt)
-router.get('/public/documents/:token/info', apiKeyChecker, async (req, res) => {
+router.get('/public/documents/:token/info', corsMiddleware, apiKeyChecker, async (req, res) => {
   try {
-    // CORS header-ek beállítása a project.nb-studio.net domainhez
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key');
-    
     const document = await GeneratedDocument.findOne({ publicToken: req.params.token });
     
     if (!document) {
@@ -676,13 +685,8 @@ router.get('/public/documents/:token/info', apiKeyChecker, async (req, res) => {
 });
 
 // Publikus dokumentum megtekintési végpont PIN ellenőrzéssel
-router.post('/public/documents/:token/verify', apiKeyChecker, async (req, res) => {
+router.post('/public/documents/:token/verify', corsMiddleware, apiKeyChecker, async (req, res) => {
   try {
-    // CORS header-ek beállítása a project.nb-studio.net domainhez
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key');
-    
     const { pin } = req.body;
     
     if (!pin) {
@@ -726,13 +730,8 @@ router.post('/public/documents/:token/verify', apiKeyChecker, async (req, res) =
 });
 
 // Ügyfél dokumentum elfogadás/elutasítás
-router.post('/public/documents/:token/response', apiKeyChecker, async (req, res) => {
+router.post('/public/documents/:token/response', corsMiddleware, apiKeyChecker, async (req, res) => {
   try {
-    // CORS header-ek beállítása a project.nb-studio.net domainhez
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key');
-    
     const { response, comment, pin } = req.body;
     
     if (!response || !['approve', 'reject'].includes(response)) {
