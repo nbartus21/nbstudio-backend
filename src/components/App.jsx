@@ -22,7 +22,6 @@ import DocumentManager from './DocumentManager';
 import AIChat from './AIChat'; // AI Chat importálása
 import SideChat from './SideChat'; // Side chat importálása
 import Help from './Help';
-import ExpenseManager from './ExpenseManager'; // Új kiadás kezelő importálása
 
 
 
@@ -117,14 +116,6 @@ const App = () => {
        element={
          <PrivateRoute>
            <DomainManager />
-         </PrivateRoute>
-       }
-     />
-     <Route
-       path="/expenses"
-       element={
-         <PrivateRoute>
-           <ExpenseManager />
          </PrivateRoute>
        }
      />
