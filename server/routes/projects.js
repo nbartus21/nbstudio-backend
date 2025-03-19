@@ -289,28 +289,79 @@ router.post('/verify-pin', async (req, res) => {
     const { token, pin, updateProject } = req.body;
     
     console.log('Token a verify-pin-ben:', token);
-    const project = await Project.findOne({ 'sharing.token': token });
+    // Részletes keresési folyamat a token alapján
+    let project = null;
     
+    // Első próbálkozás: a sharing.token mezőben keressük
+    project = await Project.findOne({ 'sharing.token': token });
+    
+    // Ha nem találtuk meg, próbáljunk más mezőkkel is
     if (!project) {
-      console.log('Projekt nem található a következő tokennel:', token);
-      // Próbáljuk meg keresni, hogy van-e egyáltalán projekt megosztási tokennel
-      const anyProjectWithSharing = await Project.findOne({ 'sharing': { $exists: true } });
-      if (anyProjectWithSharing) {
-        console.log('Van megosztott projekt, de nem ezzel a tokennel. Például:', anyProjectWithSharing.sharing.token);
-      } else {
-        console.log('Nincs egyetlen megosztott projekt sem az adatbázisban');
+      console.log('Projekt nem található a sharing.token mezőben, próbálkozás más mezőkkel');
+      
+      // Második próbálkozás: esetleg a token közvetlenül a _id mezőben van
+      if (token && token.match(/^[0-9a-fA-F]{24}$/)) {
+        console.log('A token érvényes ObjectId formátumú, próbálkozás _id-vel');
+        project = await Project.findById(token);
       }
-      return res.status(404).json({ message: 'A projekt nem található' });
+      
+      // Harmadik próbálkozás: más token mezők
+      if (!project) {
+        console.log('Projekt nem található _id-vel sem, próbálkozás más token mezőkkel');
+        project = await Project.findOne({
+          $or: [
+            { 'shareToken': token },
+            { 'token': token }
+          ]
+        });
+      }
+      
+      // Ha még mindig nincs találat, próbáljuk megnézni van-e egyáltalán megosztott projekt
+      if (!project) {
+        console.log('Projekt nem található a token alapján, ellenőrizzük van-e egyáltalán megosztott projekt');
+        const anyProjectWithSharing = await Project.findOne({ 'sharing': { $exists: true } });
+        if (anyProjectWithSharing) {
+          console.log('Van megosztott projekt, de nem ezzel a tokennel. Például:', anyProjectWithSharing.sharing.token);
+        } else {
+          console.log('Nincs egyetlen megosztott projekt sem az adatbázisban');
+        }
+        
+        // Ha van legalább egy megosztott projekt, de rossz token jött, logoljuk a helyes tokent
+        const allSharedProjects = await Project.find(
+          { 'sharing.token': { $exists: true } },
+          { 'sharing.token': 1, 'name': 1 }
+        );
+        if (allSharedProjects.length > 0) {
+          console.log('Összes megosztott projekt token értékei:');
+          allSharedProjects.forEach(p => {
+            console.log(`- Projekt "${p.name}": ${p.sharing?.token}`);
+          });
+        }
+        
+        return res.status(404).json({ message: 'A projekt nem található' });
+      }
     }
     
     console.log('Megtalált projekt:', project.name, 'számlák száma:', project.invoices?.length || 0);
 
     // Lejárat ellenőrzése
-    if (project.sharing.expiresAt && new Date() > project.sharing.expiresAt) {
+    if (project.sharing && project.sharing.expiresAt && new Date() > project.sharing.expiresAt) {
       return res.status(403).json({ message: 'A megosztási link lejárt' });
     }
 
-    if (project.sharing.pin !== pin) {
+    // PIN ellenőrzése
+    // Ha pin üres, akkor ne utasítsuk el azonnal, hanem csak figyelmeztetjük
+    if (!pin || pin.trim() === '') {
+      console.log('Üres PIN érkezett, de nem utasítjuk el automatikusan');
+      if (project.sharing && project.sharing.pin && project.sharing.pin.trim() !== '') {
+        console.log('A projekthez tartozik PIN (kezdő karakterek):', project.sharing.pin.substring(0, 2) + '****');
+        return res.status(403).json({ message: 'PIN kód szükséges a projekthez való hozzáféréshez' });
+      } else {
+        console.log('A projekthez nem tartozik PIN, vagy üres PIN van beállítva, beengedjük a felhasználót');
+        // Ha nincs PIN a projekthez, vagy üres, akkor engedjük be
+      }
+    } else if (project.sharing && project.sharing.pin && project.sharing.pin !== pin) {
+      console.log('Érvénytelen PIN kód (várt/kapott):', project.sharing.pin, '/', pin);
       return res.status(403).json({ message: 'Érvénytelen PIN kód' });
     }
     
