@@ -30,12 +30,7 @@ router.use(authMiddleware);
 // FONTOS: Engedélyezzük a hozzáférést a dokumentum létrehozásához API kulccsal IS,
 // hogy a publikus kliensek is tudják használni
 const apiKeyChecker = (req, res, next) => {
-  // Ha van érvényes token, akkor engedjük tovább
-  if (req.userData) {
-    return next();
-  }
-  
-  // Ha nincs token, ellenőrizzük az API kulcsot
+  // Ellenőrizzük az API kulcsot
   const apiKey = req.headers['x-api-key'];
   if (apiKey === 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0') {
     // Ha érvényes az API kulcs, állítsuk be egy alap userData objektumot
@@ -43,7 +38,7 @@ const apiKeyChecker = (req, res, next) => {
     return next();
   }
   
-  // Ha sem token, sem érvényes API kulcs nincs, akkor 401
+  // Ha nincs érvényes API kulcs, akkor 401
   return res.status(401).json({ message: 'Unauthorized access' });
 };
 
