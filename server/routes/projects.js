@@ -284,8 +284,23 @@ router.post('/projects/:id/share', async (req, res) => {
 
 // Külön definiáljuk a PIN ellenőrző függvényt, hogy közvetlenül hívható legyen
 export const verifyPin = async (req, res) => {
-  // CORS fejlécek beállítása
-  res.header('Access-Control-Allow-Origin', '*');
+  // CORS fejlécek beállítása - az origin-t a kérés alapján határozzuk meg
+  const origin = req.headers.origin;
+  if (origin) {
+    res.header('Access-Control-Allow-Origin', origin);
+  } else if (req.headers.referer) {
+    try {
+      const refererUrl = new URL(req.headers.referer);
+      res.header('Access-Control-Allow-Origin', `${refererUrl.protocol}//${refererUrl.host}`);
+    } catch (e) {
+      res.header('Access-Control-Allow-Origin', 'https://project.nb-studio.net');
+    }
+  } else {
+    res.header('Access-Control-Allow-Origin', 'https://project.nb-studio.net');
+  }
+  
+  // Credentials engedélyezése
+  res.header('Access-Control-Allow-Credentials', 'true');
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key');
   

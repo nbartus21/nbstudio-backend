@@ -50,8 +50,48 @@ import authMiddleware from './middleware/auth.js';
 dotenv.config();
 
 // CORS fejléc segédmetódus létrehozása
-const allowCors = (res) => {
-  res.header('Access-Control-Allow-Origin', '*');
+const allowCors = (req, res) => {
+  // Ne használjunk wildcard-ot, hanem az eredeti origin-t add vissza, ha van
+  const origin = req.headers.origin;
+  if (origin) {
+    res.header('Access-Control-Allow-Origin', origin);
+  } else {
+    // Ha nincs origin, akkor használjuk az engedélyezett origin-eket
+    const allowedOrigins = [
+      'https://admin.nb-studio.net',
+      'https://nb-studio.net',
+      'https://www.nb-studio.net',
+      'https://project.nb-studio.net',
+      'http://38.242.208.190:5173',
+      'http://localhost:5173',
+      'http://localhost:3000'
+    ];
+    
+    // Ha van referer, próbáljuk abból kinyerni az origin-t
+    const referer = req.headers.referer;
+    if (referer) {
+      try {
+        const refererUrl = new URL(referer);
+        const refererOrigin = `${refererUrl.protocol}//${refererUrl.host}`;
+        
+        if (allowedOrigins.includes(refererOrigin)) {
+          res.header('Access-Control-Allow-Origin', refererOrigin);
+        } else {
+          // Alapértelmezett beállítás, ha nem találunk jobb opciót
+          res.header('Access-Control-Allow-Origin', 'https://project.nb-studio.net');
+        }
+      } catch (e) {
+        // Alapértelmezett beállítás hiba esetén
+        res.header('Access-Control-Allow-Origin', 'https://project.nb-studio.net');
+      }
+    } else {
+      // Alapértelmezett beállítás, ha nincs referer
+      res.header('Access-Control-Allow-Origin', 'https://project.nb-studio.net');
+    }
+  }
+  
+  // Engedélyezzük a credentials használatát
+  res.header('Access-Control-Allow-Credentials', 'true');
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key');
   res.header('Access-Control-Max-Age', '86400');
@@ -140,7 +180,7 @@ const corsOptions = {
 // Apply middlewares
 app.use((req, res, next) => {
   // CORS előkezelés minden kérésre
-  allowCors(res);
+  allowCors(req, res);
   
   // OPTIONS kérés kezelése közvetlenül
   if (req.method === 'OPTIONS') {

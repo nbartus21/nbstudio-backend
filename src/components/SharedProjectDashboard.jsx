@@ -222,16 +222,18 @@ const SharedProjectDashboard = ({
           };
           console.log('Request body prepared:', JSON.stringify(requestData, null, 2));
           
+          // A credentials beállítását módosítjuk, hogy kompatibilis legyen a CORS beállításokkal
           response = await fetch(`${API_URL}/verify-pin`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
               'X-API-Key': API_KEY,
-              'Accept': 'application/json',
-              'Origin': window.location.origin
+              'Accept': 'application/json'
             },
             body: JSON.stringify(requestData),
-            credentials: 'include'
+            // Credentials: 'same-origin' használata, hogy csak egyazon origin-en működjön és
+            // ne ütközzön CORS problémákba
+            credentials: 'same-origin'
           });
           console.log('Response status from verify-pin:', response.status);
           
@@ -240,19 +242,20 @@ const SharedProjectDashboard = ({
           console.error('Error during project refresh fetch:', fetchError);
           // Ha hiba történt az első kérésnél, próbáljuk újra más végponton
           console.log('Fetch error, trying final endpoint: /api/verify-pin');
+          // Alternatív útvonal megpróbálása, credentials: 'omit' beállítással
           response = await fetch(`${API_URL}/api/verify-pin`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
               'X-API-Key': API_KEY,
-              'Accept': 'application/json',
-              'Origin': window.location.origin
+              'Accept': 'application/json'
             },
             body: JSON.stringify({ 
               token: normalizedProject.sharing?.token,
               pin: session.pin || ''
             }),
-            credentials: 'include'
+            // credentials: 'omit' azt jelenti, hogy nem küldünk sütit, amely segít a CORS problémák elkerülésében
+            credentials: 'omit'  
           });
         }
         

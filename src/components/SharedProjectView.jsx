@@ -160,70 +160,67 @@ const SharedProjectView = () => {
     debugLog('verifyPin', 'Verifying PIN', { token, pinLength: pin.length, language });
     
     try {
-      // A korrekt útvonal amit a szerver vár: /api/public/projects/verify-pin
-      debugLog('verifyPin', 'Attempting to verify PIN at the correct endpoint');
-      let response = await fetch(`${API_URL}/api/public/projects/verify-pin`, {
+      // Közvetlenül a /verify-pin végpontot használjuk, elkerülve a CORS problémákat
+      debugLog('verifyPin', 'Attempting to verify PIN with direct endpoint');
+      let response = await fetch(`${API_URL}/verify-pin`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'X-API-Key': API_KEY,
-          'Accept': 'application/json',
-          'Origin': window.location.origin
+          'Accept': 'application/json'
         },
         body: JSON.stringify({ token, pin }),
-        credentials: 'include'
+        credentials: 'omit'  // Nem küldünk sütit a CORS problémák elkerülése érdekében
       });
       
-      // Ha az első próbálkozás sikertelen, próbáljuk a többi útvonalat
-      if (response.status === 404 || response.status === 403 || !response.ok) {
-        debugLog('verifyPin', `First attempt failed with ${response.status}, trying alternate route`);
+      // CORS hiba ellenőrzése és kezelése
+      if (!response.ok) {
+        const statusCode = response.status;
+        debugLog('verifyPin', `Direct endpoint failed with ${statusCode}, trying API endpoint`);
         
-        // Alternatív útvonal - közvetlen a végpontra
-        response = await fetch(`${API_URL}/public/projects/verify-pin`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-API-Key': API_KEY,
-            'Accept': 'application/json',
-            'Origin': window.location.origin
-          },
-          body: JSON.stringify({ token, pin }),
-          credentials: 'include'
-        });
-        
-        // Ha ez is sikertelen, próbáljuk a legegyszerűbb útvonalat
-        if (response.status === 404 || response.status === 403 || !response.ok) {
-          debugLog('verifyPin', `Second attempt failed with ${response.status}, trying final route`);
-          
-          // Utolsó próbálkozás
+        // Különböző API útvonalak kipróbálása, mindegyiknél credentials: 'omit' használata
+        try {
           response = await fetch(`${API_URL}/api/verify-pin`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
               'X-API-Key': API_KEY,
-              'Accept': 'application/json',
-              'Origin': window.location.origin
+              'Accept': 'application/json'
             },
             body: JSON.stringify({ token, pin }),
-            credentials: 'include'
+            credentials: 'omit'
           });
           
-          // Ha még ez is sikertelen, próbáljuk a legegyszerűbb útvonalat
-          if (response.status === 404 || response.status === 403 || !response.ok) {
-            debugLog('verifyPin', `Third attempt failed with ${response.status}, trying final route`);
-            
-            response = await fetch(`${API_URL}/verify-pin`, {
+          if (!response.ok) {
+            debugLog('verifyPin', `API endpoint failed with ${response.status}, trying next route`);
+            response = await fetch(`${API_URL}/public/projects/verify-pin`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
                 'X-API-Key': API_KEY,
-                'Accept': 'application/json',
-                'Origin': window.location.origin
+                'Accept': 'application/json'
               },
               body: JSON.stringify({ token, pin }),
-              credentials: 'include'
+              credentials: 'omit'
             });
+            
+            if (!response.ok) {
+              debugLog('verifyPin', `Public endpoint failed with ${response.status}, trying direct API call`);
+              response = await fetch(`${API_URL}/api/public/projects/verify-pin`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'X-API-Key': API_KEY,
+                  'Accept': 'application/json'
+                },
+                body: JSON.stringify({ token, pin }),
+                credentials: 'omit'
+              });
+            }
           }
+        } catch (retryError) {
+          debugLog('verifyPin', 'All retry attempts failed', { error: retryError.message });
+          throw retryError;
         }
       }
       
