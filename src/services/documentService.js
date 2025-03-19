@@ -741,160 +741,39 @@ export const documentService = {
     },
     
     /**
-     * Get PDF generation options
-     * @returns {Object} - PDF options
+     * Generate HTML to PDF options
+     * @returns {Object} - PDF generation options
      */
     getPdfOptions() {
       return {
         format: 'A4',
         margin: {
-          top: '20mm',
+          top: '30mm',
           right: '20mm',
           bottom: '20mm',
           left: '20mm'
         },
-        printBackground: true,
+        headerTemplate: `
+          <div style="width: 100%; padding: 20px; border-bottom: 1px solid #eee;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div style="font-size: 24px; font-weight: bold; color: #333;">
+                NB-Studio
+              </div>
+              <div style="font-size: 12px; color: #666;">
+                ${new Date().toLocaleDateString('hu-HU')}
+              </div>
+            </div>
+          </div>
+        `,
+        footerTemplate: `
+          <div style="width: 100%; padding: 10px 20px; text-align: center; font-size: 10px; color: #666; border-top: 1px solid #eee;">
+            <div style="margin-bottom: 5px;">NB-Studio | www.nb-studio.net</div>
+            <div>Oldal <span class="pageNumber"></span> / <span class="totalPages"></span></div>
+          </div>
+        `,
+        displayHeaderFooter: true,
         preferCSSPageSize: true
       };
-    },
-
-    /**
-     * Share document with a project - makes it visible for clients
-     * @param {string} documentId - Document ID to share
-     * @param {string} projectId - Project ID to share with
-     * @returns {Promise<Object>} - API response
-     */
-    async shareDocumentWithProject(documentId, projectId) {
-      try {
-        const url = `${API_URL}/documents/${documentId}/share`;
-        const response = await fetch(url, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${getToken()}`
-          },
-          body: JSON.stringify({
-            projectId,
-            status: 'pendingApproval'
-          })
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to share document');
-        }
-
-        return await response.json();
-      } catch (error) {
-        console.error('Error sharing document with project:', error);
-        throw error;
-      }
-    },
-
-    /**
-     * Get documents shared with a project
-     * @param {string} projectId - Project ID
-     * @returns {Promise<Object>} - API response with documents
-     */
-    async getProjectDocuments(projectId) {
-      try {
-        const url = `${API_URL}/projects/${projectId}/documents`;
-        const response = await fetch(url, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${getToken()}`
-          }
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to fetch project documents');
-        }
-
-        return await response.json();
-      } catch (error) {
-        console.error('Error fetching project documents:', error);
-        throw error;
-      }
-    },
-
-    /**
-     * Update document status by client
-     * @param {string} documentId - Document ID
-     * @param {string} status - New status ('approved' or 'rejected')
-     * @param {string} comment - Optional comment from client
-     * @param {Object} clientInfo - Client information
-     * @returns {Promise<Object>} - API response
-     */
-    async updateDocumentClientStatus(documentId, status, comment = '', clientInfo = {}) {
-      try {
-        const url = `${API_URL}/documents/${documentId}/client-status`;
-        const response = await fetch(url, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${getToken()}`
-          },
-          body: JSON.stringify({
-            status,
-            comment,
-            clientId: clientInfo.clientId,
-            projectId: clientInfo.projectId,
-            updatedBy: clientInfo.name || 'Client'
-          })
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to update document status');
-        }
-
-        return await response.json();
-      } catch (error) {
-        console.error('Error updating document client status:', error);
-        throw error;
-      }
-    },
-
-    /**
-     * Get document client status
-     * @param {string} documentId - Document ID
-     * @returns {Promise<Object>} - API response with status
-     */
-    async getDocumentClientStatus(documentId) {
-      try {
-        const url = `${API_URL}/documents/${documentId}/client-status`;
-        const response = await fetch(url, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${getToken()}`
-          }
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to fetch document status');
-        }
-
-        return await response.json();
-      } catch (error) {
-        console.error('Error fetching document client status:', error);
-        throw error;
-      }
-    },
-
-    /**
-     * Check if document is shared with a project
-     * @param {string} documentId - Document ID
-     * @param {string} projectId - Project ID
-     * @returns {Promise<boolean>} - True if document is shared with project
-     */
-    async isDocumentSharedWithProject(documentId, projectId) {
-      try {
-        const documents = await this.getProjectDocuments(projectId);
-        return documents.some(doc => doc._id === documentId);
-      } catch (error) {
-        console.error('Error checking if document is shared:', error);
-        return false;
-      }
     }
   };
   

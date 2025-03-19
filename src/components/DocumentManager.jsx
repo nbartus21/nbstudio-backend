@@ -2,11 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { 
   FileText, Plus, Search, Filter, Download, 
   Edit, Trash2, Eye, CheckCircle, XCircle, Send,
-  Copy, FilePlus, FileCheck, Clock, Link, Share2,
-  ExternalLink, FileSymlink
+  Copy, FilePlus, FileCheck, Clock, Link, Share2
 } from 'lucide-react';
 import { api } from '../services/auth';
-import { documentService } from '../services/documentService';
 
 const DOCUMENT_TYPES = [
   { value: 'contract', label: 'Szerződés' },
@@ -72,12 +70,6 @@ const DocumentManager = () => {
     shareLink: '',
     pin: ''
   });
-  const [projectSharingData, setProjectSharingData] = useState({
-    documentId: '',
-    projectId: '',
-    status: 'pendingApproval'
-  });
-  const [showProjectShareForm, setShowProjectShareForm] = useState(false);
 
   // Fetch templates
   const fetchTemplates = async () => {
@@ -260,140 +252,187 @@ const DocumentManager = () => {
     setShowTemplateForm(true);
   };
 
-  // Dokumentum megosztása projekttel
-  const handleShareWithProject = (documentId) => {
-    const document = documents.find(doc => doc._id === documentId);
-    
-    // Ha a dokumentum már rendelkezik projekttel, azzal osztjuk meg
-    if (document && document.projectId) {
-      setProjectSharingData({
-        documentId,
-        projectId: document.projectId,
-        status: 'pendingApproval'
-      });
-    } else {
-      setProjectSharingData({
-        documentId,
-        projectId: '',
-        status: 'pendingApproval'
-      });
-    }
-    
-    setShowProjectShareForm(true);
-  };
-  
-  // Megosztás végrehajtása
-  const handleShareDocumentWithProject = async () => {
-    try {
-      if (!projectSharingData.documentId || !projectSharingData.projectId) {
-        setError('Kérjük válassz ki egy dokumentumot és egy projektet');
-        return;
-      }
-      
-      setLoading(true);
-      
-      // Hívjuk meg a dokumentumszolgáltatás megosztási funkcióját
-      await documentService.shareDocumentWithProject(
-        projectSharingData.documentId,
-        projectSharingData.projectId
-      );
-      
-      // Frissítsük a dokumentumok listáját
-      await fetchDocuments();
-      
-      // Sikeres megosztás
-      setSuccessMessage('A dokumentum sikeresen megosztva a projekttel');
-      setShowProjectShareForm(false);
-      setLoading(false);
-    } catch (error) {
-      console.error('Hiba a dokumentum projekttel történő megosztásakor:', error);
-      setError('Nem sikerült megosztani a dokumentumot a projekttel');
-      setLoading(false);
-    }
-  };
-  
-  // Ellenőrizzük, hogy egy dokumentum meg van-e osztva projekttel
-  const isDocumentSharedWithProject = (document) => {
-    return document.sharedWithProjects && document.sharedWithProjects.length > 0;
-  };
-  
-  // A régi handleGenerateDocument függvény átnevezése
-  // Dokumentum generálása módosítva, hogy támogassa a projekttel való megosztást
-  const handleGenerateDocumentWithProjectSharing = async () => {
+  // Generate document
+  const handleGenerateDocument = async () => {
     try {
       if (!documentData.templateId) {
-        setError('Kérjük válassz egy sablont');
+        setError('Sablon kiválasztása kötelező');
         return;
       }
 
-      setLoading(true);
+      const response = await api.post('/api/documents/generate', documentData);
       
-      // Dokumentum létrehozása
-      const response = await api.post('/api/documents', {
-        templateId: documentData.templateId,
-        projectId: documentData.projectId || null,
-        name: documentData.name || 'Új dokumentum',
-        status: 'draft',
-        variables: documentData.variables
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Hiba történt a dokumentum generálása során');
+      }
+
+      setShowDocumentForm(false);
+      setDocumentData({
+        templateId: '',
+        projectId: '',
+        variables: {}
       });
       
-      const newDocument = await response.json();
-      
-      // Ha van kiválasztott projekt, akkor automatikusan megosztjuk vele
-      if (documentData.projectId) {
-        // A dokumentum állapotát "Jóváhagyásra vár"-ra állítjuk
-        await api.put(`/api/documents/${newDocument._id}/status`, {
-          status: 'pendingApproval'
-        });
-        
-        // Megosztjuk a projekttel
-        await documentService.shareDocumentWithProject(
-          newDocument._id,
-          documentData.projectId
-        );
-      }
-      
-      // Frissítsük a dokumentumok listáját
-      await fetchDocuments();
-      
-      setSuccessMessage('A dokumentum sikeresen létrehozva' + 
-        (documentData.projectId ? ' és megosztva a projekttel' : ''));
-      setShowDocumentForm(false);
-      setLoading(false);
+      fetchDocuments();
+      showSuccess('Dokumentum sikeresen generálva');
     } catch (error) {
-      console.error('Hiba a dokumentum létrehozásakor:', error);
-      setError('Nem sikerült létrehozni a dokumentumot');
-      setLoading(false);
+      console.error('Hiba a dokumentum generálásakor:', error);
+      setError(error.message);
+    }
+  };
+
+  // Download document as PDF
+  const handleDownloadPDF = async (documentId) => {
+    try {
+      window.open(`/api/documents/${documentId}/pdf`, '_blank');
+    } catch (error) {
+      console.error('Hiba a PDF letöltésekor:', error);
+      setError('Nem sikerült letölteni a PDF dokumentumot');
+    }
+  };
+
+  // View document
+// A handleViewDocument függvényben
+const handleViewDocument = async (documentId) => {
+    try {
+      console.log('Megtekinteni kívánt dokumentum ID:', documentId);
+      
+      // Először nullázd a kiválasztott dokumentumot, így biztosan nem a régi látszik
+      setSelectedDocument(null);
+      
+      const response = await api.get(`/api/documents/${documentId}`);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Hiba történt a dokumentum lekérése során');
+      }
+  
+      const data = await response.json();
+      console.log('Visszakapott dokumentum:', data._id, data.name);
+      
+      // Most állítsd be az új dokumentumot
+      setSelectedDocument(data);
+      setPreviewMode(true);
+    } catch (error) {
+      console.error('Hiba a dokumentum lekérésekor:', error);
+      setError(error.message);
+    }
+  };
+
+  // Update document status
+  const handleUpdateDocumentStatus = async (documentId, status) => {
+    try {
+      const response = await api.put(`/api/documents/${documentId}/status`, { 
+        status,
+        comment: approvalComment 
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Hiba történt a dokumentum státuszának frissítése során');
+      }
+
+      fetchDocuments();
+      setApprovalComment('');
+      showSuccess(`Dokumentum státusza sikeresen frissítve: ${status}`);
+    } catch (error) {
+      console.error('Hiba a dokumentum státuszának frissítésekor:', error);
+      setError(error.message);
+    }
+  };
+
+  // Send document by email
+  const handleSendDocument = async (documentId) => {
+    try {
+      if (!sendEmailData.email) {
+        setError('Email cím megadása kötelező');
+        return;
+      }
+
+      const response = await api.post(`/api/documents/${documentId}/send`, sendEmailData);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Hiba történt a dokumentum küldése során');
+      }
+
+      setShowSendForm(false);
+      setSendEmailData({
+        email: '',
+        subject: '',
+        message: ''
+      });
+      
+      fetchDocuments();
+      showSuccess('Dokumentum sikeresen elküldve');
+    } catch (error) {
+      console.error('Hiba a dokumentum küldésekor:', error);
+      setError(error.message);
     }
   };
   
-  // A régi handleUpdateDocumentStatus függvény átnevezése
-  // Dokumentum állapotának frissítése, projektmegosztás támogatással
-  const handleUpdateDocumentStatusWithProjectSharing = async (documentId, newStatus) => {
+  // Generate share link for document
+  const handleGenerateShareLink = async (documentId) => {
     try {
-      setLoading(true);
-      
-      // Frissítsük a dokumentum állapotát
-      await api.put(`/api/documents/${documentId}/status`, {
-        status: newStatus
+      setShareData({
+        documentId,
+        expiryDays: 30,
+        shareLink: ''
       });
+      setShowShareForm(true);
+    } catch (error) {
+      console.error('Hiba a megosztási űrlap megnyitásakor:', error);
+      setError(error.message);
+    }
+  };
+  
+  // Create share link
+  const handleCreateShareLink = async () => {
+    try {
+      const response = await api.post(
+        `/api/documents/${shareData.documentId}/share`, 
+        { expiryDays: shareData.expiryDays }
+      );
       
-      // Ha a dokumentum állapota "Jóváhagyásra vár"-ra változik és van projektje,
-      // akkor osszuk meg automatikusan a projekttel
-      const document = documents.find(doc => doc._id === documentId);
-      if (newStatus === 'pendingApproval' && document && document.projectId) {
-        await documentService.shareDocumentWithProject(documentId, document.projectId);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Hiba történt a megosztási link generálása során');
       }
       
-      // Frissítsük a dokumentumok listáját
-      await fetchDocuments();
+      const data = await response.json();
       
-      setSuccessMessage('A dokumentum állapota sikeresen frissítve');
-      setLoading(false);
+      setShareData({
+        ...shareData,
+        shareLink: data.shareLink,
+        pin: data.pin
+      });
+      
+      fetchDocuments();
+      showSuccess('Megosztási link sikeresen létrehozva');
     } catch (error) {
-      console.error('Hiba a dokumentum állapotának frissítésekor:', error);
-      setError('Nem sikerült frissíteni a dokumentum állapotát');
-      setLoading(false);
+      console.error('Hiba a megosztási link generálásakor:', error);
+      setError(error.message);
+    }
+  };
+  
+  // Delete document
+  const handleDeleteDocument = async (documentId) => {
+    if (!window.confirm('Biztosan törli ezt a dokumentumot?')) return;
+    
+    try {
+      const response = await api.delete(`/api/documents/${documentId}`);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Hiba történt a dokumentum törlése során');
+      }
+      
+      fetchDocuments();
+      showSuccess('Dokumentum sikeresen törölve');
+    } catch (error) {
+      console.error('Hiba a dokumentum törlésekor:', error);
+      setError(error.message);
     }
   };
 
@@ -432,104 +471,6 @@ const DocumentManager = () => {
       ...sendEmailData,
       [name]: value
     });
-  };
-
-  // Projekt megosztás form
-  const renderProjectShareForm = () => {
-    if (!showProjectShareForm) return null;
-    
-    const document = documents.find(doc => doc._id === projectSharingData.documentId);
-    
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h3 className="text-lg font-medium">Dokumentum megosztása projektben</h3>
-          </div>
-          
-          <div className="p-6">
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Dokumentum
-              </label>
-              <div className="border rounded-md px-3 py-2 bg-gray-50">
-                {document ? document.name : 'Nincs kiválasztott dokumentum'}
-              </div>
-            </div>
-            
-            <div className="mb-4">
-              <label htmlFor="projectId" className="block text-sm font-medium text-gray-700 mb-1">
-                Projekt
-              </label>
-              {document && document.projectId ? (
-                <div className="border rounded-md px-3 py-2 bg-gray-50">
-                  {document.projectName || 'Kiválasztott projekt'}
-                </div>
-              ) : (
-                <select
-                  id="projectId"
-                  value={projectSharingData.projectId}
-                  onChange={(e) => setProjectSharingData({...projectSharingData, projectId: e.target.value})}
-                  className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="">Válassz projektet</option>
-                  {projects.map(project => (
-                    <option key={project._id} value={project._id}>
-                      {project.name}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </div>
-            
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Állapot
-              </label>
-              <select
-                value={projectSharingData.status}
-                onChange={(e) => setProjectSharingData({...projectSharingData, status: e.target.value})}
-                className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="pendingApproval">Jóváhagyásra vár</option>
-                <option value="viewOnly">Csak megtekintés</option>
-              </select>
-              <p className="text-xs text-gray-500 mt-1">
-                "Jóváhagyásra vár" esetén az ügyfél elfogadhatja vagy elutasíthatja a dokumentumot.
-              </p>
-            </div>
-            
-            <div className="flex justify-end space-x-2 mt-6">
-              <button
-                type="button"
-                onClick={() => setShowProjectShareForm(false)}
-                className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
-              >
-                Mégse
-              </button>
-              <button
-                type="button"
-                onClick={handleShareDocumentWithProject}
-                className="px-4 py-2 bg-blue-600 border border-transparent rounded-md text-sm font-medium text-white hover:bg-blue-700 flex items-center"
-                disabled={loading}
-              >
-                {loading ? (
-                  <span className="inline-flex items-center">
-                    <span className="loading loading-spinner loading-xs mr-2"></span>
-                    Megosztás...
-                  </span>
-                ) : (
-                  <>
-                    <FileSymlink className="h-4 w-4 mr-2" />
-                    Megosztás
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
   };
 
   if (loading && templates.length === 0 && documents.length === 0) {
@@ -787,99 +728,131 @@ const DocumentManager = () => {
 
           {/* Documents list */}
           <div className="bg-white shadow overflow-hidden rounded-md">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Név</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Típus</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Projekt</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Státusz</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dátum</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Műveletek</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {documents.length === 0 ? (
-                  <tr>
-                    <td colSpan="6" className="px-4 py-4 text-center text-gray-500">Nincsenek dokumentumok</td>
-                  </tr>
-                ) : (
-                  documents.map(document => (
-                    <tr key={document._id} className="hover:bg-gray-50">
-                      <td className="px-4 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <div className="text-sm font-medium text-gray-900">{document.name}</div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap">
-                        <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                          {DOCUMENT_TYPES.find(t => t.value === document.type)?.label || document.type}
-                        </span>
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
-                          {document.projectId ? (
-                            <span className="flex items-center">
-                              {projects.find(p => p._id === document.projectId)?.name || document.projectName || "Ismeretlen projekt"}
-                              {document.sharedWithProject && (
-                                <span className="ml-1 text-xs text-green-600 flex items-center">
-                                  <CheckCircle className="h-3 w-3 mr-1" />
-                                  Megosztva
+            <ul className="divide-y divide-gray-200">
+              {documents.length > 0 ? (
+                documents.map((doc) => {
+                  const status = DOCUMENT_STATUSES.find(s => s.value === doc.approvalStatus) || DOCUMENT_STATUSES[0];
+                  
+                  return (
+                    <li key={doc._id} className="hover:bg-gray-50">
+                      <div className="px-6 py-4">
+                        <div className="flex justify-between">
+                          <div className="flex-1">
+                            <h3 className="text-lg font-medium text-indigo-600">{doc.name}</h3>
+                            <div className="flex items-center mt-2 space-x-2 text-sm">
+                              <span className={`px-2 py-0.5 rounded-full ${status.color}`}>
+                                {status.label}
+                              </span>
+                              {doc.projectId && (
+                                <span className="text-gray-500">
+                                  Projekt: {doc.projectId.name || doc.projectId}
                                 </span>
                               )}
-                            </span>
-                          ) : 'Nincs'}
+                              <span className="text-gray-500 flex items-center">
+                                <Clock className="h-3.5 w-3.5 mr-1" />
+                                Létrehozva: {new Date(doc.createdAt).toLocaleDateString('hu-HU')}
+                              </span>
+                              {doc.publicToken && (
+                                <span className="text-blue-500 flex items-center" title="Megosztási link és PIN">
+                                  <Link className="h-3.5 w-3.5 mr-1" />
+                                  Megosztott {doc.publicPin ? `(PIN: ${doc.publicPin})` : ''}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-2 ml-4">
+                            <button
+                              onClick={() => handleViewDocument(doc._id)}
+                              className="p-1 text-indigo-600 hover:text-indigo-800 rounded hover:bg-indigo-50"
+                              title="Megtekintés"
+                            >
+                              <Eye className="h-5 w-5" />
+                            </button>
+                            <button
+                              onClick={() => handleDownloadPDF(doc._id)}
+                              className="p-1 text-green-600 hover:text-green-800 rounded hover:bg-green-50"
+                              title="Letöltés PDF-ként"
+                            >
+                              <Download className="h-5 w-5" />
+                            </button>
+                            {doc.approvalStatus === 'draft' && (
+                              <button
+                                onClick={() => handleUpdateDocumentStatus(doc._id, 'pendingApproval')}
+                                className="p-1 text-yellow-600 hover:text-yellow-800 rounded hover:bg-yellow-50"
+                                title="Jóváhagyásra küldés"
+                              >
+                                <FileCheck className="h-5 w-5" />
+                              </button>
+                            )}
+                            {doc.approvalStatus === 'pendingApproval' && (
+                              <>
+                                <button
+                                  onClick={() => handleUpdateDocumentStatus(doc._id, 'approved')}
+                                  className="p-1 text-green-600 hover:text-green-800 rounded hover:bg-green-50"
+                                  title="Jóváhagyás"
+                                >
+                                  <CheckCircle className="h-5 w-5" />
+                                </button>
+                                <button
+                                  onClick={() => handleUpdateDocumentStatus(doc._id, 'rejected')}
+                                  className="p-1 text-red-600 hover:text-red-800 rounded hover:bg-red-50"
+                                  title="Elutasítás"
+                                >
+                                  <XCircle className="h-5 w-5" />
+                                </button>
+                              </>
+                            )}
+                            {doc.approvalStatus === 'approved' && (
+                              <button
+                                onClick={() => {
+                                  setSelectedDocument(doc);
+                                  setShowSendForm(true);
+                                  setSendEmailData({
+                                    email: doc.projectId?.client?.email || '',
+                                    subject: `Dokumentum: ${doc.name}`,
+                                    message: `Tisztelt Ügyfelünk!\n\nMellékelten küldjük a következő dokumentumot: ${doc.name}.\n\n` +
+                                    (doc.publicToken && doc.publicPin ? 
+                                    `A dokumentum online is megtekinthető és jóváhagyható az alábbi linken:\nLink: https://admin.nb-studio.net/public/documents/${doc.publicToken}\nPIN kód: ${doc.publicPin}\n\nA hozzáférés lejár: ${doc.publicViewExpires ? new Date(doc.publicViewExpires).toLocaleDateString('hu-HU') : 'N/A'}` : '')
+                                  });
+                                }}
+                                className="p-1 text-blue-600 hover:text-blue-800 rounded hover:bg-blue-50"
+                                title="Küldés emailben"
+                              >
+                                <Send className="h-5 w-5" />
+                              </button>
+                            )}
+                            {/* Link generálási gomb */}
+                            <button
+                              onClick={() => handleGenerateShareLink(doc._id)}
+                              className="p-1 text-purple-600 hover:text-purple-800 rounded hover:bg-purple-50"
+                              title="Megosztási link generálása"
+                            >
+                              <Link className="h-5 w-5" />
+                            </button>
+                            {/* Törlés gomb */}
+                            <button
+                              onClick={() => handleDeleteDocument(doc._id)}
+                              className="p-1 text-red-600 hover:text-red-800 rounded hover:bg-red-50"
+                              title="Dokumentum törlése"
+                            >
+                              <Trash2 className="h-5 w-5" />
+                            </button>
+                          </div>
                         </div>
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          DOCUMENT_STATUSES.find(s => s.value === document.approvalStatus)?.color || 'bg-gray-100 text-gray-800'
-                        }`}>
-                          {DOCUMENT_STATUSES.find(s => s.value === document.approvalStatus)?.label || 'Piszkozat'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {new Date(document.createdAt).toLocaleDateString()}
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button
-                          onClick={() => handleViewDocument(document._id)}
-                          className="text-indigo-600 hover:text-indigo-900 mr-3"
-                        >
-                          Megtekintés
-                        </button>
-                        
-                        {document.projectId && !document.sharedWithProject && (
-                          <button
-                            onClick={() => handleShareWithProject(document._id)}
-                            className="text-green-600 hover:text-green-900 mr-3"
-                            title="Megosztás az ügyféllel a projektben"
-                          >
-                            Megosztás projektben
-                          </button>
-                        )}
-                        
-                        <button
-                          onClick={() => handleDownloadPDF(document._id)}
-                          className="text-blue-600 hover:text-blue-900 mr-3"
-                        >
-                          PDF
-                        </button>
-                        
-                        {document.approvalStatus !== 'approved' && document.approvalStatus !== 'clientApproved' && (
-                          <button
-                            onClick={() => handleDeleteDocument(document._id)}
-                            className="text-red-600 hover:text-red-900"
-                          >
-                            Törlés
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                      </div>
+                    </li>
+                  );
+                })
+              ) : (
+                <li className="py-10 px-6 text-center">
+                  <FileText className="h-12 w-12 text-gray-300 mx-auto mb-2" />
+                  <p className="text-gray-500 text-lg">Nincsenek még generált dokumentumok</p>
+                  <p className="text-gray-400 mt-1">
+                    Kattintson az "Új Dokumentum" gombra egy új dokumentum generálásához.
+                  </p>
+                </li>
+              )}
+            </ul>
           </div>
         </>
       )}
@@ -1132,7 +1105,7 @@ const DocumentManager = () => {
                   Mégse
                 </button>
                 <button
-                  onClick={handleGenerateDocumentWithProjectSharing}
+                  onClick={handleGenerateDocument}
                   className="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm font-medium hover:bg-indigo-700"
                 >
                   Dokumentum generálása
@@ -1143,92 +1116,92 @@ const DocumentManager = () => {
         </div>
       )}
 
-      {/* Document Preview Modal */}
-      {previewMode && selectedDocument && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-5xl w-full max-h-[90vh] flex flex-col">
-            <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-              <h2 className="text-xl font-medium">
-                {selectedDocument.name} 
-                <span className="ml-2 text-xs text-gray-500">(ID: {selectedDocument._id})</span>
-              </h2>
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={() => handleDownloadPDF(selectedDocument._id)}
-                  className="px-3 py-1 bg-indigo-600 text-white rounded text-sm font-medium hover:bg-indigo-700 flex items-center"
-                >
-                  <Download className="h-4 w-4 mr-1" />
-                  PDF letöltése
-                </button>
-                <button
-                  onClick={() => {
-                    // Explicit bezárás és state reset
-                    setPreviewMode(false);
-                    setSelectedDocument(null);
-                  }}
-                  className="text-gray-400 hover:text-gray-500"
-                >
-                  <XCircle className="h-6 w-6" />
-                </button>
-              </div>
-            </div>
-            
-            <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
-              {/* Kulcs hozzáadása a tartalom komponenshez, hogy minden új dokumentumnál újra renderelődjön */}
-              <div key={`document-content-${selectedDocument._id}`} className="max-w-3xl mx-auto bg-white shadow-sm rounded-lg p-8 min-h-[800px]">
-                <div dangerouslySetInnerHTML={{ __html: selectedDocument.htmlVersion || selectedDocument.content }} />
-              </div>
-            </div>
-            
-            <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
-              <div className="flex items-center">
-                <span className="text-sm text-gray-500 mr-2">Állapot:</span>
-                <span className={`px-2 py-0.5 rounded-full text-sm ${
-                  DOCUMENT_STATUSES.find(s => s.value === selectedDocument.approvalStatus)?.color || 'bg-gray-100 text-gray-800'
-                }`}>
-                  {DOCUMENT_STATUSES.find(s => s.value === selectedDocument.approvalStatus)?.label || 'Piszkozat'}
-                </span>
-              </div>
-              
-              {selectedDocument.approvalStatus === 'pendingApproval' && (
-                <div className="flex items-center space-x-2">
-                  <textarea
-                    value={approvalComment}
-                    onChange={(e) => setApprovalComment(e.target.value)}
-                    placeholder="Jóváhagyási megjegyzés (opcionális)"
-                    className="block w-64 border-gray-300 rounded-md shadow-sm text-sm"
-                    rows={1}
-                  />
-                  <button
-                    onClick={() => {
-                      handleUpdateDocumentStatusWithProjectSharing(selectedDocument._id, 'approved');
-                      // Állapot frissítése után töröljük a kiválasztást is
-                      setPreviewMode(false);
-                      setSelectedDocument(null);
-                    }}
-                    className="px-3 py-1 bg-green-600 text-white rounded text-sm font-medium hover:bg-green-700 flex items-center"
-                  >
-                    <CheckCircle className="h-4 w-4 mr-1" />
-                    Jóváhagyás
-                  </button>
-                  <button
-                    onClick={() => {
-                      handleUpdateDocumentStatusWithProjectSharing(selectedDocument._id, 'rejected');
-                      // Állapot frissítése után töröljük a kiválasztást is
-                      setPreviewMode(false);
-                      setSelectedDocument(null);
-                    }}
-                    className="px-3 py-1 bg-red-600 text-white rounded text-sm font-medium hover:bg-red-700 flex items-center"
-                  >
-                    <XCircle className="h-4 w-4 mr-1" />
-                    Elutasítás
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
+{/* Document Preview Modal */}
+{previewMode && selectedDocument && (
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+    <div className="bg-white rounded-lg shadow-xl max-w-5xl w-full max-h-[90vh] flex flex-col">
+      <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+        <h2 className="text-xl font-medium">
+          {selectedDocument.name} 
+          <span className="ml-2 text-xs text-gray-500">(ID: {selectedDocument._id})</span>
+        </h2>
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={() => handleDownloadPDF(selectedDocument._id)}
+            className="px-3 py-1 bg-indigo-600 text-white rounded text-sm font-medium hover:bg-indigo-700 flex items-center"
+          >
+            <Download className="h-4 w-4 mr-1" />
+            PDF letöltése
+          </button>
+          <button
+            onClick={() => {
+              // Explicit bezárás és state reset
+              setPreviewMode(false);
+              setSelectedDocument(null);
+            }}
+            className="text-gray-400 hover:text-gray-500"
+          >
+            <XCircle className="h-6 w-6" />
+          </button>
         </div>
-      )}
+      </div>
+      
+      <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
+        {/* Kulcs hozzáadása a tartalom komponenshez, hogy minden új dokumentumnál újra renderelődjön */}
+        <div key={`document-content-${selectedDocument._id}`} className="max-w-3xl mx-auto bg-white shadow-sm rounded-lg p-8 min-h-[800px]">
+          <div dangerouslySetInnerHTML={{ __html: selectedDocument.htmlVersion || selectedDocument.content }} />
+        </div>
+      </div>
+      
+      <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
+        <div className="flex items-center">
+          <span className="text-sm text-gray-500 mr-2">Állapot:</span>
+          <span className={`px-2 py-0.5 rounded-full text-sm ${
+            DOCUMENT_STATUSES.find(s => s.value === selectedDocument.approvalStatus)?.color || 'bg-gray-100 text-gray-800'
+          }`}>
+            {DOCUMENT_STATUSES.find(s => s.value === selectedDocument.approvalStatus)?.label || 'Piszkozat'}
+          </span>
+        </div>
+        
+        {selectedDocument.approvalStatus === 'pendingApproval' && (
+          <div className="flex items-center space-x-2">
+            <textarea
+              value={approvalComment}
+              onChange={(e) => setApprovalComment(e.target.value)}
+              placeholder="Jóváhagyási megjegyzés (opcionális)"
+              className="block w-64 border-gray-300 rounded-md shadow-sm text-sm"
+              rows={1}
+            />
+            <button
+              onClick={() => {
+                handleUpdateDocumentStatus(selectedDocument._id, 'approved');
+                // Állapot frissítése után töröljük a kiválasztást is
+                setPreviewMode(false);
+                setSelectedDocument(null);
+              }}
+              className="px-3 py-1 bg-green-600 text-white rounded text-sm font-medium hover:bg-green-700 flex items-center"
+            >
+              <CheckCircle className="h-4 w-4 mr-1" />
+              Jóváhagyás
+            </button>
+            <button
+              onClick={() => {
+                handleUpdateDocumentStatus(selectedDocument._id, 'rejected');
+                // Állapot frissítése után töröljük a kiválasztást is
+                setPreviewMode(false);
+                setSelectedDocument(null);
+              }}
+              className="px-3 py-1 bg-red-600 text-white rounded text-sm font-medium hover:bg-red-700 flex items-center"
+            >
+              <XCircle className="h-4 w-4 mr-1" />
+              Elutasítás
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  </div>
+)}
 
       {/* Send Email Modal */}
       {showSendForm && selectedDocument && (
@@ -1446,9 +1419,6 @@ const DocumentManager = () => {
           </div>
         </div>
       )}
-
-      {/* Projekt megosztás form */}
-      {renderProjectShareForm()}
     </div>
   );
 };

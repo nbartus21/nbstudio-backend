@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Upload, Check, AlertTriangle, LogOut, Users, Calendar, 
-  Globe, ChevronDown, File, Download, FileText, Home, DollarSign, FileCheck, MessageCircle, X,
-  CheckCircle, XCircle 
+  Globe, ChevronDown, File, Download, FileText 
 } from 'lucide-react';
 import { formatShortDate, debugLog, loadFromLocalStorage, getProjectId } from './shared/utils';
 
@@ -44,35 +43,6 @@ const translations = {
       completed: "Completed",
       suspended: "Suspended",
       deleted: "Deleted"
-    },
-    tabs: {
-      overview: "Overview",
-      files: "Files",
-      invoices: "Invoices",
-      documents: "Documents",
-      comments: "Comments"
-    },
-    documents: {
-      title: "Project Documents",
-      description: "Manage and view project documents",
-      noDocuments: "No documents found",
-      name: "Name",
-      type: "Type",
-      status: "Status",
-      date: "Date",
-      actions: "Actions",
-      approved: "Approved",
-      rejected: "Rejected",
-      pending: "Pending",
-      approvedSuccess: "Document approved successfully",
-      rejectedSuccess: "Document rejected successfully",
-      updateError: "Error updating document status",
-      view: "View",
-      download: "Download",
-      approve: "Approve",
-      reject: "Reject",
-      commentPlaceholder: "Add a comment",
-      noContent: "No content available"
     }
   },
   de: {
@@ -101,35 +71,6 @@ const translations = {
       completed: "Abgeschlossen",
       suspended: "Ausgesetzt",
       deleted: "Gelöscht"
-    },
-    tabs: {
-      overview: "Übersicht",
-      files: "Dateien",
-      invoices: "Rechnungen",
-      documents: "Dokumente",
-      comments: "Kommentare"
-    },
-    documents: {
-      title: "Projektdokumente",
-      description: "Verwalten und anzeigen Sie Projektdokumente",
-      noDocuments: "Keine Dokumente gefunden",
-      name: "Name",
-      type: "Typ",
-      status: "Status",
-      date: "Datum",
-      actions: "Aktionen",
-      approved: "Genehmigt",
-      rejected: "Abgelehnt",
-      pending: "Ausstehend",
-      approvedSuccess: "Dokument erfolgreich genehmigt",
-      rejectedSuccess: "Dokument erfolgreich abgelehnt",
-      updateError: "Fehler beim Aktualisieren des Dokumentstatus",
-      view: "Anzeigen",
-      download: "Herunterladen",
-      approve: "Genehmigen",
-      reject: "Ablehnen",
-      commentPlaceholder: "Kommentar hinzufügen",
-      noContent: "Kein Inhalt verfügbar"
     }
   },
   hu: {
@@ -158,35 +99,6 @@ const translations = {
       completed: "Befejezett",
       suspended: "Felfüggesztett",
       deleted: "Törölt"
-    },
-    tabs: {
-      overview: "Áttekintés",
-      files: "Fájlok",
-      invoices: "Számlák",
-      documents: "Dokumentumok",
-      comments: "Megjegyzések"
-    },
-    documents: {
-      title: "Projektdokumentumok",
-      description: "Projektdokumentumok kezelése és megtekintése",
-      noDocuments: "Nincs dokumentum található",
-      name: "Név",
-      type: "Típus",
-      status: "Állapot",
-      date: "Dátum",
-      actions: "Akciók",
-      approved: "Elfogadva",
-      rejected: "Elutasítva",
-      pending: "Függőben",
-      approvedSuccess: "Dokumentum sikeresen ellenőrizve",
-      rejectedSuccess: "Dokumentum sikeresen elutasítva",
-      updateError: "Hiba történt a dokumentum állapotának frissítésekor",
-      view: "Megtekintés",
-      download: "Letöltés",
-      approve: "Elfogadás",
-      reject: "Elutasítás",
-      commentPlaceholder: "Megjegyzés hozzáadása",
-      noContent: "Nincs elérhető tartalom"
     }
   }
 };
@@ -358,7 +270,6 @@ const SharedProjectDashboard = ({
   const [viewingDocument, setViewingDocument] = useState(null);
   const [adminMode, setAdminMode] = useState(isAdmin);
   const [showLanguageDropdown, setShowLanguageDropdown] = useState(false);
-  const [approvalComment, setApprovalComment] = useState('');
   
   // Tároljuk a felhasználó adatait state-ben
   const [userData, setUserData] = useState(() => {
@@ -754,197 +665,6 @@ const SharedProjectDashboard = ({
     }
   };
 
-  // Tabs definíciója
-  const tabs = [
-    { id: 'overview', label: t.tabs.overview, icon: <Home size={16} /> },
-    { id: 'files', label: t.tabs.files, icon: <FileText size={16} /> },
-    { id: 'invoices', label: t.tabs.invoices, icon: <DollarSign size={16} /> },
-    { id: 'documents', label: t.tabs.documents, icon: <FileCheck size={16} /> },
-    { id: 'comments', label: t.tabs.comments, icon: <MessageCircle size={16} /> }
-  ];
-  
-  // Rendszeres frissítés definíciója (beállítás után)
-  
-  // Dokumentumok lekérése a projekthez
-  const fetchProjectDocuments = async () => {
-    if (!normalizedProject || !normalizedProject._id) {
-      debugLog('fetchProjectDocuments', 'No project ID available, skipping fetch');
-      return;
-    }
-    
-    try {
-      // Csak akkor kérjük le a szerverről, ha van token
-      const savedSession = localStorage.getItem(`project_session_${normalizedProject.sharing?.token}`);
-      
-      if (savedSession) {
-        debugLog('fetchProjectDocuments', 'Getting documents for project');
-        const session = JSON.parse(savedSession);
-        
-        // Dokumentumok lekérése a projekthez
-        const response = await fetch(`${API_URL}/public/projects/${normalizedProject._id}/documents`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-API-Key': API_KEY,
-            'Authorization': `Bearer ${session.pin}`
-          }
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          debugLog('fetchProjectDocuments', `Found ${data.documents.length} documents for project`);
-          
-          // Tároljuk a dokumentumokat helyben
-          setDocuments(data.documents);
-          saveToLocalStorage(normalizedProject, 'documents', data.documents);
-        } else {
-          debugLog('fetchProjectDocuments', 'Failed to get documents', { status: response.status });
-        }
-      }
-    } catch (error) {
-      debugLog('fetchProjectDocuments', 'Error fetching documents', { error: error.message });
-    }
-  };
-  
-  // Dokumentum állapotának frissítése (elfogadás/elutasítás)
-  const handleUpdateDocumentStatus = async (documentId, newStatus, comment = '') => {
-    try {
-      debugLog('handleUpdateDocumentStatus', `Updating document ${documentId} status to ${newStatus}`);
-      
-      // Csak akkor kérjük le a szerverről, ha van token
-      const savedSession = localStorage.getItem(`project_session_${normalizedProject.sharing?.token}`);
-      
-      if (savedSession) {
-        const session = JSON.parse(savedSession);
-        
-        // Dokumentum státuszának frissítése
-        const response = await fetch(`${API_URL}/public/documents/${documentId}/client-status`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-API-Key': API_KEY,
-            'Authorization': `Bearer ${session.pin}`
-          },
-          body: JSON.stringify({
-            status: newStatus,
-            comment,
-            projectId: normalizedProject._id,
-            clientId: userData._id || normalizedProject.client?._id
-          })
-        });
-        
-        if (response.ok) {
-          debugLog('handleUpdateDocumentStatus', 'Document status updated successfully');
-          
-          // Frissítsük helyben is a dokumentumot
-          const updatedDocuments = documents.map(doc => 
-            doc._id === documentId 
-              ? { ...doc, clientStatus: newStatus, clientStatusDate: new Date(), clientComment: comment }
-              : doc
-          );
-          
-          setDocuments(updatedDocuments);
-          saveToLocalStorage(normalizedProject, 'documents', updatedDocuments);
-          
-          showSuccessMessage(newStatus === 'approved' 
-            ? t.documents.approvedSuccess 
-            : t.documents.rejectedSuccess);
-            
-          // Frissítsük a projektet
-          await refreshProjectData();
-        } else {
-          debugLog('handleUpdateDocumentStatus', 'Failed to update document status', { status: response.status });
-          showErrorMessage(t.documents.updateError);
-        }
-      }
-    } catch (error) {
-      debugLog('handleUpdateDocumentStatus', 'Error updating document status', { error: error.message });
-      showErrorMessage(t.documents.updateError);
-    }
-  };
-  
-  // Dokumentum megtekintése/letöltése
-  const handleViewDocument = async (documentId) => {
-    try {
-      debugLog('handleViewDocument', `Viewing document ${documentId}`);
-      
-      const document = documents.find(doc => doc._id === documentId);
-      
-      if (!document) {
-        showErrorMessage(t.documents.notFound);
-        return;
-      }
-      
-      setViewingDocument(document);
-    } catch (error) {
-      debugLog('handleViewDocument', 'Error viewing document', { error: error.message });
-      showErrorMessage(t.documents.viewError);
-    }
-  };
-  
-  // Dokumentum bezárása
-  const handleCloseDocumentView = () => {
-    setViewingDocument(null);
-    setApprovalComment(''); // Töröljük a megjegyzést bezáráskor
-  };
-  
-  // Dokumentum letöltése PDF-ként
-  const handleDownloadDocumentPDF = async (documentId) => {
-    try {
-      debugLog('handleDownloadDocumentPDF', `Downloading document ${documentId} as PDF`);
-      
-      // Csak akkor kérjük le a szerverről, ha van token
-      const savedSession = localStorage.getItem(`project_session_${normalizedProject.sharing?.token}`);
-      
-      if (savedSession) {
-        const session = JSON.parse(savedSession);
-        
-        // PDF letöltés
-        const response = await fetch(`${API_URL}/public/documents/${documentId}/pdf`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-API-Key': API_KEY,
-            'Authorization': `Bearer ${session.pin}`
-          }
-        });
-        
-        if (response.ok) {
-          // Blob létrehozása és letöltése
-          const blob = await response.blob();
-          const url = window.URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.style.display = 'none';
-          a.href = url;
-          
-          const document = documents.find(doc => doc._id === documentId);
-          a.download = `${document?.name || 'document'}.pdf`;
-          
-          document.body.appendChild(a);
-          a.click();
-          
-          window.URL.revokeObjectURL(url);
-          document.body.removeChild(a);
-          
-          debugLog('handleDownloadDocumentPDF', 'Document downloaded successfully');
-        } else {
-          debugLog('handleDownloadDocumentPDF', 'Failed to download document', { status: response.status });
-          showErrorMessage(t.documents.downloadError);
-        }
-      }
-    } catch (error) {
-      debugLog('handleDownloadDocumentPDF', 'Error downloading document', { error: error.message });
-      showErrorMessage(t.documents.downloadError);
-    }
-  };
-  
-  // Dokumentumok lekérése indulásnál
-  useEffect(() => {
-    if (normalizedProject?._id) {
-      fetchProjectDocuments();
-    }
-  }, [normalizedProject?._id]);
-
   if (!normalizedProject) {
     debugLog('SharedProjectDashboard', 'No project data - rendering empty state');
     return (
@@ -1253,107 +973,16 @@ const SharedProjectDashboard = ({
         )}
         
         {activeTab === 'documents' && (
-          <div className="space-y-6">
-            <div className="bg-white shadow-md rounded-lg overflow-hidden">
-              <div className="p-4 bg-gray-50 border-b">
-                <h3 className="text-lg font-medium text-gray-800">{t.documents.title}</h3>
-                <p className="text-sm text-gray-600 mt-1">{t.documents.description}</p>
-              </div>
-              
-              {documents.length === 0 ? (
-                <div className="p-8 text-center">
-                  <FileText className="h-12 w-12 text-gray-300 mx-auto mb-2" />
-                  <p className="text-gray-500">{t.documents.noDocuments}</p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          {t.documents.name}
-                        </th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          {t.documents.type}
-                        </th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          {t.documents.status}
-                        </th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          {t.documents.date}
-                        </th>
-                        <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          {t.documents.actions}
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {documents.map((document) => (
-                        <tr key={document._id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm font-medium text-gray-900">{document.name}</div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-500">{document.type}</div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full 
-                              ${document.clientStatus === 'approved' 
-                                ? 'bg-green-100 text-green-800' 
-                                : document.clientStatus === 'rejected'
-                                  ? 'bg-red-100 text-red-800'
-                                  : 'bg-yellow-100 text-yellow-800'}`}>
-                              {document.clientStatus === 'approved' 
-                                ? t.documents.approved 
-                                : document.clientStatus === 'rejected'
-                                  ? t.documents.rejected
-                                  : t.documents.pending}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {new Date(document.createdAt).toLocaleDateString(language)}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            <button
-                              onClick={() => handleViewDocument(document._id)}
-                              className="text-indigo-600 hover:text-indigo-900 mr-3"
-                            >
-                              {t.documents.view}
-                            </button>
-                            
-                            <button
-                              onClick={() => handleDownloadDocumentPDF(document._id)}
-                              className="text-blue-600 hover:text-blue-900 mr-3"
-                            >
-                              {t.documents.download}
-                            </button>
-                            
-                            {(!document.clientStatus || document.clientStatus === 'pending') && (
-                              <>
-                                <button
-                                  onClick={() => handleUpdateDocumentStatus(document._id, 'approved')}
-                                  className="text-green-600 hover:text-green-900 mr-2"
-                                >
-                                  {t.documents.approve}
-                                </button>
-                                
-                                <button
-                                  onClick={() => handleUpdateDocumentStatus(document._id, 'rejected')}
-                                  className="text-red-600 hover:text-red-900"
-                                >
-                                  {t.documents.reject}
-                                </button>
-                              </>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          </div>
+          <ProjectDocuments
+            project={normalizedProject}
+            documents={documents}
+            setDocuments={setDocuments}
+            onShowDocumentPreview={handleShowDocumentPreview}
+            showSuccessMessage={showSuccessMessage}
+            showErrorMessage={showErrorMessage}
+            isAdmin={adminMode}
+            language={language}
+          />
         )}
 
         {/* Modals */}
@@ -1377,86 +1006,12 @@ const SharedProjectDashboard = ({
         )}
         
         {viewingDocument && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg shadow-xl max-w-5xl w-full max-h-[90vh] flex flex-col">
-              <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-                <h2 className="text-xl font-medium">
-                  {viewingDocument.name}
-                </h2>
-                <div className="flex items-center space-x-2">
-                  <button
-                    onClick={() => handleDownloadDocumentPDF(viewingDocument._id)}
-                    className="px-3 py-1 bg-indigo-600 text-white rounded text-sm font-medium hover:bg-indigo-700 flex items-center"
-                  >
-                    <Download className="h-4 w-4 mr-1" />
-                    {t.documents.download}
-                  </button>
-                  <button
-                    onClick={handleCloseDocumentView}
-                    className="text-gray-400 hover:text-gray-500"
-                  >
-                    <X className="h-6 w-6" />
-                  </button>
-                </div>
-              </div>
-              
-              <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
-                <div className="max-w-3xl mx-auto bg-white shadow-sm rounded-lg p-8 min-h-[600px]">
-                  <div dangerouslySetInnerHTML={{ __html: viewingDocument.htmlVersion || viewingDocument.content || t.documents.noContent }} />
-                </div>
-              </div>
-              
-              <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
-                <div className="flex items-center">
-                  <span className="text-sm text-gray-500 mr-2">{t.documents.status}:</span>
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium 
-                    ${viewingDocument.clientStatus === 'approved' 
-                      ? 'bg-green-100 text-green-800' 
-                      : viewingDocument.clientStatus === 'rejected'
-                        ? 'bg-red-100 text-red-800'
-                        : 'bg-yellow-100 text-yellow-800'}`}>
-                    {viewingDocument.clientStatus === 'approved' 
-                      ? t.documents.approved 
-                      : viewingDocument.clientStatus === 'rejected'
-                        ? t.documents.rejected
-                        : t.documents.pending}
-                  </span>
-                </div>
-                
-                {(!viewingDocument.clientStatus || viewingDocument.clientStatus === 'pending') && (
-                  <div className="flex items-center space-x-2">
-                    <textarea
-                      value={approvalComment}
-                      onChange={(e) => setApprovalComment(e.target.value)}
-                      placeholder={t.documents.commentPlaceholder}
-                      className="block w-64 border-gray-300 rounded-md shadow-sm text-sm"
-                      rows={1}
-                    />
-                    <button
-                      onClick={() => {
-                        handleUpdateDocumentStatus(viewingDocument._id, 'approved', approvalComment);
-                        handleCloseDocumentView();
-                      }}
-                      className="px-3 py-1 bg-green-600 text-white rounded text-sm font-medium hover:bg-green-700 flex items-center"
-                    >
-                      <CheckCircle className="h-4 w-4 mr-1" />
-                      {t.documents.approve}
-                    </button>
-                    <button
-                      onClick={() => {
-                        handleUpdateDocumentStatus(viewingDocument._id, 'rejected', approvalComment);
-                        handleCloseDocumentView();
-                      }}
-                      className="px-3 py-1 bg-red-600 text-white rounded text-sm font-medium hover:bg-red-700 flex items-center"
-                    >
-                      <XCircle className="h-4 w-4 mr-1" />
-                      {t.documents.reject}
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
+          <DocumentViewModal
+            document={viewingDocument}
+            project={normalizedProject}
+            onClose={handleCloseDocumentPreview}
+            language={language}
+          />
         )}
       </div>
     </div>
