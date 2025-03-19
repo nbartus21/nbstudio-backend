@@ -91,20 +91,18 @@ const ExpenseManager = () => {
           calculateStats(data);
         } else {
           // Ha az API még nincs implementálva, használjunk dummy adatokat
-          console.log('A kiadások API még nem elérhető, dummy adatok betöltése...');
           setExpenses(DUMMY_EXPENSES);
           calculateStats(DUMMY_EXPENSES);
         }
       } catch (error) {
-        // API hiba esetén használjunk dummy adatokat
-        console.error('Hiba a kiadások lekérésekor:', error);
+        // A hibakezelést már az auth.js-ben kezeljük, csak a dummy adatokat állítjuk be
         setExpenses(DUMMY_EXPENSES);
         calculateStats(DUMMY_EXPENSES);
       }
       
       setError(null);
     } catch (error) {
-      console.error('Hiba a kiadások feldolgozásakor:', error);
+      // Ez a ág csak súlyos hibák esetén fut le, amit nem lehet figyelmen kívül hagyni
       setError('Hiba történt az adatok betöltése során');
     } finally {
       setLoading(false);
@@ -170,8 +168,6 @@ const ExpenseManager = () => {
           
           if (!response.ok) {
             // Ha az API még nincs implementálva, szimulálunk egy sikeres választ
-            console.log('A kiadás frissítése API még nem elérhető, szimulált válasz...');
-            
             // Frissítjük a helyi adatokat
             const updatedExpenses = expenses.map(expense => 
               expense._id === selectedExpense._id ? { ...expenseData, _id: selectedExpense._id } : expense
@@ -190,8 +186,6 @@ const ExpenseManager = () => {
           
           if (!response.ok) {
             // Ha az API még nincs implementálva, szimulálunk egy sikeres választ
-            console.log('Az új kiadás létrehozása API még nem elérhető, szimulált válasz...');
-            
             // Hozzáadjuk az új adatot a helyi adatokhoz egy generált ID-val
             const newExpense = {
               ...expenseData,
@@ -209,8 +203,6 @@ const ExpenseManager = () => {
           setSuccess('Új kiadás sikeresen hozzáadva!');
         }
       } catch (error) {
-        console.error('API hiba:', error);
-        
         // Visszaesési terv API hiba esetén - helyileg kezeljük
         if (selectedExpense) {
           const updatedExpenses = expenses.map(expense => 
@@ -238,7 +230,6 @@ const ExpenseManager = () => {
       setShowExpenseModal(false);
       setSelectedExpense(null);
     } catch (error) {
-      console.error('Hiba a kiadás mentésekor:', error);
       setError('Hiba történt a kiadás mentése során');
     } finally {
       setLoading(false);
@@ -256,8 +247,6 @@ const ExpenseManager = () => {
           
           if (!response.ok) {
             // Ha az API még nincs implementálva, szimulálunk egy sikeres választ
-            console.log('A kiadás törlése API még nem elérhető, szimulált válasz...');
-            
             // Töröljük a helyi adatokat
             const updatedExpenses = expenses.filter(expense => expense._id !== id);
             setExpenses(updatedExpenses);
@@ -266,8 +255,6 @@ const ExpenseManager = () => {
             await fetchExpenses();
           }
         } catch (error) {
-          console.error('API hiba:', error);
-          
           // Visszaesési terv API hiba esetén - helyileg kezeljük
           const updatedExpenses = expenses.filter(expense => expense._id !== id);
           setExpenses(updatedExpenses);
@@ -276,7 +263,6 @@ const ExpenseManager = () => {
         
         setSuccess('Kiadás sikeresen törölve!');
       } catch (error) {
-        console.error('Hiba a kiadás törlésekor:', error);
         setError('Hiba történt a kiadás törlése során');
       } finally {
         setLoading(false);

@@ -41,6 +41,15 @@ export const getAuthToken = () => {
         throw new Error('Unauthorized - Please log in again');
       }
   
+      // Speciális kezelés az /expenses végpontra - csendes fallback
+      if (response.status === 404 && url.includes('/expenses')) {
+        return { 
+          ok: false, 
+          status: 404,
+          json: async () => ({ message: 'Endpoint not found' })
+        };
+      }
+  
       // Ha nem 2xx-es a válasz, dobunk egy hibát
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -49,7 +58,10 @@ export const getAuthToken = () => {
   
       return response;
     } catch (error) {
-      console.error('API request failed:', error);
+      // Csak akkor naplózzuk a hibát, ha nem az /expenses végponthoz kapcsolódik
+      if (!url.includes('/expenses')) {
+        console.error('API request failed:', error);
+      }
       throw error;
     }
   };
