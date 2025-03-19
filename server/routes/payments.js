@@ -464,6 +464,12 @@ router.post('/create-payment-link', async (req, res) => {
 
 // Webhook for handling Stripe payment events
 router.post('/webhook', (req, res, next) => {
+  console.log('🔔 [payments.js] Stripe webhook kérés fogadva', {
+    contentType: req.headers['content-type'],
+    stripeSignature: req.headers['stripe-signature'] ? 'Van' : 'Nincs',
+    timestamp: new Date().toISOString()
+  });
+  
   // Express.raw middleware helyett manuális kezelés
   if (req.headers['content-type'] === 'application/json') {
     let data = '';
@@ -472,10 +478,16 @@ router.post('/webhook', (req, res, next) => {
       data += chunk;
     });
     req.on('end', () => {
+      console.log('🔄 [payments.js] Webhook request body beolvasva', {
+        dataLength: data.length
+      });
       req.rawBody = data;
       next();
     });
   } else {
+    console.log('⚠️ [payments.js] Webhook request nem JSON formátumú', {
+      contentType: req.headers['content-type']
+    });
     next();
   }
 }, async (req, res) => {
@@ -484,9 +496,15 @@ router.post('/webhook', (req, res, next) => {
   let event;
 
   try {
+    console.log('🔐 [payments.js] Webhook signature ellenőrzése...');
     event = stripe.webhooks.constructEvent(req.rawBody || '{}', sig, endpointSecret);
+    console.log('✅ [payments.js] Webhook signature ellenőrzés sikeres, esemény:', {
+      eventType: event.type,
+      eventId: event.id,
+      apiVersion: event.api_version
+    });
   } catch (err) {
-    console.error('Webhook signature verification failed:', err.message);
+    console.error('❌ [payments.js] Webhook signature ellenőrzési hiba:', err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
@@ -497,24 +515,44 @@ router.post('/webhook', (req, res, next) => {
     // Extract metadata
     const { invoiceId, projectId } = session.metadata;
     
-    console.log('Payment successful, received checkout.session.completed webhook', {
+    console.log('💰 [payments.js] Sikeres fizetés webhook esemény feldolgozása:', {
       sessionId: session.id,
       paymentIntentId: session.payment_intent,
       amount: session.amount_total / 100,
-      currency: session.currency
+      currency: session.currency,
+      invoiceId,
+      projectId,
+      metadata: session.metadata
     });
     
     if (invoiceId && projectId) {
       try {
         // Update invoice status in the project
+        console.log('🔍 [payments.js] Projekt keresése az adatbázisban...');
         const Project = mongoose.model('Project');
         const project = await Project.findById(projectId);
         
         if (project) {
+          console.log('✅ [payments.js] Projekt megtalálva:', {
+            id: project._id,
+            name: project.name, 
+            invoicesCount: project.invoices?.length || 0
+          });
+          
+          console.log('🔍 [payments.js] Számla keresése a projektben...');
           const invoice = project.invoices.id(invoiceId);
           
           if (invoice) {
+            console.log('✅ [payments.js] Számla megtalálva:', {
+              id: invoice._id,
+              number: invoice.number,
+              currentStatus: invoice.status,
+              amount: invoice.totalAmount
+            });
+            
             // Frissítsük a számla alapadatait
+            console.log('🔄 [payments.js] Számla státusz frissítése fizetett állapotra');
+            const oldStatus = invoice.status;
             invoice.status = 'fizetett';
             invoice.paidDate = new Date();
             invoice.paidAmount = session.amount_total / 100; // Convert from cents
@@ -524,12 +562,12 @@ router.post('/webhook', (req, res, next) => {
             // Most szerezzük be a részletes fizetési adatokat
             try {
               // Lekérjük a payment intent részleteit a Stripe-tól
-              console.log(`Fetching payment intent details for: ${session.payment_intent}`);
+              console.log('🔍 [payments.js] Payment intent részletek lekérése a Stripe API-tól:', session.payment_intent);
               const paymentIntent = await stripe.paymentIntents.retrieve(session.payment_intent, {
                 expand: ['payment_method', 'latest_charge', 'customer']
               });
               
-              console.log('Payment intent details retrieved:', {
+              console.log('✅ [payments.js] Payment intent részletek lekérve:', {
                 id: paymentIntent.id,
                 status: paymentIntent.status,
                 amount: paymentIntent.amount / 100
@@ -540,10 +578,12 @@ router.post('/webhook', (req, res, next) => {
               
               // Inicializáljuk a tranzakciók tömböt, ha még nem létezik
               if (!invoice.transactions) {
+                console.log('🔄 [payments.js] Tranzakciók tömb inicializálása');
                 invoice.transactions = [];
               }
               
               // Létrehozzuk az új tranzakciót
+              console.log('🔄 [payments.js] Új tranzakció létrehozása');
               const transaction = {
                 transactionId: charge.id,
                 paymentIntentId: paymentIntent.id,
@@ -567,6 +607,7 @@ router.post('/webhook', (req, res, next) => {
               
               // Ha van kártya adatok, azokat is eltároljuk
               if (paymentIntent.payment_method && paymentIntent.payment_method.card) {
+                console.log('🔄 [payments.js] Kártya adatok mentése');
                 const card = paymentIntent.payment_method.card;
                 transaction.paymentMethod.brand = card.brand;
                 transaction.paymentMethod.last4 = card.last4;
@@ -576,14 +617,21 @@ router.post('/webhook', (req, res, next) => {
               // Hozzáadjuk a tranzakciót a számlához
               invoice.transactions.push(transaction);
               
-              console.log(`Payment transaction details saved to invoice ${invoiceId}`);
+              console.log('✅ [payments.js] Tranzakció részletek mentve a számlához');
             } catch (stripeError) {
-              console.error('Error retrieving payment details from Stripe:', stripeError);
+              console.error('❌ [payments.js] Hiba a fizetési részletek lekérése során:', stripeError);
+              console.error('❌ [payments.js] Stripe API hiba részletek:', {
+                message: stripeError.message,
+                type: stripeError.type,
+                code: stripeError.code,
+                stack: stripeError.stack
+              });
               // Még ha nem sikerül a részletes adatok lekérése, a fizetés ettől sikeres lehet
             }
             
             // Létrehozunk egy bejegyzést az Accounting modellben is
             try {
+              console.log('💼 [payments.js] Számviteli bejegyzés létrehozása');
               const Accounting = mongoose.model('Accounting');
               
               await Accounting.create({
@@ -600,25 +648,47 @@ router.post('/webhook', (req, res, next) => {
                 createdBy: 'system'
               });
               
-              console.log(`Accounting record created for invoice ${invoiceId}`);
+              console.log('✅ [payments.js] Számviteli bejegyzés sikeresen létrehozva');
             } catch (accountingError) {
-              console.error('Error creating accounting record:', accountingError);
+              console.error('❌ [payments.js] Hiba a számviteli bejegyzés létrehozásakor:', accountingError);
             }
             
+            console.log('💾 [payments.js] Projekt mentése az adatbázisba...');
             await project.save();
-            console.log(`Invoice ${invoiceId} marked as paid via Stripe payment in project ${projectId}`);
+            console.log('✅ [payments.js] Projekt sikeresen mentve, számla státusz frissítve', {
+              invoiceId,
+              oldStatus,
+              newStatus: 'fizetett',
+              paidDate: invoice.paidDate
+            });
           } else {
-            console.error(`Invoice ${invoiceId} not found in project ${projectId}`);
+            console.error('❌ [payments.js] A számla nem található a projektben:', {
+              invoiceId,
+              projectId,
+              allInvoiceIds: project.invoices.map(inv => inv._id)
+            });
           }
         } else {
-          console.error(`Project ${projectId} not found`);
+          console.error('❌ [payments.js] A projekt nem található:', projectId);
         }
       } catch (error) {
-        console.error('Error updating invoice after payment:', error);
+        console.error('❌ [payments.js] Hiba a számla frissítése során a fizetés után:', error);
+        console.error('❌ [payments.js] Hiba részletek:', {
+          message: error.message,
+          stack: error.stack,
+          code: error.code,
+          name: error.name
+        });
       }
+    } else {
+      console.error('❌ [payments.js] Hiányzó invoiceId vagy projectId a webhookban:', {
+        sessionId: session.id,
+        metadata: session.metadata
+      });
     }
   }
 
+  console.log('✅ [payments.js] Webhook feldolgozás befejezve');
   res.json({ received: true });
 });
 
