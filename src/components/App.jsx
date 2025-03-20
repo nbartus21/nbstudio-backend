@@ -15,7 +15,6 @@ import SharedProjectView from './SharedProjectView';
 import InvoiceManager from './InvoiceManager';
 import AccountingManager from './AccountingManager';
 import HostingManager from './HostingManager';
-import HostingPackagesAdmin from './HostingPackagesAdmin';
 import TranslationTool from './TranslationTool'; // Új komponens importálása
 import SupportTicketManager from './SupportTicketManager';
 import QRLogin from './QRLogin';
@@ -142,14 +141,6 @@ const App = () => {
        element={
          <PrivateRoute>
            <HostingManager />
-         </PrivateRoute>
-       }
-     />
-     <Route
-       path="/hosting-packages"
-       element={
-         <PrivateRoute>
-           <HostingPackagesAdmin />
          </PrivateRoute>
        }
      />

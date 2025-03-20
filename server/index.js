@@ -14,7 +14,6 @@ import puppeteer from 'puppeteer';
 import Contact from './models/Contact.js';
 import Hosting from './models/Hosting.js';
 import HostingNotification from './models/HostingNotification.js';
-import HostingPackage from './models/HostingPackage.js';
 import Calculator from './models/Calculator.js';
 import Post from './models/Post.js';
 import Note from './models/Note.js';
@@ -33,7 +32,6 @@ import authRoutes from './routes/auth.js';
 import notificationRoutes from './routes/notifications.js';
 import accountingRoutes from './routes/accounting.js';
 import hostingRoutes from './routes/hosting.js';
-import hostingPackagesRoutes from './routes/hostingPackages.js';
 import filesRoutes from './routes/files.js';
 import commentsRoutes from './routes/comments.js';
 import translationRoutes from './routes/translation.js';
@@ -46,7 +44,6 @@ import chatApiRouter from './routes/chatApi.js';
 import paymentsRouter from './routes/payments.js';
 import invoicesRouter from './routes/invoices.js';
 import partnersRouter from './routes/partners.js';
-import publicHostingRouter from './routes/publicHosting.js';
 
 // Import middleware
 import authMiddleware from './middleware/auth.js';
@@ -348,7 +345,6 @@ publicRouter.post('/hosting/orders', validateApiKey, async (req, res) => {
 
 // Register public endpoints
 app.use('/api/public', publicRouter);
-app.use('/api/public', publicHostingRouter);
 
 // Public chat endpoint - külön kezelő a root path számára
 app.post('/api/public/chat', validateApiKey, async (req, res) => {
@@ -766,7 +762,6 @@ app.use('/api', licenseRoutes);
 app.use('/api', notificationRoutes);
 app.use('/api/accounting', accountingRoutes);
 app.use('/api', hostingRoutes);
-app.use('/api', hostingPackagesRoutes);
 app.use('/api', filesRoutes);
 app.use('/api', commentsRoutes);
 app.use('/api/translation', translationRoutes);
