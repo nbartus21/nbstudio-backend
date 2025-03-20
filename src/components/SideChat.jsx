@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Send, MessageSquare, Trash2, Save, ExternalLink, Maximize2, ChevronRight, Copy } from 'lucide-react';
+import { X, Send, MessageSquare, Trash2, Save, ExternalLink, Maximize2, ChevronRight, Copy, Check } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const SideChat = () => {
@@ -21,6 +21,7 @@ const SideChat = () => {
   const messagesEndRef = useRef(null);
   const chatInputRef = useRef(null);
   const [notification, setNotification] = useState(null);
+  const [codeCopiedId, setCodeCopiedId] = useState(null);
 
   // Scroll to bottom of messages
   useEffect(() => {
@@ -288,6 +289,257 @@ const SideChat = () => {
     });
   };
 
+  // Process message content to detect and format various markdown elements
+  const formatMessageContent = (content, isUserMessage) => {
+    if (!content) return '';
+    
+    // Process content in chunks to handle different formatting elements
+    let processedChunks = [];
+    
+    // First, separate code blocks from regular text
+    const parts = [];
+    const codeBlockPattern = /```(\w*)\n([\s\S]*?)```/g;
+    let lastIndex = 0;
+    let match;
+    
+    while ((match = codeBlockPattern.exec(content)) !== null) {
+      // Add text before code block
+      if (match.index > lastIndex) {
+        parts.push({
+          type: 'text',
+          content: content.substring(lastIndex, match.index)
+        });
+      }
+      
+      // Add code block
+      parts.push({
+        type: 'code',
+        language: match[1] || 'bash',
+        content: match[2]
+      });
+      
+      lastIndex = match.index + match[0].length;
+    }
+    
+    // Add remaining text
+    if (lastIndex < content.length) {
+      parts.push({
+        type: 'text',
+        content: content.substring(lastIndex)
+      });
+    }
+    
+    // If no parts found, just return the original content
+    if (parts.length === 0) {
+      return <span className="whitespace-pre-wrap">{content}</span>;
+    }
+    
+    // Process each part based on its type
+    let keyCounter = 0;
+    
+    parts.forEach((part, partIndex) => {
+      if (part.type === 'code') {
+        // Render code block
+        processedChunks.push(
+          <div key={`code-${partIndex}`} className="my-2 rounded bg-gray-800 overflow-hidden">
+            <div className="bg-gray-700 px-3 py-1 text-xs text-gray-300 flex justify-between">
+              <span>{part.language || 'code'}</span>
+              <button 
+                onClick={() => {
+                  navigator.clipboard.writeText(part.content);
+                  setCodeCopiedId(`code-${partIndex}`);
+                  setTimeout(() => setCodeCopiedId(null), 2000);
+                }}
+                className="text-gray-400 hover:text-white flex items-center"
+                title="Copy to clipboard"
+              >
+                {codeCopiedId === `code-${partIndex}` ? (
+                  <>
+                    <Check size={12} className="mr-1 text-green-400" />
+                    <span className="text-green-400">Copied!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy size={12} className="mr-1" />
+                    <span>Copy</span>
+                  </>
+                )}
+              </button>
+            </div>
+            <pre className="p-2 text-xs text-gray-100 overflow-x-auto whitespace-pre">
+              <code className="font-mono">{part.content}</code>
+            </pre>
+          </div>
+        );
+      } else if (part.type === 'text') {
+        // Process text parts for headings, lists, etc.
+        const textContent = part.content;
+        
+        // Split text by newlines while preserving empty lines
+        const lines = textContent.split('\n');
+        let currentList = null;
+        let listItems = [];
+        let inSection = false;
+        
+        lines.forEach((line, lineIndex) => {
+          keyCounter++;
+          
+          // Check for h3 headers with ### prefix
+          if (line.match(/^###\s+(.+)$/)) {
+            const headerText = line.replace(/^###\s+/, '');
+            processedChunks.push(
+              <h3 key={`h3-${keyCounter}`} className="text-sm font-bold mt-4 mb-2">{headerText}</h3>
+            );
+            return;
+          }
+          
+          // Check for h2 headers with ## prefix
+          if (line.match(/^##\s+(.+)$/)) {
+            const headerText = line.replace(/^##\s+/, '');
+            processedChunks.push(
+              <h2 key={`h2-${keyCounter}`} className="text-base font-bold mt-4 mb-2">{headerText}</h2>
+            );
+            return;
+          }
+          
+          // Check for h1 headers with # prefix
+          if (line.match(/^#\s+(.+)$/)) {
+            const headerText = line.replace(/^#\s+/, '');
+            processedChunks.push(
+              <h1 key={`h1-${keyCounter}`} className="text-lg font-bold mt-4 mb-2">{headerText}</h1>
+            );
+            return;
+          }
+          
+          // Check for horizontal rule with --- or ***
+          if (line.match(/^(-{3,}|\*{3,})$/)) {
+            processedChunks.push(
+              <hr key={`hr-${keyCounter}`} className="my-3 border-gray-300" />
+            );
+            return;
+          }
+          
+          // Check for unordered list items
+          const listMatch = line.match(/^(\s*)-\s+(.+)$/);
+          if (listMatch) {
+            const listItem = listMatch[2];
+            if (currentList !== 'ul') {
+              // If we were building a different type of list, add it first
+              if (currentList && listItems.length > 0) {
+                processedChunks.push(
+                  React.createElement(currentList, { key: `list-${keyCounter}`, className: "pl-4 ml-2 my-2 space-y-1" }, listItems)
+                );
+                listItems = [];
+              }
+              currentList = 'ul';
+            }
+            
+            // Add to current list items
+            listItems.push(
+              <li key={`li-${keyCounter}`} className="flex items-start">
+                <span className={`inline-block w-2 h-2 rounded-full mt-1.5 mr-2 flex-shrink-0 ${
+                  isUserMessage ? 'bg-white' : 'bg-indigo-500'
+                }`}></span>
+                <span>{listItem}</span>
+              </li>
+            );
+            return;
+          }
+          
+          // Check for numbered list items
+          const numberedListMatch = line.match(/^(\s*)(\d+)\.\s+(.+)$/);
+          if (numberedListMatch) {
+            const listItem = numberedListMatch[3];
+            const number = numberedListMatch[2];
+            
+            if (currentList !== 'ol') {
+              // If we were building a different type of list, add it first
+              if (currentList && listItems.length > 0) {
+                processedChunks.push(
+                  React.createElement(currentList, { key: `list-${keyCounter}`, className: "pl-4 ml-2 my-2 space-y-1" }, listItems)
+                );
+                listItems = [];
+              }
+              currentList = 'ol';
+            }
+            
+            // Add to current list items
+            listItems.push(
+              <li key={`li-${keyCounter}`} className="flex items-start">
+                <span className={`inline-block mr-2 font-bold w-5 text-right flex-shrink-0 ${
+                  isUserMessage ? 'text-white' : 'text-indigo-600'
+                }`}>{number}.</span>
+                <span>{listItem}</span>
+              </li>
+            );
+            return;
+          }
+          
+          // If this line is not a list item, but we have list items built up, add the list
+          if ((currentList && listItems.length > 0) && 
+              (!listMatch && !numberedListMatch)) {
+            processedChunks.push(
+              React.createElement(currentList, { key: `list-${keyCounter}`, className: "pl-4 ml-2 my-2 space-y-1" }, listItems)
+            );
+            listItems = [];
+            currentList = null;
+          }
+          
+          // Check for bold text
+          let formattedLine = line;
+          formattedLine = formattedLine.replace(/\*\*(.+?)\*\*/g, (_, text) => `<strong>${text}</strong>`);
+          formattedLine = formattedLine.replace(/\_\_(.+?)\_\_/g, (_, text) => `<strong>${text}</strong>`);
+          
+          // Check for italic text
+          formattedLine = formattedLine.replace(/\*(.+?)\*/g, (_, text) => `<em>${text}</em>`);
+          formattedLine = formattedLine.replace(/\_(.+?)\_/g, (_, text) => `<em>${text}</em>`);
+          
+          // Check for inline code
+          formattedLine = formattedLine.replace(/\`(.+?)\`/g, (_, text) => {
+            const codeClass = isUserMessage 
+              ? "px-1 py-0.5 rounded bg-indigo-700 text-gray-100 font-mono text-xs"
+              : "px-1 py-0.5 rounded bg-gray-700 text-gray-100 font-mono text-xs";
+            return `<code class="${codeClass}">${text}</code>`;
+          });
+          
+          // If line contains HTML after our replacements, use dangerouslySetInnerHTML
+          if (formattedLine !== line) {
+            processedChunks.push(
+              <p 
+                key={`p-${keyCounter}`} 
+                className={`${lineIndex > 0 ? 'mt-1' : ''} ${line.trim() === '' ? 'h-3' : ''}`}
+                dangerouslySetInnerHTML={{ __html: formattedLine }}
+              />
+            );
+          } else {
+            // Regular text line (only if not empty)
+            if (line.trim() !== '') {
+              processedChunks.push(
+                <p key={`p-${keyCounter}`} className={lineIndex > 0 ? 'mt-1' : ''}>
+                  {line}
+                </p>
+              );
+            } else {
+              // Empty line creates spacing
+              processedChunks.push(
+                <div key={`space-${keyCounter}`} className="h-3"></div>
+              );
+            }
+          }
+        });
+        
+        // If we ended with a list, add it
+        if (currentList && listItems.length > 0) {
+          processedChunks.push(
+            React.createElement(currentList, { key: `list-${keyCounter + 1}`, className: "pl-4 ml-2 my-2 space-y-1" }, listItems)
+          );
+        }
+      }
+    });
+    
+    return processedChunks.length > 0 ? processedChunks : <span>{content}</span>;
+  };
+
   // Render chat message
   const renderMessage = (msg, index) => {
     return (
@@ -296,13 +548,13 @@ const SideChat = () => {
         className={`mb-3 ${msg.role === 'user' ? 'ml-auto' : 'mr-auto'}`}
       >
         <div
-          className={`max-w-[85%] p-2 rounded-lg text-sm ${
+          className={`max-w-[85%] p-3 rounded-lg text-sm overflow-hidden ${
             msg.role === 'user'
               ? 'bg-indigo-600 text-white rounded-br-none'
               : 'bg-gray-200 text-gray-800 rounded-bl-none'
           }`}
         >
-          {msg.content}
+          {formatMessageContent(msg.content, msg.role === 'user')}
         </div>
       </div>
     );
