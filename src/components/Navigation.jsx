@@ -92,6 +92,7 @@ const Navigation = () => {
       items: [
         { path: "/domains", label: "Domain Kezelő", icon: <Globe size={16} /> },
         { path: "/hosting", label: "Hosting Kezelő", icon: <Database size={16} /> },
+        { path: "/hosting-packages", label: "Hosting Csomagok", icon: <Server size={16} /> },
         { path: "/accounting", label: "Könyvelés", icon: <DollarSign size={16} /> },
         { path: "/support", label: "Support Ticketek", icon: <MessageCircle size={16} /> }
       ]
