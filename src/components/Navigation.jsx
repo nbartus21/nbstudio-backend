@@ -65,7 +65,9 @@ const Navigation = () => {
       icon: <BookOpen size={18} />,
       items: [
         { path: "/blog", label: "Blog bejegyzések listája", icon: <FileText size={16} /> },
-        { path: "/partners", label: "Partnerek kezelése", icon: <Globe size={16} /> }
+        { path: "/partners", label: "Partnerek kezelése", icon: <Globe size={16} /> },
+        { path: "/wiki", label: "Tudástár", icon: <Database size={16} /> },
+        { path: "/ai-chat-knowledge", label: "Tudástár Asszisztens", icon: <MessageCircle size={16} /> }
       ]
     },
     {

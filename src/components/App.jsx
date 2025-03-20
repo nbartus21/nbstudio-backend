@@ -23,6 +23,8 @@ import AIChat from './AIChat'; // AI Chat importálása
 import SideChat from './SideChat'; // Side chat importálása
 import Help from './Help';
 import PartnersAdmin from './PartnersAdmin'; // Partner kezelő komponens importálása
+import WikiKnowledgeBase from './WikiKnowledgeBase'; // Wiki knowledge base importálása
+import KnowledgeEnhancedAIChat from './KnowledgeEnhancedAIChat'; // Enhanced AI Chat importálása
 
 
 
@@ -188,6 +190,29 @@ const App = () => {
              <div className="bg-white rounded-lg shadow-lg flex-1">
                <AIChat />
              </div>
+           </div>
+         </PrivateRoute>
+       }
+     />
+     <Route 
+       path="/ai-chat-knowledge" 
+       element={
+         <PrivateRoute>
+           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 h-[calc(100vh-64px)] flex flex-col">
+             <h1 className="text-2xl font-bold mb-4">Tudástár Asszisztens</h1>
+             <div className="bg-white rounded-lg shadow-lg flex-1">
+               <KnowledgeEnhancedAIChat />
+             </div>
+           </div>
+         </PrivateRoute>
+       }
+     />
+     <Route 
+       path="/wiki" 
+       element={
+         <PrivateRoute>
+           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+             <WikiKnowledgeBase />
            </div>
          </PrivateRoute>
        }

@@ -44,6 +44,7 @@ import chatApiRouter from './routes/chatApi.js';
 import paymentsRouter from './routes/payments.js';
 import invoicesRouter from './routes/invoices.js';
 import partnersRouter from './routes/partners.js';
+import wikiApiRouter from './routes/wikiApi.js';
 
 // Import middleware
 import authMiddleware from './middleware/auth.js';
@@ -408,6 +409,10 @@ app.use('/api/public/chat', validateApiKey, chatApiRouter);
 
 // Add authenticated chat endpoints
 app.use('/api/chat', authMiddleware, chatApiRouter);
+
+// Wiki knowledge base endpoints - both public and authenticated
+app.use('/api/public/wiki', validateApiKey, wikiApiRouter);
+app.use('/api/wiki', authMiddleware, wikiApiRouter);
 
 // Public blog posts endpoint (no auth required)
 app.get('/api/posts', async (req, res) => {
