@@ -61,11 +61,11 @@ const Navigation = () => {
   // Menüelemek rendszerezése
   const menuItems = [
     {
-      category: "Blog kezelés",
+      category: "Tartalom kezelés",
       icon: <BookOpen size={18} />,
       items: [
         { path: "/blog", label: "Blog bejegyzések listája", icon: <FileText size={16} /> },
-        { path: "/blog/new", label: "Új bejegyzés létrehozása", icon: <PlusCircle size={16} /> }
+        { path: "/partners", label: "Partnerek kezelése", icon: <Globe size={16} /> }
       ]
     },
     {

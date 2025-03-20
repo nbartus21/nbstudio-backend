@@ -18,6 +18,7 @@ import Calculator from './models/Calculator.js';
 import Post from './models/Post.js';
 import Note from './models/Note.js';
 import Task from './models/Task.js';
+import Partner from './models/Partner.js';
 
 // Import routes
 import postRoutes from './routes/posts.js';
@@ -42,6 +43,7 @@ import documentsRouter from './routes/documents.js';
 import chatApiRouter from './routes/chatApi.js';
 import paymentsRouter from './routes/payments.js';
 import invoicesRouter from './routes/invoices.js';
+import partnersRouter from './routes/partners.js';
 
 // Import middleware
 import authMiddleware from './middleware/auth.js';
@@ -417,6 +419,17 @@ app.get('/api/posts', async (req, res) => {
   }
 });
 
+// Public partners endpoint (no auth required)
+app.get('/api/public/partners', validateApiKey, async (req, res) => {
+  try {
+    const partners = await Partner.find({ active: true }).sort({ updatedAt: -1 });
+    res.json(partners);
+  } catch (error) {
+    console.error('Error fetching public partners:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // Importáljuk a PIN ellenőrző függvényt
 import { verifyPin } from './routes/projects.js';
 
@@ -757,6 +770,7 @@ app.use('/api/notes', notesRoutes);
 app.use('/api/support', supportTicketRouter);
 app.use('/api', documentsRouter);
 app.use('/api', invoicesRouter);
+app.use('/api/partners', partnersRouter);
 
 // Fix for transactions endpoint directly accessing the accountingRoutes
 app.use('/api/transactions', (req, res, next) => {
