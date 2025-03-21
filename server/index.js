@@ -44,7 +44,6 @@ import chatApiRouter from './routes/chatApi.js';
 import paymentsRouter from './routes/payments.js';
 import invoicesRouter from './routes/invoices.js';
 import partnersRouter from './routes/partners.js';
-import websiteContentRouter from './routes/websiteContent.js';
 
 // Import middleware
 import authMiddleware from './middleware/auth.js';
@@ -431,30 +430,6 @@ app.get('/api/public/partners', validateApiKey, async (req, res) => {
   }
 });
 
-// Public website content endpoint (no auth required)
-app.get('/api/public/content/:page', validateApiKey, async (req, res) => {
-  try {
-    const WebsiteContent = mongoose.model('WebsiteContent');
-    const page = req.params.page;
-    
-    // Validate page type
-    if (!['cookies', 'privacy', 'terms', 'imprint'].includes(page)) {
-      return res.status(400).json({ message: 'Invalid page type' });
-    }
-    
-    const content = await WebsiteContent.findOne({ page, active: true });
-    
-    if (!content) {
-      return res.status(404).json({ message: 'Content not found' });
-    }
-    
-    res.json(content);
-  } catch (error) {
-    console.error('Error fetching public content:', error);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
 // Importáljuk a PIN ellenőrző függvényt
 import { verifyPin } from './routes/projects.js';
 
@@ -796,7 +771,6 @@ app.use('/api/support', supportTicketRouter);
 app.use('/api', documentsRouter);
 app.use('/api', invoicesRouter);
 app.use('/api/partners', partnersRouter);
-app.use('/api/website-content', websiteContentRouter);
 
 // Fix for transactions endpoint directly accessing the accountingRoutes
 app.use('/api/transactions', (req, res, next) => {
