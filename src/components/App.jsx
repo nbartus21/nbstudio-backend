@@ -15,14 +15,15 @@ import SharedProjectView from './SharedProjectView';
 import InvoiceManager from './InvoiceManager';
 import AccountingManager from './AccountingManager';
 import HostingManager from './HostingManager';
-import TranslationTool from './TranslationTool'; // Új komponens importálása
+import TranslationTool from './TranslationTool'; 
 import SupportTicketManager from './SupportTicketManager';
 import QRLogin from './QRLogin';
 import DocumentManager from './DocumentManager';
-import AIChat from './AIChat'; // AI Chat importálása
-import SideChat from './SideChat'; // Side chat importálása
+import AIChat from './AIChat'; 
+import SideChat from './SideChat'; 
 import Help from './Help';
-import PartnersAdmin from './PartnersAdmin'; // Partner kezelő komponens importálása
+import PartnersAdmin from './PartnersAdmin'; 
+import WebPagesAdmin from './WebPagesAdmin'; // Weboldalak kezelő komponens importálása
 
 
 
@@ -149,6 +150,14 @@ const App = () => {
        element={
          <PrivateRoute>
            <PartnersAdmin />
+         </PrivateRoute>
+       }
+     />
+     <Route
+       path="/webpages"
+       element={
+         <PrivateRoute>
+           <WebPagesAdmin />
          </PrivateRoute>
        }
      />

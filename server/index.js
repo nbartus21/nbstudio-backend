@@ -19,6 +19,7 @@ import Post from './models/Post.js';
 import Note from './models/Note.js';
 import Task from './models/Task.js';
 import Partner from './models/Partner.js';
+import WebPage from './models/WebPage.js';
 
 // Import routes
 import postRoutes from './routes/posts.js';
@@ -44,6 +45,7 @@ import chatApiRouter from './routes/chatApi.js';
 import paymentsRouter from './routes/payments.js';
 import invoicesRouter from './routes/invoices.js';
 import partnersRouter from './routes/partners.js';
+import webPagesRouter from './routes/webpages.js';
 
 // Import middleware
 import authMiddleware from './middleware/auth.js';
@@ -430,6 +432,36 @@ app.get('/api/public/partners', validateApiKey, async (req, res) => {
   }
 });
 
+// Public web pages endpoint (no auth required)
+app.get('/api/public/webpages', validateApiKey, async (req, res) => {
+  try {
+    const webPages = await WebPage.find({ active: true }).sort({ updatedAt: -1 });
+    res.json(webPages);
+  } catch (error) {
+    console.error('Error fetching public web pages:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Public web page by identifier (no auth required)
+app.get('/api/public/webpages/:identifier', validateApiKey, async (req, res) => {
+  try {
+    const webPage = await WebPage.findOne({ 
+      identifier: req.params.identifier,
+      active: true 
+    });
+    
+    if (!webPage) {
+      return res.status(404).json({ message: 'Web page not found' });
+    }
+    
+    res.json(webPage);
+  } catch (error) {
+    console.error('Error fetching public web page:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // Importáljuk a PIN ellenőrző függvényt
 import { verifyPin } from './routes/projects.js';
 
@@ -771,6 +803,7 @@ app.use('/api/support', supportTicketRouter);
 app.use('/api', documentsRouter);
 app.use('/api', invoicesRouter);
 app.use('/api/partners', partnersRouter);
+app.use('/api/webpages', webPagesRouter);
 
 // Fix for transactions endpoint directly accessing the accountingRoutes
 app.use('/api/transactions', (req, res, next) => {
