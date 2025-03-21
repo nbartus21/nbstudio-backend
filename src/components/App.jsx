@@ -23,8 +23,8 @@ import AIChat from './AIChat'; // AI Chat importálása
 import SideChat from './SideChat'; // Side chat importálása
 import Help from './Help';
 import PartnersAdmin from './PartnersAdmin'; // Partner kezelő komponens importálása
-import ContentManagerPage from './ContentManagerPage'; // Tartalom kezelő importálása
-import ContentPage from '../pages/ContentPage'; // Dinamikus jogi oldalak
+
+
 
 const App = () => {
  const PrivateRoute = ({ children }) => {
@@ -153,14 +153,6 @@ const App = () => {
        }
      />
      <Route
-       path="/content-manager"
-       element={
-         <PrivateRoute>
-           <ContentManagerPage />
-         </PrivateRoute>
-       }
-     />
-     <Route
        path="/support"
        element={
          <PrivateRoute>
@@ -185,7 +177,6 @@ const App = () => {
          </PrivateRoute>
        }
      />
-     <Route path="/pages/:slug" element={<ContentPage />} />
      <Route path="*" element={<Navigate to="/magic-login" />} />
      <Route path="/shared-project/:token" element={<SharedProjectView />} />
      <Route 
