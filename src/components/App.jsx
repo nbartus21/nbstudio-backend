@@ -23,7 +23,8 @@ import AIChat from './AIChat'; // AI Chat importálása
 import SideChat from './SideChat'; // Side chat importálása
 import Help from './Help';
 import PartnersAdmin from './PartnersAdmin'; // Partner kezelő komponens importálása
-
+import ContentManager from './ContentManager'; // Content Manager importálása
+import ContentPage from '../pages/ContentPage'; // Dynamic content page
 
 
 const App = () => {
@@ -153,6 +154,14 @@ const App = () => {
        }
      />
      <Route
+       path="/content-manager"
+       element={
+         <PrivateRoute>
+           <ContentManager />
+         </PrivateRoute>
+       }
+     />
+     <Route
        path="/support"
        element={
          <PrivateRoute>
@@ -192,6 +201,8 @@ const App = () => {
          </PrivateRoute>
        }
      />
+     {/* Dynamic content pages */}
+     <Route path="/pages/:slug" element={<ContentPage />} />
    </Routes>
  );
 };
