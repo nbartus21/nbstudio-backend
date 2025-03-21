@@ -23,6 +23,7 @@ import AIChat from './AIChat'; // AI Chat importálása
 import SideChat from './SideChat'; // Side chat importálása
 import Help from './Help';
 import PartnersAdmin from './PartnersAdmin'; // Partner kezelő komponens importálása
+import WebsiteContentManager from './WebsiteContentManager'; // Website content kezelő komponens importálása
 
 
 
@@ -149,6 +150,14 @@ const App = () => {
        element={
          <PrivateRoute>
            <PartnersAdmin />
+         </PrivateRoute>
+       }
+     />
+     <Route
+       path="/website-content"
+       element={
+         <PrivateRoute>
+           <WebsiteContentManager />
          </PrivateRoute>
        }
      />
