@@ -4,6 +4,80 @@ import authMiddleware from '../middleware/auth.js';
 
 const router = express.Router();
 
+// Default content for pages if they don't exist
+const defaultContent = {
+  terms: {
+    'title': 'Általános Szerződési Feltételek',
+    'seo.title': 'ÁSZF - NB Studio',
+    'seo.description': 'NB Studio Általános Szerződési Feltételek',
+    'general.title': 'Általános információk',
+    'general.content': 'Az alábbi feltételek szabályozzák az NB Studio szolgáltatásainak használatát.',
+    'usage.title': 'Használati feltételek',
+    'usage.content': 'A szolgáltatás használatával elfogadod ezen feltételeket.',
+    'liability.title': 'Felelősség korlátozása',
+    'liability.content': 'Az NB Studio nem vállal felelősséget a nem rendeltetésszerű használatból eredő károkért.',
+    'changes.title': 'Változtatások',
+    'changes.content': 'Fenntartjuk a jogot a feltételek változtatására.',
+    'contact.title': 'Kapcsolat',
+    'contact.name': 'Név',
+    'contact.email': 'Email'
+  },
+  privacy: {
+    'title': 'Adatvédelmi Szabályzat',
+    'seo.title': 'Adatvédelem - NB Studio',
+    'seo.description': 'NB Studio adatvédelmi irányelvek',
+    'general.title': 'Általános információk',
+    'general.content': 'Az NB Studio elkötelezett a személyes adatok védelme iránt.',
+    'data.title': 'Kezelt adatok',
+    'data.item1': 'Név és elérhetőségi adatok',
+    'data.item2': 'Böngészéssel kapcsolatos információk',
+    'data.item3': 'Fizetéssel kapcsolatos adatok',
+    'data.item4': 'Weboldal használatával kapcsolatos statisztikák',
+    'cookies.title': 'Cookie-k használata',
+    'cookies.content': 'Weboldalunk cookie-kat használ a jobb felhasználói élmény érdekében.',
+    'rights.title': 'Jogaid',
+    'rights.item1': 'Hozzáférési jog',
+    'rights.item2': 'Helyesbítési jog',
+    'rights.item3': 'Törlési jog',
+    'rights.item4': 'Adatkezelés korlátozásának joga',
+    'rights.item5': 'Adathordozhatósághoz való jog',
+    'contact.title': 'Kapcsolat',
+    'contact.name': 'Név',
+    'contact.email': 'Email'
+  },
+  cookies: {
+    'title': 'Cookie Szabályzat',
+    'seo.title': 'Cookie szabályzat - NB Studio',
+    'seo.description': 'NB Studio cookie használati szabályzat',
+    'general.title': 'Általános információk',
+    'general.content': 'Ez a szabályzat leírja, hogyan használunk cookie-kat a weboldalunkon.',
+    'types.title': 'Cookie típusok',
+    'types.item1': 'Szükséges cookie-k: a weboldal működéséhez elengedhetetlenek',
+    'types.item2': 'Preferencia cookie-k: beállításaid megjegyzéséhez',
+    'types.item3': 'Statisztikai cookie-k: a weboldal használatának elemzéséhez',
+    'management.title': 'Cookie-k kezelése',
+    'management.content': 'A böngésződ beállításaiban bármikor letilthatod a cookie-k használatát.',
+    'contact.title': 'Kapcsolat',
+    'contact.name': 'Név',
+    'contact.email': 'Email'
+  },
+  imprint: {
+    'title': 'Impresszum',
+    'seo.title': 'Impresszum - NB Studio',
+    'seo.description': 'NB Studio impresszum és jogi információk',
+    'company.title': 'Cég információk',
+    'contact.title': 'Kapcsolat',
+    'contact.phone': 'Telefon',
+    'contact.email': 'Email',
+    'registration.title': 'Nyilvántartási adatok',
+    'registration.vatId': 'Adószám',
+    'responsibility.title': 'Felelősség a tartalomért',
+    'responsibility.content': 'Az oldalon található tartalmakért az NB Studio vállalja a felelősséget.',
+    'disclaimer.title': 'Jogi nyilatkozat',
+    'disclaimer.content': 'A weboldal tartalma szerzői jogi védelem alatt áll.'
+  }
+};
+
 // Get all content pages
 router.get('/', authMiddleware, async (req, res) => {
   try {
@@ -23,9 +97,16 @@ router.get('/:slug', async (req, res) => {
       return res.status(400).json({ message: 'Invalid content page slug' });
     }
     
-    const contentPage = await ContentPage.findOne({ slug });
+    let contentPage = await ContentPage.findOne({ slug });
     
-    if (!contentPage) {
+    // If the page doesn't exist, create it with default content
+    if (!contentPage && defaultContent[slug]) {
+      contentPage = new ContentPage({
+        slug,
+        content: new Map(Object.entries(defaultContent[slug]))
+      });
+      await contentPage.save();
+    } else if (!contentPage) {
       return res.status(404).json({ message: 'Content page not found' });
     }
     
@@ -74,9 +155,16 @@ router.get('/public/:slug', async (req, res) => {
       return res.status(400).json({ message: 'Invalid content page slug' });
     }
     
-    const contentPage = await ContentPage.findOne({ slug });
+    let contentPage = await ContentPage.findOne({ slug });
     
-    if (!contentPage) {
+    // If the page doesn't exist, create it with default content
+    if (!contentPage && defaultContent[slug]) {
+      contentPage = new ContentPage({
+        slug,
+        content: new Map(Object.entries(defaultContent[slug]))
+      });
+      await contentPage.save();
+    } else if (!contentPage) {
       return res.status(404).json({ message: 'Content page not found' });
     }
     
