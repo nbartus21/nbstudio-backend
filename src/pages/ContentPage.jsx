@@ -1,15 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { useIntl } from 'react-intl';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
-import SEO from '../components/SEO';
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://admin.nb-studio.net';
+const API_URL = 'https://admin.nb-studio.net:5001/api';
 
 const ContentPage = () => {
   const { slug } = useParams();
-  const intl = useIntl();
   const [pageContent, setPageContent] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -18,7 +15,7 @@ const ContentPage = () => {
     const fetchContent = async () => {
       try {
         setLoading(true);
-        const response = await axios.get(`${API_URL}/api/public/content-pages/${slug}`, {
+        const response = await axios.get(`${API_URL}/public/content-pages/${slug}`, {
           headers: {
             'X-API-Key': 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0'
           }
@@ -319,42 +316,54 @@ const ContentPage = () => {
     </>
   );
 
+  // Dynamic title based on the page type
+  const getPageTitle = () => {
+    if (!pageContent['seo.title']) {
+      switch (slug) {
+        case 'terms':
+          return 'Terms of Service';
+        case 'privacy':
+          return 'Privacy Policy';
+        case 'cookies':
+          return 'Cookies Policy';
+        case 'imprint':
+          return 'Imprint';
+        default:
+          return 'Legal Page';
+      }
+    }
+    return pageContent['seo.title'];
+  };
+
+  // Dynamic description based on the page type
+  const getPageDescription = () => {
+    if (!pageContent['seo.description']) {
+      switch (slug) {
+        case 'terms':
+          return 'Terms of Service for NB-Studio';
+        case 'privacy':
+          return 'Privacy Policy for NB-Studio';
+        case 'cookies':
+          return 'Cookies Policy for NB-Studio';
+        case 'imprint':
+          return 'Imprint for NB-Studio';
+        default:
+          return 'Legal information';
+      }
+    }
+    return pageContent['seo.description'];
+  };
+
   return (
-    <div className="min-h-screen bg-black text-white py-40 relative overflow-hidden">
-      <SEO
-        title={pageContent['seo.title'] || `${slug.charAt(0).toUpperCase() + slug.slice(1)}`}
-        description={pageContent['seo.description'] || ``}
-      />
-
-      {/* Animated background */}
-      <div className="absolute inset-0">
-        <motion.div
-          className="absolute inset-0 bg-blue-500/30"
-          animate={{
-            background: [
-              'rgba(59, 130, 246, 0.3)',
-              'rgba(139, 92, 246, 0.3)',
-              'rgba(236, 72, 153, 0.3)',
-              'rgba(59, 130, 246, 0.3)'
-            ]
-          }}
-          transition={{
-            duration: 10,
-            repeat: Infinity,
-            ease: "linear"
-          }}
-        />
-        <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center opacity-30" />
-      </div>
-
+    <div className="min-h-screen bg-white text-gray-900 py-20 relative">
+      {/* Set page title and meta */}
+      <title>{getPageTitle()}</title>
+      <meta name="description" content={getPageDescription()} />
+      
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="glass-card p-8 rounded-2xl"
-        >
+        <div className="bg-white p-8 rounded-lg shadow-lg">
           {renderContent()}
-        </motion.div>
+        </div>
       </div>
     </div>
   );

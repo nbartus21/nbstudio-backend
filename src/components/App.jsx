@@ -23,37 +23,8 @@ import AIChat from './AIChat'; // AI Chat importálása
 import SideChat from './SideChat'; // Side chat importálása
 import Help from './Help';
 import PartnersAdmin from './PartnersAdmin'; // Partner kezelő komponens importálása
-
-// Content Manager component
-const ContentManager = () => {
-  return (
-    <div className="container mx-auto px-4 py-8 text-white">
-      <h1 className="text-3xl font-bold mb-6">Tartalom kezelés</h1>
-      <div className="bg-gray-900 p-6 rounded-lg shadow-lg">
-        <p className="mb-4">Itt tudod szerkeszteni a jogi oldalak tartalmát.</p>
-        <p className="text-yellow-400">
-          Ez a funkció most fejlesztés alatt áll. Hamarosan elérhető lesz.
-        </p>
-      </div>
-    </div>
-  );
-};
-
-// Dynamic content page component
-const ContentPage = () => {
-  return (
-    <div className="min-h-screen bg-black text-white py-40 relative overflow-hidden">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        <div className="bg-gray-900 p-8 rounded-2xl">
-          <h1 className="text-3xl font-bold mb-8">Jogi Oldal</h1>
-          <p className="mb-4">
-            Ez az oldal fejlesztés alatt áll. A tartalom hamarosan elérhető lesz.
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-};
+import ContentManagerPage from './ContentManagerPage'; // Tartalom kezelő importálása
+import ContentPage from '../pages/ContentPage'; // Dinamikus jogi oldalak
 
 const App = () => {
  const PrivateRoute = ({ children }) => {
@@ -185,7 +156,7 @@ const App = () => {
        path="/content-manager"
        element={
          <PrivateRoute>
-           <ContentManager />
+           <ContentManagerPage />
          </PrivateRoute>
        }
      />
@@ -214,6 +185,7 @@ const App = () => {
          </PrivateRoute>
        }
      />
+     <Route path="/pages/:slug" element={<ContentPage />} />
      <Route path="*" element={<Navigate to="/magic-login" />} />
      <Route path="/shared-project/:token" element={<SharedProjectView />} />
      <Route 
@@ -229,8 +201,6 @@ const App = () => {
          </PrivateRoute>
        }
      />
-     {/* Dynamic content pages */}
-     <Route path="/pages/:slug" element={<ContentPage />} />
    </Routes>
  );
 };
