@@ -35,8 +35,34 @@ const ContentManagerPage = () => {
   });
 
   useEffect(() => {
+    // Kezdeti betöltéskor inicializáljuk az oldalakat
     fetchPages();
   }, []);
+  
+  // Oldalak létrehozása, ha nincsenek az adatbázisban
+  const createDefaultPages = async () => {
+    try {
+      console.log("Oldalak létrehozása kezdeményezve...");
+      const slugs = ['terms', 'privacy', 'cookies', 'imprint'];
+      
+      for (const slug of slugs) {
+        try {
+          // PUT kérés üres tartalommal, ami kiváltja az alapértelmezett tartalmak létrehozását
+          await api.put(`${API_URL}/content-pages/${slug}`, {
+            content: {}
+          });
+          console.log(`${slug} oldal létrehozva`);
+        } catch (err) {
+          console.error(`Hiba a ${slug} oldal létrehozásakor:`, err);
+        }
+      }
+      
+      // Újra lekérjük az oldalakat
+      await fetchPages();
+    } catch (error) {
+      console.error("Hiba az oldalak létrehozásakor:", error);
+    }
+  };
 
   useEffect(() => {
     if (pages.length > 0) {
@@ -353,11 +379,11 @@ const ContentManagerPage = () => {
                 Nem található egyetlen jogi oldal sem az adatbázisban.
               </p>
               <button
-                onClick={fetchPages}
+                onClick={createDefaultPages}
                 className="inline-flex items-center mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
               >
                 <RefreshCw className="w-5 h-5 mr-2" />
-                Próbáld újra
+                Oldalak létrehozása
               </button>
             </div>
           )}
