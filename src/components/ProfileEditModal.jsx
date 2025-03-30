@@ -349,6 +349,53 @@ const ProfileEditModal = ({
               debugLog('ProfileEditModal-submit', 'Nem sikerült a hibaüzenet beolvasása', parseError);
             }
             
+            // Próbálkozzunk alternatív URL-ekkel
+            debugLog('ProfileEditModal-submit', 'Próbálkozás alternatív végpontokkal');
+            
+            // 1. Próbálkozás: /public/projects/verify-pin
+            try {
+              const altResponse1 = await fetch(`${API_URL}/public/projects/verify-pin`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'X-API-Key': API_KEY
+                },
+                body: JSON.stringify(requestBody)
+              });
+              
+              debugLog('ProfileEditModal-submit', 'Alternatív 1 válasz státusz:', altResponse1.status);
+              
+              if (altResponse1.ok) {
+                const responseData = await altResponse1.json();
+                debugLog('ProfileEditModal-submit', 'Alternatív 1 válasz sikeres:', responseData);
+                return; // Sikeres, ne próbálkozzunk tovább
+              }
+            } catch (alt1Error) {
+              debugLog('ProfileEditModal-submit', 'Alternatív 1 hiba:', alt1Error);
+            }
+            
+            // 2. Próbálkozás: /verify-pin
+            try {
+              const altResponse2 = await fetch(`${API_URL}/verify-pin`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'X-API-Key': API_KEY
+                },
+                body: JSON.stringify(requestBody)
+              });
+              
+              debugLog('ProfileEditModal-submit', 'Alternatív 2 válasz státusz:', altResponse2.status);
+              
+              if (altResponse2.ok) {
+                const responseData = await altResponse2.json();
+                debugLog('ProfileEditModal-submit', 'Alternatív 2 válasz sikeres:', responseData);
+                return; // Sikeres, ne próbálkozzunk tovább
+              }
+            } catch (alt2Error) {
+              debugLog('ProfileEditModal-submit', 'Alternatív 2 hiba:', alt2Error);
+            }
+            
             throw new Error(`Failed to update project on server: ${projectResponse.status} - ${projectResponse.statusText}`);
           }
           
