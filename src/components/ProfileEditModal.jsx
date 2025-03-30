@@ -11,7 +11,13 @@ const API_KEY = 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCf
 
 // --- Az API URL helyes végpontjai ---
 const API_ENDPOINTS = {
-  verifyPin: '/public/projects/verify-pin' // API_URL már tartalmazza az /api előtagot
+  // Több végpontot is megpróbálunk, a fő végpont: /public/projects/verify-pin
+  verifyPin: [
+    '/public/projects/verify-pin',      // Elsődleges végpont
+    '/verify-pin',                      // Másodlagos végpont
+    '/api/verify-pin',                  // Harmadlagos végpont
+    '/api/public/projects/verify-pin'   // Negyedleges végpont (ez duplázódás, de megpróbáljuk)
+  ]
 };
 
 // Translation data for all UI elements
@@ -282,16 +288,17 @@ const ProfileEditModal = ({
         }
       };
       
+      // Adatbázisba mentés sikeres volt-e?
+      let savedToDB = false;
+      
       // 1. Frissítsük a projekt kliens adatait az API-n keresztül
       if (project && project._id) {
         const projectId = project._id;
         debugLog('ProfileEditModal-submit', 'Projekt azonosító:', projectId);
         
-        // Létrehozzuk a projekt frissítési adatait
-        const updatedProject = {
-          ...project,
+        // Egyszerűsített adat struktúra a projekt frissítéshez
+        const simplifiedProjectData = {
           client: {
-            ...project.client,
             name: formData.name,
             email: formData.email,
             phone: formData.phone,
@@ -306,249 +313,77 @@ const ProfileEditModal = ({
           }
         };
         
-        // Projekt frissítése a szerveren - a Sharing Token/PIN beállítása
-        const savedSession = localStorage.getItem(`project_session_${projectId}`);
-        const sessionData = savedSession ? JSON.parse(savedSession) : null;
-        const pin = sessionData?.pin || '';
-        
-        debugLog('ProfileEditModal-submit', 'Session adatok:', { sessionDataExists: !!sessionData, pinLength: pin?.length });
-        
-        // Request adatok előkészítése
-        const requestBody = {
-          token: project.sharing?.token,
-          pin: pin,
-          updateProject: updatedProject
-        };
-        
-        debugLog('ProfileEditModal-submit', 'API kérés adatok:', {
-          endpoint: `${API_URL}/api/public/projects/verify-pin`,
-          token: requestBody.token,
-          pinExists: !!pin,
-          updateProjectExists: !!requestBody.updateProject
-        });
-        
-        // Változtatás: kijavított API endpoint és beállítások
-        debugLog('ProfileEditModal-submit', 'Próbálkozás helyes API végponttal');
-        
-        // Credentials beállítása 'include'-ra, hogy a sütiket is küldje
-        const projectResponse = await fetch(`${API_URL}${API_ENDPOINTS.verifyPin}`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-API-Key': API_KEY,
-            'Accept': 'application/json'
-          },
-          body: JSON.stringify(requestBody),
-          credentials: 'include' // Süti küldés engedélyezése
-        });
-        
-        debugLog('ProfileEditModal-submit', 'API válasz státusz:', projectResponse.status);
-        
-        if (!projectResponse.ok) {
-          debugLog('ProfileEditModal-submit', 'Error updating project on server', { 
-            status: projectResponse.status,
-            statusText: projectResponse.statusText
-          });
-          
-          // Próbáljuk meg beolvasni a hibaüzenetet
-          try {
-            const errorData = await projectResponse.json();
-            debugLog('ProfileEditModal-submit', 'API hibaüzenet:', errorData);
-          } catch (parseError) {
-            debugLog('ProfileEditModal-submit', 'Nem sikerült a hibaüzenet beolvasása', parseError);
-          }
-          
-          // Próbálkozzunk ugyanazzal a végponttal, de different credentials beállításokkal
-          debugLog('ProfileEditModal-submit', 'Próbálkozás ugyanazzal a végponttal, de credentials: same-origin beállítással');
-          
-          try {
-            const altResponse1 = await fetch(`${API_URL}${API_ENDPOINTS.verifyPin}`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'X-API-Key': API_KEY,
-                'Accept': 'application/json'
-              },
-              body: JSON.stringify(requestBody),
-              credentials: 'same-origin' // Csak azonos origin-ről engedélyezünk sütiket
-            });
-            
-            debugLog('ProfileEditModal-submit', 'Alternatív 1 válasz státusz:', altResponse1.status);
-            
-            if (altResponse1.ok) {
-              const responseData = await altResponse1.json();
-              debugLog('ProfileEditModal-submit', 'Alternatív 1 válasz sikeres:', responseData);
-              
-              // Ha van language change callback és változott a nyelv, frissítsük
-              if (onLanguageChange && formData.preferredLanguage !== language) {
-                onLanguageChange(formData.preferredLanguage);
-              }
-              
-              // Lokális callback a szülő komponensnek
-              if (onSave) {
-                onSave(updatedUser);
-              }
-              
-              // Show success message and close modal
-              if (showSuccessMessage) {
-                showSuccessMessage(t.validation.changesSaved);
-              }
-              
-              // Close the modal after saving
-              setTimeout(() => {
-                onClose();
-              }, 1000);
-              
-              setIsSaving(false);
-              return; // Sikeres, ne próbálkozzunk tovább
-            }
-          } catch (alt1Error) {
-            debugLog('ProfileEditModal-submit', 'Alternatív 1 hiba:', alt1Error);
-          }
-          
-          // Próbálkozzunk ugyanazzal a végponttal, de credentials: omit beállítással
-          debugLog('ProfileEditModal-submit', 'Próbálkozás ugyanazzal a végponttal, de credentials: omit beállítással');
-          
-          try {
-            const altResponse2 = await fetch(`${API_URL}${API_ENDPOINTS.verifyPin}`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'X-API-Key': API_KEY,
-                'Accept': 'application/json'
-              },
-              body: JSON.stringify(requestBody),
-              credentials: 'omit' // Ne küldjön sütit
-            });
-            
-            debugLog('ProfileEditModal-submit', 'Alternatív 2 válasz státusz:', altResponse2.status);
-            
-            if (altResponse2.ok) {
-              const responseData = await altResponse2.json();
-              debugLog('ProfileEditModal-submit', 'Alternatív 2 válasz sikeres:', responseData);
-              
-              // Ha van language change callback és változott a nyelv, frissítsük
-              if (onLanguageChange && formData.preferredLanguage !== language) {
-                onLanguageChange(formData.preferredLanguage);
-              }
-              
-              // Lokális callback a szülő komponensnek
-              if (onSave) {
-                onSave(updatedUser);
-              }
-              
-              // Show success message and close modal
-              if (showSuccessMessage) {
-                showSuccessMessage(t.validation.changesSaved);
-              }
-              
-              // Close the modal after saving
-              setTimeout(() => {
-                onClose();
-              }, 1000);
-              
-              setIsSaving(false);
-              return; // Sikeres, ne próbálkozzunk tovább
-            }
-          } catch (alt2Error) {
-            debugLog('ProfileEditModal-submit', 'Alternatív 2 hiba:', alt2Error);
-          }
-          
-          // Ha minden sikertelen volt, kijelezzük a hagyományos hibaüzenetet
-          debugLog('ProfileEditModal-submit', 'Minden API próbálkozás sikertelen volt. Helyi adatkezelés következik.');
-          
-          // De előbb frissítsük a helyi adatokat és jelezzük a sikert a felhasználónak
-          // Ez imitálja, hogy sikeres volt, akkor is ha az API nem válaszolt pozitívan
-          
-          // Ha van language change callback és változott a nyelv, frissítsük
-          if (onLanguageChange && formData.preferredLanguage !== language) {
-            onLanguageChange(formData.preferredLanguage);
-          }
-          
-          // Lokális callback a szülő komponensnek
-          if (onSave) {
-            onSave(updatedUser);
-          }
-          
-          // Show success message and close modal
-          if (showSuccessMessage) {
-            showSuccessMessage(t.validation.changesSaved + " (Helyi mentés)");
-          }
-          
-          // Close the modal after saving
-          setTimeout(() => {
-            onClose();
-          }, 1000);
-          
-          setIsSaving(false);
-          return;
-        }
-        
-        // Válasz feldolgozása
+        // Közvetlen PUT kérés a projekt frissítésére, ez a legegyszerűbb és legmegbízhatóbb módszer
         try {
-          const responseData = await projectResponse.json();
-          debugLog('ProfileEditModal-submit', 'API válasz sikeres:', responseData);
-        } catch (parseError) {
-          debugLog('ProfileEditModal-submit', 'API válasz feldolgozási hiba:', parseError);
-        }
-        
-        debugLog('ProfileEditModal-submit', 'Project updated successfully on server');
-      }
-      
-      // 2. Frissítsük a felhasználó adatait a szerveren - Megjegyzés: /users végpont jelenleg nem létezik 
-      // Ezt a részt kikommentezzük, mivel nincs users végpont
-      /*
-      if (user && user._id) {
-        const userResponse = await fetch(`${API_URL}/users/${user._id}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-API-Key': API_KEY,
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          },
-          body: JSON.stringify(updatedUser)
-        });
-      */
-        
-      // A userResponse kezelés is kikommentezve a users végpont hiánya miatt
-      /*
-        if (!userResponse.ok) {
-          debugLog('ProfileEditModal-submit', 'Error updating user on server', { 
-            status: userResponse.status
+          debugLog('ProfileEditModal-submit', `Közvetlen projekt frissítés a /projects/${projectId} végponton`);
+          
+          const directProjectResponse = await fetch(`${API_URL}/projects/${projectId}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-API-Key': API_KEY
+            },
+            body: JSON.stringify(simplifiedProjectData),
+            credentials: 'omit' // Egyszerűsítés: nincs szükség süti küldésre
           });
-          // Nem szakítjuk meg a folyamatot, ha a felhasználó frissítése nem sikerül,
-          // mivel a projektben már frissítettük az adatokat
-          console.warn('Failed to update user on server, but project was updated');
-        } else {
-          debugLog('ProfileEditModal-submit', 'User updated successfully on server');
+          
+          debugLog('ProfileEditModal-submit', 'Közvetlen projekt frissítés válasz státusz:', directProjectResponse.status);
+          
+          if (directProjectResponse.ok) {
+            debugLog('ProfileEditModal-submit', 'MongoDB mentés sikeres!');
+            savedToDB = true;
+            
+            try {
+              const responseData = await directProjectResponse.json();
+              debugLog('ProfileEditModal-submit', 'Szerver válasz:', responseData);
+            } catch (parseError) {
+              debugLog('ProfileEditModal-submit', 'Válasz feldolgozási hiba:', parseError);
+            }
+          } else {
+            debugLog('ProfileEditModal-submit', 'Közvetlen projekt frissítés hiba:', {
+              status: directProjectResponse.status,
+              statusText: directProjectResponse.statusText
+            });
+            
+            try {
+              const errorData = await directProjectResponse.json();
+              debugLog('ProfileEditModal-submit', 'Szerver hibaüzenet:', errorData);
+            } catch (parseError) {
+              debugLog('ProfileEditModal-submit', 'Hibaüzenet feldolgozási hiba:', parseError);
+            }
+          }
+        } catch (directError) {
+          debugLog('ProfileEditModal-submit', 'Hálózati hiba a projekt frissítése során:', directError);
         }
       }
-      */
       
-      // 3. Ha mindkét API hívás sikertelen volt, és nincs _id, akkor csak
-      // tároljuk lokálisan az adatokat, de jelezzük, hogy adatbázis frissítés nem történt
-      if (!project?._id && !user?._id) {
-        debugLog('ProfileEditModal-submit', 'No project or user ID found, saving only locally');
-        // Itt csak lokálisan mentjük az adatokat, de a felhasználónak jelezhetjük
-        console.warn('Profile data saved only locally, no database connection');
-      }
+      // 2. Helyi frissítések, akár sikeres volt a szerveroldali mentés, akár nem
       
       // Ha van language change callback és változott a nyelv, frissítsük
       if (onLanguageChange && formData.preferredLanguage !== language) {
         onLanguageChange(formData.preferredLanguage);
       }
       
-      // Lokális callback a szülő komponensnek
+      // Lokális callback a szülő komponensnek - mindig frissítjük a helyi adatokat
       if (onSave) {
         onSave(updatedUser);
       }
       
-      // Show success message and close modal
+      // 3. Sikeres üzenet és modal bezárása
       if (showSuccessMessage) {
-        showSuccessMessage(t.validation.changesSaved);
+        if (savedToDB) {
+          // Ha sikerült a MongoDB mentés
+          showSuccessMessage(t.validation.changesSaved);
+        } else if (project && project._id) {
+          // Ha volt projekt ID, de nem sikerült a MongoDB mentés
+          showSuccessMessage(t.validation.changesSaved + " (Helyi mentés - adatbázis frissítés sikertelen)");
+        } else {
+          // Ha nem volt projekt ID
+          showSuccessMessage(t.validation.changesSaved + " (Helyi mentés)");
+        }
       }
       
-      // Close the modal after saving
+      // Modal bezárása késleltetéssel
       setTimeout(() => {
         onClose();
       }, 1000);
@@ -556,7 +391,7 @@ const ProfileEditModal = ({
     } catch (error) {
       debugLog('ProfileEditModal-submit', 'Error saving profile', error);
       if (showErrorMessage) {
-        showErrorMessage(t.validation.errorSaving);
+        showErrorMessage(t.validation.errorSaving + " - " + error.message);
       }
     } finally {
       setIsSaving(false);
