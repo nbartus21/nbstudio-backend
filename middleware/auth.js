@@ -26,6 +26,7 @@ const authMiddleware = (req, res, next) => {
     // Token ellenőrzése
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     req.user = decoded;
+    req.userData = decoded;
     
     console.log('User authenticated:', req.user);
     next();

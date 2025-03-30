@@ -3,6 +3,34 @@ import jwt from 'jsonwebtoken';
 import nodemailer from 'nodemailer';
 import crypto from 'crypto';
 import dotenv from 'dotenv';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import mongoose from 'mongoose';
+
+// Helyette definiáljunk egy saját auth middleware-t
+const authMiddlewareForBackup = (req, res, next) => {
+  try {
+    // Token kinyerése a header-ből
+    const token = req.headers.authorization?.split(' ')[1];
+    
+    if (!token) {
+      return res.status(401).json({ message: 'Nincs autentikációs token' });
+    }
+
+    // Token ellenőrzése
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.userData = decoded;
+    
+    next();
+  } catch (error) {
+    return res.status(401).json({ message: 'Érvénytelen token' });
+  }
+};
+
+// Azonosítjuk a könyvtárstruktúrát
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 dotenv.config();
 const router = express.Router();
@@ -229,6 +257,62 @@ router.get('/validate', (req, res) => {
   } catch (error) {
     console.error('Token érvényesítési hiba:', error.message);
     res.status(401).json({ message: 'Érvénytelen token', valid: false });
+  }
+});
+
+// Backup készítési endpoint - autentikációval védett
+router.get('/create-backup', authMiddlewareForBackup, async (req, res) => {
+  try {
+    console.log('Backup készítési kérés fogadva');
+    
+    // Ellenőrizzük, hogy az autentikált felhasználó admin-e
+    if (req.userData.email !== process.env.ADMIN_EMAIL) {
+      return res.status(403).json({ message: 'Nincs jogosultság a művelethez' });
+    }
+    
+    // Az összes Mongoose modell lekérdezése
+    const collections = mongoose.connection.collections;
+    const backup = {};
+    
+    // Végigiterálunk az összes collection-ön
+    for (const [name, collection] of Object.entries(collections)) {
+      console.log(`${name} collection mentése...`);
+      
+      // Az összes dokumentum lekérdezése az adott collection-ből
+      const documents = await collection.find({}).toArray();
+      backup[name] = documents;
+    }
+    
+    // Ideiglenes fájl létrehozása a backup számára
+    const timestamp = new Date().toISOString().replace(/:/g, '-');
+    const backupDir = path.join(__dirname, '../../backup');
+    const backupFilePath = path.join(backupDir, `backup_${timestamp}.json`);
+    
+    // Ellenőrizzük, hogy létezik-e a backup könyvtár, ha nem, akkor létrehozzuk
+    if (!fs.existsSync(backupDir)) {
+      fs.mkdirSync(backupDir, { recursive: true });
+    }
+    
+    // Backup adatok írása a fájlba
+    fs.writeFileSync(backupFilePath, JSON.stringify(backup, null, 2));
+    
+    console.log(`Backup sikeresen létrehozva: ${backupFilePath}`);
+    
+    // A fájl visszaküldése a kliensnek
+    res.download(backupFilePath, `nb_studio_backup_${timestamp}.json`, (err) => {
+      if (err) {
+        console.error('Hiba a fájl letöltésekor:', err);
+      } else {
+        // Töröljük a fájlt a letöltés után (opcionális)
+        // fs.unlinkSync(backupFilePath);
+      }
+    });
+  } catch (error) {
+    console.error('Backup készítési hiba:', error);
+    res.status(500).json({ 
+      message: 'Hiba történt a backup készítése során',
+      error: error.message
+    });
   }
 });
 
