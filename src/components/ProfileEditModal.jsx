@@ -280,6 +280,7 @@ const ProfileEditModal = ({
       // 1. Frissítsük a projekt kliens adatait az API-n keresztül
       if (project && project._id) {
         const projectId = project._id;
+        debugLog('ProfileEditModal-submit', 'Projekt azonosító:', projectId);
         
         // Létrehozzuk a projekt frissítési adatait
         const updatedProject = {
@@ -305,28 +306,65 @@ const ProfileEditModal = ({
         const sessionData = savedSession ? JSON.parse(savedSession) : null;
         const pin = sessionData?.pin || '';
         
-        // Használjuk a verify-pin végpontot a frissítéshez
-        const projectResponse = await fetch(`${API_URL}/api/public/projects/verify-pin`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-API-Key': API_KEY
-          },
-          body: JSON.stringify({
-            token: project.sharing?.token,
-            pin: pin,
-            updateProject: updatedProject
-          })
+        debugLog('ProfileEditModal-submit', 'Session adatok:', { sessionDataExists: !!sessionData, pinLength: pin?.length });
+        
+        // Request adatok előkészítése
+        const requestBody = {
+          token: project.sharing?.token,
+          pin: pin,
+          updateProject: updatedProject
+        };
+        
+        debugLog('ProfileEditModal-submit', 'API kérés adatok:', {
+          endpoint: `${API_URL}/api/public/projects/verify-pin`,
+          token: requestBody.token,
+          pinExists: !!pin,
+          updateProjectExists: !!requestBody.updateProject
         });
         
-        if (!projectResponse.ok) {
-          debugLog('ProfileEditModal-submit', 'Error updating project on server', { 
-            status: projectResponse.status
+        // Használjuk a verify-pin végpontot a frissítéshez
+        try {
+          const projectResponse = await fetch(`${API_URL}/api/public/projects/verify-pin`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-API-Key': API_KEY
+            },
+            body: JSON.stringify(requestBody)
           });
-          throw new Error('Failed to update project on server');
+          
+          debugLog('ProfileEditModal-submit', 'API válasz státusz:', projectResponse.status);
+          
+          if (!projectResponse.ok) {
+            debugLog('ProfileEditModal-submit', 'Error updating project on server', { 
+              status: projectResponse.status,
+              statusText: projectResponse.statusText
+            });
+            
+            // Próbáljuk meg beolvasni a hibaüzenetet
+            try {
+              const errorData = await projectResponse.json();
+              debugLog('ProfileEditModal-submit', 'API hibaüzenet:', errorData);
+            } catch (parseError) {
+              debugLog('ProfileEditModal-submit', 'Nem sikerült a hibaüzenet beolvasása', parseError);
+            }
+            
+            throw new Error(`Failed to update project on server: ${projectResponse.status} - ${projectResponse.statusText}`);
+          }
+          
+          // Válasz feldolgozása
+          try {
+            const responseData = await projectResponse.json();
+            debugLog('ProfileEditModal-submit', 'API válasz sikeres:', responseData);
+          } catch (parseError) {
+            debugLog('ProfileEditModal-submit', 'API válasz feldolgozási hiba:', parseError);
+          }
+          
+          debugLog('ProfileEditModal-submit', 'Project updated successfully on server');
+        } catch (fetchError) {
+          debugLog('ProfileEditModal-submit', 'Fetch error during API call:', fetchError);
+          throw fetchError;
         }
-        
-        debugLog('ProfileEditModal-submit', 'Project updated successfully on server');
       }
       
       // 2. Frissítsük a felhasználó adatait a szerveren - Megjegyzés: /users végpont jelenleg nem létezik 

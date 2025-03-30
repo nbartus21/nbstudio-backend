@@ -101,7 +101,25 @@ export const generateSepaQrData = (invoice) => {
 
 // Debug segédfüggvény - konzolra írja az információkat egy egyedi prefixszel
 export const debugLog = (prefix, ...args) => {
-  console.log(`[DEBUG:${prefix}]`, ...args);
+  const timestamp = new Date().toISOString();
+  console.log(`[DEBUG:${prefix}][${timestamp}]`, ...args);
+  
+  // Ha az első argumentum hiba objektum, akkor stack trace-t is kiírunk
+  if (args.length > 0 && args[0] instanceof Error) {
+    console.error(`[DEBUG:${prefix}][${timestamp}] Error stack trace:`, args[0].stack);
+  }
+  
+  // Ha az utolsó argumentumban objektum van, azt részletesen kiírjuk
+  if (args.length > 0) {
+    const lastArg = args[args.length - 1];
+    if (typeof lastArg === 'object' && lastArg !== null) {
+      try {
+        console.log(`[DEBUG:${prefix}][${timestamp}] Részletes objektum:`, JSON.stringify(lastArg, null, 2));
+      } catch (e) {
+        console.log(`[DEBUG:${prefix}][${timestamp}] Az objektum nem szerializálható:`, lastArg);
+      }
+    }
+  }
 };
 
 // Projekt adatok betöltése localStorage-ből
