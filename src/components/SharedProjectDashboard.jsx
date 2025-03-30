@@ -126,7 +126,7 @@ const SharedProjectDashboard = ({
   const t = translations[language];
 
   // Normalizáljuk a projekt objektumot, ha az _id hiányzik
-  const normalizedProject = React.useMemo(() => {
+  const [normalizedProject, setNormalizedProject] = useState(() => {
     if (!project) return null;
     
     // Ha nincs _id, de van id, akkor használjuk azt
@@ -144,6 +144,24 @@ const SharedProjectDashboard = ({
     }
     
     return project;
+  });
+  
+  // Update normalizált projekt, ha a projekt prop változik
+  useEffect(() => {
+    if (!project) {
+      setNormalizedProject(null);
+      return;
+    }
+    
+    // Normalizáljuk az új projektet
+    if (!project._id && project.id) {
+      setNormalizedProject({ ...project, _id: project.id });
+    } else if (!project._id && !project.id) {
+      const tempId = `temp_${Date.now()}`;
+      setNormalizedProject({ ...project, _id: tempId, id: tempId });
+    } else {
+      setNormalizedProject(project);
+    }
   }, [project]);
   
   // Log the project structure for debugging
@@ -178,6 +196,7 @@ const SharedProjectDashboard = ({
   const [documents, setDocuments] = useState([]);
   const [comments, setComments] = useState([]); // Comments array
   const [isRefreshing, setIsRefreshing] = useState(false); // Frissítési állapot
+  const [currentInvoiceId, setCurrentInvoiceId] = useState(null); // Aktuális számla ID
   
   // Helper function to refresh project data
   const refreshProjectData = async () => {
@@ -233,13 +252,15 @@ const SharedProjectDashboard = ({
           console.log('Project data refreshed successfully (same-origin)');
           
           if (data.project) {
+            // A projekt frissítése a szülő komponensben
+            if (onUpdate) {
+              onUpdate(data.project);
+            }
+            // Frissítjük a lokális változót is
             setNormalizedProject(data.project);
             // If there are invoices, set the current one
-            if (data.project.invoices && data.project.invoices.length > 0) {
-              // Set the first invoice as current if none is selected
-              if (!currentInvoiceId) {
-                setCurrentInvoiceId(data.project.invoices[0]._id);
-              }
+            if (data.project.invoices && data.project.invoices.length > 0 && !currentInvoiceId) {
+              setCurrentInvoiceId(data.project.invoices[0]._id);
             }
           }
           setIsRefreshing(false);
@@ -268,13 +289,15 @@ const SharedProjectDashboard = ({
           console.log('Project data refreshed successfully (include)');
           
           if (data.project) {
+            // A projekt frissítése a szülő komponensben
+            if (onUpdate) {
+              onUpdate(data.project);
+            }
+            // Frissítjük a lokális változót is
             setNormalizedProject(data.project);
             // If there are invoices, set the current one
-            if (data.project.invoices && data.project.invoices.length > 0) {
-              // Set the first invoice as current if none is selected
-              if (!currentInvoiceId) {
-                setCurrentInvoiceId(data.project.invoices[0]._id);
-              }
+            if (data.project.invoices && data.project.invoices.length > 0 && !currentInvoiceId) {
+              setCurrentInvoiceId(data.project.invoices[0]._id);
             }
           }
           setIsRefreshing(false);
@@ -303,13 +326,15 @@ const SharedProjectDashboard = ({
           console.log('Project data refreshed successfully (omit)');
           
           if (data.project) {
+            // A projekt frissítése a szülő komponensben
+            if (onUpdate) {
+              onUpdate(data.project);
+            }
+            // Frissítjük a lokális változót is
             setNormalizedProject(data.project);
             // If there are invoices, set the current one
-            if (data.project.invoices && data.project.invoices.length > 0) {
-              // Set the first invoice as current if none is selected
-              if (!currentInvoiceId) {
-                setCurrentInvoiceId(data.project.invoices[0]._id);
-              }
+            if (data.project.invoices && data.project.invoices.length > 0 && !currentInvoiceId) {
+              setCurrentInvoiceId(data.project.invoices[0]._id);
             }
           }
           setIsRefreshing(false);
@@ -332,14 +357,16 @@ const SharedProjectDashboard = ({
   // Rendszeres frissítés - 1 percenként
   useEffect(() => {
     // Kezdeti betöltés
-    refreshProjectData();
-    
-    // Időzítő beállítása a frissítéshez
-    const intervalId = setInterval(refreshProjectData, 60000); // 1 perc = 60000 ms
-    
-    // Cleanup
-    return () => clearInterval(intervalId);
-  }, [normalizedProject?._id]);
+    if (normalizedProject?.sharing?.token) {
+      refreshProjectData();
+      
+      // Időzítő beállítása a frissítéshez
+      const intervalId = setInterval(refreshProjectData, 60000); // 1 perc = 60000 ms
+      
+      // Cleanup
+      return () => clearInterval(intervalId);
+    }
+  }, [normalizedProject?.sharing?.token]); // Csak akkor futtatjuk újra, ha a token változik
   const [activeTab, setActiveTab] = useState('overview');
   const fileInputRef = useRef(null);
   const [successMessage, setSuccessMessage] = useState('');
