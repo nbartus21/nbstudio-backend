@@ -179,116 +179,151 @@ const SharedProjectDashboard = ({
   const [comments, setComments] = useState([]); // Comments array
   const [isRefreshing, setIsRefreshing] = useState(false); // Frissítési állapot
   
-  // Projekt újratöltése API hívással (új számlákhoz)
+  // Helper function to refresh project data
   const refreshProjectData = async () => {
-    debugLog('refreshProjectData', 'Reloading project data to check for new invoices');
-    
-    if (!normalizedProject || !normalizedProject._id) {
-      debugLog('refreshProjectData', 'No project ID available, skipping refresh');
+    if (!normalizedProject || !normalizedProject.sharing?.token) {
+      console.log('No project or token to refresh');
       return;
     }
     
     setIsRefreshing(true);
     
-    // API hívás a Session Storage-ból olvasott token/pin adatokkal
     try {
-      // Ha van sharing token a sessionStorage-ban
+      // Get the saved session with PIN
       const savedSession = localStorage.getItem(`project_session_${normalizedProject.sharing?.token}`);
+      const session = savedSession ? JSON.parse(savedSession) : { pin: '' };
       
-      if (savedSession) {
-        debugLog('refreshProjectData', 'Found saved session, attempting to refresh project data');
-        const session = JSON.parse(savedSession);
-        
-        const API_URL = 'https://admin.nb-studio.net:5001/api';
-        const API_KEY = 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0';
-        
-        // Újra lekérjük a projektet - több végpontot is megpróbálunk
-        let response;
-        
-        // Közvetlenül a /verify-pin útvonalat használjuk, amely teljes prioritást élvez
-        try {
-          console.log('Trying to refresh project data with /verify-pin endpoint directly');
-          
-          // Ellenőrizzük a PIN legalitását
-          if (session.pin === undefined || session.pin === null) {
-            console.log('No PIN in session, setting empty string');
-            session.pin = '';
-          }
-          
-          // Előkészítjük a kérés tartalmát, részletes naplózással
-          const requestData = { 
-            token: normalizedProject.sharing?.token,
-            pin: session.pin || ''
-          };
-          console.log('Request body prepared:', JSON.stringify(requestData, null, 2));
-          
-          // A credentials beállítását módosítjuk, hogy kompatibilis legyen a CORS beállításokkal
-          response = await fetch(`${API_URL}/verify-pin`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-API-Key': API_KEY,
-              'Accept': 'application/json'
-            },
-            body: JSON.stringify(requestData),
-            // Credentials: 'same-origin' használata, hogy csak egyazon origin-en működjön és
-            // ne ütközzön CORS problémákba
-            credentials: 'same-origin'
-          });
-          console.log('Response status from verify-pin:', response.status);
-          
-          // Ha nem sikerült, ne próbálkozzunk más végpontokkal a frissítési folyamat során
-        } catch (fetchError) {
-          console.error('Error during project refresh fetch:', fetchError);
-          // Ha hiba történt az első kérésnél, próbáljuk újra más végponton
-          console.log('Fetch error, trying final endpoint: /api/verify-pin');
-          // Alternatív útvonal megpróbálása, credentials: 'omit' beállítással
-          response = await fetch(`${API_URL}/api/verify-pin`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-API-Key': API_KEY,
-              'Accept': 'application/json'
-            },
-            body: JSON.stringify({ 
-              token: normalizedProject.sharing?.token,
-              pin: session.pin || ''
-            }),
-            // credentials: 'omit' azt jelenti, hogy nem küldünk sütit, amely segít a CORS problémák elkerülésében
-            credentials: 'omit'  
-          });
-        }
+      console.log('Trying to refresh project data with /verify-pin endpoint directly');
+      
+      // Ellenőrizzük a PIN legalitását
+      if (session.pin === undefined || session.pin === null) {
+        console.log('No PIN in session, setting empty string');
+        session.pin = '';
+      }
+      
+      // Előkészítjük a kérés tartalmát, részletes naplózással
+      const requestData = { 
+        token: normalizedProject.sharing?.token,
+        pin: session.pin || ''
+      };
+      console.log('Request body prepared:', JSON.stringify(requestData, null, 2));
+
+      // Helyes API végpont használata, ugyanaz mint a ProfileEditModal-ban
+      const apiEndpoint = '/public/projects/verify-pin'; // Az API_URL már tartalmazza az /api előtagot
+      
+      // A credentials beállítását módosítjuk, hogy kompatibilis legyen a CORS beállításokkal
+      // Három különböző credentials beállítást próbálunk
+      
+      // 1. Kísérlet: credentials: same-origin
+      try {
+        let response = await fetch(`${API_URL}${apiEndpoint}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-API-Key': API_KEY,
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify(requestData),
+          credentials: 'same-origin'
+        });
+        console.log('Response status from verify-pin (same-origin):', response.status);
         
         if (response.ok) {
           const data = await response.json();
-          debugLog('refreshProjectData', 'Project data refreshed successfully', {
-            invoicesCount: data.project.invoices?.length
-          });
+          console.log('Project data refreshed successfully (same-origin)');
           
-          // Frissítjük a projektet
-          if (data.project.invoices && data.project.invoices.length > 0) {
-            // Csak az invoices tömböt frissítjük, hogy ne zavarjuk a többi adatot
-            const updatedProject = {
-              ...normalizedProject,
-              invoices: data.project.invoices
-            };
-            
-            // Frissítjük a projektet
-            onUpdate(updatedProject);
-            
-            showSuccessMessage('A projekt adatai frissítve lettek');
+          if (data.project) {
+            setNormalizedProject(data.project);
+            // If there are invoices, set the current one
+            if (data.project.invoices && data.project.invoices.length > 0) {
+              // Set the first invoice as current if none is selected
+              if (!currentInvoiceId) {
+                setCurrentInvoiceId(data.project.invoices[0]._id);
+              }
+            }
           }
-          
-        } else {
-          debugLog('refreshProjectData', 'Failed to refresh project data', {
-            status: response.status
-          });
+          setIsRefreshing(false);
+          return;
         }
-      } else {
-        debugLog('refreshProjectData', 'No saved session found');
+      } catch (error) {
+        console.error('Error refreshing project data (same-origin):', error);
       }
+      
+      // 2. Kísérlet: credentials: include
+      try {
+        let response = await fetch(`${API_URL}${apiEndpoint}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-API-Key': API_KEY,
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify(requestData),
+          credentials: 'include'
+        });
+        console.log('Response status from verify-pin (include):', response.status);
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log('Project data refreshed successfully (include)');
+          
+          if (data.project) {
+            setNormalizedProject(data.project);
+            // If there are invoices, set the current one
+            if (data.project.invoices && data.project.invoices.length > 0) {
+              // Set the first invoice as current if none is selected
+              if (!currentInvoiceId) {
+                setCurrentInvoiceId(data.project.invoices[0]._id);
+              }
+            }
+          }
+          setIsRefreshing(false);
+          return;
+        }
+      } catch (error) {
+        console.error('Error refreshing project data (include):', error);
+      }
+      
+      // 3. Kísérlet: credentials: omit
+      try {
+        let response = await fetch(`${API_URL}${apiEndpoint}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-API-Key': API_KEY,
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify(requestData),
+          credentials: 'omit'
+        });
+        console.log('Response status from verify-pin (omit):', response.status);
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log('Project data refreshed successfully (omit)');
+          
+          if (data.project) {
+            setNormalizedProject(data.project);
+            // If there are invoices, set the current one
+            if (data.project.invoices && data.project.invoices.length > 0) {
+              // Set the first invoice as current if none is selected
+              if (!currentInvoiceId) {
+                setCurrentInvoiceId(data.project.invoices[0]._id);
+              }
+            }
+          }
+          setIsRefreshing(false);
+          return;
+        }
+      } catch (error) {
+        console.error('Error refreshing project data (omit):', error);
+      }
+      
+      // Ha minden kísérlet sikertelen, nem változtatjuk meg az adatokat
+      console.log('All API requests failed, keeping current project data');
+      
     } catch (error) {
-      debugLog('refreshProjectData', 'Error refreshing project data', { error });
+      console.error('Error refreshing project data:', error);
     } finally {
       setIsRefreshing(false);
     }
