@@ -350,7 +350,8 @@ const SharedProjectView = () => {
             };
 
             // Használjuk a helyes végpont URL-t a verify-pin híváshoz
-            const verifyPinResponse = await fetch(`${API_URL}/api/public/projects/verify-pin`, {
+            // Fontos: Az API_URL már tartalmazza az /api előtagot, ezért nem kell duplikálni
+            const verifyPinResponse = await fetch(`${API_URL}/public/projects/verify-pin`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -362,7 +363,7 @@ const SharedProjectView = () => {
 
             // Naplózzuk a teljes kérést és választ a hibakereséshez
             debugLog('handleProjectUpdate', 'Verify-pin request', {
-              url: `${API_URL}/api/public/projects/verify-pin`,
+              url: `${API_URL}/public/projects/verify-pin`,
               data: updateProjectData
             });
 
