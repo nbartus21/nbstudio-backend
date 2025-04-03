@@ -1028,26 +1028,35 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
       doc.text('Végösszeg:', 360, summaryStartY + 45, { width: 100, align: 'left', lineBreak: false });
       doc.text(`${invoice.totalAmount} ${invoice.currency || 'EUR'}`, 450, summaryStartY + 45, { width: 100, align: 'right', lineBreak: false });
 
-      // Egyszerű lábléc egy sorban
-      const footerTop = doc.page.height - 30;
+      // Finalize the PDF content before adding footer
+      // Get the total number of pages
+      const pages = doc.bufferedPageRange();
 
-      // Vékony vonal a lábléc tetején
-      doc.rect(0, footerTop, doc.page.width, 1)
-         .fill(colors.primary);
+      // For each page, add the footer
+      for (let i = 0; i < pages.count; i++) {
+        doc.switchToPage(i);
 
-      // Lábléc szöveg - minden egy sorban, explicit opciókkal
-      doc.font('Helvetica')
-         .fontSize(7)
-         .fillColor(colors.secondary);
+        // Egyszerű lábléc egy sorban - abszolút pozícióban
+        const footerTop = doc.page.height - 20;
 
-      // Minden szöveg egy sorban, hogy biztos ne okozzon új oldalt
-      const footerText = 'NB Studio | Bartus Norbert | www.nb-studio.net | Ez a számla elektronikusan készült és érvényes aláírás nélkül is. | 1. oldal';
-      doc.text(footerText, 40, footerTop + 10, {
-        align: 'center',
-        width: doc.page.width - 80,
-        lineBreak: false,
-        continued: false
-      });
+        // Vékony vonal a lábléc tetején
+        doc.rect(0, footerTop, doc.page.width, 0.5)
+           .fill(colors.primary);
+
+        // Lábléc szöveg - abszolút pozícióban
+        doc.font('Helvetica')
+           .fontSize(7)
+           .fillColor(colors.secondary);
+
+        // Minden szöveg egy sorban, abszolút pozícióban
+        const footerText = 'NB Studio | Bartus Norbert | www.nb-studio.net | Ez a számla elektronikusan készült és érvényes aláírás nélkül is. | ' + (i + 1) + '. oldal';
+        doc.text(footerText, 40, footerTop + 5, {
+          align: 'center',
+          width: doc.page.width - 80,
+          lineBreak: false,
+          continued: false
+        });
+      }
 
       // Finalize the PDF
       doc.end();
