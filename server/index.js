@@ -782,8 +782,8 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
       doc.rect(0, 200, doc.page.width, 6)
          .fill(colors.accent);
 
-      // Kiállító és vevő adatok - modern design
-      const startY = 230;
+      // Kiállító és vevő adatok - modern design - kisebb távolsággal
+      const startY = 210;
 
       // Háttér téglalapok a kiállító és vevő adatokhoz
       doc.roundedRect(50, startY, 220, 140, 5)
@@ -874,11 +874,11 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
         }
       }
 
-      // Tételek cím
+      // Tételek cím - kisebb távolsággal
       doc.font('Helvetica-Bold')
          .fontSize(16)
          .fillColor(colors.secondary)
-         .text('TÉTELEK', 50, Math.max(doc.y + 20, 390));
+         .text('TÉTELEK', 50, Math.max(doc.y + 10, 360));
 
       // Vízszintes vonal a cím alatt
       const tableTop = doc.y + 10;
@@ -999,8 +999,8 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
         });
       }
 
-      // Összegzés táblázat - modern design
-      const summaryStartY = currentY + 20;
+      // Összegzés táblázat - modern design - kisebb távolsággal
+      const summaryStartY = currentY + 10;
 
       // Összegzés háttér
       doc.roundedRect(350, summaryStartY, 220, 80, 5)
@@ -1040,24 +1040,25 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
       doc.rect(0, footerTop, doc.page.width, 2)
          .fill(colors.primary);
 
-      // Lábléc szöveg
+      // Lábléc szöveg - egy sorban, egy oldalon
       doc.font('Helvetica-Bold')
          .fontSize(10)
          .fillColor(colors.primary)
-         .text('NB Studio', 50, footerTop + 15, { align: 'center' })
-         .font('Helvetica')
+         .text('NB Studio', 50, footerTop + 15, { align: 'center', width: doc.page.width - 100 });
+
+      doc.font('Helvetica')
          .fontSize(9)
          .fillColor(colors.secondary)
-         .text('Bartus Norbert | www.nb-studio.net', 50, footerTop + 30, { align: 'center' })
-         .moveDown(0.3)
-         .fontSize(8)
-         .fillColor(colors.text)
-         .text('Ez a számla elektronikusan készült és érvényes aláírás nélkül is.', 50, footerTop + 45, { align: 'center' });
+         .text('Bartus Norbert | www.nb-studio.net', 50, footerTop + 30, { align: 'center', width: doc.page.width - 100 });
 
-      // Oldalszám modern stílusban
+      doc.fontSize(8)
+         .fillColor(colors.text)
+         .text('Ez a számla elektronikusan készült és érvényes aláírás nélkül is.', 50, footerTop + 45, { align: 'center', width: doc.page.width - 100 });
+
+      // Oldalszám modern stílusban - fix pozícióban
       doc.fontSize(9)
          .fillColor(colors.primary)
-         .text(`1. oldal`, 500, footerTop + 15, { align: 'right' });
+         .text(`1. oldal`, 500, footerTop + 15, { align: 'right', width: 50 });
 
       // Finalize the PDF
       doc.end();
