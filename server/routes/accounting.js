@@ -42,10 +42,46 @@ router.get('/transactions', async (req, res) => {
 // Új tétel hozzáadása
 router.post('/transactions', async (req, res) => {
   try {
+    // Adatvalidació a tranzakció létrehozása előtt
+    const { type, category, amount, date, description } = req.body;
+
+    // Kötelező mezők ellenőrzése
+    if (!type) {
+      return res.status(400).json({ message: 'A típus megadása kötelező' });
+    }
+    if (!category) {
+      return res.status(400).json({ message: 'A kategória megadása kötelező' });
+    }
+    if (amount === undefined || amount === null) {
+      return res.status(400).json({ message: 'Az összeg megadása kötelező' });
+    }
+    if (!date) {
+      return res.status(400).json({ message: 'A dátum megadása kötelező' });
+    }
+
+    // Érvényes értékek ellenőrzése
+    if (type !== 'income' && type !== 'expense') {
+      return res.status(400).json({ message: 'A típus csak "income" vagy "expense" lehet' });
+    }
+    if (isNaN(parseFloat(amount))) {
+      return res.status(400).json({ message: 'Az összegnek számnak kell lennie' });
+    }
+    if (parseFloat(amount) <= 0) {
+      return res.status(400).json({ message: 'Az összegnek nagyobbnak kell lennie, mint 0' });
+    }
+
+    // Dátum érvényességének ellenőrzése
+    const dateObj = new Date(date);
+    if (isNaN(dateObj.getTime())) {
+      return res.status(400).json({ message: 'Érvénytelen dátum formátum' });
+    }
+
+    // Tranzakció létrehozása és mentése
     const transaction = new Accounting(req.body);
     const savedTransaction = await transaction.save();
     res.status(201).json(savedTransaction);
   } catch (error) {
+    console.error('Hiba a tranzakció létrehozása során:', error);
     res.status(400).json({ message: error.message });
   }
 });
@@ -206,16 +242,51 @@ router.post('/sync', async (req, res) => {
 // Tétel módosítása
 router.put('/transactions/:id', async (req, res) => {
   try {
+    // Ellenőrizzük, hogy a tranzakció létezik-e
+    const existingTransaction = await Accounting.findById(req.params.id);
+    if (!existingTransaction) {
+      return res.status(404).json({ message: 'Tétel nem található' });
+    }
+
+    // Adatvalidació a módosítás előtt
+    const { type, category, amount, date } = req.body;
+
+    // Ha van típus, ellenőrizzük az érvényességét
+    if (type && type !== 'income' && type !== 'expense') {
+      return res.status(400).json({ message: 'A típus csak "income" vagy "expense" lehet' });
+    }
+
+    // Ha van összeg, ellenőrizzük az érvényességét
+    if (amount !== undefined && amount !== null) {
+      if (isNaN(parseFloat(amount))) {
+        return res.status(400).json({ message: 'Az összegnek számnak kell lennie' });
+      }
+      if (parseFloat(amount) <= 0) {
+        return res.status(400).json({ message: 'Az összegnek nagyobbnak kell lennie, mint 0' });
+      }
+    }
+
+    // Ha van dátum, ellenőrizzük az érvényességét
+    if (date) {
+      const dateObj = new Date(date);
+      if (isNaN(dateObj.getTime())) {
+        return res.status(400).json({ message: 'Érvénytelen dátum formátum' });
+      }
+    }
+
+    // Tranzakció frissítése
     const updatedTransaction = await Accounting.findByIdAndUpdate(
       req.params.id,
       { $set: req.body },
       { new: true, runValidators: true }
     );
-    if (!updatedTransaction) {
-      return res.status(404).json({ message: 'Tétel nem található' });
-    }
+
+    // Naplózás a sikeres frissítésről
+    console.log(`Tranzakció sikeresen frissítve: ${req.params.id}`);
+
     res.json(updatedTransaction);
   } catch (error) {
+    console.error('Hiba a tranzakció módosítása során:', error);
     res.status(400).json({ message: error.message });
   }
 });
@@ -226,7 +297,7 @@ router.put('/transactions/:id/details', async (req, res) => {
     console.log('Tranzakció részletek frissítése: ', req.params.id);
     console.log('Beérkező adatok:', req.body);
     console.log('Fájlok:', req.files);
-    
+
     const transaction = await Accounting.findById(req.params.id);
     if (!transaction) {
       return res.status(404).json({ message: 'Tranzakció nem található' });
@@ -236,7 +307,7 @@ router.put('/transactions/:id/details', async (req, res) => {
     transaction.paymentStatus = 'paid';
     transaction.paidDate = req.body.paymentDate || new Date();
     transaction.paymentMethod = req.body.paymentMethod;
-    
+
     if (req.body.notes) {
       transaction.notes = req.body.notes;
     }
@@ -263,16 +334,16 @@ router.put('/transactions/:id/details', async (req, res) => {
     if (transaction.invoiceNumber && transaction.projectId) {
       console.log('Kapcsolódó számla frissítése:', transaction.invoiceNumber);
       const updateResult = await Project.updateOne(
-        { 
+        {
           '_id': transaction.projectId,
-          'invoices.number': transaction.invoiceNumber 
+          'invoices.number': transaction.invoiceNumber
         },
-        { 
-          $set: { 
+        {
+          $set: {
             'invoices.$.status': 'fizetett',
             'invoices.$.paidDate': transaction.paidDate,
             'invoices.$.paymentMethod': transaction.paymentMethod
-          } 
+          }
         }
       );
       console.log('Projekt számla frissítése:', updateResult);
@@ -299,44 +370,148 @@ router.delete('/transactions/:id', async (req, res) => {
   }
 });
 
-// Adójelentés generálása
+// Ismétlődő tranzakciók automatikus létrehozása
+router.post('/process-recurring', async (req, res) => {
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Nap elejére állítjuk
+
+    // Megkeressük azokat az ismétlődő tranzakciókat, amelyeknél a következő dátum már elmúlt
+    const recurringTransactions = await Accounting.find({
+      isRecurring: true,
+      nextRecurringDate: { $lte: today }
+    });
+
+    console.log(`${recurringTransactions.length} ismétlődő tranzakció feldolgozása...`);
+
+    const results = [];
+
+    // Feldolgozzuk az összes talált tranzakciót
+    for (const transaction of recurringTransactions) {
+      // Létrehozzuk az új tranzakciót az eredeti alapján
+      const newTransaction = new Accounting({
+        type: transaction.type,
+        category: transaction.category,
+        amount: transaction.amount,
+        currency: transaction.currency,
+        date: today,
+        description: `${transaction.description} (ismétlődő)`,
+        invoiceNumber: transaction.invoiceNumber ? `${transaction.invoiceNumber}-R${today.getMonth()+1}${today.getFullYear()}` : undefined,
+        paymentStatus: 'pending',
+        projectId: transaction.projectId,
+        serverId: transaction.serverId,
+        licenseId: transaction.licenseId,
+        isRecurring: false, // Az új tranzakció nem ismétlődő
+        taxDeductible: transaction.taxDeductible,
+        taxCategory: transaction.taxCategory,
+        notes: `Automatikusan létrehozva az ismétlődő tranzakcióból: ${transaction._id}`
+      });
+
+      // Mentjük az új tranzakciót
+      const savedTransaction = await newTransaction.save();
+
+      // Frissítjük az eredeti tranzakció következő dátumát
+      let nextDate = new Date(transaction.nextRecurringDate);
+
+      // Számítsuk ki a következő dátumot az intervallum alapján
+      switch (transaction.recurringInterval) {
+        case 'monthly':
+          nextDate.setMonth(nextDate.getMonth() + 1);
+          break;
+        case 'quarterly':
+          nextDate.setMonth(nextDate.getMonth() + 3);
+          break;
+        case 'yearly':
+          nextDate.setFullYear(nextDate.getFullYear() + 1);
+          break;
+        default:
+          nextDate.setMonth(nextDate.getMonth() + 1); // Alapértelmezett: havi
+      }
+
+      // Frissítjük az eredeti tranzakciót
+      transaction.nextRecurringDate = nextDate;
+      await transaction.save();
+
+      results.push({
+        originalId: transaction._id,
+        newId: savedTransaction._id,
+        nextDate: nextDate
+      });
+    }
+
+    res.json({
+      message: `${results.length} ismétlődő tranzakció feldolgozva`,
+      processedTransactions: results
+    });
+  } catch (error) {
+    console.error('Hiba az ismétlődő tranzakciók feldolgozása során:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+/**
+ * Adójelentés generálása
+ *
+ * Ez a végpont egy részletes adójelentést generál a megadott évre.
+ * A jelentés tartalmazza az adóköteles bevételeket és a leírható költségeket kategóriánként csoportosítva.
+ *
+ * @param {number} year - A kért év (pl. 2023)
+ * @returns {Object} - Adójelentés objektum a következő mezőkkel:
+ *   - year: A kért év
+ *   - taxableIncomes: Adóköteles bevételek kategóriánként csoportosítva
+ *   - taxDeductibles: Leírható költségek kategóriánként csoportosítva
+ *   - summary: Összefoglaló adatok (teljes adóköteles bevétel, teljes leírható költség, adóalap)
+ */
 router.get('/tax-report', async (req, res) => {
   try {
     const { year } = req.query;
-    const startDate = new Date(year, 0, 1);
-    const endDate = new Date(year, 11, 31);
 
+    // Ellenőrizzük, hogy az év érvényes-e
+    if (!year || isNaN(parseInt(year)) || parseInt(year) < 2000 || parseInt(year) > 2100) {
+      return res.status(400).json({ message: 'Érvénytelen év. Kérjük, adjon meg egy érvényes évet (pl. 2023).' });
+    }
+
+    // Időtartomány beállítása az egész évre (január 1-től december 31-ig)
+    const startDate = new Date(year, 0, 1); // Január 1.
+    const endDate = new Date(year, 11, 31); // December 31.
+
+    // Párhuzamosan futtatjuk a két aggregációs lekérdezést a teljesítmény optimalizálása érdekében
     const [taxableIncomes, taxDeductibles] = await Promise.all([
-      // Adóköteles bevételek
+      // 1. Adóköteles bevételek lekérdezése és csoportosítása adókategóriánként
       Accounting.aggregate([
-        { 
-          $match: { 
-            type: 'income',
-            date: { $gte: startDate, $lte: endDate }
+        // 1.1. Szűrés a bevételekre az adott évben
+        {
+          $match: {
+            type: 'income', // Csak a bevételek
+            date: { $gte: startDate, $lte: endDate } // Az adott évben
           }
         },
+        // 1.2. Csoportosítás adókategóriánként
         {
           $group: {
-            _id: '$taxCategory',
-            total: { $sum: '$amount' },
-            items: { $push: '$$ROOT' }
+            _id: '$taxCategory', // Csoportosítás adókategória szerint
+            total: { $sum: '$amount' }, // Összegzés
+            items: { $push: '$$ROOT' } // Minden elem megőrzése a részletes megjelenítéshez
           }
         }
       ]),
-      // Leírható költségek
+
+      // 2. Leírható költségek lekérdezése és csoportosítása adókategóriánként
       Accounting.aggregate([
-        { 
-          $match: { 
-            type: 'expense',
-            taxDeductible: true,
-            date: { $gte: startDate, $lte: endDate }
+        // 2.1. Szűrés a leírható költségekre az adott évben
+        {
+          $match: {
+            type: 'expense', // Csak a kiadások
+            taxDeductible: true, // Csak az adóból leírható tételek
+            date: { $gte: startDate, $lte: endDate } // Az adott évben
           }
         },
+        // 2.2. Csoportosítás adókategóriánként
         {
           $group: {
-            _id: '$taxCategory',
-            total: { $sum: '$amount' },
-            items: { $push: '$$ROOT' }
+            _id: '$taxCategory', // Csoportosítás adókategória szerint
+            total: { $sum: '$amount' }, // Összegzés
+            items: { $push: '$$ROOT' } // Minden elem megőrzése a részletes megjelenítéshez
           }
         }
       ])

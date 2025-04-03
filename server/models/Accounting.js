@@ -25,7 +25,7 @@ const accountingSchema = new mongoose.Schema({
     required: true
   },
   description: String,
-  
+
   // Számlázási adatok
   invoiceNumber: String,
   paymentStatus: {
@@ -77,13 +77,13 @@ const accountingSchema = new mongoose.Schema({
     uploadDate: Date
   }],
   createdBy: String,
-  createdAt: { 
-    type: Date, 
-    default: Date.now 
+  createdAt: {
+    type: Date,
+    default: Date.now
   },
-  updatedAt: { 
-    type: Date, 
-    default: Date.now 
+  updatedAt: {
+    type: Date,
+    default: Date.now
   }
 });
 
@@ -98,6 +98,16 @@ accountingSchema.virtual('totalAmount').get(function() {
   if (!this.taxPercentage) return this.amount;
   return this.amount * (1 + this.taxPercentage / 100);
 });
+
+// Indexek a gyakran használt lekérdezési mezőkhöz
+accountingSchema.index({ date: -1 }); // Dátum szerinti rendezés
+accountingSchema.index({ type: 1, date: -1 }); // Típus és dátum szerinti szűrés
+accountingSchema.index({ category: 1, date: -1 }); // Kategória és dátum szerinti szűrés
+accountingSchema.index({ paymentStatus: 1 }); // Fizetési státusz szerinti szűrés
+accountingSchema.index({ projectId: 1 }); // Projekt szerinti szűrés
+accountingSchema.index({ serverId: 1 }); // Szerver szerinti szűrés
+accountingSchema.index({ licenseId: 1 }); // Licensz szerinti szűrés
+accountingSchema.index({ isRecurring: 1, nextRecurringDate: 1 }); // Ismétlődő tranzakciók szűrése
 
 // Keresési indexek
 accountingSchema.index({ type: 1, date: -1 });

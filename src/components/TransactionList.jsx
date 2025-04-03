@@ -8,9 +8,9 @@ import { api } from '../services/auth';
 const API_URL = 'https://admin.nb-studio.net:5001/api';
 const ACCOUNTING_API_URL = `${API_URL}/accounting`;
 
-const TransactionList = ({ 
-  transactions, 
-  onEdit, 
+const TransactionList = ({
+  transactions,
+  onEdit,
   onDelete,
   onViewDetails,
   selectedYear,
@@ -83,9 +83,12 @@ const TransactionList = ({
         paidAmount: transaction.amount,
         paidDate: new Date().toISOString()
       });
-      
+
       if (!response.ok) {
-        throw new Error('Nem sikerült frissíteni a tranzakció státuszát');
+        // Részletesebb hibakezelés
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.message || `Szerver hiba: ${response.status} ${response.statusText}`;
+        throw new Error(errorMessage);
       }
 
       if (fetchTransactions) {
@@ -95,7 +98,8 @@ const TransactionList = ({
       setError(null);
     } catch (error) {
       console.error('Hiba a státusz frissítésekor:', error);
-      setError('Nem sikerült frissíteni a tranzakció státuszát');
+      // Részletesebb hibajelzés a felhasználónak
+      setError(`Nem sikerült frissíteni a tranzakció státuszát: ${error.message}`);
     }
   };
 
@@ -106,9 +110,9 @@ const TransactionList = ({
 
       // Az api.put nem kezeli megfelelően a FormData-t, ezért natív fetch-et használunk
       const token = sessionStorage.getItem('token');
-      
+
       const response = await fetch(
-        `${ACCOUNTING_API_URL}/transactions/${selectedTransaction._id}/details`, 
+        `${ACCOUNTING_API_URL}/transactions/${selectedTransaction._id}/details`,
         {
           method: 'PUT',
           body: formData,
