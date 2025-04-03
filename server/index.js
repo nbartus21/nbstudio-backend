@@ -781,8 +781,8 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
       // Kiállító és vevő adatok - kompakt elrendezés
       const startY = headerHeight + 5; // Nagyon közel a fejléchez
 
-      // Háttér téglalapok a kiállító és vevő adatokhoz - kiállító magasabb a céges adatok miatt
-      doc.roundedRect(40, startY, 220, 160, 5) // Magasabb a kiállító téglalap
+      // Háttér téglalapok a kiállító és vevő adatokhoz - kiállító még magasabb a cím és céges adatok miatt
+      doc.roundedRect(40, startY, 220, 200, 5) // Még magasabb a kiállító téglalap
          .fillAndStroke('#F9FAFB', colors.border);
 
       doc.roundedRect(280, startY, 270, 120, 5) // Vevő téglalap változatlan
@@ -809,17 +809,20 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
       doc.font('Helvetica')
          .fontSize(9)
          .fillColor(colors.text);
-      doc.text('Bartus Norbert', 50, startY + 50, { lineBreak: false });
-      doc.text('St.-Nr.: 68194547329', 50, startY + 65, { lineBreak: false });
-      doc.text('USt-IdNr.: DE346419031', 50, startY + 80, { lineBreak: false });
-      doc.text('IBAN: DE47 6634 0018 0473 4638 00', 50, startY + 95, { lineBreak: false });
-      doc.text('BANK: Commerzbank AG', 50, startY + 110, { lineBreak: false });
-      doc.text('SWIFT/BIC: COBADEFFXXX', 50, startY + 125, { lineBreak: false });
+      doc.text('Norbert Bartus', 50, startY + 50, { lineBreak: false });
+      doc.text('Salinenstraße 25', 50, startY + 65, { lineBreak: false });
+      doc.text('76646 Bruchsal, Baden-Württemberg', 50, startY + 80, { lineBreak: false });
+      doc.text('Deutschland', 50, startY + 95, { lineBreak: false });
+      doc.text('St.-Nr.: 68194547329', 50, startY + 110, { lineBreak: false });
+      doc.text('USt-IdNr.: DE346419031', 50, startY + 125, { lineBreak: false });
+      doc.text('IBAN: DE47 6634 0018 0473 4638 00', 50, startY + 140, { lineBreak: false });
+      doc.text('BANK: Commerzbank AG', 50, startY + 155, { lineBreak: false });
+      doc.text('SWIFT/BIC: COBADEFFXXX', 50, startY + 170, { lineBreak: false });
 
       // Kleinunternehmer megjegyzés
       doc.fontSize(8)
          .fillColor('#666666');
-      doc.text('Als Kleinunternehmer im Sinne von § 19 Abs. 1 UStG wird keine Umsatzsteuer berechnet.', 50, startY + 140, {
+      doc.text('Als Kleinunternehmer im Sinne von § 19 Abs. 1 UStG wird keine Umsatzsteuer berechnet.', 50, startY + 185, {
         width: 190,
         lineBreak: false
       });
@@ -881,14 +884,14 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
         }
       }
 
-      // Tételek cím - fix pozíció, magasabbra helyezve a kiállító adatok miatt
+      // Tételek cím - fix pozíció, még magasabbra helyezve a kiállító adatok miatt
       doc.font('Helvetica-Bold')
          .fontSize(12)
          .fillColor(colors.secondary);
-      doc.text('TÉTELEK', 40, startY + 170, { lineBreak: false }); // Magasabbra helyezve
+      doc.text('TÉTELEK', 40, startY + 210, { lineBreak: false }); // Még magasabbra helyezve
 
-      // Vízszintes vonal a cím alatt - fix pozíció, magasabbra helyezve
-      const tableTop = startY + 185; // Magasabbra helyezve
+      // Vízszintes vonal a cím alatt - fix pozíció, még magasabbra helyezve
+      const tableTop = startY + 225; // Még magasabbra helyezve
       doc.moveTo(40, tableTop)
          .lineTo(550, tableTop)
          .lineWidth(0.5)
