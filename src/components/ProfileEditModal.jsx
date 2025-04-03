@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  User, X, Mail, Phone, Building, Save, AtSign, 
-  MapPin, Globe, CreditCard, Loader 
+import {
+  User, X, Mail, Phone, Building, Save, AtSign,
+  MapPin, Globe, CreditCard, Loader
 } from 'lucide-react';
 import { debugLog } from './shared/utils';
 
@@ -162,18 +162,18 @@ const countries = [
   { code: 'US', name: { en: 'United States', de: 'Vereinigte Staaten', hu: 'Egyesült Államok' } }
 ];
 
-const ProfileEditModal = ({ 
-  user, 
+const ProfileEditModal = ({
+  user,
   project,
-  onClose, 
-  onSave, 
-  showSuccessMessage, 
-  showErrorMessage, 
+  onClose,
+  onSave,
+  showSuccessMessage,
+  showErrorMessage,
   language = 'hu',
   onLanguageChange = null
 }) => {
   const t = translations[language] || translations.hu;
-  
+
   // Initialize form state with user data or empty values
   const [formData, setFormData] = useState({
     name: user?.name || '',
@@ -187,12 +187,12 @@ const ProfileEditModal = ({
     city: user?.address?.city || '',
     street: user?.address?.street || ''
   });
-  
+
   // Form validation errors
   const [errors, setErrors] = useState({});
   // Loading state for save button
   const [isSaving, setIsSaving] = useState(false);
-  
+
   // Set initial form data when user prop changes
   useEffect(() => {
     if (user) {
@@ -210,7 +210,7 @@ const ProfileEditModal = ({
       });
     }
   }, [user, language]);
-  
+
   // Handle input changes
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -218,7 +218,7 @@ const ProfileEditModal = ({
       ...prev,
       [name]: value
     }));
-    
+
     // Clear validation error for the field when user types
     if (errors[name]) {
       setErrors(prev => ({
@@ -227,7 +227,7 @@ const ProfileEditModal = ({
       }));
     }
   };
-  
+
   // Handle language selection
   const handleLanguageChange = (lang) => {
     setFormData(prev => ({
@@ -235,41 +235,41 @@ const ProfileEditModal = ({
       preferredLanguage: lang
     }));
   };
-  
+
   // Validate form before submission
   const validateForm = () => {
     const newErrors = {};
-    
+
     // Basic validation rules
     if (!formData.name.trim()) {
       newErrors.name = t.validation.nameRequired;
     }
-    
+
     if (!formData.email.trim()) {
       newErrors.email = t.validation.emailRequired;
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
       newErrors.email = t.validation.emailInvalid;
     }
-    
+
     if (formData.phone && !/^[+]?[\d() -]{8,20}$/.test(formData.phone)) {
       newErrors.phone = t.validation.phoneInvalid;
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
-  
+
   // Handle form submission with API call
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
-    
+
     setIsSaving(true);
     debugLog('ProfileEditModal-submit', 'Saving profile data to API');
-    
+
     try {
       // Format the data for saving
       const updatedUser = {
@@ -287,15 +287,15 @@ const ProfileEditModal = ({
           street: formData.street
         }
       };
-      
+
       // Adatbázisba mentés sikeres volt-e?
       let savedToDB = false;
-      
+
       // 1. Frissítsük a projekt kliens adatait az API-n keresztül
       if (project && project._id) {
         const projectId = project._id;
         debugLog('ProfileEditModal-submit', 'Projekt azonosító:', projectId);
-        
+
         // Egyszerűsített adat struktúra a projekt frissítéshez
         const simplifiedProjectData = {
           client: {
@@ -312,11 +312,11 @@ const ProfileEditModal = ({
             }
           }
         };
-        
-        // Közvetlen PUT kérés a projekt frissítésére, ez a legegyszerűbb és legmegbízhatóbb módszer
+
+        // 1.1 Először próbáljuk meg a közvetlen PUT kérést a projekt frissítésére
         try {
           debugLog('ProfileEditModal-submit', `Közvetlen projekt frissítés a /projects/${projectId} végponton`);
-          
+
           const directProjectResponse = await fetch(`${API_URL}/projects/${projectId}`, {
             method: 'PUT',
             headers: {
@@ -326,13 +326,13 @@ const ProfileEditModal = ({
             body: JSON.stringify(simplifiedProjectData),
             credentials: 'omit' // Egyszerűsítés: nincs szükség süti küldésre
           });
-          
+
           debugLog('ProfileEditModal-submit', 'Közvetlen projekt frissítés válasz státusz:', directProjectResponse.status);
-          
+
           if (directProjectResponse.ok) {
             debugLog('ProfileEditModal-submit', 'MongoDB mentés sikeres!');
             savedToDB = true;
-            
+
             try {
               const responseData = await directProjectResponse.json();
               debugLog('ProfileEditModal-submit', 'Szerver válasz:', responseData);
@@ -344,31 +344,95 @@ const ProfileEditModal = ({
               status: directProjectResponse.status,
               statusText: directProjectResponse.statusText
             });
-            
-            try {
-              const errorData = await directProjectResponse.json();
-              debugLog('ProfileEditModal-submit', 'Szerver hibaüzenet:', errorData);
-            } catch (parseError) {
-              debugLog('ProfileEditModal-submit', 'Hibaüzenet feldolgozási hiba:', parseError);
+
+            // 1.2 Ha a közvetlen frissítés nem sikerült, próbáljuk meg a verify-pin végpontot
+            debugLog('ProfileEditModal-submit', 'Próbálkozás a verify-pin végponttal');
+
+            // Próbáljuk meg kinyerni a token-t és PIN-t a localStorage-ból
+            let token = null;
+            let pin = null;
+
+            // Keressük meg a megfelelő session-t a localStorage-ban
+            for (let i = 0; i < localStorage.length; i++) {
+              const key = localStorage.key(i);
+              if (key && key.startsWith('project_session_')) {
+                try {
+                  const sessionData = JSON.parse(localStorage.getItem(key));
+                  if (sessionData && sessionData.project && sessionData.project._id === projectId) {
+                    token = key.replace('project_session_', '');
+                    pin = sessionData.pin;
+                    break;
+                  }
+                } catch (e) {
+                  console.error('Session parse error:', e);
+                }
+              }
+            }
+
+            if (token) {
+              debugLog('ProfileEditModal-submit', 'Token megtalálva a localStorage-ban:', token);
+
+              // Készítsünk egy updateProject objektumot a verify-pin végponthoz
+              const updateProjectData = {
+                token: token,
+                pin: pin || '',
+                updateProject: simplifiedProjectData
+              };
+
+              // Próbáljuk meg a verify-pin végpontot
+              try {
+                const verifyPinResponse = await fetch(`${API_URL}/public/projects/verify-pin`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'X-API-Key': API_KEY
+                  },
+                  body: JSON.stringify(updateProjectData),
+                  credentials: 'omit'
+                });
+
+                debugLog('ProfileEditModal-submit', 'Verify-pin válasz státusz:', verifyPinResponse.status);
+
+                if (verifyPinResponse.ok) {
+                  debugLog('ProfileEditModal-submit', 'Verify-pin frissítés sikeres!');
+                  savedToDB = true;
+
+                  try {
+                    const responseData = await verifyPinResponse.json();
+                    debugLog('ProfileEditModal-submit', 'Verify-pin válasz:', responseData);
+                  } catch (parseError) {
+                    debugLog('ProfileEditModal-submit', 'Verify-pin válasz feldolgozási hiba:', parseError);
+                  }
+                } else {
+                  debugLog('ProfileEditModal-submit', 'Verify-pin frissítés hiba:', {
+                    status: verifyPinResponse.status,
+                    statusText: verifyPinResponse.statusText
+                  });
+                }
+              } catch (verifyPinError) {
+                debugLog('ProfileEditModal-submit', 'Hálózati hiba a verify-pin során:', verifyPinError);
+              }
+            } else {
+              debugLog('ProfileEditModal-submit', 'Nem található token a localStorage-ban');
             }
           }
         } catch (directError) {
           debugLog('ProfileEditModal-submit', 'Hálózati hiba a projekt frissítése során:', directError);
         }
       }
-      
+
       // 2. Helyi frissítések, akár sikeres volt a szerveroldali mentés, akár nem
-      
+
       // Ha van language change callback és változott a nyelv, frissítsük
       if (onLanguageChange && formData.preferredLanguage !== language) {
         onLanguageChange(formData.preferredLanguage);
       }
-      
+
       // Lokális callback a szülő komponensnek - mindig frissítjük a helyi adatokat
       if (onSave) {
         onSave(updatedUser);
       }
-      
+
       // 3. Sikeres üzenet és modal bezárása
       if (showSuccessMessage) {
         if (savedToDB) {
@@ -382,12 +446,12 @@ const ProfileEditModal = ({
           showSuccessMessage(t.validation.changesSaved + " (Helyi mentés)");
         }
       }
-      
+
       // Modal bezárása késleltetéssel
       setTimeout(() => {
         onClose();
       }, 1000);
-      
+
     } catch (error) {
       debugLog('ProfileEditModal-submit', 'Error saving profile', error);
       if (showErrorMessage) {
@@ -397,7 +461,7 @@ const ProfileEditModal = ({
       setIsSaving(false);
     }
   };
-  
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-lg w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
@@ -413,7 +477,7 @@ const ProfileEditModal = ({
             <X className="h-6 w-6" />
           </button>
         </div>
-        
+
         <div className="p-6 flex-1 overflow-auto">
           <form onSubmit={handleSubmit}>
             <div className="space-y-6">
@@ -441,7 +505,7 @@ const ProfileEditModal = ({
                     </div>
                     {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name}</p>}
                   </div>
-                  
+
                   <div>
                     <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
                       {t.email} <span className="text-red-500">*</span>
@@ -462,7 +526,7 @@ const ProfileEditModal = ({
                     </div>
                     {errors.email && <p className="mt-1 text-sm text-red-600">{errors.email}</p>}
                   </div>
-                  
+
                   <div>
                     <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
                       {t.phone}
@@ -483,7 +547,7 @@ const ProfileEditModal = ({
                     </div>
                     {errors.phone && <p className="mt-1 text-sm text-red-600">{errors.phone}</p>}
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       {t.language}
@@ -493,8 +557,8 @@ const ProfileEditModal = ({
                         type="button"
                         onClick={() => handleLanguageChange('hu')}
                         className={`px-3 py-2 text-sm rounded-md ${
-                          formData.preferredLanguage === 'hu' 
-                            ? 'bg-indigo-100 text-indigo-700 font-medium border border-indigo-200' 
+                          formData.preferredLanguage === 'hu'
+                            ? 'bg-indigo-100 text-indigo-700 font-medium border border-indigo-200'
                             : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
                         }`}
                       >
@@ -504,8 +568,8 @@ const ProfileEditModal = ({
                         type="button"
                         onClick={() => handleLanguageChange('de')}
                         className={`px-3 py-2 text-sm rounded-md ${
-                          formData.preferredLanguage === 'de' 
-                            ? 'bg-indigo-100 text-indigo-700 font-medium border border-indigo-200' 
+                          formData.preferredLanguage === 'de'
+                            ? 'bg-indigo-100 text-indigo-700 font-medium border border-indigo-200'
                             : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
                         }`}
                       >
@@ -515,8 +579,8 @@ const ProfileEditModal = ({
                         type="button"
                         onClick={() => handleLanguageChange('en')}
                         className={`px-3 py-2 text-sm rounded-md ${
-                          formData.preferredLanguage === 'en' 
-                            ? 'bg-indigo-100 text-indigo-700 font-medium border border-indigo-200' 
+                          formData.preferredLanguage === 'en'
+                            ? 'bg-indigo-100 text-indigo-700 font-medium border border-indigo-200'
                             : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
                         }`}
                       >
@@ -526,7 +590,7 @@ const ProfileEditModal = ({
                   </div>
                 </div>
               </div>
-              
+
               {/* Cég adatok */}
               <div>
                 <h4 className="text-lg font-medium text-gray-700 mb-4">{t.companyInfo}</h4>
@@ -550,7 +614,7 @@ const ProfileEditModal = ({
                       />
                     </div>
                   </div>
-                  
+
                   <div>
                     <label htmlFor="taxNumber" className="block text-sm font-medium text-gray-700 mb-1">
                       {t.taxNumber}
@@ -572,7 +636,7 @@ const ProfileEditModal = ({
                   </div>
                 </div>
               </div>
-              
+
               {/* Cím adatok */}
               <div>
                 <h4 className="text-lg font-medium text-gray-700 mb-4">{t.address}</h4>
@@ -601,7 +665,7 @@ const ProfileEditModal = ({
                       </select>
                     </div>
                   </div>
-                  
+
                   <div>
                     <label htmlFor="postalCode" className="block text-sm font-medium text-gray-700 mb-1">
                       {t.postalCode}
@@ -616,7 +680,7 @@ const ProfileEditModal = ({
                       placeholder={t.postalCodePlaceholder}
                     />
                   </div>
-                  
+
                   <div>
                     <label htmlFor="city" className="block text-sm font-medium text-gray-700 mb-1">
                       {t.city}
@@ -631,7 +695,7 @@ const ProfileEditModal = ({
                       placeholder={t.cityPlaceholder}
                     />
                   </div>
-                  
+
                   <div>
                     <label htmlFor="street" className="block text-sm font-medium text-gray-700 mb-1">
                       {t.street}
@@ -656,7 +720,7 @@ const ProfileEditModal = ({
             </div>
           </form>
         </div>
-        
+
         <div className="flex justify-end space-x-3 p-4 border-t bg-gray-50 sticky bottom-0">
           <button
             type="button"

@@ -55,12 +55,12 @@ const useParams = () => {
   // Ha van token és kérdőjelet tartalmaz, akkor csak a kérdőjel előtti részt vesszük
   const tokenMatch = url.match(/\/shared-project\/([^\/\?]+)/);
   let token = tokenMatch ? tokenMatch[1] : '';
-  
+
   // Ha van a tokenben még mindig kérdőjel, vágjuk le onnan
   if (token.includes('?')) {
     token = token.split('?')[0];
   }
-  
+
   return { token: token };
 };
 
@@ -74,7 +74,7 @@ const useNavigate = () => {
 const detectBrowserLanguage = () => {
   const browserLang = navigator.language || navigator.userLanguage;
   const langCode = browserLang.split('-')[0];
-  
+
   if (['en', 'de', 'hu'].includes(langCode)) {
     return langCode;
   }
@@ -109,34 +109,34 @@ const SharedProjectView = () => {
         debugLog('checkExistingSession', 'No token provided');
         return;
       }
-      
+
       // Tisztítsuk meg a tokent minden extra paramétertől
       const cleanToken = token.split('?')[0];
 
       try {
         debugLog('checkExistingSession', 'Checking for saved session', { token: cleanToken });
         const savedSession = localStorage.getItem(`project_session_${cleanToken}`);
-        
+
         if (savedSession) {
           const session = JSON.parse(savedSession);
           debugLog('checkExistingSession', 'Found saved session', { project: session.project?.name });
-          
+
           // Verify if session hasn't expired (24 hours)
           const sessionTime = new Date(session.timestamp).getTime();
           const currentTime = new Date().getTime();
           const sessionAge = currentTime - sessionTime;
           const maxAge = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
-          
+
           if (sessionAge < maxAge) {
-            debugLog('checkExistingSession', 'Session is valid, restoring', { 
-              age: Math.round(sessionAge / (60 * 60 * 1000)) + ' hours' 
+            debugLog('checkExistingSession', 'Session is valid, restoring', {
+              age: Math.round(sessionAge / (60 * 60 * 1000)) + ' hours'
             });
-            
+
             // Restore language from session
             if (session.language) {
               setLanguage(session.language);
             }
-            
+
             // Ensure project has _id field for compatibility
             const projectData = session.project;
             if (projectData) {
@@ -144,7 +144,7 @@ const SharedProjectView = () => {
                 debugLog('checkExistingSession', 'Adding _id from id field');
                 projectData._id = projectData.id;
               }
-              
+
               setProject(projectData);
               setIsVerified(true);
             } else {
@@ -171,12 +171,12 @@ const SharedProjectView = () => {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    
+
     // Tisztítsuk meg a tokent minden extra paramétertől
     const cleanToken = token.split('?')[0];
-    
+
     debugLog('verifyPin', 'Verifying PIN', { token: cleanToken, pinLength: pin.length, language });
-    
+
     try {
       // Közvetlenül a /verify-pin végpontot használjuk, elkerülve a CORS problémákat
       debugLog('verifyPin', 'Attempting to verify PIN with direct endpoint');
@@ -190,12 +190,12 @@ const SharedProjectView = () => {
         body: JSON.stringify({ token: cleanToken, pin }),
         credentials: 'omit'  // Nem küldünk sütit a CORS problémák elkerülése érdekében
       });
-      
+
       // CORS hiba ellenőrzése és kezelése
       if (!response.ok) {
         const statusCode = response.status;
         debugLog('verifyPin', `Direct endpoint failed with ${statusCode}, trying API endpoint`);
-        
+
         // Különböző API útvonalak kipróbálása, mindegyiknél credentials: 'omit' használata
         try {
           response = await fetch(`${API_URL}/api/verify-pin`, {
@@ -208,7 +208,7 @@ const SharedProjectView = () => {
             body: JSON.stringify({ token: cleanToken, pin }),
             credentials: 'omit'
           });
-          
+
           if (!response.ok) {
             debugLog('verifyPin', `API endpoint failed with ${response.status}, trying next route`);
             response = await fetch(`${API_URL}/public/projects/verify-pin`, {
@@ -221,7 +221,7 @@ const SharedProjectView = () => {
               body: JSON.stringify({ token: cleanToken, pin }),
               credentials: 'omit'
             });
-            
+
             if (!response.ok) {
               debugLog('verifyPin', `Public endpoint failed with ${response.status}, trying direct API call`);
               response = await fetch(`${API_URL}/api/public/projects/verify-pin`, {
@@ -241,19 +241,19 @@ const SharedProjectView = () => {
           throw retryError;
         }
       }
-      
+
       debugLog('verifyPin', 'API response status', { status: response.status });
-      
+
       const data = await response.json();
       debugLog('verifyPin', 'API response data received');
-      
+
       if (response.ok) {
         const projectData = data.project;
-        
+
         // Add an _id field if it doesn't exist (for compatibility)
         if (!projectData._id) {
           debugLog('verifyPin', 'Project data needs normalization');
-          
+
           if (projectData.id) {
             debugLog('verifyPin', 'Using id as _id field');
             projectData._id = projectData.id;
@@ -262,23 +262,23 @@ const SharedProjectView = () => {
             projectData._id = token;
           }
         }
-        
+
         // Debug log the project structure
-        debugLog('verifyPin', 'Project loaded successfully', { 
-          hasId: Boolean(projectData.id), 
+        debugLog('verifyPin', 'Project loaded successfully', {
+          hasId: Boolean(projectData.id),
           has_Id: Boolean(projectData._id),
           name: projectData.name
         });
-        
+
         // Debug: nézd meg a projekt struktúráját, különösen az invoices tömböt
       console.log('Betöltött projekt adatok:', JSON.stringify(projectData, null, 2));
       console.log('Számlák száma:', projectData.invoices?.length || 0);
-      
+
       // Save project data to state
       setProject(projectData);
       setIsVerified(true);
       setError(null);
-      
+
       // Save session to localStorage with language
       // Mentjük a PIN kódot is a session-be, hogy később frissíteni tudjuk az adatokat
       const session = {
@@ -288,7 +288,7 @@ const SharedProjectView = () => {
         pin: pin // Mentjük a PIN kódot, hogy később is tudjuk használni a frissítéshez
       };
         localStorage.setItem(`project_session_${cleanToken}`, JSON.stringify(session));
-        
+
         debugLog('verifyPin', 'Session saved with language preference');
       } else {
         debugLog('verifyPin', 'PIN verification failed', { message: data.message });
@@ -307,20 +307,25 @@ const SharedProjectView = () => {
   const handleProjectUpdate = async (updatedProject) => {
     try {
       debugLog('handleProjectUpdate', 'Updating project', { projectId: updatedProject._id });
-      
+
       // Save locally even if API call fails
       setProject(updatedProject);
-      
-      // Update session in localStorage
+
+      // Biztosítsuk, hogy a token tisztított formátumú
+      const cleanToken = token.split('?')[0];
+
+      // Mentsük a PIN kódot is a session-be, hogy később is tudjuk használni a frissítéshez
       const session = {
         project: updatedProject,
         timestamp: new Date().toISOString(),
-        language: language
+        language: language,
+        pin: pin // Mentjük a PIN kódot a frissítéshez
       };
-      localStorage.setItem(`project_session_${token}`, JSON.stringify(session));
-      
+      localStorage.setItem(`project_session_${cleanToken}`, JSON.stringify(session));
+
       // Try to update project on server
       try {
+        // 1. Először próbáljuk meg a közvetlen PUT kérést
         const response = await fetch(`${API_URL}/projects/${updatedProject._id}`, {
           method: 'PUT',
           headers: {
@@ -333,7 +338,54 @@ const SharedProjectView = () => {
         if (response.ok) {
           debugLog('handleProjectUpdate', 'Project updated on server successfully');
         } else {
-          debugLog('handleProjectUpdate', 'Failed to update project on server', { status: response.status });
+          debugLog('handleProjectUpdate', 'Failed to update project on server, trying verify-pin endpoint', { status: response.status });
+
+          // 2. Ha a közvetlen frissítés nem sikerült, próbáljuk meg a verify-pin végpontot
+          try {
+            // Készítsünk egy updateProject objektumot a verify-pin végponthoz
+            const updateProjectData = {
+              token: cleanToken,
+              pin: pin || '',
+              updateProject: updatedProject
+            };
+
+            const verifyPinResponse = await fetch(`${API_URL}/public/projects/verify-pin`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-API-Key': API_KEY
+              },
+              body: JSON.stringify(updateProjectData),
+              credentials: 'omit'
+            });
+
+            if (verifyPinResponse.ok) {
+              debugLog('handleProjectUpdate', 'Project updated via verify-pin endpoint successfully');
+
+              // Frissítsük a projektet a válasz alapján
+              try {
+                const responseData = await verifyPinResponse.json();
+                if (responseData.project) {
+                  setProject(responseData.project);
+
+                  // Frissítsük a session-t is
+                  const updatedSession = {
+                    project: responseData.project,
+                    timestamp: new Date().toISOString(),
+                    language: language,
+                    pin: pin
+                  };
+                  localStorage.setItem(`project_session_${cleanToken}`, JSON.stringify(updatedSession));
+                }
+              } catch (parseError) {
+                debugLog('handleProjectUpdate', 'Error parsing verify-pin response', { error: parseError });
+              }
+            } else {
+              debugLog('handleProjectUpdate', 'Failed to update project via verify-pin endpoint', { status: verifyPinResponse.status });
+            }
+          } catch (verifyPinError) {
+            debugLog('handleProjectUpdate', 'Error using verify-pin endpoint', { error: verifyPinError });
+          }
         }
       } catch (apiError) {
         debugLog('handleProjectUpdate', 'API error when updating project', { error: apiError });
@@ -343,12 +395,12 @@ const SharedProjectView = () => {
       console.error('Error updating project:', error);
     }
   };
-  
+
   // Handle language change
   const handleLanguageChange = (lang) => {
     debugLog('handleLanguageChange', `Changing language to ${lang}`);
     setLanguage(lang);
-    
+
     // If user is logged in, update the session with the new language
     if (isVerified && token) {
       const savedSession = localStorage.getItem(`project_session_${token}`);
@@ -359,23 +411,23 @@ const SharedProjectView = () => {
       }
     }
   };
-  
+
   // Handle logout
   const handleLogout = () => {
     if (window.confirm(t.logoutConfirm)) {
       debugLog('handleLogout', 'User confirmed logout');
-      
+
       // Biztosítsuk, hogy a token tisztított formátumú
       const cleanToken = token.split('?')[0];
-      
+
       // Remove session but keep project-specific files and documents
       localStorage.removeItem(`project_session_${cleanToken}`);
-      
+
       setIsVerified(false);
       setProject(null);
       setPin('');
       navigate(`/shared-project/${cleanToken}`);
-      
+
       debugLog('handleLogout', 'Logout completed');
     } else {
       debugLog('handleLogout', 'Logout cancelled by user');
@@ -400,14 +452,14 @@ const SharedProjectView = () => {
               {t.enterPin}
             </p>
           </div>
-          
+
           {/* Language selector */}
           <div className="flex justify-center space-x-2">
             <button
               onClick={() => handleLanguageChange('hu')}
               className={`px-3 py-1 rounded-md text-sm font-medium border ${
-                language === 'hu' 
-                  ? 'bg-indigo-100 text-indigo-700 border-indigo-300' 
+                language === 'hu'
+                  ? 'bg-indigo-100 text-indigo-700 border-indigo-300'
                   : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
               }`}
             >
@@ -417,8 +469,8 @@ const SharedProjectView = () => {
             <button
               onClick={() => handleLanguageChange('de')}
               className={`px-3 py-1 rounded-md text-sm font-medium border ${
-                language === 'de' 
-                  ? 'bg-indigo-100 text-indigo-700 border-indigo-300' 
+                language === 'de'
+                  ? 'bg-indigo-100 text-indigo-700 border-indigo-300'
                   : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
               }`}
             >
@@ -428,8 +480,8 @@ const SharedProjectView = () => {
             <button
               onClick={() => handleLanguageChange('en')}
               className={`px-3 py-1 rounded-md text-sm font-medium border ${
-                language === 'en' 
-                  ? 'bg-indigo-100 text-indigo-700 border-indigo-300' 
+                language === 'en'
+                  ? 'bg-indigo-100 text-indigo-700 border-indigo-300'
                   : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
               }`}
             >
@@ -437,7 +489,7 @@ const SharedProjectView = () => {
               {language === 'en' && <Check className="inline-block ml-1 h-3 w-3" />}
             </button>
           </div>
-          
+
           {error && (
             <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded flex items-center">
               <AlertTriangle className="h-5 w-5 mr-2" />
@@ -495,7 +547,7 @@ const SharedProjectView = () => {
 
   // Show project dashboard after verification
   return (
-    <SharedProjectDashboard 
+    <SharedProjectDashboard
       project={project}
       language={language}
       onUpdate={handleProjectUpdate}
