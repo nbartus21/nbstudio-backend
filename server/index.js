@@ -709,9 +709,10 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
         gradient2: '#4F46E5', // Gradient végszín
       };
 
-      // Modern fejléc háttér gradient-tel
-      const gradientCoords = [0, 0, 0, 200];
-      doc.rect(0, 0, doc.page.width, 200);
+      // Modern fejléc háttér gradient-tel - kisebb magasság
+      const headerHeight = 150; // Csökkentett fejléc magasság
+      const gradientCoords = [0, 0, 0, headerHeight];
+      doc.rect(0, 0, doc.page.width, headerHeight);
 
       // Gradient háttér
       const gradient = doc.linearGradient(gradientCoords[0], gradientCoords[1], gradientCoords[2], gradientCoords[3]);
@@ -719,20 +720,20 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
               .stop(1, colors.gradient2);
       doc.fill(gradient);
 
-      // Dekoratív elemek a fejlécben
-      doc.circle(doc.page.width - 100, 50, 80)
+      // Dekoratív elemek a fejlécben - kisebb méreték
+      doc.circle(doc.page.width - 80, 40, 60)
          .fill('rgba(255, 255, 255, 0.1)');
-      doc.circle(50, 180, 40)
+      doc.circle(40, headerHeight - 20, 30)
          .fill('rgba(255, 255, 255, 0.1)');
 
-      // Fejléc szöveg modern stílusban
+      // Fejléc szöveg modern stílusban - kisebb betűméret
       doc.font('Helvetica-Bold')
-         .fontSize(42)
+         .fontSize(32) // Kisebb betűméret
          .fillColor('white')
-         .text('SZÁMLA', 50, 80)
-         .fontSize(18)
+         .text('SZÁMLA', 50, 50) // Magasabb pozíció
+         .fontSize(16) // Kisebb betűméret
          .font('Helvetica')
-         .text(`#${invoice.number}`, 50, 130);
+         .text(`#${invoice.number}`, 50, 90); // Magasabb pozíció
 
       // Státusz jelölés a fejlécben
       let statusColor = colors.accent;
@@ -749,41 +750,41 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
         statusText = 'Törölve';
       }
 
-      // Státusz badge
-      const statusBadgeWidth = 100;
-      const statusBadgeHeight = 30;
-      const statusBadgeX = doc.page.width - statusBadgeWidth - 50;
-      const statusBadgeY = 40;
+      // Státusz badge - kisebb méret
+      const statusBadgeWidth = 90; // Kisebb szélesség
+      const statusBadgeHeight = 25; // Kisebb magasság
+      const statusBadgeX = doc.page.width - statusBadgeWidth - 40;
+      const statusBadgeY = 30; // Magasabb pozíció
 
-      doc.roundedRect(statusBadgeX, statusBadgeY, statusBadgeWidth, statusBadgeHeight, 15)
+      doc.roundedRect(statusBadgeX, statusBadgeY, statusBadgeWidth, statusBadgeHeight, 12) // Kisebb lekerekítés
          .fill(statusColor);
 
       doc.font('Helvetica-Bold')
-         .fontSize(14)
+         .fontSize(12) // Kisebb betűméret
          .fillColor('white')
-         .text(statusText, statusBadgeX, statusBadgeY + 7, { width: statusBadgeWidth, align: 'center' });
+         .text(statusText, statusBadgeX, statusBadgeY + 6, { width: statusBadgeWidth, align: 'center' });
 
-      // Jobbra igazított fejléc info
+      // Jobbra igazított fejléc info - kisebb betűméret és magasabb pozíció
       const rightColumnX = 400;
-      doc.fontSize(12)
+      doc.fontSize(10) // Kisebb betűméret
          .fillColor('rgba(255, 255, 255, 0.9)')
-         .text('Kiállítás dátuma:', rightColumnX, 80, { align: 'right' })
-         .fontSize(14)
+         .text('Kiállítás dátuma:', rightColumnX, 50, { align: 'right' }) // Magasabb pozíció
+         .fontSize(12) // Kisebb betűméret
          .fillColor('white')
-         .text(new Date(invoice.date).toLocaleDateString('hu-HU'), rightColumnX, 95, { align: 'right' })
-         .fontSize(12)
+         .text(new Date(invoice.date).toLocaleDateString('hu-HU'), rightColumnX, 65, { align: 'right' }) // Magasabb pozíció
+         .fontSize(10) // Kisebb betűméret
          .fillColor('rgba(255, 255, 255, 0.9)')
-         .text('Fizetési határidő:', rightColumnX, 120, { align: 'right' })
-         .fontSize(14)
+         .text('Fizetési határidő:', rightColumnX, 90, { align: 'right' }) // Magasabb pozíció
+         .fontSize(12) // Kisebb betűméret
          .fillColor('white')
-         .text(new Date(invoice.dueDate).toLocaleDateString('hu-HU'), rightColumnX, 135, { align: 'right' });
+         .text(new Date(invoice.dueDate).toLocaleDateString('hu-HU'), rightColumnX, 105, { align: 'right' }); // Magasabb pozíció
 
-      // Modern színsáv a fejléc alatt
-      doc.rect(0, 200, doc.page.width, 6)
+      // Modern színsáv a fejléc alatt - illeszkedik a kisebb fejléchez
+      doc.rect(0, headerHeight, doc.page.width, 4) // Vékonyabb sáv
          .fill(colors.accent);
 
-      // Kiállító és vevő adatok - modern design - kisebb távolsággal
-      const startY = 210;
+      // Kiállító és vevő adatok - modern design - illeszkedik a kisebb fejléchez
+      const startY = headerHeight + 10; // A fejléc magasságához igazítva
 
       // Háttér téglalapok a kiállító és vevő adatokhoz
       doc.roundedRect(50, startY, 220, 140, 5)
