@@ -21,15 +21,23 @@ const DomainTable = ({ domains, onEdit, onDelete, formatCurrency }) => {
   };
 
   const sortedDomains = [...domains]
-    .filter(domain => 
+    .filter(domain =>
       domain.name.toLowerCase().includes(filter.toLowerCase()) ||
       domain.registrar.toLowerCase().includes(filter.toLowerCase())
     )
     .sort((a, b) => {
       if (sortBy === 'expiryDate') {
-        return sortDirection === 'asc' 
+        return sortDirection === 'asc'
           ? new Date(a.expiryDate) - new Date(b.expiryDate)
           : new Date(b.expiryDate) - new Date(a.expiryDate);
+      }
+      if (sortBy === 'registrationDate') {
+        // Ha nincs regisztrációs dátum, akkor a létrehozás dátumát használjuk
+        const aDate = a.registrationDate ? new Date(a.registrationDate) : new Date(a.createdAt);
+        const bDate = b.registrationDate ? new Date(b.registrationDate) : new Date(b.createdAt);
+        return sortDirection === 'asc'
+          ? aDate - bDate
+          : bDate - aDate;
       }
       if (sortBy === 'name') {
         return sortDirection === 'asc'
@@ -69,7 +77,7 @@ const DomainTable = ({ domains, onEdit, onDelete, formatCurrency }) => {
         <table className="min-w-full">
           <thead className="bg-gray-50">
             <tr>
-              <th 
+              <th
                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer"
                 onClick={() => handleSort('name')}
               >
@@ -78,13 +86,19 @@ const DomainTable = ({ domains, onEdit, onDelete, formatCurrency }) => {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                 Regisztrátor
               </th>
-              <th 
+              <th
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer"
+                onClick={() => handleSort('registrationDate')}
+              >
+                Regisztráció
+              </th>
+              <th
                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer"
                 onClick={() => handleSort('expiryDate')}
               >
                 Lejárat
               </th>
-              <th 
+              <th
                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer"
                 onClick={() => handleSort('cost')}
               >
@@ -110,6 +124,9 @@ const DomainTable = ({ domains, onEdit, onDelete, formatCurrency }) => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {domain.registrar}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {domain.registrationDate ? new Date(domain.registrationDate).toLocaleDateString() : 'Nincs megadva'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {new Date(domain.expiryDate).toLocaleDateString()}

@@ -4,6 +4,7 @@ const DomainModal = ({ isOpen, onClose, onSave, domain = null }) => {
   const [formData, setFormData] = useState({
     name: '',
     registrar: '',
+    registrationDate: '',
     expiryDate: '',
     cost: '',
     autoRenewal: false,
@@ -15,12 +16,14 @@ const DomainModal = ({ isOpen, onClose, onSave, domain = null }) => {
     if (domain) {
       setFormData({
         ...domain,
+        registrationDate: domain.registrationDate ? new Date(domain.registrationDate).toISOString().split('T')[0] : '',
         expiryDate: new Date(domain.expiryDate).toISOString().split('T')[0]
       });
     } else {
       setFormData({
         name: '',
         registrar: '',
+        registrationDate: '',
         expiryDate: '',
         cost: '',
         autoRenewal: false,
@@ -76,6 +79,18 @@ const DomainModal = ({ isOpen, onClose, onSave, domain = null }) => {
               onChange={(e) => setFormData({...formData, registrar: e.target.value})}
               className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Regisztrációs Dátum
+            </label>
+            <input
+              type="date"
+              value={formData.registrationDate}
+              onChange={(e) => setFormData({...formData, registrationDate: e.target.value})}
+              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
           </div>
 

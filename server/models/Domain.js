@@ -1,26 +1,30 @@
 import mongoose from 'mongoose';
 
 const domainSchema = new mongoose.Schema({
-  name: { 
-    type: String, 
+  name: {
+    type: String,
     required: true,
-    unique: true 
+    unique: true
   },
-  registrar: { 
-    type: String, 
-    required: true 
+  registrar: {
+    type: String,
+    required: true
   },
-  expiryDate: { 
-    type: Date, 
-    required: true 
+  registrationDate: {
+    type: Date,
+    default: Date.now
   },
-  cost: { 
-    type: Number, 
-    required: true 
+  expiryDate: {
+    type: Date,
+    required: true
   },
-  autoRenewal: { 
-    type: Boolean, 
-    default: false 
+  cost: {
+    type: Number,
+    required: true
+  },
+  autoRenewal: {
+    type: Boolean,
+    default: false
   },
   notes: String,
   status: {
@@ -28,9 +32,9 @@ const domainSchema = new mongoose.Schema({
     enum: ['active', 'expired', 'pending'],
     default: 'active'
   },
-  lastChecked: { 
-    type: Date, 
-    default: Date.now 
+  lastChecked: {
+    type: Date,
+    default: Date.now
   },
   notifications: [{
     type: {
@@ -46,13 +50,13 @@ const domainSchema = new mongoose.Schema({
     date: { type: Date, default: Date.now },
     details: String
   }],
-  createdAt: { 
-    type: Date, 
-    default: Date.now 
+  createdAt: {
+    type: Date,
+    default: Date.now
   },
-  updatedAt: { 
-    type: Date, 
-    default: Date.now 
+  updatedAt: {
+    type: Date,
+    default: Date.now
   }
 });
 
