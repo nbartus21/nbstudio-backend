@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import {
-  FileText, Download, Edit, Eye, Trash2, DollarSign, Filter, Search,
+import { 
+  FileText, Download, Edit, Eye, Trash2, DollarSign, Filter, Search, 
   Plus, ArrowUp, ArrowDown, CheckCircle, XCircle, AlertCircle, Calendar,
   UserPlus, RefreshCw, Printer, Repeat, List, Clock, Activity, Terminal
 } from 'lucide-react';
@@ -21,7 +21,7 @@ const InvoiceManager = () => {
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState('');
   const [filteredInvoices, setFilteredInvoices] = useState([]);
-
+  
   // Modális állapotok
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [selectedProject, setSelectedProject] = useState(null);
@@ -29,7 +29,7 @@ const InvoiceManager = () => {
   const [showViewInvoiceModal, setShowViewInvoiceModal] = useState(false);
   const [showUpdateStatusModal, setShowUpdateStatusModal] = useState(false);
   const [showRecurringLogsModal, setShowRecurringLogsModal] = useState(false);
-
+  
   // Szűrési állapotok
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -37,12 +37,12 @@ const InvoiceManager = () => {
   const [projectFilter, setProjectFilter] = useState('all');
   const [sortBy, setSortBy] = useState('date-desc');
   const [recurringFilter, setRecurringFilter] = useState('all'); // Ismétlődő számlák szűrője
-
+  
   // Új számla állapota
   const [newInvoice, setNewInvoice] = useState({
     items: [{ description: '', quantity: 1, unitPrice: 0 }]
   });
-
+  
   // Számlák lekérése
   const fetchInvoices = async () => {
     setLoading(true);
@@ -52,7 +52,7 @@ const InvoiceManager = () => {
       if (!projectsResponse.ok) throw new Error('Projektek lekérése sikertelen');
       const projectsData = await projectsResponse.json();
       setProjects(projectsData);
-
+      
       // Számlák összegyűjtése a projektekből
       const allInvoices = [];
       projectsData.forEach(project => {
@@ -68,7 +68,7 @@ const InvoiceManager = () => {
           });
         }
       });
-
+      
       setInvoices(allInvoices);
       setFilteredInvoices(allInvoices);
       setError(null);
@@ -79,149 +79,110 @@ const InvoiceManager = () => {
       setLoading(false);
     }
   };
-
+  
   // Komponens betöltésekor
   useEffect(() => {
     fetchInvoices();
   }, []);
-
+  
   // Státusz frissítése
   const handleUpdateStatus = async (invoice, newStatus, updateData) => {
-    // Jelzés a felhasználónak, hogy folyamatban van a frissítés
-    showMessage(setSuccessMessage, 'Számla státusz frissítése folyamatban...');
-
     try {
       const projectId = invoice.projectId;
       const invoiceId = invoice._id;
-
+      
       console.log('Státusz frissítése:', {
         projectId,
         invoiceId,
         newStatus,
         updateData
       });
-
+      
       // Ha nem kaptunk külön updateData objektumot, akkor készítünk egy alapértelmezetet
       if (!updateData) {
         updateData = { status: newStatus };
-
+        
         // Fizetett állapot esetén beállítjuk a fizetett összeget és dátumot
         if (newStatus === 'fizetett') {
           updateData.paidAmount = invoice.totalAmount;
           updateData.paidDate = new Date();
         }
       }
-
-      // Beállítunk egy időkorlátot a kérésre, hogy elkerüljük az időtúllépést
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 20000); // 20 másodperc
-
-      try {
-        // Használjuk a PUT végpontot a teljes frissítéshez
-        const response = await fetch(
-          `${API_URL}/api/projects/${projectId}/invoices/${invoiceId}`,
-          {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-API-Key': API_KEY
-            },
-            body: JSON.stringify(updateData),
-            signal: controller.signal
-          }
-        );
-
-        clearTimeout(timeoutId);
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || `Számla frissítése sikertelen (${response.status})`);
-        }
-
-        console.log('Státusz frissítés sikeres');
-
-        // UI frissítése
-        setInvoices(prevInvoices =>
-          prevInvoices.map(inv =>
-            inv._id === invoiceId ? { ...inv, ...updateData } : inv
-          )
-        );
-
-        setFilteredInvoices(prevInvoices =>
-          prevInvoices.map(inv =>
-            inv._id === invoiceId ? { ...inv, ...updateData } : inv
-          )
-        );
-
-        showMessage(setSuccessMessage, `Számla státusza frissítve: ${newStatus}`);
-        setShowUpdateStatusModal(false);
-
-        // Frissítsük az oldalt, hogy biztos legyen a változás
-        setTimeout(() => {
-          window.location.reload();
-        }, 1500);
-      } catch (fetchError) {
-        clearTimeout(timeoutId);
-
-        // Ellenőrizzük, hogy időtúllépés történt-e
-        if (fetchError.name === 'AbortError') {
-          console.error('Kérés időtúllépés miatt megszakadt');
-          throw new Error('A kérés időtúllépés miatt megszakadt. Próbálja újra később.');
-        }
-
-        throw fetchError;
+      
+      // Használjuk a PATCH végpontot, amely a részleges frissítésre való
+      const response = await api.patch(
+        `/api/projects/${projectId}/invoices/${invoiceId}`,
+        updateData
+      );
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Számla frissítése sikertelen');
       }
+      
+      console.log('Státusz frissítés sikeres');
+      
+      // UI frissítése
+      setInvoices(prevInvoices => 
+        prevInvoices.map(inv => 
+          inv._id === invoiceId ? { ...inv, ...updateData } : inv
+        )
+      );
+      
+      setFilteredInvoices(prevInvoices => 
+        prevInvoices.map(inv => 
+          inv._id === invoiceId ? { ...inv, ...updateData } : inv
+        )
+      );
+      
+      showMessage(setSuccessMessage, `Számla státusza frissítve: ${newStatus}`);
+      setShowUpdateStatusModal(false);
     } catch (err) {
       console.error('Hiba a számla státuszának frissítésekor:', err);
       setError(`Nem sikerült frissíteni a számla státuszát: ${err.message}`);
-
-      // Frissítsük az oldalt, hogy biztos legyen a változás
-      setTimeout(() => {
-        window.location.reload();
-      }, 3000);
     }
   };
-
+  
   // Ismétlődő számla generálása
   const handleGenerateRecurring = async (invoice) => {
     if (!window.confirm('Biztosan létre szeretne hozni egy új számlát ebből az ismétlődő számla sablonból?')) {
       return;
     }
-
+    
     try {
       const projectId = invoice.projectId;
       const invoiceId = invoice._id;
-
+      
       const response = await api.post(`/api/projects/${projectId}/invoices/${invoiceId}/generate`);
-
+      
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Hiba az ismétlődő számla generálása során');
       }
-
+      
       const result = await response.json();
       console.log('Új számla létrehozva:', result);
-
+      
       // Frissítsük a számlalistát
       await fetchInvoices();
-
+      
       showMessage(setSuccessMessage, 'Ismétlődő számla sikeresen létrehozva');
     } catch (err) {
       console.error('Hiba az ismétlődő számla generálásakor:', err);
       setError(`Nem sikerült létrehozni az ismétlődő számlát: ${err.message}`);
     }
   };
-
+  
   // PDF generálása
   const handleGeneratePDF = async (invoice) => {
     try {
       const projectId = invoice.projectId;
       const invoiceId = invoice._id;
-
+      
       // Megfelelő URL-t használunk, ami kompatibilis a backend-del
       // A teljes "/api" útvonalon kérjük le a PDF-et
       console.log(`PDF generálás: /api/projects/${projectId}/invoices/${invoiceId}/pdf`);
-
+      
       // Token ellenőrzése
       const token = sessionStorage.getItem('token');
       if (!token) {
@@ -229,7 +190,7 @@ const InvoiceManager = () => {
       } else {
         console.log('Token elérhető a sessionStorage-ban');
       }
-
+      
       // Közvetlenül a natív fetch()-et használjuk, hogy blob típusú választ kaphassunk
       console.log('Fetch kérés indítása...');
       const response = await fetch(`/api/projects/${projectId}/invoices/${invoiceId}/pdf`, {
@@ -240,7 +201,7 @@ const InvoiceManager = () => {
       });
 
       console.log('Fetch válasz:', response.status, response.statusText);
-
+      
       if (!response.ok) {
         const errorText = await response.text().catch(err => 'Nem olvasható hibaüzenet');
         console.error('PDF letöltési hiba:', errorText);
@@ -257,7 +218,7 @@ const InvoiceManager = () => {
       console.log('Letöltés indítása...');
       link.click();
       document.body.removeChild(link);
-
+      
       // Felszabadítjuk a blob URL-t
       setTimeout(() => {
         window.URL.revokeObjectURL(url);
@@ -269,69 +230,69 @@ const InvoiceManager = () => {
       setError(`Hiba a PDF generálásakor: ${err.message}`);
     }
   };
-
+  
   // Számla törlése
   const handleDeleteInvoice = async (invoice) => {
     if (!window.confirm('Biztosan törölni szeretné ezt a számlát?')) return;
-
+    
     try {
       const projectId = invoice.projectId;
       const invoiceId = invoice._id;
-
+      
       const response = await api.delete(`/api/projects/${projectId}/invoices/${invoiceId}`);
       if (!response.ok) throw new Error('Számla törlése sikertelen');
-
+      
       // UI frissítése
       setInvoices(prevInvoices => prevInvoices.filter(inv => inv._id !== invoiceId));
       setFilteredInvoices(prevInvoices => prevInvoices.filter(inv => inv._id !== invoiceId));
-
+      
       showMessage(setSuccessMessage, 'Számla sikeresen törölve');
     } catch (err) {
       console.error('Hiba a számla törlésekor:', err);
       setError('Nem sikerült törölni a számlát. Kérjük, próbálja újra később.');
     }
   };
-
+  
   // Szűrések alkalmazása
   const applyFilters = () => {
     let filtered = [...invoices];
-
+    
     // Keresés
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase();
-      filtered = filtered.filter(invoice =>
+      filtered = filtered.filter(invoice => 
         invoice.number?.toLowerCase().includes(searchLower) ||
         invoice.projectName?.toLowerCase().includes(searchLower) ||
         invoice.clientName?.toLowerCase().includes(searchLower)
       );
     }
-
+    
     // Státusz szűrő
     if (statusFilter !== 'all') {
       filtered = filtered.filter(invoice => invoice.status === statusFilter);
     }
-
+    
     // Ismétlődő számlák szűrője
     if (recurringFilter !== 'all') {
       if (recurringFilter === 'recurring') {
-        filtered = filtered.filter(invoice =>
+        filtered = filtered.filter(invoice => 
           invoice.recurring && invoice.recurring.isRecurring === true
         );
       } else {
-        filtered = filtered.filter(invoice =>
+        filtered = filtered.filter(invoice => 
           !invoice.recurring || invoice.recurring.isRecurring !== true
         );
       }
     }
-
+    
     // Dátum szűrő
     if (dateFilter !== 'all') {
       const now = new Date();
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
+      
       filtered = filtered.filter(invoice => {
         const invoiceDate = new Date(invoice.date);
-
+        
         switch (dateFilter) {
           case 'today':
             return invoiceDate >= today;
@@ -346,24 +307,24 @@ const InvoiceManager = () => {
           case 'overdue':
             return new Date(invoice.dueDate) < today && invoice.status !== 'fizetett';
           case 'thisMonth':
-            return invoiceDate.getMonth() === today.getMonth() &&
+            return invoiceDate.getMonth() === today.getMonth() && 
                    invoiceDate.getFullYear() === today.getFullYear();
           case 'lastMonth':
             const lastMonth = new Date(today);
             lastMonth.setMonth(lastMonth.getMonth() - 1);
-            return invoiceDate.getMonth() === lastMonth.getMonth() &&
+            return invoiceDate.getMonth() === lastMonth.getMonth() && 
                    invoiceDate.getFullYear() === lastMonth.getFullYear();
           default:
             return true;
         }
       });
     }
-
+    
     // Projekt szűrő
     if (projectFilter !== 'all') {
       filtered = filtered.filter(invoice => invoice.projectId === projectFilter);
     }
-
+    
     // Rendezés
     filtered.sort((a, b) => {
       switch (sortBy) {
@@ -385,15 +346,15 @@ const InvoiceManager = () => {
           return 0;
       }
     });
-
+    
     setFilteredInvoices(filtered);
   };
-
+  
   // Szűrő változás követése
   useEffect(() => {
     applyFilters();
   }, [searchTerm, statusFilter, dateFilter, projectFilter, sortBy, recurringFilter, invoices]);
-
+  
 // Új számla létrehozása
 const handleCreateInvoice = async (selectedProjectForInvoice, invoiceData) => {
   if (!selectedProjectForInvoice) {
@@ -404,34 +365,34 @@ const handleCreateInvoice = async (selectedProjectForInvoice, invoiceData) => {
   try {
     console.log('Számla létrehozása a következő projekthez:', selectedProjectForInvoice.name);
     console.log('Kapott számla adatok:', invoiceData);
-
+    
     // Ellenőrizzük az összes tételt
     const validItems = [];
-
+    
     for (const item of invoiceData.items) {
       // Ellenőrizzük, hogy a leírás nem üres
       if (!item.description || item.description.trim() === '') {
         setError('A tétel leírása nem lehet üres!');
         return;
       }
-
+      
       // Biztosítsuk, hogy a mennyiség és egységár számok
       const quantity = parseFloat(item.quantity);
       const unitPrice = parseFloat(item.unitPrice);
-
+      
       if (isNaN(quantity) || quantity <= 0) {
         setError('A mennyiség pozitív szám kell, hogy legyen!');
         return;
       }
-
+      
       if (isNaN(unitPrice) || unitPrice < 0) {
         setError('Az egységár nem lehet negatív!');
         return;
       }
-
+      
       // Számoljuk ki a teljes árat
       const total = quantity * unitPrice;
-
+      
       // Adjuk hozzá a validált tételt
       validItems.push({
         description: item.description.trim(),
@@ -440,7 +401,7 @@ const handleCreateInvoice = async (selectedProjectForInvoice, invoiceData) => {
         total: total
       });
     }
-
+    
     // Számoljuk ki a végösszeget
     const totalAmount = validItems.reduce((sum, item) => sum + item.total, 0);
 
@@ -478,7 +439,7 @@ const handleCreateInvoice = async (selectedProjectForInvoice, invoiceData) => {
       `/api/projects/${selectedProjectForInvoice._id}/invoices`,
       finalInvoiceData
     );
-
+    
     if (!response.ok) {
       const errorData = await response.json();
       throw new Error(errorData.message || 'Nem sikerült létrehozni a számlát');
@@ -486,14 +447,14 @@ const handleCreateInvoice = async (selectedProjectForInvoice, invoiceData) => {
 
     const updatedProject = await response.json();
     console.log('Számla létrehozása sikeres', updatedProject);
-
+    
     // Keressük ki az újonnan létrehozott számlát
     const latestInvoice = updatedProject.invoices[updatedProject.invoices.length - 1];
-
+    
     if (!latestInvoice) {
       throw new Error('Nem sikerült azonosítani az újonnan létrehozott számlát');
     }
-
+    
     // Új számla hozzáadása a listához
     const newlyCreatedInvoice = {
       ...finalInvoiceData,
@@ -503,7 +464,7 @@ const handleCreateInvoice = async (selectedProjectForInvoice, invoiceData) => {
       clientName: selectedProjectForInvoice.client?.name || 'Ismeretlen ügyfél',
       currency: selectedProjectForInvoice.financial?.currency || 'EUR'
     };
-
+    
     setInvoices(prev => [...prev, newlyCreatedInvoice]);
     setFilteredInvoices(prev => [...prev, newlyCreatedInvoice]);
 
@@ -515,7 +476,7 @@ const handleCreateInvoice = async (selectedProjectForInvoice, invoiceData) => {
     setError(`Hiba történt a számla létrehozásakor: ${error.message}`);
   }
 };
-
+  
   // Új tétel hozzáadása
   const handleAddInvoiceItem = () => {
     setNewInvoice(prev => ({
@@ -523,7 +484,7 @@ const handleCreateInvoice = async (selectedProjectForInvoice, invoiceData) => {
       items: [...prev.items, { description: '', quantity: 1, unitPrice: 0 }]
     }));
   };
-
+  
   // Státusz alapján formázás
   const getStatusBadgeClass = (status) => {
     switch (status) {
@@ -539,24 +500,24 @@ const handleCreateInvoice = async (selectedProjectForInvoice, invoiceData) => {
         return 'bg-gray-100 text-gray-800 border border-gray-200';
     }
   };
-
+  
   // Fizetési határidő formázása
   const getDueDateClass = (dueDate, status) => {
     if (status === 'fizetett' || status === 'törölt') return 'text-gray-600';
-
+    
     const now = new Date();
     const due = new Date(dueDate);
-
+    
     if (due < now) return 'text-red-600 font-medium';
-
+    
     const threeDaysFromNow = new Date();
     threeDaysFromNow.setDate(now.getDate() + 3);
-
+    
     if (due <= threeDaysFromNow) return 'text-orange-600';
-
+    
     return 'text-gray-600';
   };
-
+  
   // Statisztikák számolása
   const statistics = {
     totalInvoices: filteredInvoices.length,
@@ -565,31 +526,31 @@ const handleCreateInvoice = async (selectedProjectForInvoice, invoiceData) => {
     pendingAmount: filteredInvoices.reduce((sum, inv) => sum + (inv.status !== 'fizetett' && inv.status !== 'törölt' ? (inv.totalAmount || 0) : 0), 0),
     overdue: filteredInvoices.filter(inv => new Date(inv.dueDate) < new Date() && inv.status !== 'fizetett' && inv.status !== 'törölt').length
   };
-
+  
   // Fizetési határidő visszajelzés
   const getDueStatus = (dueDate, status) => {
     if (status === 'fizetett' || status === 'törölt') return { icon: null, text: null };
-
+    
     const now = new Date();
     const due = new Date(dueDate);
-
+    
     if (due < now) {
-      return {
-        icon: <AlertCircle className="h-4 w-4 text-red-600 mr-1" />,
-        text: 'Lejárt'
+      return { 
+        icon: <AlertCircle className="h-4 w-4 text-red-600 mr-1" />, 
+        text: 'Lejárt' 
       };
     }
-
+    
     const threeDaysFromNow = new Date();
     threeDaysFromNow.setDate(now.getDate() + 3);
-
+    
     if (due <= threeDaysFromNow) {
-      return {
-        icon: <AlertCircle className="h-4 w-4 text-orange-600 mr-1" />,
-        text: 'Hamarosan lejár'
+      return { 
+        icon: <AlertCircle className="h-4 w-4 text-orange-600 mr-1" />, 
+        text: 'Hamarosan lejár' 
       };
     }
-
+    
     return { icon: null, text: null };
   };
 
@@ -631,7 +592,7 @@ const handleCreateInvoice = async (selectedProjectForInvoice, invoiceData) => {
             <Activity className="h-5 w-5 mr-1" />
             Naplók
           </button>
-
+          
           <button
             onClick={() => {
               if (projects.length === 0) {
@@ -714,7 +675,7 @@ const handleCreateInvoice = async (selectedProjectForInvoice, invoiceData) => {
               className="pl-10 pr-3 py-2 w-full border rounded-md"
             />
           </div>
-
+          
           <div className="flex-grow-0">
             <select
               value={statusFilter}
@@ -728,7 +689,7 @@ const handleCreateInvoice = async (selectedProjectForInvoice, invoiceData) => {
               <option value="törölt">Törölt</option>
             </select>
           </div>
-
+          
           <div className="flex-grow-0">
             <select
               value={recurringFilter}
@@ -740,7 +701,7 @@ const handleCreateInvoice = async (selectedProjectForInvoice, invoiceData) => {
               <option value="non-recurring">Egyszeri számlák</option>
             </select>
           </div>
-
+          
           <div className="flex-grow-0">
             <select
               value={dateFilter}
@@ -756,7 +717,7 @@ const handleCreateInvoice = async (selectedProjectForInvoice, invoiceData) => {
               <option value="lastMonth">Előző hónap</option>
             </select>
           </div>
-
+          
           <div className="flex-grow-0">
             <select
               value={projectFilter}
@@ -771,7 +732,7 @@ const handleCreateInvoice = async (selectedProjectForInvoice, invoiceData) => {
               ))}
             </select>
           </div>
-
+          
           <div className="flex-grow-0 ml-auto">
             <select
               value={sortBy}
@@ -788,12 +749,12 @@ const handleCreateInvoice = async (selectedProjectForInvoice, invoiceData) => {
             </select>
           </div>
         </div>
-
+        
         <div className="flex justify-between items-center mt-4">
           <span className="text-sm text-gray-500">
             {filteredInvoices.length} számla megjelenítve az összes {invoices.length} számla közül
           </span>
-
+          
           <button
             onClick={() => {
               setSearchTerm('');
@@ -844,7 +805,7 @@ const handleCreateInvoice = async (selectedProjectForInvoice, invoiceData) => {
               {filteredInvoices.length > 0 ? (
                 filteredInvoices.map((invoice) => {
                   const dueStatus = getDueStatus(invoice.dueDate, invoice.status);
-
+                  
                   return (
                     <tr key={invoice._id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -1007,7 +968,7 @@ const handleCreateInvoice = async (selectedProjectForInvoice, invoiceData) => {
 
       {/* Ismétlődő számlák napló modal */}
       {showRecurringLogsModal && (
-        <RecurringInvoiceLogsModal
+        <RecurringInvoiceLogsModal 
           onClose={() => setShowRecurringLogsModal(false)}
         />
       )}

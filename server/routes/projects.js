@@ -201,42 +201,16 @@ router.post('/projects/:id/invoices', async (req, res) => {
 
 // Számla státusz frissítése
 router.put('/projects/:projectId/invoices/:invoiceId', async (req, res) => {
-  console.log('Számla státusz frissítési kérés érkezett:', {
-    projectId: req.params.projectId,
-    invoiceId: req.params.invoiceId,
-    body: req.body
-  });
-
-  // Beállítunk egy időkorlátot a kérésre, hogy elkerüljük az időtúllépést
-  // Ha a kérés 30 másodpercnél tovább tart, akkor megszakítjuk
-  const timeout = setTimeout(() => {
-    console.error('Számla státusz frissítése időtúllépés miatt megszakadt');
-    if (!res.headersSent) {
-      res.status(504).json({
-        message: 'A kérés időtúllépés miatt megszakadt',
-        error: 'Gateway Timeout'
-      });
-    }
-  }, 25000); // 25 másodperc
-
   try {
-    console.log('Projekt keresése:', req.params.projectId);
     const project = await Project.findById(req.params.projectId);
     if (!project) {
-      clearTimeout(timeout);
-      console.error('Projekt nem található:', req.params.projectId);
       return res.status(404).json({ message: 'Project not found' });
     }
 
-    console.log('Számla keresése:', req.params.invoiceId);
     const invoice = project.invoices.id(req.params.invoiceId);
     if (!invoice) {
-      clearTimeout(timeout);
-      console.error('Számla nem található:', req.params.invoiceId);
       return res.status(404).json({ message: 'Invoice not found' });
     }
-
-    console.log('Eredeti számla státusz:', invoice.status);
 
     // Update invoice fields
     Object.assign(invoice, {
@@ -246,41 +220,14 @@ router.put('/projects/:projectId/invoices/:invoiceId', async (req, res) => {
 
     // If marking as paid, ensure proper paid amount and date
     if (req.body.status === 'fizetett') {
-      console.log('Számla státusza fizetett-re állítva');
       invoice.paidAmount = invoice.totalAmount;
       invoice.paidDate = new Date();
     }
 
-    console.log('Frissített számla státusz:', invoice.status);
-    console.log('Projekt mentése...');
-
-    // Mentés előtt ellenőrizzük, hogy a projekt érvényes-e
-    if (!project._id) {
-      clearTimeout(timeout);
-      console.error('Projekt _id hiányzik vagy érvénytelen');
-      return res.status(400).json({ message: 'Invalid project data' });
-    }
-
-    // Mentés
     await project.save();
-
-    // Ellenőrizzük, hogy a mentés után is megfelelő-e a státusz
-    const updatedProject = await Project.findById(req.params.projectId);
-    const updatedInvoice = updatedProject?.invoices?.id(req.params.invoiceId);
-
-    if (updatedInvoice) {
-      console.log('Számla státusza a mentés után:', updatedInvoice.status);
-    } else {
-      console.error('Nem található a számla a mentés után');
-    }
-
-    clearTimeout(timeout);
-    console.log('Számla státusz frissítése sikeres');
-    res.json(updatedProject);
+    res.json(project);
   } catch (error) {
-    clearTimeout(timeout);
-    console.error('Számla státusz frissítési hiba:', error);
-    console.error('Hibastack:', error.stack);
+    console.error('Invoice update error:', error);
     res.status(500).json({
       message: 'Server error while updating invoice',
       error: error.message

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import {
-  FileText, X, Download, Printer, Share2,
+import { 
+  FileText, X, Download, Printer, Share2, 
   CheckCircle, AlertCircle, Clock, Mail,
   CreditCard, RefreshCw
 } from 'lucide-react';
@@ -9,19 +9,45 @@ import QRCode from 'qrcode.react';
 import { downloadInvoicePDF } from '../../services/invoiceService';
 
 const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGeneratePDF }) => {
-  debugLog('InvoiceViewModal', 'Rendering invoice view', {
-    invoiceNumber: invoice?.number,
-    invoiceStatus: invoice?.status
+  debugLog('InvoiceViewModal', 'Rendering invoice view', { 
+    invoiceNumber: invoice?.number, 
+    invoiceStatus: invoice?.status 
   });
 
   const [showQRCode, setShowQRCode] = useState(false);
-
+  const [stripePaymentUrl, setStripePaymentUrl] = useState(null);
+  const [isLoadingPayment, setIsLoadingPayment] = useState(false);
+  const [paymentError, setPaymentError] = useState(null);
+  
   if (!invoice) {
     debugLog('InvoiceViewModal', 'No invoice provided');
     return null;
   }
-
-  // Eltávolítottuk a Stripe fizetési funkciót
+  
+  // Check for success or canceled payment in URL params when component mounts
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const success = url.searchParams.get('success');
+    const canceled = url.searchParams.get('canceled');
+    const invoiceId = url.searchParams.get('invoice');
+    
+    if (success === 'true' && invoiceId === invoice._id) {
+      debugLog('InvoiceViewModal', 'Payment was successful', { invoiceId });
+      // Update invoice status locally or refresh data
+      if (onUpdateStatus) {
+        onUpdateStatus(invoice._id, 'fizetett');
+      }
+    } else if (canceled === 'true' && invoiceId === invoice._id) {
+      debugLog('InvoiceViewModal', 'Payment was canceled', { invoiceId });
+      setPaymentError('A fizetés meg lett szakítva vagy elutasításra került.');
+    }
+    
+    // Clean up URL params
+    if (success || canceled) {
+      const cleanUrl = window.location.pathname;
+      window.history.replaceState({}, document.title, cleanUrl);
+    }
+  }, [invoice._id]);
 
   const currency = invoice?.currency || project?.financial?.currency || 'EUR';
 
@@ -43,8 +69,8 @@ const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGenerat
 
   // SEPA QR kód adat generálás
   const generateSepaQrData = () => {
-    const amount = typeof invoice.totalAmount === 'number'
-      ? invoice.totalAmount.toFixed(2)
+    const amount = typeof invoice.totalAmount === 'number' 
+      ? invoice.totalAmount.toFixed(2) 
       : '0.00';
 
     return [
@@ -72,7 +98,7 @@ const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGenerat
         color: 'bg-green-50 border-green-200'
       };
     }
-
+    
     if (invoice.status === 'törölt') {
       return {
         icon: <X className="h-5 w-5 text-gray-600 mr-2" />,
@@ -84,7 +110,7 @@ const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGenerat
 
     const now = new Date();
     const dueDate = new Date(invoice.dueDate);
-
+    
     if (dueDate < now) {
       return {
         icon: <AlertCircle className="h-5 w-5 text-red-600 mr-2" />,
@@ -93,10 +119,10 @@ const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGenerat
         color: 'bg-red-50 border-red-200'
       };
     }
-
+    
     const threeDaysFromNow = new Date();
     threeDaysFromNow.setDate(now.getDate() + 3);
-
+    
     if (dueDate <= threeDaysFromNow) {
       return {
         icon: <Clock className="h-5 w-5 text-yellow-600 mr-2" />,
@@ -105,7 +131,7 @@ const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGenerat
         color: 'bg-yellow-50 border-yellow-200'
       };
     }
-
+    
     return {
       icon: <FileText className="h-5 w-5 text-blue-600 mr-2" />,
       text: 'Kiállítva',
@@ -120,6 +146,112 @@ const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGenerat
   const handleSendReminder = () => {
     debugLog('InvoiceViewModal-sendReminder', 'Sending reminder for invoice', invoice.number);
     alert('Emlékeztető küldése funkcionalitás hamarosan elérhető lesz!');
+  };
+  
+  // Bankkártyás fizetés Stripe-pal
+  const handleCardPayment = async () => {
+    debugLog('InvoiceViewModal-cardPayment', 'Creating Stripe payment link', { invoiceId: invoice._id });
+    setIsLoadingPayment(true);
+    setPaymentError(null);
+    
+    try {
+      // Get project sharing info from localStorage to retrieve PIN
+      const savedSession = localStorage.getItem(`project_session_${project.sharing?.token}`);
+      const sessionData = savedSession ? JSON.parse(savedSession) : {};
+      const pin = sessionData.pin || '';
+      
+      // Create payment link through API - log additional debug information
+      const API_URL = 'https://admin.nb-studio.net:5001';
+      const API_KEY = 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0';
+      
+      // Ellenőrizzük és normalizáljuk az invoice adatait
+      const invoiceId = invoice._id?.toString() || invoice.id?.toString();
+      const projectId = project._id?.toString() || project.id?.toString();
+      
+      console.log('Sending payment request to API');
+      console.log('Final API URL:', `${API_URL}/api/payments/create-payment-link`);
+      console.log('Invoice ID:', invoiceId, 'Type:', typeof invoiceId);
+      console.log('Project ID:', projectId, 'Type:', typeof projectId);
+      
+      if (!invoiceId || !projectId) {
+        throw new Error('Hiányzó számla vagy projekt azonosító');
+      }
+      
+      // Részletes adatok kiírása a konzolra
+      console.log('Invoice details:', JSON.stringify(invoice, null, 2));
+      
+      const response = await fetch(`${API_URL}/api/payments/create-payment-link`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-API-Key': API_KEY,
+          'Accept': 'application/json',
+          'Origin': window.location.origin
+        },
+        body: JSON.stringify({
+          invoiceId: invoiceId,
+          projectId: projectId,
+          pin: pin
+        }),
+        credentials: 'include'
+      });
+      
+      // Részletes válasz feldolgozás
+      console.log('Response status:', response.status);
+      console.log('Response headers:', response.headers);
+      
+      try {
+        const data = await response.json();
+        console.log('Response data:', data);
+        
+        if (response.ok && data.success) {
+          setStripePaymentUrl(data.url);
+          debugLog('InvoiceViewModal-cardPayment', 'Payment link created', { 
+            url: data.url,
+            sessionId: data.sessionId 
+          });
+          
+          // Sikeres fizetési link - mentjük localStorage-ba is a későbbi ellenőrzéshez
+          try {
+            localStorage.setItem('stripe_session_' + invoiceId, JSON.stringify({
+              sessionId: data.sessionId,
+              url: data.url,
+              timestamp: new Date().toISOString(),
+              invoiceId: invoiceId
+            }));
+          } catch (storageError) {
+            console.warn('Could not save stripe session to localStorage', storageError);
+          }
+          
+          // Átirányítás a Stripe oldalára némi késleltetéssel, hogy a hibaüzenetek el tudjanak tűnni
+          setTimeout(() => {
+            window.location.href = data.url;
+          }, 500);
+        } else {
+          // Részletes hibaüzenet megjelenítése
+          setPaymentError(
+            data.message || 
+            (data.error ? `Hiba: ${data.error}` : 'Hiba történt a fizetési link létrehozásakor')
+          );
+          debugLog('InvoiceViewModal-cardPayment', 'Error creating payment link', { 
+            error: data.message,
+            details: data
+          });
+        }
+      } catch (jsonError) {
+        console.error('Failed to parse response as JSON:', jsonError);
+        setPaymentError(`Hiba: ${response.status} - ${response.statusText}`);
+      }
+    } catch (error) {
+      console.error('Stripe payment error:', error);
+      setPaymentError(`Kapcsolati hiba: ${error.message}`);
+      debugLog('InvoiceViewModal-cardPayment', 'Exception during payment link creation', { 
+        error: error.message,
+        stack: error.stack
+      });
+    } finally {
+      setIsLoadingPayment(false);
+    }
   };
 
   return (
@@ -143,7 +275,7 @@ const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGenerat
             <X className="h-6 w-6" />
           </button>
         </div>
-
+        
         <div className="p-6 flex-1 overflow-auto">
           {/* Státusz jelző */}
           <div className={`mb-6 p-4 rounded-lg flex items-center ${invoiceStatus.color}`}>
@@ -153,7 +285,7 @@ const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGenerat
               <p className="text-sm">{invoiceStatus.description}</p>
             </div>
           </div>
-
+          
           <div className="w-full max-w-2xl mx-auto bg-white p-8 border border-gray-200 rounded-lg shadow-sm">
             {/* Invoice Header */}
             <div className="flex justify-between items-start mb-8">
@@ -169,7 +301,7 @@ const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGenerat
                 </span>
               </div>
             </div>
-
+            
             {/* Company Information */}
             <div className="grid grid-cols-2 gap-8 mb-8">
               <div>
@@ -193,7 +325,7 @@ const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGenerat
                 )}
               </div>
             </div>
-
+            
             {/* Items Table */}
             <div className="mb-8">
               <h3 className="font-bold mb-2 text-gray-700">Tételek:</h3>
@@ -230,7 +362,7 @@ const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGenerat
                 </tfoot>
               </table>
             </div>
-
+            
             {/* Payment Information */}
             {invoice.status !== 'törölt' && invoice.status !== 'fizetett' && (
               <div className="mb-8">
@@ -243,7 +375,7 @@ const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGenerat
                       <p>SWIFT/BIC: COBADEFFXXX</p>
                       <p>Bank: Commerzbank AG</p>
                       <p className="mt-2">Közlemény: {invoice.number}</p>
-
+                      
                       {/* Bankkártyás fizetés */}
                       <div className="mt-4">
                         <p className="mb-1 font-medium">Bankkártyás fizetés:</p>
@@ -255,7 +387,7 @@ const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGenerat
                           <CreditCard className="h-4 w-4 mr-1" />
                           {isLoadingPayment ? 'Betöltés...' : 'Fizetés bankkártyával'}
                         </button>
-
+                        
                         {paymentError && (
                           <div className="mt-2 p-2 bg-red-50 border border-red-200 text-red-700 rounded text-sm">
                             {paymentError}
@@ -263,11 +395,11 @@ const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGenerat
                         )}
                       </div>
                     </div>
-
+                    
                     <div className="flex flex-col items-center">
                       {showQRCode ? (
                         <>
-                          <QRCode
+                          <QRCode 
                             value={generateSepaQrData()}
                             size={120}
                             level="M"
@@ -311,7 +443,7 @@ const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGenerat
                           {transaction.created ? new Date(transaction.created).toLocaleDateString() : 'N/A'}
                         </div>
                       </div>
-
+                      
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                         <div>
                           <p><span className="font-medium">Tranzakció azonosító:</span> {transaction.transactionId || 'N/A'}</p>
@@ -324,13 +456,13 @@ const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGenerat
                           )}
                           <p><span className="font-medium">Státusz:</span> {transaction.status}</p>
                         </div>
-
+                        
                         {transaction.metadata && (
                           <div>
                             {transaction.metadata.receiptUrl && (
-                              <a
-                                href={transaction.metadata.receiptUrl}
-                                target="_blank"
+                              <a 
+                                href={transaction.metadata.receiptUrl} 
+                                target="_blank" 
                                 rel="noopener noreferrer"
                                 className="inline-flex items-center text-blue-600 hover:text-blue-800"
                               >
@@ -349,7 +481,7 @@ const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGenerat
                 </div>
               </div>
             )}
-
+            
             {/* Recurring Invoice Info */}
             {invoice.recurring?.isRecurring && (
               <div className="mb-8">
@@ -368,7 +500,7 @@ const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGenerat
                 </div>
               </div>
             )}
-
+            
             {/* Notes */}
             {invoice.notes && (
               <div className="mb-8">
@@ -378,7 +510,7 @@ const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGenerat
                 </div>
               </div>
             )}
-
+            
             {/* Footer */}
             <div className="text-center text-gray-600 text-sm mt-12">
               <p>Köszönjük, hogy minket választott!</p>
@@ -386,7 +518,7 @@ const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGenerat
             </div>
           </div>
         </div>
-
+        
         <div className="flex justify-between items-center p-4 border-t bg-gray-50">
           {/* Bal oldali gombok - csak nem fizetett és nem törölt számlánál */}
           {invoice.status !== 'fizetett' && invoice.status !== 'törölt' && (
@@ -400,7 +532,7 @@ const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGenerat
               </button>
             </div>
           )}
-
+          
           {/* Jobb oldali gombok */}
           <div className="flex space-x-3 ml-auto">
             <button

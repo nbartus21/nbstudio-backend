@@ -401,8 +401,6 @@ const ProfileEditModal = ({
 
               // Próbáljuk meg a verify-pin végpontot
               try {
-                // Használjuk a helyes végpont URL-t a verify-pin híváshoz
-                // Fontos: Az API_URL már tartalmazza az /api előtagot, ezért nem kell duplikálni
                 const verifyPinResponse = await fetch(`${API_URL}/public/projects/verify-pin`, {
                   method: 'POST',
                   headers: {
@@ -411,12 +409,6 @@ const ProfileEditModal = ({
                   },
                   body: JSON.stringify(updateProjectData),
                   credentials: 'omit'
-                });
-
-                // Naplózzuk a teljes kérést és választ a hibakereséshez
-                debugLog('ProfileEditModal-submit', 'Verify-pin request', {
-                  url: `${API_URL}/public/projects/verify-pin`,
-                  data: updateProjectData
                 });
 
                 debugLog('ProfileEditModal-submit', 'Verify-pin válasz státusz:', verifyPinResponse.status);

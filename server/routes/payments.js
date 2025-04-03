@@ -8,7 +8,7 @@ const router = express.Router();
 // FIGYELEM: Új helyes kulcsot használunk minden alkalommal
 const STRIPE_SECRET_KEY = 'sk_test_51QmjbrG2GB8RzYFBotDBVtSaWeDlhZ8fURnDB20HIIz9XzaqLaMFTStyNo4XWThSge1wRoZTVrKM5At5xnXVLIzf00jCtmKyXX';
 
-// Inicializáljuk a Stripe-ot
+// Inicializáljuk a Stripe-ot 
 console.log('Initializing Stripe with key starting with:', STRIPE_SECRET_KEY.substring(0, 10) + '...');
 
 // Stripe API objektum létrehozása explicit opcióval
@@ -42,7 +42,7 @@ router.post('/create-payment-link', async (req, res) => {
     path: req.path,
     url: req.originalUrl
   });
-
+  
   // Ha a stripe még nincs inicializálva, próbáljuk meg most
   if (!stripe) {
     try {
@@ -68,47 +68,47 @@ router.post('/create-payment-link', async (req, res) => {
       });
     }
   }
-
+  
   try {
     // Ellenőrizzük, hogy van-e request body és kibontható-e
     if (!req.body || Object.keys(req.body).length === 0) {
       console.error('Request body is empty or invalid');
-      return res.status(400).json({
-        success: false,
+      return res.status(400).json({ 
+        success: false, 
         message: 'Hiányzó vagy érvénytelen kérés adatok',
-        receivedBody: req.body
+        receivedBody: req.body 
       });
     }
-
+    
     // Részletes naplózás a request adatairól
     console.log('Request body details:');
     console.log('- Type:', typeof req.body);
     console.log('- Keys:', Object.keys(req.body));
     console.log('- Content:', JSON.stringify(req.body, null, 2));
-
+    
     const { invoiceId, projectId, pin } = req.body;
-
-    console.log('Processing payment request with data:', {
-      invoiceId,
-      projectId,
+    
+    console.log('Processing payment request with data:', { 
+      invoiceId, 
+      projectId, 
       pin: pin ? 'provided' : 'missing',
       invoiceIdType: typeof invoiceId,
       projectIdType: typeof projectId
     });
-
+    
     // Ellenőrizzük az azonosítókat
     if (!invoiceId) {
       return res.status(400).json({ success: false, message: 'Hiányzó számla azonosító' });
     }
-
+    
     if (!projectId) {
       return res.status(400).json({ success: false, message: 'Hiányzó projekt azonosító' });
     }
-
+    
     // Próbáljuk meg MongoDB ObjectId-ként kezelni, ha érvényes
     let isValidInvoiceId = true;
     let isValidProjectId = true;
-
+    
     try {
       if (mongoose.Types.ObjectId.isValid(invoiceId)) {
         console.log('Invoice ID is valid MongoDB ObjectId');
@@ -120,7 +120,7 @@ router.post('/create-payment-link', async (req, res) => {
       console.log('Error validating invoice ID:', e.message);
       isValidInvoiceId = false;
     }
-
+    
     try {
       if (mongoose.Types.ObjectId.isValid(projectId)) {
         console.log('Project ID is valid MongoDB ObjectId');
@@ -136,17 +136,17 @@ router.post('/create-payment-link', async (req, res) => {
     // Find the invoice in the database
     // Use the Project model to find the invoice within a project
     const Project = mongoose.model('Project');
-
+    
     // Próbáljuk meg lekérni a projektet különböző módszerekkel
     let project = null;
-
+    
     try {
       console.log('Searching for project with multiple methods');
-
+      
       // Ellenőrizzük először, hogy a Project model elérhető-e
       const Project = mongoose.model('Project');
       console.log('Project model successfully accessed');
-
+      
       // Első próbálkozás: MongoDB ObjectId alapján keresés
       if (isValidProjectId) {
         console.log('Searching project by _id (ObjectId):', projectId);
@@ -155,7 +155,7 @@ router.post('/create-payment-link', async (req, res) => {
           console.log('Project found by _id search');
         }
       }
-
+      
       // Második próbálkozás: egyedi ID mező alapján keresés
       if (!project) {
         console.log('Project not found by ObjectId, trying by custom id field');
@@ -164,7 +164,7 @@ router.post('/create-payment-link', async (req, res) => {
           console.log('Project found by id field search');
         }
       }
-
+      
       // Harmadik próbálkozás: megosztási token alapján keresés
       if (!project) {
         console.log('Project not found by id field either, trying by sharing.token');
@@ -173,7 +173,7 @@ router.post('/create-payment-link', async (req, res) => {
           console.log('Project found by sharing.token search');
         }
       }
-
+      
       // Negyedik próbálkozás: név vagy más mezők alapján
       if (!project) {
         console.log('Project not found by sharing.token either, trying other fields');
@@ -188,15 +188,15 @@ router.post('/create-payment-link', async (req, res) => {
           console.log('Project found by other fields search');
         }
       }
-
+      
       // Nincs találat, debug információk
       if (!project) {
         console.log('Project not found by any method, checking if projects exist');
-
+        
         // Ellenőrizzük, hogy léteznek-e egyáltalán projektek
         const projectCount = await Project.countDocuments();
         console.log(`Total project count in database: ${projectCount}`);
-
+        
         // Ha vannak projektek, nézzük meg párat közülük
         if (projectCount > 0) {
           const sampleProjects = await Project.find().limit(3).select('_id name sharing');
@@ -213,27 +213,27 @@ router.post('/create-payment-link', async (req, res) => {
       console.error('Error finding project:', projectError);
       console.error('Project error stack:', projectError.stack);
     }
-
+    
     if (!project) {
-      return res.status(404).json({
-        success: false,
+      return res.status(404).json({ 
+        success: false, 
         message: 'A projekt nem található',
         projectId: projectId,
         validId: isValidProjectId
       });
     }
-
+    
     console.log('Project found:', {
       projectId: project._id,
       projectName: project.name,
       invoiceCount: project.invoices?.length || 0
     });
-
+    
     // Próbáljuk megtalálni a számlát a projektben
     let invoice = null;
-
+    
     console.log('Searching for invoice in project, invoices count:', project.invoices?.length || 0);
-
+    
     if (project.invoices && project.invoices.length > 0) {
       // Részletes naplózás a projektben található számlákról
       console.log('Listing all invoices in project:');
@@ -246,7 +246,7 @@ router.post('/create-payment-link', async (req, res) => {
           totalAmount: inv.totalAmount || 'undefined'
         });
       });
-
+      
       // Próbáljuk meg az id() függvényt, ami a MongoDB subdocument-ekhez való
       try {
         console.log('Attempting to find invoice using .id() method with invoiceId:', invoiceId);
@@ -257,48 +257,48 @@ router.post('/create-payment-link', async (req, res) => {
       } catch (idError) {
         console.error('Error using invoices.id():', idError.message);
       }
-
+      
       // Ha nem sikerült, próbáljuk kézzel keresni
       if (!invoice) {
         console.log('Invoice not found by .id() method, searching manually');
-
+        
         // Keresés _id alapján
         console.log('Searching by _id comparison');
-        invoice = project.invoices.find(inv =>
+        invoice = project.invoices.find(inv => 
           inv._id && (inv._id.toString() === invoiceId || inv._id.equals(invoiceId))
         );
         if (invoice) {
           console.log('Invoice found by _id comparison');
         }
-
+        
         // Ha nem sikerült, keresés id alapján
         if (!invoice) {
           console.log('Searching by id field');
-          invoice = project.invoices.find(inv =>
+          invoice = project.invoices.find(inv => 
             inv.id && inv.id.toString() === invoiceId
           );
           if (invoice) {
             console.log('Invoice found by id field');
           }
         }
-
+        
         // Ha nem sikerült, keresés number alapján
         if (!invoice) {
           console.log('Searching by number field');
-          invoice = project.invoices.find(inv =>
+          invoice = project.invoices.find(inv => 
             inv.number && inv.number.toString() === invoiceId
           );
           if (invoice) {
             console.log('Invoice found by number field');
           }
         }
-
+        
         // Ha még mindig nincs találat, talán az invoiceId nem string
         if (!invoice && typeof invoiceId !== 'string') {
           console.log('Converting invoiceId to string and trying again');
           const invoiceIdStr = String(invoiceId);
-          invoice = project.invoices.find(inv =>
-            (inv._id && inv._id.toString() === invoiceIdStr) ||
+          invoice = project.invoices.find(inv => 
+            (inv._id && inv._id.toString() === invoiceIdStr) || 
             (inv.id && inv.id.toString() === invoiceIdStr) ||
             (inv.number && inv.number.toString() === invoiceIdStr)
           );
@@ -308,17 +308,17 @@ router.post('/create-payment-link', async (req, res) => {
         }
       }
     }
-
+    
     if (!invoice) {
-      return res.status(404).json({
-        success: false,
+      return res.status(404).json({ 
+        success: false, 
         message: 'A számla nem található a projektben',
         invoiceId: invoiceId,
         projectId: projectId,
         invoiceCount: project.invoices?.length || 0
       });
     }
-
+    
     console.log('Invoice found:', {
       invoiceId: invoice._id,
       invoiceNumber: invoice.number,
@@ -339,23 +339,23 @@ router.post('/create-payment-link', async (req, res) => {
       origin: req.headers.origin || 'https://project.nb-studio.net',
       sharingToken: project.sharing?.token
     });
-
+    
     // Létrehozzuk a sikeres és megszakított URL-eket
     let successUrl = `${req.headers.origin || 'https://project.nb-studio.net'}/shared-project/${project.sharing?.token || projectId}?success=true&invoice=${invoiceId}`;
     let cancelUrl = `${req.headers.origin || 'https://project.nb-studio.net'}/shared-project/${project.sharing?.token || projectId}?canceled=true`;
-
+    
     try {
       // Ellenőrizzük a kötelező mezőket
       if (!invoice.totalAmount || typeof invoice.totalAmount !== 'number') {
         throw new Error('Invalid invoice amount: ' + JSON.stringify(invoice.totalAmount));
       }
-
+      
       // Tartalék érték létrehozása az adatoknak
       const productName = invoice.number ? `Számla #${invoice.number}` : 'Számla fizetés';
       const productDesc = invoice.number && project.name
         ? `Fizetés a ${invoice.number} számú számlához - ${project.name}`
         : 'Számla fizetés';
-
+        
       // Log egy teszt API hívás eredménye (csak debug céllal)
       try {
         // Teszt API hívás a Stripe inicializálás ellenőrzéséhez
@@ -363,7 +363,7 @@ router.post('/create-payment-link', async (req, res) => {
         console.log('Stripe API test successful, found customers:', test.data.length);
       } catch (testError) {
         console.error('Stripe API test failed:', testError);
-
+        
         // Probáljuk újra inicializálni a Stripe-ot
         console.log('Attempting to re-initialize Stripe with correct key...');
         try {
@@ -378,20 +378,20 @@ router.post('/create-payment-link', async (req, res) => {
             timeout: 30000,
             protocol: 'https'
           });
-
+          
           // Ellenőrizzük, hogy működik-e
           const test2 = await stripe.customers.list({ limit: 1 });
           console.log('Stripe re-initialization successful, found customers:', test2.data.length);
         } catch (reinitError) {
           console.error('Stripe re-initialization failed:', reinitError);
-          return res.status(500).json({
-            success: false,
+          return res.status(500).json({ 
+            success: false, 
             message: 'A fizetési rendszer jelenleg nem elérhető. Kérjük próbálja meg később vagy válasszon másik fizetési módot.',
             error: 'Stripe API initialization error'
           });
         }
       }
-
+      
       // Adatok tisztítása és előkészítése
       let metadataValues = {};
       try {
@@ -408,7 +408,7 @@ router.post('/create-payment-link', async (req, res) => {
         console.error('Error preparing metadata:', metadataError);
         metadataValues = { testValue: 'test123' };
       }
-
+      
       // Stripe Checkout Session létrehozása egyszerűbb konfigurációval
       console.log('Creating Stripe session with clean data');
       const session = await stripe.checkout.sessions.create({
@@ -429,14 +429,14 @@ router.post('/create-payment-link', async (req, res) => {
         cancel_url: cancelUrl,
         metadata: metadataValues,
       });
-
+      
       console.log('Stripe session created successfully:', {
         sessionId: session.id,
         url: session.url
       });
-
-      res.json({
-        success: true,
+      
+      res.json({ 
+        success: true, 
         url: session.url,
         sessionId: session.id
       });
@@ -453,8 +453,8 @@ router.post('/create-payment-link', async (req, res) => {
   } catch (error) {
     console.error('Stripe payment link creation error:', error);
     // Részletesebb hibaüzenet, hogy könnyebben diagnosztizálható legyen
-    res.status(500).json({
-      success: false,
+    res.status(500).json({ 
+      success: false, 
       message: 'Hiba történt a fizetési link létrehozásakor',
       error: error.message,
       stack: process.env.NODE_ENV !== 'production' ? error.stack : undefined
@@ -480,105 +480,47 @@ router.post('/webhook', (req, res, next) => {
   }
 }, async (req, res) => {
   const sig = req.headers['stripe-signature'];
-  // Használjunk egy alapértelmezett webhook secret-et, ha nincs beállítva a környezeti változóban
-  const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET || 'whsec_12345';
+  const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
   let event;
 
-  // Részletes naplózás a webhook eseményről
-  console.log('Stripe webhook received:', {
-    headers: req.headers,
-    signature: sig ? 'Present' : 'Missing',
-    contentType: req.headers['content-type'],
-    bodyLength: req.rawBody ? req.rawBody.length : 0,
-    timestamp: new Date().toISOString(),
-    url: req.originalUrl
-  });
-
-  // Naplózzuk a teljes webhook tartalmát is
   try {
-    const webhookBody = JSON.parse(req.rawBody || '{}');
-    console.log('Webhook body:', {
-      type: webhookBody.type,
-      id: webhookBody.id,
-      object: webhookBody.object,
-      apiVersion: webhookBody.api_version,
-      data: webhookBody.data ? 'Present' : 'Missing'
-    });
-
-    if (webhookBody.data && webhookBody.data.object) {
-      console.log('Webhook data object:', {
-        id: webhookBody.data.object.id,
-        object: webhookBody.data.object.object,
-        metadata: webhookBody.data.object.metadata
-      });
-    }
-  } catch (parseError) {
-    console.error('Error parsing webhook body:', parseError);
-  }
-
-  try {
-    // Ha nincs signature vagy endpointSecret, akkor közvetlenül parse-oljuk a JSON-t
-    if (!sig || !endpointSecret || endpointSecret === 'whsec_12345') {
-      console.log('Webhook signature verification skipped - parsing JSON directly');
-      event = JSON.parse(req.rawBody || '{}');
-    } else {
-      // Ha van signature és endpointSecret, akkor ellenőrizzük a signature-t
-      event = stripe.webhooks.constructEvent(req.rawBody || '{}', sig, endpointSecret);
-      console.log('Webhook signature verification successful');
-    }
+    event = stripe.webhooks.constructEvent(req.rawBody || '{}', sig, endpointSecret);
   } catch (err) {
-    console.error('Webhook processing error:', err.message);
-    // Próbáljuk meg közvetlenül parse-olni a JSON-t, ha a signature ellenőrzés nem sikerült
-    try {
-      event = JSON.parse(req.rawBody || '{}');
-      console.log('Fallback to direct JSON parsing successful');
-    } catch (jsonError) {
-      console.error('JSON parsing also failed:', jsonError.message);
-      return res.status(400).send(`Webhook Error: ${err.message}, JSON parsing also failed: ${jsonError.message}`);
-    }
+    console.error('Webhook signature verification failed:', err.message);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
   // Handle the checkout.session.completed event
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
-
+    
     // Extract metadata
-    const { invoiceId, projectId } = session.metadata || {};
-
+    const { invoiceId, projectId } = session.metadata;
+    
     console.log('Payment successful, received checkout.session.completed webhook', {
       sessionId: session.id,
       paymentIntentId: session.payment_intent,
       amount: session.amount_total / 100,
-      currency: session.currency,
-      metadata: session.metadata,
-      timestamp: new Date().toISOString()
+      currency: session.currency
     });
-
-    // Naplózzuk a metadata tartalmát részletesen
-    console.log('Session metadata details:', session.metadata);
-
+    
     if (invoiceId && projectId) {
       try {
         // Update invoice status in the project
         const Project = mongoose.model('Project');
         const project = await Project.findById(projectId);
-
+        
         if (project) {
           const invoice = project.invoices.id(invoiceId);
-
+          
           if (invoice) {
             // Frissítsük a számla alapadatait
-            console.log(`Updating invoice ${invoiceId} status to 'fizetett'`);
-            console.log('Current invoice status:', invoice.status);
-
             invoice.status = 'fizetett';
             invoice.paidDate = new Date();
             invoice.paidAmount = session.amount_total / 100; // Convert from cents
             invoice.paymentMethod = 'card';
             invoice.paymentReference = session.payment_intent;
-
-            console.log('Invoice status updated to:', invoice.status);
-
+            
             // Most szerezzük be a részletes fizetési adatokat
             try {
               // Lekérjük a payment intent részleteit a Stripe-tól
@@ -586,21 +528,21 @@ router.post('/webhook', (req, res, next) => {
               const paymentIntent = await stripe.paymentIntents.retrieve(session.payment_intent, {
                 expand: ['payment_method', 'latest_charge', 'customer']
               });
-
+              
               console.log('Payment intent details retrieved:', {
                 id: paymentIntent.id,
                 status: paymentIntent.status,
                 amount: paymentIntent.amount / 100
               });
-
+              
               // Lekérjük a tranzakció részleteket a charge-ból
               const charge = paymentIntent.latest_charge;
-
+              
               // Inicializáljuk a tranzakciók tömböt, ha még nem létezik
               if (!invoice.transactions) {
                 invoice.transactions = [];
               }
-
+              
               // Létrehozzuk az új tranzakciót
               const transaction = {
                 transactionId: charge.id,
@@ -622,7 +564,7 @@ router.post('/webhook', (req, res, next) => {
                   receiptNumber: charge.receipt_number
                 }
               };
-
+              
               // Ha van kártya adatok, azokat is eltároljuk
               if (paymentIntent.payment_method && paymentIntent.payment_method.card) {
                 const card = paymentIntent.payment_method.card;
@@ -630,79 +572,41 @@ router.post('/webhook', (req, res, next) => {
                 transaction.paymentMethod.last4 = card.last4;
                 transaction.paymentMethod.country = card.country;
               }
-
+              
               // Hozzáadjuk a tranzakciót a számlához
               invoice.transactions.push(transaction);
-
+              
               console.log(`Payment transaction details saved to invoice ${invoiceId}`);
             } catch (stripeError) {
               console.error('Error retrieving payment details from Stripe:', stripeError);
               // Még ha nem sikerül a részletes adatok lekérése, a fizetés ettől sikeres lehet
             }
-
-            // Létrehozunk vagy frissítünk egy bejegyzést az Accounting modellben is
+            
+            // Létrehozunk egy bejegyzést az Accounting modellben is
             try {
               const Accounting = mongoose.model('Accounting');
-
-              // Ellenőrizzük, hogy van-e már létező bejegyzés ehhez a számlához
-              const existingRecord = await Accounting.findOne({
+              
+              await Accounting.create({
+                type: 'income',
+                category: 'project_invoice',
+                amount: invoice.paidAmount,
+                currency: session.currency.toUpperCase(),
+                date: new Date(),
+                description: `Számla fizetés: ${invoice.number} - ${project.name}`,
                 invoiceNumber: invoice.number,
-                projectId: project._id
+                paymentStatus: 'paid',
+                projectId: project._id,
+                notes: `Stripe fizetés (${session.payment_intent})`,
+                createdBy: 'system'
               });
-
-              if (existingRecord) {
-                // Ha már létezik, frissítsük a státuszát
-                existingRecord.paymentStatus = 'paid';
-                existingRecord.paidAmount = invoice.paidAmount;
-                existingRecord.paidDate = new Date();
-                existingRecord.notes = `${existingRecord.notes || ''} | Stripe fizetés (${session.payment_intent})`;
-                await existingRecord.save();
-                console.log(`Existing accounting record updated for invoice ${invoiceId}`);
-              } else {
-                // Ha még nem létezik, hozzunk létre egy újat
-                await Accounting.create({
-                  type: 'income',
-                  category: 'project_invoice',
-                  amount: invoice.paidAmount,
-                  currency: session.currency.toUpperCase(),
-                  date: new Date(),
-                  description: `Számla fizetés: ${invoice.number} - ${project.name}`,
-                  invoiceNumber: invoice.number,
-                  paymentStatus: 'paid',
-                  paidAmount: invoice.paidAmount,
-                  paidDate: new Date(),
-                  projectId: project._id,
-                  notes: `Stripe fizetés (${session.payment_intent})`,
-                  createdBy: 'system'
-                });
-                console.log(`New accounting record created for invoice ${invoiceId}`);
-              }
+              
+              console.log(`Accounting record created for invoice ${invoiceId}`);
             } catch (accountingError) {
-              console.error('Error handling accounting record:', accountingError);
+              console.error('Error creating accounting record:', accountingError);
             }
-
-            // Mentés előtt ellenőrizzük, hogy a projekt érvényes-e
-            if (!project || !project._id) {
-              console.error('Project is invalid or missing _id');
-              return res.status(400).json({ error: 'Invalid project' });
-            }
-
-            // Mentés előtt ellenőrizzük, hogy a számla státusza valóban változott-e
-            console.log('Final invoice status before save:', invoice.status);
-
-            // Mentés
+            
             await project.save();
             console.log(`Invoice ${invoiceId} marked as paid via Stripe payment in project ${projectId}`);
-
-            // Ellenőrizzük, hogy a mentés után is megfelelő-e a státusz
-            const updatedProject = await mongoose.model('Project').findById(projectId);
-            const updatedInvoice = updatedProject?.invoices?.id(invoiceId);
-
-            if (updatedInvoice) {
-              console.log('Invoice status after save:', updatedInvoice.status);
-            } else {
-              console.error('Could not find invoice after save');
-            }
           } else {
             console.error(`Invoice ${invoiceId} not found in project ${projectId}`);
           }
