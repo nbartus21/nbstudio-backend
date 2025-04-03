@@ -1039,22 +1039,59 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
         // Egyszerű lábléc egy sorban - sokkal magasabbra helyezve
         const footerTop = doc.page.height - 70; // Sokkal magasabbra helyezve
 
-        // Vékony vonal a lábléc tetején
-        doc.rect(0, footerTop, doc.page.width, 0.5)
-           .fill(colors.primary);
+        // Nincs vonal a lábléc tetején
 
         // Lábléc szöveg - abszolút pozícióban
         doc.font('Helvetica')
            .fontSize(7)
            .fillColor(colors.secondary);
 
-        // Minden szöveg egy sorban, abszolút pozícióban
-        const footerText = 'NB Studio | Bartus Norbert | www.nb-studio.net | Ez a számla elektronikusan készült és érvényes aláírás nélkül is. | ' + (i + 1) + '. oldal';
-        doc.text(footerText, 40, footerTop + 5, {
-          align: 'center',
-          width: doc.page.width - 80,
-          lineBreak: false,
-          continued: false
+        // Céges adatok a láblécben - több sorban
+        doc.fontSize(7)
+           .fillColor(colors.secondary);
+
+        // Bal oldali céges adatok
+        doc.text('NB Studio | Bartus Norbert', 40, footerTop + 5, {
+          align: 'left',
+          width: 200,
+          lineBreak: false
+        });
+
+        doc.text('St.-Nr.: 68194547329 | USt-IdNr.: DE346419031', 40, footerTop + 15, {
+          align: 'left',
+          width: 200,
+          lineBreak: false
+        });
+
+        doc.text('IBAN: DE47 6634 0018 0473 4638 00', 40, footerTop + 25, {
+          align: 'left',
+          width: 200,
+          lineBreak: false
+        });
+
+        doc.text('BANK: Commerzbank AG | SWIFT/BIC: COBADEFFXXX', 40, footerTop + 35, {
+          align: 'left',
+          width: 300,
+          lineBreak: false
+        });
+
+        // Jobb oldali szöveg
+        doc.text('Ez a számla elektronikusan készült és érvényes aláírás nélkül is.', 350, footerTop + 5, {
+          align: 'right',
+          width: 200,
+          lineBreak: false
+        });
+
+        doc.text('Als Kleinunternehmer im Sinne von § 19 Abs. 1 UStG wird keine Umsatzsteuer berechnet.', 350, footerTop + 15, {
+          align: 'right',
+          width: 200,
+          lineBreak: false
+        });
+
+        doc.text('www.nb-studio.net | ' + (i + 1) + '. oldal', 350, footerTop + 35, {
+          align: 'right',
+          width: 200,
+          lineBreak: false
         });
       }
 
