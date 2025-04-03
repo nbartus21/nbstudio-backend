@@ -1002,31 +1002,31 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
       // Összegzés táblázat - ultra-kompakt, explicit opciókkal - kisebb távolsággal
       const summaryStartY = currentY + 2; // Kisebb távolság
 
-      // Összegzés háttér - ultra-kompakt
-      doc.roundedRect(350, summaryStartY, 210, 40, 3) // Még kisebb magasság
+      // Összegzés háttér - extrém kompakt
+      doc.roundedRect(350, summaryStartY, 210, 35, 3) // Extrém kis magasság
          .fillAndStroke('#F9FAFB', colors.border);
 
-      // Részösszeg sor - explicit opciókkal, kisebb távolságokkal
+      // Részösszeg sor - extrém kompakt
       doc.font('Helvetica')
          .fillColor(colors.text)
          .fontSize(9);
-      doc.text('Részösszeg:', 360, summaryStartY + 8, { width: 100, align: 'left', lineBreak: false });
-      doc.text(`${invoice.totalAmount} ${invoice.currency || 'EUR'}`, 450, summaryStartY + 8, { width: 100, align: 'right', lineBreak: false });
+      doc.text('Részösszeg:', 360, summaryStartY + 6, { width: 100, align: 'left', lineBreak: false }); // Még kisebb távolság
+      doc.text(`${invoice.totalAmount} ${invoice.currency || 'EUR'}`, 450, summaryStartY + 6, { width: 100, align: 'right', lineBreak: false });
 
-      // ÁFA sor (ha van) - explicit opciókkal, kisebb távolságokkal
-      doc.text('ÁFA (0%):', 360, summaryStartY + 20, { width: 100, align: 'left', lineBreak: false });
-      doc.text('0.00 EUR', 450, summaryStartY + 20, { width: 100, align: 'right', lineBreak: false });
+      // ÁFA sor (ha van) - extrém kompakt
+      doc.text('ÁFA (0%):', 360, summaryStartY + 16, { width: 100, align: 'left', lineBreak: false }); // Még kisebb távolság
+      doc.text('0.00 EUR', 450, summaryStartY + 16, { width: 100, align: 'right', lineBreak: false });
 
-      // Végösszeg kiemelése - kompakt, kisebb távolsággal
-      doc.roundedRect(350, summaryStartY + 32, 210, 18, 3) // Kisebb magasság és távolság
+      // Végösszeg kiemelése - extrém kompakt
+      doc.roundedRect(350, summaryStartY + 26, 210, 15, 3) // Extrém kis magasság és távolság
          .fillAndStroke(colors.primary, colors.primary);
 
-      // Végösszeg kiírása - explicit opciókkal, kisebb távolsággal
+      // Végösszeg kiírása - extrém kompakt
       doc.font('Helvetica-Bold')
          .fillColor('white')
          .fontSize(10);
-      doc.text('Végösszeg:', 360, summaryStartY + 36, { width: 100, align: 'left', lineBreak: false }); // Kisebb távolság
-      doc.text(`${invoice.totalAmount} ${invoice.currency || 'EUR'}`, 450, summaryStartY + 36, { width: 100, align: 'right', lineBreak: false }); // Kisebb távolság
+      doc.text('Végösszeg:', 360, summaryStartY + 29, { width: 100, align: 'left', lineBreak: false }); // Extrém kis távolság
+      doc.text(`${invoice.totalAmount} ${invoice.currency || 'EUR'}`, 450, summaryStartY + 29, { width: 100, align: 'right', lineBreak: false }); // Extrém kis távolság
 
       // Finalize the PDF content before adding footer
       // Get the total number of pages
@@ -1036,8 +1036,8 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
       for (let i = 0; i < pages.count; i++) {
         doc.switchToPage(i);
 
-        // Egyszerű lábléc egy sorban - magasabbra helyezve
-        const footerTop = doc.page.height - 40; // Magasabbra helyezve
+        // Egyszerű lábléc egy sorban - sokkal magasabbra helyezve
+        const footerTop = doc.page.height - 70; // Sokkal magasabbra helyezve
 
         // Vékony vonal a lábléc tetején
         doc.rect(0, footerTop, doc.page.width, 0.5)
