@@ -732,7 +732,7 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
 
       // Státusz jelölés a fejlécben
       let statusColor = colors.accent;
-      let statusText = 'Kiállítva';
+      let statusText = 'Számla'; // "Kiállítva" helyett "Számla"
 
       if (invoice.status === 'fizetett') {
         statusColor = colors.success;
@@ -763,7 +763,7 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
       const rightColumnX = 400;
       doc.fontSize(9)
          .fillColor('rgba(255, 255, 255, 0.9)')
-         .text('Kiállítás:', rightColumnX, 20, { align: 'right' })
+         .text('Kiállítás dátuma:', rightColumnX, 20, { align: 'right' }) // "Kiállítás:" helyett "Kiállítás dátuma:"
          .fontSize(10)
          .fillColor('white')
          .text(new Date(invoice.date).toLocaleDateString('hu-HU'), rightColumnX, 35, { align: 'right' })
