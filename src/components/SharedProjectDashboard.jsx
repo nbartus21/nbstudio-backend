@@ -627,7 +627,7 @@ const SharedProjectDashboard = ({
   };
 
   // Update invoice status after payment
-  const handleUpdateInvoiceStatus = (invoiceId, newStatus) => {
+  const handleUpdateInvoiceStatus = async (invoiceId, newStatus) => {
     debugLog('handleUpdateInvoiceStatus', `Updating invoice ${invoiceId} status to ${newStatus}`);
 
     if (!normalizedProject || !normalizedProject.invoices) return;
@@ -647,11 +647,35 @@ const SharedProjectDashboard = ({
         updatedProject.invoices[invoiceIndex].paidAmount = updatedProject.invoices[invoiceIndex].totalAmount;
       }
 
-      // Update project state
-      onUpdate(updatedProject);
+      // Update project state locally
+      setNormalizedProject(updatedProject);
 
-      // Show success message
-      showSuccessMessage('A számla státusza sikeresen frissítve');
+      // Küldjük el a frissítést a szervernek is
+      try {
+        // Frissítsük a projektet a szerveren is a verify-pin végponton keresztül
+        debugLog('handleUpdateInvoiceStatus', 'Sending update to server');
+
+        // Használjuk a refreshProjectData függvényt a szerver frissítéséhez
+        await refreshProjectData();
+
+        // Update project state in parent component
+        if (onUpdate) {
+          onUpdate(updatedProject);
+        }
+
+        // Show success message
+        showSuccessMessage('A számla státusza sikeresen frissítve');
+
+        debugLog('handleUpdateInvoiceStatus', 'Server update successful');
+      } catch (error) {
+        debugLog('handleUpdateInvoiceStatus', 'Error updating invoice status on server', { error });
+        console.error('Error updating invoice status on server:', error);
+
+        // Even if server update fails, we keep the local update
+        if (onUpdate) {
+          onUpdate(updatedProject);
+        }
+      }
     } else {
       debugLog('handleUpdateInvoiceStatus', `Invoice ${invoiceId} not found in project`);
     }
