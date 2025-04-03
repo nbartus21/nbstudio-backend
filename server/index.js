@@ -804,12 +804,11 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
       doc.font('Helvetica-Bold')
          .fontSize(10)
          .fillColor(colors.secondary);
-      doc.text('NB Studio', 50, startY + 35, { lineBreak: false });
+      doc.text('Norbert Bartus', 50, startY + 35, { lineBreak: false });
 
       doc.font('Helvetica')
          .fontSize(9)
          .fillColor(colors.text);
-      doc.text('Norbert Bartus', 50, startY + 50, { lineBreak: false });
       doc.text('Salinenstraße 25', 50, startY + 65, { lineBreak: false });
       doc.text('76646 Bruchsal, Baden-Württemberg', 50, startY + 80, { lineBreak: false });
       doc.text('Deutschland', 50, startY + 95, { lineBreak: false });
@@ -1130,7 +1129,7 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
            .fillColor(colors.secondary);
 
         // Egyszerű lábléc szöveg - visszatérés az eredetihez
-        const footerText = 'NB Studio | Bartus Norbert | www.nb-studio.net | Ez a számla elektronikusan készült és érvényes aláírás nélkül is. | ' + (i + 1) + '. oldal';
+        const footerText = 'Norbert Bartus | www.nb-studio.net | Ez a számla elektronikusan készült és érvényes aláírás nélkül is. | ' + (i + 1) + '. oldal';
         doc.text(footerText, 40, footerTop + 5, {
           align: 'center',
           width: doc.page.width - 80,
