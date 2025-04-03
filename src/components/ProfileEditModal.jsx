@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   User, X, Mail, Phone, Building, Save, AtSign,
-  MapPin, Globe, CreditCard, Loader
+  MapPin, Globe, CreditCard, Loader, FileText
 } from 'lucide-react';
 import { debugLog } from './shared/utils';
 
@@ -42,6 +42,10 @@ const translations = {
     companyNamePlaceholder: "Enter company name",
     taxNumber: "Tax number",
     taxNumberPlaceholder: "Enter tax number",
+    euVatNumber: "EU VAT number",
+    euVatNumberPlaceholder: "Enter EU VAT number",
+    registrationNumber: "Registration number",
+    registrationNumberPlaceholder: "Enter registration number",
     address: "Address",
     country: "Country",
     countryPlaceholder: "Select your country",
@@ -85,6 +89,10 @@ const translations = {
     companyNamePlaceholder: "Geben Sie den Firmennamen ein",
     taxNumber: "Steuernummer",
     taxNumberPlaceholder: "Geben Sie die Steuernummer ein",
+    euVatNumber: "EU-Umsatzsteuer-Identifikationsnummer",
+    euVatNumberPlaceholder: "Geben Sie die EU-USt-IdNr. ein",
+    registrationNumber: "Handelsregisternummer",
+    registrationNumberPlaceholder: "Geben Sie die Handelsregisternummer ein",
     address: "Adresse",
     country: "Land",
     countryPlaceholder: "Wählen Sie Ihr Land",
@@ -128,6 +136,10 @@ const translations = {
     companyNamePlaceholder: "Adja meg a cégnevet",
     taxNumber: "Adószám",
     taxNumberPlaceholder: "Adja meg az adószámot",
+    euVatNumber: "EU adószám",
+    euVatNumberPlaceholder: "Adja meg az EU adószámot",
+    registrationNumber: "Cégjegyzékszám",
+    registrationNumberPlaceholder: "Adja meg a cégjegyzékszámot",
     address: "Cím",
     country: "Ország",
     countryPlaceholder: "Válassza ki az országot",
@@ -182,6 +194,8 @@ const ProfileEditModal = ({
     preferredLanguage: user?.preferredLanguage || language,
     companyName: user?.companyName || '',
     taxNumber: user?.taxNumber || '',
+    euVatNumber: user?.euVatNumber || '',
+    registrationNumber: user?.registrationNumber || '',
     country: user?.address?.country || '',
     postalCode: user?.address?.postalCode || '',
     city: user?.address?.city || '',
@@ -203,6 +217,8 @@ const ProfileEditModal = ({
         preferredLanguage: user.preferredLanguage || language,
         companyName: user.companyName || '',
         taxNumber: user.taxNumber || '',
+        euVatNumber: user.euVatNumber || '',
+        registrationNumber: user.registrationNumber || '',
         country: user.address?.country || '',
         postalCode: user.address?.postalCode || '',
         city: user.address?.city || '',
@@ -280,6 +296,8 @@ const ProfileEditModal = ({
         preferredLanguage: formData.preferredLanguage,
         companyName: formData.companyName,
         taxNumber: formData.taxNumber,
+        euVatNumber: formData.euVatNumber,
+        registrationNumber: formData.registrationNumber,
         address: {
           country: formData.country,
           postalCode: formData.postalCode,
@@ -304,6 +322,8 @@ const ProfileEditModal = ({
             phone: formData.phone,
             companyName: formData.companyName,
             taxNumber: formData.taxNumber,
+            euVatNumber: formData.euVatNumber,
+            registrationNumber: formData.registrationNumber,
             address: {
               country: formData.country,
               postalCode: formData.postalCode,
@@ -631,6 +651,46 @@ const ProfileEditModal = ({
                         onChange={handleChange}
                         className="pl-10 block w-full border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                         placeholder={t.taxNumberPlaceholder}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label htmlFor="euVatNumber" className="block text-sm font-medium text-gray-700 mb-1">
+                      {t.euVatNumber}
+                    </label>
+                    <div className="relative rounded-md shadow-sm">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <Globe className="h-4 w-4 text-gray-400" />
+                      </div>
+                      <input
+                        type="text"
+                        id="euVatNumber"
+                        name="euVatNumber"
+                        value={formData.euVatNumber}
+                        onChange={handleChange}
+                        className="pl-10 block w-full border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                        placeholder={t.euVatNumberPlaceholder}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label htmlFor="registrationNumber" className="block text-sm font-medium text-gray-700 mb-1">
+                      {t.registrationNumber}
+                    </label>
+                    <div className="relative rounded-md shadow-sm">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <FileText className="h-4 w-4 text-gray-400" />
+                      </div>
+                      <input
+                        type="text"
+                        id="registrationNumber"
+                        name="registrationNumber"
+                        value={formData.registrationNumber}
+                        onChange={handleChange}
+                        className="pl-10 block w-full border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                        placeholder={t.registrationNumberPlaceholder}
                       />
                     </div>
                   </div>

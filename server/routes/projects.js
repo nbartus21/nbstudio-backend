@@ -14,9 +14,9 @@ router.get('/projects', async (req, res) => {
       res.json(projects);
     } catch (error) {
       console.error('Error in GET /projects:', error);
-      res.status(500).json({ 
+      res.status(500).json({
         message: 'Error fetching projects',
-        error: error.message 
+        error: error.message
       });
     }
   });
@@ -40,32 +40,34 @@ router.put('/projects/:id', async (req, res) => {
       fejlécek: req.headers,
       body: req.body
     });
-    
+
     // Ellenőrizzük, hogy a projekt létezik-e
     const existingProject = await Project.findById(req.params.id);
     if (!existingProject) {
       console.log('Projekt nem található:', req.params.id);
       return res.status(404).json({ message: 'Projekt nem található' });
     }
-    
+
     console.log('Projekt megtalálva:', existingProject.name);
-    
+
     // Ha a request tartalmaz kliens adatokat, frissítsük azokat
     if (req.body.client) {
       console.log('Kliens adatok frissítése a PUT /projects/:id kérésben:', req.body.client.name);
-      
+
       // Biztonságos frissítés: eredeti adatok megőrzése, ha újak nincsenek megadva
       existingProject.client = existingProject.client || {};
-      
+
       // Név, email, telefon frissítése
       existingProject.client.name = req.body.client.name || existingProject.client.name;
       existingProject.client.email = req.body.client.email || existingProject.client.email;
       existingProject.client.phone = req.body.client.phone || existingProject.client.phone;
-      
+
       // Cég adatok frissítése
       existingProject.client.companyName = req.body.client.companyName || existingProject.client.companyName;
       existingProject.client.taxNumber = req.body.client.taxNumber || existingProject.client.taxNumber;
-      
+      existingProject.client.euVatNumber = req.body.client.euVatNumber || existingProject.client.euVatNumber;
+      existingProject.client.registrationNumber = req.body.client.registrationNumber || existingProject.client.registrationNumber;
+
       // Cím adatok frissítése
       existingProject.client.address = existingProject.client.address || {};
       if (req.body.client.address) {
@@ -74,29 +76,29 @@ router.put('/projects/:id', async (req, res) => {
         existingProject.client.address.city = req.body.client.address.city || existingProject.client.address.city;
         existingProject.client.address.street = req.body.client.address.street || existingProject.client.address.street;
       }
-      
+
       console.log('Frissített kliens adatok:', existingProject.client);
     }
-    
+
     // Egyesítjük a többi tulajdonságot is, kivéve a klienst (amit már kezeltünk)
     const { client, ...otherProps } = req.body;
-    
+
     // Frissítjük a projektet a további tulajdonságokkal
     for (const [key, value] of Object.entries(otherProps)) {
       existingProject[key] = value;
     }
-    
+
     // Mentjük a projektet az adatbázisba
     const updatedProject = await existingProject.save();
     console.log('Projekt sikeresen frissítve az adatbázisban');
-    
+
     // Válasz küldése
     res.json(updatedProject);
   } catch (error) {
     console.error('Hiba a projekt frissítése során:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       message: 'Hiba a projekt frissítése során',
-      error: error.message 
+      error: error.message
     });
   }
 });
@@ -144,23 +146,23 @@ router.post('/projects/:id/invoices', async (req, res) => {
         console.error('Hiányzó tétel leírás:', item);
         return res.status(400).json({ message: 'Hiányzó számla tétel leírás' });
       }
-      
+
       if (!item.quantity || isNaN(Number(item.quantity)) || Number(item.quantity) <= 0) {
         console.error('Érvénytelen mennyiség:', item.quantity);
         return res.status(400).json({ message: 'Érvénytelen számla tétel mennyiség' });
       }
-      
+
       if (isNaN(Number(item.unitPrice))) {
         console.error('Érvénytelen egységár:', item.unitPrice);
         return res.status(400).json({ message: 'Érvénytelen számla tétel egységár' });
       }
-      
+
       // Biztosítsuk, hogy a számértékek tényleg számok legyenek
       item.quantity = Number(item.quantity);
       item.unitPrice = Number(item.unitPrice);
       item.total = item.quantity * item.unitPrice;
     }
-    
+
     // Számoljuk újra a végösszeget az eredeti és a számított értékek egyeztetése érdekében
     invoiceData.totalAmount = invoiceData.items.reduce((sum, item) => sum + item.total, 0);
 
@@ -182,14 +184,14 @@ router.post('/projects/:id/invoices', async (req, res) => {
   } catch (error) {
     console.error('Részletes hiba:', error);
     console.error('Hiba stack:', error.stack);
-    
+
     if (error.name === 'ValidationError') {
       return res.status(400).json({
         message: 'Számla validációs hiba',
         error: error.message
       });
     }
-    
+
     res.status(500).json({
       message: 'Szerver hiba történt a számla létrehozásakor',
       error: error.message
@@ -226,9 +228,9 @@ router.put('/projects/:projectId/invoices/:invoiceId', async (req, res) => {
     res.json(project);
   } catch (error) {
     console.error('Invoice update error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       message: 'Server error while updating invoice',
-      error: error.message 
+      error: error.message
     });
   }
 });
@@ -302,19 +304,19 @@ router.post('/projects/:id/share', async (req, res) => {
     }
 
     // Lejárati dátum feldolgozása
-    const expiresAt = req.body.expiresAt 
-      ? new Date(req.body.expiresAt) 
+    const expiresAt = req.body.expiresAt
+      ? new Date(req.body.expiresAt)
       : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 nap alapértelmezetten
 
     // 6 jegyű PIN kód generálása
     const pin = Math.floor(100000 + Math.random() * 900000).toString();
-    
+
     // Token generálása
     const shareToken = uuidv4();
-    
+
     // Megosztási link generálása - MÓDOSÍTVA, új domain-t használ
     const shareLink = `https://project.nb-studio.net/shared-project/${shareToken}`;
-    
+
     // Megosztási adatok mentése
     project.sharing = {
       token: shareToken,
@@ -325,8 +327,8 @@ router.post('/projects/:id/share', async (req, res) => {
     };
 
     await project.save();
-    
-    res.status(200).json({ 
+
+    res.status(200).json({
       shareLink,
       pin,
       expiresAt,
@@ -353,56 +355,56 @@ export const verifyPin = async (req, res) => {
   } else {
     res.header('Access-Control-Allow-Origin', 'https://project.nb-studio.net');
   }
-  
+
   // Credentials engedélyezése
   res.header('Access-Control-Allow-Credentials', 'true');
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key');
-  
+
   // Részletes hibakeresési napló
   console.log(`PIN verify kérés érkezett: ${req.originalUrl}`);
   console.log(`Kérés fejlécek:`, JSON.stringify(req.headers, null, 2));
   console.log(`Kérés test (body):`, JSON.stringify(req.body, null, 2));
-  
+
   console.log('PIN ellenőrzés kérés érkezett:', req.body);
-  
+
   // API kulcs ellenőrzése - ha nincs vagy érvénytelen, 403 Forbidden hibát dobunk
   // Módosítás: API kulcs ellenőrzést ideiglenesen kikapcsoljuk a hibakereséshez
   const API_KEY = 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0';
-  
+
   // A kérés API kulcsának ellenőrzése - de most csak naplózzuk, nem vágjuk el a folyamatot
   if (!req.headers['x-api-key']) {
     console.warn('API kulcs hiányzik a kérésből, de folytatjuk a végrehajtást');
   } else if (req.headers['x-api-key'] !== API_KEY) {
     console.warn('Érvénytelen API kulcs, de folytatjuk a végrehajtást');
   }
-  
+
   try {
     const { token, pin, updateProject } = req.body;
-    
+
     // Validáljuk a bejövő adatokat
     if (!token) {
       console.log('Hiányzó token a kérésből');
       return res.status(400).json({ message: 'Hiányzó token a kérésből' });
     }
-    
+
     console.log('Token a verify-pin-ben:', token);
     // Részletes keresési folyamat a token alapján
     let project = null;
-    
+
     // Első próbálkozás: a sharing.token mezőben keressük
     project = await Project.findOne({ 'sharing.token': token });
-    
+
     // Ha nem találtuk meg, próbáljunk más mezőkkel is
     if (!project) {
       console.log('Projekt nem található a sharing.token mezőben, próbálkozás más mezőkkel');
-      
+
       // Második próbálkozás: esetleg a token közvetlenül a _id mezőben van
       if (token && token.match(/^[0-9a-fA-F]{24}$/)) {
         console.log('A token érvényes ObjectId formátumú, próbálkozás _id-vel');
         project = await Project.findById(token);
       }
-      
+
       // Harmadik próbálkozás: más token mezők
       if (!project) {
         console.log('Projekt nem található _id-vel sem, próbálkozás más token mezőkkel');
@@ -414,15 +416,15 @@ export const verifyPin = async (req, res) => {
         });
       }
     }
-    
+
     // Ha még mindig nincs projekt, akkor hiba
     if (!project) {
       console.log('Projekt nem található a megadott tokennel:', token);
       return res.status(404).json({ message: 'Projekt nem található' });
     }
-    
+
     console.log('Projekt megtalálva:', project.name, 'ID:', project._id);
-    
+
     // PIN ellenőrzése
     // Ha pin üres, akkor ne utasítsuk el azonnal, hanem csak figyelmeztetjük
     if (!pin || pin.trim() === '') {
@@ -442,20 +444,20 @@ export const verifyPin = async (req, res) => {
       console.warn('Érvénytelen PIN kód, de folytatjuk a műveletet a hibakereséshez');
       // return res.status(403).json({ message: 'Érvénytelen PIN kód' });
     }
-    
+
     // Ha updateProject objektumot küldtek, frissítsük a projektet
     if (updateProject) {
       console.log('Projekt frissítési kérés érkezett a verify-pin-ben');
-      
+
       try {
         // Frissítsük a kliens adatokat - csak a biztonságos mezőket
         if (updateProject.client) {
           console.log('Kliens adatok frissítése:', updateProject.client.name);
-          
+
           // Készítsünk biztonsági másolatot az eredeti értékekről hibakereséshez
           const originalClientData = { ...project.client };
           console.log('Eredeti kliens adatok:', originalClientData);
-          
+
           // Frissítsük a kliens objektumot
           project.client = project.client || {};
           project.client.name = updateProject.client.name || project.client.name;
@@ -463,7 +465,9 @@ export const verifyPin = async (req, res) => {
           project.client.phone = updateProject.client.phone || project.client.phone;
           project.client.companyName = updateProject.client.companyName || project.client.companyName;
           project.client.taxNumber = updateProject.client.taxNumber || project.client.taxNumber;
-          
+          project.client.euVatNumber = updateProject.client.euVatNumber || project.client.euVatNumber;
+          project.client.registrationNumber = updateProject.client.registrationNumber || project.client.registrationNumber;
+
           // Cím adatok frissítése
           project.client.address = project.client.address || {};
           if (updateProject.client.address) {
@@ -472,10 +476,10 @@ export const verifyPin = async (req, res) => {
             project.client.address.city = updateProject.client.address.city || project.client.address.city;
             project.client.address.street = updateProject.client.address.street || project.client.address.street;
           }
-          
+
           // Frissített adatok naplózása
           console.log('Frissített kliens adatok:', project.client);
-          
+
           // Mentés az adatbázisba
           await project.save();
           console.log('Projekt sikeresen frissítve a szerveren.');
@@ -486,24 +490,24 @@ export const verifyPin = async (req, res) => {
         console.log('Frissítési hiba, de folytatjuk a végrehajtást:', updateError.message);
       }
     }
-    
+
     // Számlák feldolgozása - egyszerű JSON objektummá alakítás
     const processedInvoices = (project.invoices || []).map(invoice => {
       console.log('Számla feldolgozása a verify-pin-ben:', invoice.number, '_id:', invoice._id);
-      
+
       // Konvertáljuk a számlát egyszerű JSON objektummá
       const plainInvoice = JSON.parse(JSON.stringify(invoice));
-      
+
       // Ellenőrizzük, hogy van-e _id a számlán
       if (plainInvoice._id) {
-        // A mongoose az _id-t ObjectId típusként tárolja, 
+        // A mongoose az _id-t ObjectId típusként tárolja,
         // a JSON.stringify-nál ez elveszhet, ezért itt biztosítjuk, hogy stringként legyen
         if (typeof plainInvoice._id === 'object' && plainInvoice._id.$oid) {
           console.log('Átalakítás: ObjectId-ből string-é:', plainInvoice._id.$oid);
           plainInvoice._id = plainInvoice._id.$oid;
         }
       }
-      
+
       console.log('Feldolgozott számla:', plainInvoice.number, 'ID:', plainInvoice._id);
       return plainInvoice;
     });
@@ -564,7 +568,7 @@ router.get('/shared-project/:token', async (req, res) => {
       status: project.status,
       description: project.description
     };
-    
+
     res.status(200).json(publicProject);
   } catch (error) {
     console.error('Hiba a megosztott projekt lekérésekor:', error);
@@ -582,7 +586,7 @@ router.get('/projects/:id/share', async (req, res) => {
 
     if (project.sharing && project.sharing.token) {
       const isExpired = project.sharing.expiresAt && new Date() > project.sharing.expiresAt;
-      
+
       res.json({
         hasActiveShare: true,
         shareLink: project.sharing.link,
@@ -608,23 +612,23 @@ router.post('/projects/:id/files', async (req, res) => {
     if (!project) {
       return res.status(404).json({ message: 'Projekt nem található' });
     }
-    
+
     const fileData = req.body;
     if (!project.files) {
       project.files = [];
     }
-    
+
     // Fájl hozzáadása
     project.files.push({
       ...fileData,
       uploadedAt: new Date()
     });
-    
+
     // Frissítjük a fájl számlálókat
     project.activityCounters.filesCount = project.files.length;
     project.activityCounters.hasNewFiles = true;
     project.activityCounters.lastFileAt = new Date();
-    
+
     // Értesítés küldése az adminnak, ha ügyfél töltötte fel
     if (fileData.uploadedBy !== 'Admin') {
       await Notification.create({
@@ -636,9 +640,9 @@ router.post('/projects/:id/files', async (req, res) => {
         link: `/projects/${project._id}`
       });
     }
-    
+
     await project.save();
-    
+
     res.status(201).json(project);
   } catch (error) {
     console.error('Hiba a fájl feltöltésekor:', error);
@@ -653,7 +657,7 @@ router.get('/projects/:id/files', async (req, res) => {
     if (!project) {
       return res.status(404).json({ message: 'Projekt nem található' });
     }
-    
+
     res.json(project.files || []);
   } catch (error) {
     console.error('Hiba a fájlok lekérésekor:', error);
@@ -668,12 +672,12 @@ router.put('/projects/:id/files/reset-counters', async (req, res) => {
     if (!project) {
       return res.status(404).json({ message: 'Projekt nem található' });
     }
-    
+
     // Az admin jelezte, hogy látta az új fájlokat
     project.activityCounters.hasNewFiles = false;
-    
+
     await project.save();
-    
+
     res.json({ message: 'Fájl számlálók sikeresen visszaállítva', project });
   } catch (error) {
     console.error('Hiba a fájl számlálók visszaállításakor:', error);
@@ -688,24 +692,24 @@ router.post('/projects/:id/comments', async (req, res) => {
     if (!project) {
       return res.status(404).json({ message: 'Projekt nem található' });
     }
-    
+
     const commentData = req.body;
     if (!project.comments) {
       project.comments = [];
     }
-    
+
     // Hozzászólás hozzáadása
     const newComment = {
       ...commentData,
       timestamp: new Date()
     };
-    
+
     project.comments.push(newComment);
-    
+
     // Frissítjük a hozzászólás számlálókat
     project.activityCounters.commentsCount = project.comments.length;
     project.activityCounters.lastCommentAt = new Date();
-    
+
     // Ha admin hozzászólás, akkor frissítjük az admin válasz időpontját és jelezzük, hogy nincs szükség válaszra
     if (commentData.isAdminComment) {
       project.activityCounters.lastAdminCommentAt = new Date();
@@ -714,7 +718,7 @@ router.post('/projects/:id/comments', async (req, res) => {
       // Ha ügyfél hozzászólás, akkor jelezzük, hogy adminisztrátori válasz szükséges
       project.activityCounters.adminResponseRequired = true;
       project.activityCounters.hasNewComments = true;
-      
+
       // Értesítés küldése az adminnak
       await Notification.create({
         userId: process.env.ADMIN_EMAIL || 'admin@example.com',
@@ -725,9 +729,9 @@ router.post('/projects/:id/comments', async (req, res) => {
         link: `/projects/${project._id}`
       });
     }
-    
+
     await project.save();
-    
+
     res.status(201).json(project);
   } catch (error) {
     console.error('Hiba a hozzászólás hozzáadásakor:', error);
@@ -742,7 +746,7 @@ router.get('/projects/:id/comments', async (req, res) => {
     if (!project) {
       return res.status(404).json({ message: 'Projekt nem található' });
     }
-    
+
     res.json(project.comments || []);
   } catch (error) {
     console.error('Hiba a hozzászólások lekérésekor:', error);
@@ -757,12 +761,12 @@ router.put('/projects/:id/comments/reset-counters', async (req, res) => {
     if (!project) {
       return res.status(404).json({ message: 'Projekt nem található' });
     }
-    
+
     // Az admin jelezte, hogy látta az új hozzászólásokat
     project.activityCounters.hasNewComments = false;
-    
+
     await project.save();
-    
+
     res.json({ message: 'Hozzászólás számlálók sikeresen visszaállítva', project });
   } catch (error) {
     console.error('Hiba a hozzászólás számlálók visszaállításakor:', error);
@@ -777,7 +781,7 @@ router.get('/projects/:id/activity', async (req, res) => {
     if (!project) {
       return res.status(404).json({ message: 'Projekt nem található' });
     }
-    
+
     // Összegyűjtjük az összes aktivitást (fájlok és hozzászólások) időrendben
     const activities = [
       ...project.files.map(file => ({
@@ -794,7 +798,7 @@ router.get('/projects/:id/activity', async (req, res) => {
         isAdmin: comment.isAdminComment
       }))
     ].sort((a, b) => b.timestamp - a.timestamp);
-    
+
     res.json({
       activities,
       counters: project.activityCounters,

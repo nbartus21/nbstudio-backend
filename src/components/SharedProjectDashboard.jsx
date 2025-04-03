@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Upload, Check, AlertTriangle, LogOut, Users, Calendar, 
-  Globe, ChevronDown, File, Download, FileText 
+import {
+  Upload, Check, AlertTriangle, LogOut, Users, Calendar,
+  Globe, ChevronDown, File, Download, FileText
 } from 'lucide-react';
 import { formatShortDate, debugLog, loadFromLocalStorage, getProjectId } from './shared/utils';
 
@@ -114,13 +114,13 @@ const statusMapping = {
 const API_URL = 'https://admin.nb-studio.net:5001/api';
 const API_KEY = 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0';
 
-const SharedProjectDashboard = ({ 
-  project, 
-  language = 'hu', 
-  onUpdate, 
-  onLogout, 
+const SharedProjectDashboard = ({
+  project,
+  language = 'hu',
+  onUpdate,
+  onLogout,
   onLanguageChange,
-  isAdmin = false 
+  isAdmin = false
 }) => {
   // Get translations for current language
   const t = translations[language];
@@ -128,31 +128,31 @@ const SharedProjectDashboard = ({
   // Normalizáljuk a projekt objektumot, ha az _id hiányzik
   const [normalizedProject, setNormalizedProject] = useState(() => {
     if (!project) return null;
-    
+
     // Ha nincs _id, de van id, akkor használjuk azt
     if (!project._id && project.id) {
       const normalizedObj = { ...project, _id: project.id };
       debugLog('ProjectNormalization', 'Missing _id, using id instead', { id: project.id });
       return normalizedObj;
     }
-    
+
     // Ha nincs sem _id, sem id, generáljunk egy ideiglenes azonosítót
     if (!project._id && !project.id) {
       const tempId = `temp_${Date.now()}`;
       debugLog('ProjectNormalization', 'No id found, generating temporary id', { tempId });
       return { ...project, _id: tempId, id: tempId };
     }
-    
+
     return project;
   });
-  
+
   // Update normalizált projekt, ha a projekt prop változik
   useEffect(() => {
     if (!project) {
       setNormalizedProject(null);
       return;
     }
-    
+
     // Normalizáljuk az új projektet
     if (!project._id && project.id) {
       setNormalizedProject({ ...project, _id: project.id });
@@ -163,7 +163,7 @@ const SharedProjectDashboard = ({
       setNormalizedProject(project);
     }
   }, [project]);
-  
+
   // Log the project structure for debugging
   useEffect(() => {
     if (normalizedProject) {
@@ -174,7 +174,7 @@ const SharedProjectDashboard = ({
         isAdmin: isAdmin,
         language: language
       });
-      
+
       // Debug: ha a projektben vannak számlák, kiírjuk a számukat és az azonosítóikat
       if (normalizedProject.invoices && normalizedProject.invoices.length > 0) {
         debugLog('ProjectInvoices', `Project has ${normalizedProject.invoices.length} invoices`);
@@ -197,31 +197,31 @@ const SharedProjectDashboard = ({
   const [comments, setComments] = useState([]); // Comments array
   const [isRefreshing, setIsRefreshing] = useState(false); // Frissítési állapot
   const [currentInvoiceId, setCurrentInvoiceId] = useState(null); // Aktuális számla ID
-  
+
   // Helper function to refresh project data
   const refreshProjectData = async () => {
     if (!normalizedProject || !normalizedProject.sharing?.token) {
       console.log('No project or token to refresh');
       return;
     }
-    
+
     setIsRefreshing(true);
-    
+
     try {
       // Get the saved session with PIN
       const savedSession = localStorage.getItem(`project_session_${normalizedProject.sharing?.token}`);
       const session = savedSession ? JSON.parse(savedSession) : { pin: '' };
-      
+
       console.log('Trying to refresh project data with /verify-pin endpoint directly');
-      
+
       // Ellenőrizzük a PIN legalitását
       if (session.pin === undefined || session.pin === null) {
         console.log('No PIN in session, setting empty string');
         session.pin = '';
       }
-      
+
       // Előkészítjük a kérés tartalmát, részletes naplózással
-      const requestData = { 
+      const requestData = {
         token: normalizedProject.sharing?.token,
         pin: session.pin || ''
       };
@@ -229,10 +229,10 @@ const SharedProjectDashboard = ({
 
       // Helyes API végpont használata, ugyanaz mint a ProfileEditModal-ban
       const apiEndpoint = '/public/projects/verify-pin'; // Az API_URL már tartalmazza az /api előtagot
-      
+
       // A credentials beállítását módosítjuk, hogy kompatibilis legyen a CORS beállításokkal
       // Három különböző credentials beállítást próbálunk
-      
+
       // 1. Kísérlet: credentials: same-origin
       try {
         let response = await fetch(`${API_URL}${apiEndpoint}`, {
@@ -246,11 +246,11 @@ const SharedProjectDashboard = ({
           credentials: 'same-origin'
         });
         console.log('Response status from verify-pin (same-origin):', response.status);
-        
+
         if (response.ok) {
           const data = await response.json();
           console.log('Project data refreshed successfully (same-origin)');
-          
+
           if (data.project) {
             // A projekt frissítése a szülő komponensben
             if (onUpdate) {
@@ -269,7 +269,7 @@ const SharedProjectDashboard = ({
       } catch (error) {
         console.error('Error refreshing project data (same-origin):', error);
       }
-      
+
       // 2. Kísérlet: credentials: include
       try {
         let response = await fetch(`${API_URL}${apiEndpoint}`, {
@@ -283,11 +283,11 @@ const SharedProjectDashboard = ({
           credentials: 'include'
         });
         console.log('Response status from verify-pin (include):', response.status);
-        
+
         if (response.ok) {
           const data = await response.json();
           console.log('Project data refreshed successfully (include)');
-          
+
           if (data.project) {
             // A projekt frissítése a szülő komponensben
             if (onUpdate) {
@@ -306,7 +306,7 @@ const SharedProjectDashboard = ({
       } catch (error) {
         console.error('Error refreshing project data (include):', error);
       }
-      
+
       // 3. Kísérlet: credentials: omit
       try {
         let response = await fetch(`${API_URL}${apiEndpoint}`, {
@@ -320,11 +320,11 @@ const SharedProjectDashboard = ({
           credentials: 'omit'
         });
         console.log('Response status from verify-pin (omit):', response.status);
-        
+
         if (response.ok) {
           const data = await response.json();
           console.log('Project data refreshed successfully (omit)');
-          
+
           if (data.project) {
             // A projekt frissítése a szülő komponensben
             if (onUpdate) {
@@ -343,26 +343,26 @@ const SharedProjectDashboard = ({
       } catch (error) {
         console.error('Error refreshing project data (omit):', error);
       }
-      
+
       // Ha minden kísérlet sikertelen, nem változtatjuk meg az adatokat
       console.log('All API requests failed, keeping current project data');
-      
+
     } catch (error) {
       console.error('Error refreshing project data:', error);
     } finally {
       setIsRefreshing(false);
     }
   };
-  
+
   // Rendszeres frissítés - 1 percenként
   useEffect(() => {
     // Kezdeti betöltés
     if (normalizedProject?.sharing?.token) {
       refreshProjectData();
-      
+
       // Időzítő beállítása a frissítéshez
       const intervalId = setInterval(refreshProjectData, 60000); // 1 perc = 60000 ms
-      
+
       // Cleanup
       return () => clearInterval(intervalId);
     }
@@ -376,19 +376,19 @@ const SharedProjectDashboard = ({
   const [viewingDocument, setViewingDocument] = useState(null);
   const [adminMode, setAdminMode] = useState(isAdmin);
   const [showLanguageDropdown, setShowLanguageDropdown] = useState(false);
-  
+
   // Tároljuk a felhasználó adatait state-ben
   const [userData, setUserData] = useState(() => {
     // Próbáljuk betölteni a felhasználó adatait a localStorage-ból
     try {
       const savedUserData = localStorage.getItem('user_data');
-      
+
       // Ha van helyi mentett adat, azt használjuk
       if (savedUserData) {
         const parsedData = JSON.parse(savedUserData);
         return parsedData;
       }
-      
+
       // Ha nincs helyi adat, akkor a projekt kliens adatait használjuk
       if (project?.client) {
         return {
@@ -402,7 +402,7 @@ const SharedProjectDashboard = ({
           address: project.client.address || {}
         };
       }
-      
+
       // Ha nincs projekt kliens adat sem, akkor alapértelmezett értékek
       return {
         name: 'Vendég',
@@ -425,10 +425,10 @@ const SharedProjectDashboard = ({
       debugLog('SharedProjectDashboard', 'No project data available');
       return;
     }
-    
+
     const projectId = getProjectId(normalizedProject);
     debugLog('SharedProjectDashboard', 'Loading data for project', { projectId });
-    
+
     // Load files from localStorage
     const savedFiles = loadFromLocalStorage(normalizedProject, 'files');
     if (savedFiles && savedFiles.length > 0) {
@@ -469,7 +469,7 @@ const SharedProjectDashboard = ({
           taxNumber: normalizedProject.client.taxNumber || '',
           address: normalizedProject.client.address || {}
         };
-        
+
         setUserData(clientData);
         // Mentjük localStorage-ba
         localStorage.setItem('user_data', JSON.stringify(clientData));
@@ -484,14 +484,14 @@ const SharedProjectDashboard = ({
   const fetchDocuments = async (projectId) => {
     try {
       debugLog('fetchDocuments', 'Fetching documents from server', { projectId });
-      
+
       // Először próbáljuk a dedikált public végpontot
       const response = await fetch(`${API_URL}/public/projects/${projectId}/documents`, {
         headers: {
           'X-API-Key': API_KEY
         }
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         if (data && Array.isArray(data)) {
@@ -501,14 +501,14 @@ const SharedProjectDashboard = ({
       } else {
         // Ha nem működik a public végpont, próbáljuk a standard API-t
         debugLog('fetchDocuments', 'Public endpoint failed, trying standard API', { status: response.status });
-        
+
         try {
           const fallbackResponse = await fetch(`${API_URL}/documents?projectId=${projectId}`, {
             headers: {
               'X-API-Key': API_KEY
             }
           });
-          
+
           if (fallbackResponse.ok) {
             const data = await fallbackResponse.json();
             if (data && Array.isArray(data)) {
@@ -517,7 +517,7 @@ const SharedProjectDashboard = ({
             }
           } else {
             debugLog('fetchDocuments', 'Standard API also failed', { status: fallbackResponse.status });
-            
+
             if (fallbackResponse.status === 401) {
               debugLog('fetchDocuments', 'Authentication error (401) - falling back to local data');
             }
@@ -535,14 +535,14 @@ const SharedProjectDashboard = ({
   // Felhasználói adatok frissítése - csak lokálisan
   const handleUpdateUser = async (updatedUser) => {
     debugLog('SharedProjectDashboard', 'Updating user data', updatedUser);
-    
+
     // Frissítjük a helyi state-et
     setUserData(updatedUser);
-    
+
     try {
       // Tároljuk a felhasználó adatait localStorage-ban
       localStorage.setItem('user_data', JSON.stringify(updatedUser));
-      
+
       // Frissítsük a normalizált projektet, ha szükséges és van callback
       if (normalizedProject && normalizedProject.client && onUpdate) {
         const updatedProject = {
@@ -554,14 +554,16 @@ const SharedProjectDashboard = ({
             phone: updatedUser.phone,
             companyName: updatedUser.companyName,
             taxNumber: updatedUser.taxNumber,
+            euVatNumber: updatedUser.euVatNumber,
+            registrationNumber: updatedUser.registrationNumber,
             address: updatedUser.address || normalizedProject.client.address
           }
         };
-        
+
         // Használjuk az onUpdate callback-et a projekt frissítésére
         // Ez a szülő komponensben kezeli a frissítést, ami lehet szerveres vagy helyi is
         onUpdate(updatedProject);
-        
+
         showSuccessMessage("Adatok sikeresen frissítve!");
       }
     } catch (error) {
@@ -623,31 +625,31 @@ const SharedProjectDashboard = ({
     debugLog('handleCloseInvoiceView', 'Closing invoice view');
     setViewingInvoice(null);
   };
-  
+
   // Update invoice status after payment
   const handleUpdateInvoiceStatus = (invoiceId, newStatus) => {
     debugLog('handleUpdateInvoiceStatus', `Updating invoice ${invoiceId} status to ${newStatus}`);
-    
+
     if (!normalizedProject || !normalizedProject.invoices) return;
-    
+
     // Update invoice status in project locally
     const updatedProject = { ...normalizedProject };
-    const invoiceIndex = updatedProject.invoices.findIndex(inv => 
-      (inv._id && inv._id.toString() === invoiceId) || 
+    const invoiceIndex = updatedProject.invoices.findIndex(inv =>
+      (inv._id && inv._id.toString() === invoiceId) ||
       (inv.id && inv.id.toString() === invoiceId)
     );
-    
+
     if (invoiceIndex >= 0) {
       updatedProject.invoices[invoiceIndex].status = newStatus;
-      
+
       if (newStatus === 'fizetett' || newStatus === 'paid' || newStatus === 'bezahlt') {
         updatedProject.invoices[invoiceIndex].paidDate = new Date().toISOString();
         updatedProject.invoices[invoiceIndex].paidAmount = updatedProject.invoices[invoiceIndex].totalAmount;
       }
-      
+
       // Update project state
       onUpdate(updatedProject);
-      
+
       // Show success message
       showSuccessMessage('A számla státusza sikeresen frissítve');
     } else {
@@ -693,12 +695,12 @@ const SharedProjectDashboard = ({
     }
     setShowLanguageDropdown(false);
   };
-  
+
   // Generate PDF for invoice
   const handleGeneratePDF = async (invoice) => {
     try {
       debugLog('handleGeneratePDF', 'Generating PDF for invoice', { invoiceNumber: invoice.number });
-      
+
       // Ellenőrizzük, hogy a számla tartalmaz-e _id-t
       if (!invoice._id) {
         if (invoice.id) {
@@ -709,31 +711,31 @@ const SharedProjectDashboard = ({
           throw new Error('Hiányzik a számla azonosítója');
         }
       }
-      
+
       // Ellenőrizzük, hogy a project tartalmaz-e _id-t
       const projectId = getProjectId(normalizedProject);
       if (!projectId) {
         throw new Error('Hiányzik a projekt azonosítója');
       }
-      
+
       // Call API to generate PDF
-      debugLog('handleGeneratePDF', 'Calling API', { 
-        projectId: projectId, 
+      debugLog('handleGeneratePDF', 'Calling API', {
+        projectId: projectId,
         invoiceId: invoice._id,
-        url: `${API_URL}/projects/${projectId}/invoices/${invoice._id}/pdf` 
+        url: `${API_URL}/projects/${projectId}/invoices/${invoice._id}/pdf`
       });
-      
+
       const response = await fetch(`${API_URL}/projects/${projectId}/invoices/${invoice._id}/pdf`, {
         method: 'GET',
         headers: {
           'X-API-Key': API_KEY
         }
       });
-      
+
       if (response.ok) {
         // Get blob from response
         const blob = await response.blob();
-        
+
         // Create download link
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
@@ -742,20 +744,20 @@ const SharedProjectDashboard = ({
         document.body.appendChild(link);
         link.click();
         link.remove();
-        
+
         // Felszabadítjuk a blob URL-t
         setTimeout(() => {
           window.URL.revokeObjectURL(url);
         }, 100);
-        
+
         showSuccessMessage(t.downloadPdf);
         debugLog('handleGeneratePDF', 'PDF downloaded successfully');
       } else {
-        debugLog('handleGeneratePDF', 'Failed to generate PDF', { 
+        debugLog('handleGeneratePDF', 'Failed to generate PDF', {
           status: response.status,
           statusText: response.statusText
         });
-        
+
         // Kezelje megfelelően a különböző HTTP státuszkódokat
         if (response.status === 401) {
           showErrorMessage('Authentikációs hiba - A PDF létrehozása nem lehetséges');
@@ -779,7 +781,7 @@ const SharedProjectDashboard = ({
           <AlertTriangle className="h-16 w-16 text-yellow-500 mx-auto mb-4" />
           <h2 className="text-xl font-bold mb-2">{t.noProject}</h2>
           <p className="text-gray-600 mb-4">{t.selectProject}</p>
-          <button 
+          <button
             onClick={onLogout}
             className="px-4 py-2 bg-indigo-600 text-white rounded-md"
           >
@@ -791,7 +793,7 @@ const SharedProjectDashboard = ({
   }
 
   const projectId = getProjectId(normalizedProject);
-  
+
   // Get status text with translation
   const getStatusText = (status) => {
     const statusKey = statusMapping[status] || 'active';
@@ -831,7 +833,7 @@ const SharedProjectDashboard = ({
                 }`}></div>
                 {getStatusText(normalizedProject.status)}
               </span>
-              
+
               {/* Language Selector */}
               <div className="relative">
                 <button
@@ -842,7 +844,7 @@ const SharedProjectDashboard = ({
                   {language.toUpperCase()}
                   <ChevronDown className="h-4 w-4 ml-1" />
                 </button>
-                
+
                 {showLanguageDropdown && (
                   <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-20">
                     <div className="py-1">
@@ -868,21 +870,21 @@ const SharedProjectDashboard = ({
                   </div>
                 )}
               </div>
-              
+
               {/* Admin Mode Toggle (csak akkor látható, ha isAdmin=true) */}
               {isAdmin && (
                 <button
                   onClick={toggleAdminMode}
                   className={`inline-flex items-center px-4 py-2 border rounded-md shadow-sm text-sm font-medium ${
-                    adminMode 
-                      ? 'bg-purple-600 text-white border-purple-500' 
+                    adminMode
+                      ? 'bg-purple-600 text-white border-purple-500'
                       : 'bg-white text-gray-700 border-gray-300'
                   }`}
                 >
                   {adminMode ? t.adminModeActive : t.adminMode}
                 </button>
               )}
-              
+
               {/* Profil szerkesztő gomb */}
               <ProfileButton
                 user={userData}
@@ -907,7 +909,7 @@ const SharedProjectDashboard = ({
             {successMessage}
           </div>
         )}
-        
+
         {errorMessage && (
           <div className="mb-6 p-3 bg-red-100 border border-red-400 text-red-700 rounded-md flex items-center shadow-sm">
             <AlertTriangle className="h-5 w-5 mr-2" />
@@ -924,7 +926,7 @@ const SharedProjectDashboard = ({
               </svg>
               <span>{t.adminModeBanner}</span>
             </div>
-            <button 
+            <button
               onClick={toggleAdminMode}
               className="px-3 py-1 bg-purple-200 text-purple-800 rounded hover:bg-purple-300"
             >
@@ -1033,12 +1035,12 @@ const SharedProjectDashboard = ({
 
         {/* Content based on active tab */}
         {activeTab === 'overview' && (
-          <ProjectOverview 
-            project={normalizedProject} 
-            files={files} 
+          <ProjectOverview
+            project={normalizedProject}
+            files={files}
             documents={documents}
             comments={comments} // Átadjuk a comments props-ot
-            setActiveTab={setActiveTab} 
+            setActiveTab={setActiveTab}
             language={language}
           />
         )}
@@ -1050,26 +1052,26 @@ const SharedProjectDashboard = ({
               <button
                 onClick={refreshProjectData}
                 disabled={isRefreshing}
-                className={`text-sm px-3 py-1 rounded ${isRefreshing 
-                  ? 'bg-gray-200 text-gray-500' 
+                className={`text-sm px-3 py-1 rounded ${isRefreshing
+                  ? 'bg-gray-200 text-gray-500'
                   : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'}`}
               >
                 {isRefreshing ? 'Frissítés...' : 'Számlák frissítése'}
               </button>
             </div>
-            <ProjectInvoices 
-              project={normalizedProject} 
-              onViewInvoice={handleViewInvoice} 
+            <ProjectInvoices
+              project={normalizedProject}
+              onViewInvoice={handleViewInvoice}
               language={language}
             />
           </div>
         )}
 
         {activeTab === 'files' && (
-          <ProjectFiles 
+          <ProjectFiles
             id="ProjectFiles-component"
-            project={normalizedProject} 
-            files={files} 
+            project={normalizedProject}
+            files={files}
             setFiles={setFiles}
             onShowFilePreview={handleShowFilePreview}
             showSuccessMessage={showSuccessMessage}
@@ -1077,7 +1079,7 @@ const SharedProjectDashboard = ({
             language={language}
           />
         )}
-        
+
         {activeTab === 'documents' && (
           <ProjectDocuments
             project={normalizedProject}
@@ -1093,24 +1095,24 @@ const SharedProjectDashboard = ({
 
         {/* Modals */}
         {previewFile && (
-          <FilePreviewModal 
-            file={previewFile} 
-            onClose={handleCloseFilePreview} 
+          <FilePreviewModal
+            file={previewFile}
+            onClose={handleCloseFilePreview}
             language={language}
           />
         )}
 
         {viewingInvoice && (
-          <InvoiceViewModal 
-            invoice={viewingInvoice} 
+          <InvoiceViewModal
+            invoice={viewingInvoice}
             project={normalizedProject}
-            onClose={handleCloseInvoiceView} 
+            onClose={handleCloseInvoiceView}
             onGeneratePDF={handleGeneratePDF}
             onUpdateStatus={handleUpdateInvoiceStatus}
             language={language}
           />
         )}
-        
+
         {viewingDocument && (
           <DocumentViewModal
             document={viewingDocument}
