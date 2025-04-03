@@ -745,10 +745,10 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
         statusText = 'Törölve';
       }
 
-      // Státusz badge - kompakt méret
+      // Státusz badge - kompakt méret, bal oldalra helyezve
       const statusBadgeWidth = 80;
       const statusBadgeHeight = 20;
-      const statusBadgeX = doc.page.width - statusBadgeWidth - 40;
+      const statusBadgeX = 40; // Bal oldalra helyezve
       const statusBadgeY = 15;
 
       doc.roundedRect(statusBadgeX, statusBadgeY, statusBadgeWidth, statusBadgeHeight, 10)
