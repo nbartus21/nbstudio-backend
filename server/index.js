@@ -697,42 +697,42 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
       doc.registerFont('Helvetica', 'Helvetica');
       doc.registerFont('Helvetica-Bold', 'Helvetica-Bold');
 
-      // Kompakt design - színek és stílusok
+      // Modern design - színek és stílusok
       const colors = {
-        primary: '#2563EB', // Modern kék
-        secondary: '#1E293B', // Sötét szürke
-        accent: '#3B82F6', // Világos kék
-        text: '#1E293B', // Sötét szöveg
-        light: '#F8FAFC', // Világos háttér
-        success: '#10B981', // Zöld (fizetett)
-        warning: '#F59E0B', // Narancs (lejárt)
-        border: '#E2E8F0', // Szegély szín
-        background: '#FFFFFF', // Fehér háttér
+        primary: '#2563EB',     // Fő kék szín
+        secondary: '#1E293B',   // Sötét szürke
+        accent: '#3B82F6',      // Világos kék
+        text: '#1E293B',        // Sötét szöveg
+        light: '#F8FAFC',       // Világos háttér
+        success: '#10B981',     // Zöld (fizetett)
+        warning: '#F59E0B',     // Narancs (lejárt)
+        border: '#E2E8F0',      // Szegély szín
+        background: '#FFFFFF',  // Fehér háttér
+        lightBlue: '#EFF6FF',   // Világos kék háttér
+        darkBlue: '#1E40AF',    // Sötét kék kiemelésekhez
       };
 
-      // Ultra-kompakt fejléc - csak egy vékony csík a tetején
-      const headerHeight = 80; // Nagyon alacsony fejléc
-
-      // Fejléc háttér
-      doc.rect(0, 0, doc.page.width, headerHeight)
+      // Vékony színes sáv a lap tetején
+      doc.rect(0, 0, doc.page.width, 8)
          .fill(colors.primary);
 
-      // Dekoratív elemek a fejlécben - minimális
-      doc.circle(doc.page.width - 60, 40, 40)
-         .fill('rgba(255, 255, 255, 0.1)');
+      // Fejléc terület
+      doc.rect(0, 8, doc.page.width, 120)
+         .fill(colors.background);
 
-      // Fejléc szöveg kompakt stílusban
-      doc.font('Helvetica-Bold')
-         .fontSize(24) // Kisebb betűméret
-         .fillColor('white')
-         .text('SZÁMLA', 40, 20, { width: 150 })
-         .fontSize(14) // Kisebb betűméret
-         .font('Helvetica')
-         .text(`#${invoice.number}`, 40, 50, { width: 150 });
+      // Logo hozzáadása (ha létezik)
+      try {
+        const logoPath = join(__dirname, 'public', 'logo.png');
+        if (fs.existsSync(logoPath)) {
+          doc.image(logoPath, 50, 20, { width: 100 });
+        }
+      } catch (logoError) {
+        console.warn('Logo betöltési hiba:', logoError.message);
+      }
 
       // Státusz jelölés a fejlécben
       let statusColor = colors.accent;
-      let statusText = 'Számla'; // "Kiállítva" helyett "Számla"
+      let statusText = 'Kiállítva';
 
       if (invoice.status === 'fizetett') {
         statusColor = colors.success;
@@ -745,172 +745,153 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
         statusText = 'Törölve';
       }
 
-      // Státusz badge - számla szám alá helyezve
-      const statusBadgeWidth = 80;
-      const statusBadgeHeight = 20;
-      const statusBadgeX = 40; // Bal oldalra helyezve
-      const statusBadgeY = 70; // Számla szám alá helyezve
+      // Számla felirat és szám
+      doc.font('Helvetica-Bold')
+         .fontSize(28)
+         .fillColor(colors.primary)
+         .text('SZÁMLA', 50, 30)
+         .fontSize(14)
+         .fillColor(colors.secondary)
+         .text(`#${invoice.number}`, 50, 65);
 
-      doc.roundedRect(statusBadgeX, statusBadgeY, statusBadgeWidth, statusBadgeHeight, 10)
+      // Státusz badge
+      const statusBadgeWidth = 80;
+      const statusBadgeHeight = 22;
+      const statusBadgeX = 50;
+      const statusBadgeY = 85;
+
+      doc.roundedRect(statusBadgeX, statusBadgeY, statusBadgeWidth, statusBadgeHeight, 4)
          .fill(statusColor);
 
       doc.font('Helvetica-Bold')
          .fontSize(10)
          .fillColor('white')
-         .text(statusText, statusBadgeX, statusBadgeY + 5, { width: statusBadgeWidth, align: 'center' });
+         .text(statusText, statusBadgeX, statusBadgeY + 6, { width: statusBadgeWidth, align: 'center' });
 
-      // Jobbra igazított fejléc info - kompakt elrendezés
+      // Jobb oldali dátum információk
       const rightColumnX = 400;
-      doc.fontSize(9)
-         .fillColor('rgba(255, 255, 255, 0.9)')
-         .text('Kiállítás dátuma:', rightColumnX, 20, { align: 'right' }) // "Kiállítás:" helyett "Kiállítás dátuma:"
+      doc.fontSize(10)
+         .fillColor(colors.secondary)
+         .text('Kiállítás dátuma:', rightColumnX, 30, { align: 'right' })
+         .fontSize(12)
+         .fillColor(colors.primary)
+         .text(new Date(invoice.date).toLocaleDateString('hu-HU'), rightColumnX, 45, { align: 'right' })
          .fontSize(10)
-         .fillColor('white')
-         .text(new Date(invoice.date).toLocaleDateString('hu-HU'), rightColumnX, 35, { align: 'right' })
-         .fontSize(9)
-         .fillColor('rgba(255, 255, 255, 0.9)')
-         .text('Fizetési határidő:', rightColumnX, 50, { align: 'right' })
-         .fontSize(10)
-         .fillColor('white')
-         .text(new Date(invoice.dueDate).toLocaleDateString('hu-HU'), rightColumnX, 65, { align: 'right' });
+         .fillColor(colors.secondary)
+         .text('Fizetési határidő:', rightColumnX, 65, { align: 'right' })
+         .fontSize(12)
+         .fillColor(colors.primary)
+         .text(new Date(invoice.dueDate).toLocaleDateString('hu-HU'), rightColumnX, 80, { align: 'right' });
 
-      // Vékony színsáv a fejléc alatt
-      doc.rect(0, headerHeight, doc.page.width, 2) // Nagyon vékony sáv
-         .fill(colors.accent);
+      // Vékony elválasztó vonal a fejléc után
+      doc.rect(50, 140, doc.page.width - 100, 1)
+         .fill(colors.border);
 
-      // Kiállító és vevő adatok - kompakt elrendezés
-      const startY = headerHeight + 5; // Nagyon közel a fejléchez
+      // Kiállító és vevő adatok
+      const infoStartY = 160;
 
-      // Háttér téglalapok a kiállító és vevő adatokhoz - kiállító alacsonyabb a kisebb sortávolságok miatt
-      doc.roundedRect(40, startY, 220, 180, 5) // Alacsonyabb a kiállító téglalap
-         .fillAndStroke('#F9FAFB', colors.border);
-
-      doc.roundedRect(280, startY, 270, 120, 5) // Vevő téglalap változatlan
-         .fillAndStroke('#F9FAFB', colors.border);
-
-      // Kiállító adatok - egyértelmű pozíciókkal
+      // Kiállító adatok
       doc.font('Helvetica-Bold')
          .fontSize(12)
-         .fillColor(colors.primary);
-      doc.text('KIÁLLÍTÓ', 50, startY + 10, { lineBreak: false });
+         .fillColor(colors.primary)
+         .text('KIÁLLÍTÓ', 50, infoStartY);
 
-      // Vízszintes vonal
-      doc.moveTo(50, startY + 25)
-         .lineTo(240, startY + 25)
-         .lineWidth(1)
-         .stroke(colors.primary);
+      doc.rect(50, infoStartY + 18, 220, 1)
+         .fill(colors.primary);
 
-      // Kiállító adatok - minden sor külön text() hívással, explicit pozíciókkal
       doc.font('Helvetica-Bold')
-         .fontSize(10)
-         .fillColor(colors.secondary);
-      doc.text('Norbert Bartus', 50, startY + 28, { lineBreak: false }); // Még kisebb távolság
-
-      doc.font('Helvetica')
+         .fontSize(11)
+         .fillColor(colors.secondary)
+         .text('Norbert Bartus', 50, infoStartY + 25)
+         .font('Helvetica')
          .fontSize(9)
-         .fillColor(colors.text);
-      doc.text('Salinenstraße 25', 50, startY + 45, { lineBreak: false }); // Kisebb távolság
-      doc.text('76646 Bruchsal, Baden-Württemberg', 50, startY + 60, { lineBreak: false }); // Kisebb távolság
-      doc.text('Deutschland', 50, startY + 75, { lineBreak: false }); // Kisebb távolság
-      doc.text('St.-Nr.: 68194547329', 50, startY + 90, { lineBreak: false }); // Kisebb távolság
-      doc.text('USt-IdNr.: DE346419031', 50, startY + 105, { lineBreak: false }); // Kisebb távolság
-      doc.text('IBAN: DE47 6634 0018 0473 4638 00', 50, startY + 120, { lineBreak: false }); // Kisebb távolság
-      doc.text('BANK: Commerzbank AG', 50, startY + 135, { lineBreak: false }); // Kisebb távolság
-      doc.text('SWIFT/BIC: COBADEFFXXX', 50, startY + 150, { lineBreak: false }); // Kisebb távolság
+         .fillColor(colors.text)
+         .text('Salinenstraße 25', 50, infoStartY + 40)
+         .text('76646 Bruchsal, Baden-Württemberg', 50, infoStartY + 52)
+         .text('Deutschland', 50, infoStartY + 64)
+         .text('St.-Nr.: 68194547329', 50, infoStartY + 76)
+         .text('USt-IdNr.: DE346419031', 50, infoStartY + 88)
+         .text('IBAN: DE47 6634 0018 0473 4638 00', 50, infoStartY + 100)
+         .text('BANK: Commerzbank AG', 50, infoStartY + 112)
+         .text('SWIFT/BIC: COBADEFFXXX', 50, infoStartY + 124);
 
-      // Kleinunternehmer megjegyzés - kisebb távolság
-      doc.fontSize(8)
-         .fillColor('#666666');
-      doc.text('Als Kleinunternehmer im Sinne von § 19 Abs. 1 UStG wird keine Umsatzsteuer berechnet.', 50, startY + 165, {
-        width: 190,
-        lineBreak: false
-      });
+      // Kleinunternehmer megjegyzés
+      doc.fontSize(7)
+         .fillColor('#666666')
+         .text('Als Kleinunternehmer im Sinne von § 19 Abs. 1 UStG wird keine Umsatzsteuer berechnet.', 50, infoStartY + 140, {
+           width: 220
+         });
 
-      // Vevő adatok - egyértelmű pozíciókkal
+      // Vevő adatok
+      doc.font('Helvetica-Bold')
+         .fontSize(12)
+         .fillColor(colors.primary)
+         .text('VEVŐ', 320, infoStartY);
+
+      doc.rect(320, infoStartY + 18, 220, 1)
+         .fill(colors.primary);
+
       if (project.client) {
         doc.font('Helvetica-Bold')
-           .fontSize(12)
-           .fillColor(colors.primary);
-        doc.text('VEVŐ', 290, startY + 10, { lineBreak: false });
-
-        // Vízszintes vonal
-        doc.moveTo(290, startY + 25)
-           .lineTo(530, startY + 25)
-           .lineWidth(1)
-           .stroke(colors.primary);
-
-        doc.font('Helvetica-Bold')
-           .fontSize(10)
-           .fillColor(colors.secondary);
-        doc.text(project.client.companyName || project.client.name || '', 290, startY + 35, { lineBreak: false });
+           .fontSize(11)
+           .fillColor(colors.secondary)
+           .text(project.client.companyName || project.client.name || '', 320, infoStartY + 25);
 
         doc.font('Helvetica')
            .fontSize(9)
            .fillColor(colors.text);
 
-        // Fix pozíciók minden sorhoz
-        let rowY = startY + 50;
+        let rowY = infoStartY + 40;
 
         if (project.client.companyName && project.client.name) {
-          doc.text(project.client.name, 290, rowY, { lineBreak: false });
-          rowY += 15;
+          doc.text(project.client.name, 320, rowY);
+          rowY += 12;
         }
 
         if (project.client.taxNumber) {
-          doc.text(`Adószám: ${project.client.taxNumber}`, 290, rowY, { lineBreak: false });
-          rowY += 15;
+          doc.text(`Adószám: ${project.client.taxNumber}`, 320, rowY);
+          rowY += 12;
         }
 
         if (project.client.email) {
-          doc.text(`Email: ${project.client.email}`, 290, rowY, { lineBreak: false });
-          rowY += 15;
+          doc.text(`Email: ${project.client.email}`, 320, rowY);
+          rowY += 12;
         }
 
         if (project.client.phone) {
-          doc.text(`Telefon: ${project.client.phone}`, 290, rowY, { lineBreak: false });
-          rowY += 15;
+          doc.text(`Telefon: ${project.client.phone}`, 320, rowY);
+          rowY += 12;
         }
 
         if (project.client.address) {
           const { city, street, postalCode, country } = project.client.address;
           if (city || street || postalCode) {
-            doc.text(`${postalCode || ''} ${city || ''}, ${street || ''}`, 290, rowY, { lineBreak: false });
-            rowY += 15;
+            doc.text(`${postalCode || ''} ${city || ''}, ${street || ''}`, 320, rowY);
+            rowY += 12;
           }
           if (country) {
-            doc.text(country, 290, rowY, { lineBreak: false });
+            doc.text(country, 320, rowY);
           }
         }
       }
 
-      // Tételek cím - fix pozíció, alacsonyabbra helyezve a kisebb kiállító téglalap miatt
-      doc.font('Helvetica-Bold')
-         .fontSize(12)
-         .fillColor(colors.secondary);
-      doc.text('TÉTELEK', 40, startY + 190, { lineBreak: false }); // Alacsonyabbra helyezve
+      // Tételek táblázat
+      const tableStartY = infoStartY + 180;
 
-      // Vízszintes vonal a cím alatt - fix pozíció, alacsonyabbra helyezve
-      const tableTop = startY + 205; // Alacsonyabbra helyezve
-      doc.moveTo(40, tableTop)
-         .lineTo(550, tableTop)
-         .lineWidth(0.5)
-         .stroke(colors.border);
+      // Táblázat fejléc
+      doc.rect(50, tableStartY, doc.page.width - 100, 30)
+         .fill(colors.primary);
 
-      // Táblázat fejléc - fix pozíció
-      const tableHeaderTop = tableTop + 5;
       const tableHeaders = ['Tétel', 'Mennyiség', 'Egységár', 'Összesen'];
-      const tableColumnWidths = [240, 80, 100, 100];
-      const columnPositions = [40];
+      const tableColumnWidths = [300, 60, 80, 80];
+      const columnPositions = [50];
 
-      for (let i = 1; i < tableColumnWidths.length; i++) {
-        columnPositions[i] = columnPositions[i-1] + tableColumnWidths[i-1];
+      // Kiszámoljuk a pozíciókat
+      for (let i = 1; i < tableHeaders.length; i++) {
+        columnPositions.push(columnPositions[i - 1] + tableColumnWidths[i - 1]);
       }
 
-      // Kompakt táblázat fejléc - fix pozíció
-      doc.roundedRect(40, tableHeaderTop, 520, 25, 3)
-         .fillAndStroke(colors.primary, colors.primary);
-
-      // Táblázat fejléc szöveg - explicit opciókkal
+      // Táblázat fejléc szöveg
       doc.font('Helvetica-Bold')
          .fillColor('white')
          .fontSize(10);
@@ -918,17 +899,16 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
       tableHeaders.forEach((header, i) => {
         const position = columnPositions[i];
         const align = i === 0 ? 'left' : 'right';
-        const padding = i === 0 ? 5 : 10;
+        const padding = i === 0 ? 8 : 8;
 
-        doc.text(header, position + padding, tableHeaderTop + 8, {
+        doc.text(header, position + padding, tableStartY + 10, {
           width: tableColumnWidths[i] - (padding * 2),
-          align: align,
-          lineBreak: false
+          align: align
         });
       });
 
-      // Táblázat sorok - kompakt
-      let currentY = tableHeaderTop + 25;
+      // Táblázat sorok
+      let currentY = tableStartY + 30;
       let currentPage = 1;
       let rowBackground = true;
 
@@ -944,14 +924,15 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
           item.unitPrice = typeof item.unitPrice === 'number' ? item.unitPrice : 0;
           item.total = typeof item.total === 'number' ? item.total : 0;
 
+          // Oldaltörés ellenőrzése
           if (currentY > 700) {
             doc.addPage();
             currentPage++;
             currentY = 50;
 
-            // Új oldal fejléce - kompakt
-            doc.roundedRect(40, currentY, 520, 25, 3)
-               .fillAndStroke(colors.primary, colors.primary);
+            // Új oldal fejléce
+            doc.rect(50, currentY, doc.page.width - 100, 30)
+               .fill(colors.primary);
 
             doc.font('Helvetica-Bold')
                .fillColor('white')
@@ -960,26 +941,27 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
             tableHeaders.forEach((header, i) => {
               const position = columnPositions[i];
               const align = i === 0 ? 'left' : 'right';
-              const padding = i === 0 ? 5 : 10;
+              const padding = i === 0 ? 8 : 8;
 
-              doc.text(header, position + padding, currentY + 8, {
+              doc.text(header, position + padding, currentY + 10, {
                 width: tableColumnWidths[i] - (padding * 2),
                 align: align
               });
             });
 
-            currentY += 25;
+            currentY += 30;
             rowBackground = true;
           }
 
-          // Zebra csikos táblázat - kompakt
+          // Zebra csíkos táblázat
           if (rowBackground) {
-            doc.roundedRect(40, currentY, 520, 20, 0)
-               .fillAndStroke('#F9FAFB', colors.border);
-          } else {
-            doc.roundedRect(40, currentY, 520, 20, 0)
-               .fillAndStroke('#FFFFFF', colors.border);
+            doc.rect(50, currentY, doc.page.width - 100, 25)
+               .fill('#F9FAFB');
           }
+
+          // Vékony elválasztó vonal minden sor után
+          doc.rect(50, currentY + 25, doc.page.width - 100, 0.5)
+             .fill(colors.border);
 
           doc.font('Helvetica')
              .fillColor(colors.text)
@@ -996,50 +978,80 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
           row.forEach((cell, i) => {
             const position = columnPositions[i];
             const align = i === 0 ? 'left' : 'right';
-            const padding = i === 0 ? 5 : 10;
+            const padding = i === 0 ? 8 : 8;
 
-            doc.text(cell, position + padding, currentY + 6, {
+            doc.text(cell, position + padding, currentY + 8, {
               width: tableColumnWidths[i] - (padding * 2),
-              align: align,
-              lineBreak: false
+              align: align
             });
           });
 
-          currentY += 20;
+          currentY += 25;
           rowBackground = !rowBackground;
         });
       }
 
-      // Összegzés táblázat - ultra-kompakt, explicit opciókkal - kisebb távolsággal
-      const summaryStartY = currentY + 2; // Kisebb távolság
+      // Összegzés és fizetési információk
+      const summaryStartY = currentY + 20;
 
-      // QR kód generálás eltávolítva
+      // Fizetési információk
+      doc.roundedRect(50, summaryStartY, 250, 120, 4)
+         .fillAndStroke(colors.lightBlue, colors.border);
 
-      // Összegzés háttér - extrém kompakt
-      doc.roundedRect(350, summaryStartY, 210, 35, 3) // Extrém kis magasság
-         .fillAndStroke('#F9FAFB', colors.border);
+      doc.font('Helvetica-Bold')
+         .fontSize(11)
+         .fillColor(colors.primary)
+         .text('FIZETÉSI INFORMÁCIÓK', 65, summaryStartY + 15);
 
-      // Részösszeg sor - extrém kompakt
+      doc.font('Helvetica')
+         .fontSize(9)
+         .fillColor(colors.text)
+         .text('IBAN:', 65, summaryStartY + 40, { continued: true })
+         .font('Helvetica-Bold')
+         .text(' DE47 6634 0018 0473 4638 00')
+         .font('Helvetica')
+         .text('SWIFT/BIC:', 65, summaryStartY + 55, { continued: true })
+         .font('Helvetica-Bold')
+         .text(' COBADEFFXXX')
+         .font('Helvetica')
+         .text('Bank:', 65, summaryStartY + 70, { continued: true })
+         .font('Helvetica-Bold')
+         .text(' Commerzbank AG')
+         .font('Helvetica')
+         .text('Közlemény:', 65, summaryStartY + 85, { continued: true })
+         .font('Helvetica-Bold')
+         .text(` ${invoice.number}`);
+
+      // Összegzés
+      doc.roundedRect(350, summaryStartY, 220, 120, 4)
+         .fillAndStroke(colors.lightBlue, colors.border);
+
+      doc.font('Helvetica-Bold')
+         .fontSize(11)
+         .fillColor(colors.primary)
+         .text('ÖSSZEGZÉS', 365, summaryStartY + 15);
+
+      // Részösszeg sor
       doc.font('Helvetica')
          .fillColor(colors.text)
-         .fontSize(9);
-      doc.text('Részösszeg:', 360, summaryStartY + 6, { width: 100, align: 'left', lineBreak: false }); // Még kisebb távolság
-      doc.text(`${invoice.totalAmount} ${invoice.currency || 'EUR'}`, 450, summaryStartY + 6, { width: 100, align: 'right', lineBreak: false });
+         .fontSize(10)
+         .text('Részösszeg:', 365, summaryStartY + 40, { width: 100, align: 'left' })
+         .text(`${invoice.totalAmount} ${invoice.currency || 'EUR'}`, 465, summaryStartY + 40, { width: 90, align: 'right' });
 
-      // ÁFA sor (ha van) - extrém kompakt
-      doc.text('ÁFA (0%):', 360, summaryStartY + 16, { width: 100, align: 'left', lineBreak: false }); // Még kisebb távolság
-      doc.text('0.00 EUR', 450, summaryStartY + 16, { width: 100, align: 'right', lineBreak: false });
+      // ÁFA sor (ha van)
+      doc.text('ÁFA (0%):', 365, summaryStartY + 60, { width: 100, align: 'left' })
+         .text('0.00 EUR', 465, summaryStartY + 60, { width: 90, align: 'right' });
 
-      // Végösszeg kiemelése - extrém kompakt
-      doc.roundedRect(350, summaryStartY + 26, 210, 15, 3) // Extrém kis magasság és távolság
-         .fillAndStroke(colors.primary, colors.primary);
+      // Végösszeg kiemelése
+      doc.roundedRect(365, summaryStartY + 80, 190, 30, 4)
+         .fill(colors.primary);
 
-      // Végösszeg kiírása - extrém kompakt
+      // Végösszeg kiírása
       doc.font('Helvetica-Bold')
          .fillColor('white')
-         .fontSize(10);
-      doc.text('Végösszeg:', 360, summaryStartY + 29, { width: 100, align: 'left', lineBreak: false }); // Extrém kis távolság
-      doc.text(`${invoice.totalAmount} ${invoice.currency || 'EUR'}`, 450, summaryStartY + 29, { width: 100, align: 'right', lineBreak: false }); // Extrém kis távolság
+         .fontSize(12);
+      doc.text('Végösszeg:', 375, summaryStartY + 90, { width: 100, align: 'left' });
+      doc.text(`${invoice.totalAmount} ${invoice.currency || 'EUR'}`, 465, summaryStartY + 90, { width: 80, align: 'right' });
 
       // Finalize the PDF content before adding footer
       // Get the total number of pages
@@ -1049,39 +1061,34 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
       for (let i = 0; i < pages.count; i++) {
         doc.switchToPage(i);
 
-        // Egyszerű lábléc egy sorban - sokkal magasabbra helyezve
-        const footerTop = doc.page.height - 70; // Sokkal magasabbra helyezve
+        // Lábléc
+        const footerTop = doc.page.height - 40;
 
-        // Nincs vonal a lábléc tetején
+        // Vékony vonal a lábléc tetején
+        doc.rect(50, footerTop - 5, doc.page.width - 100, 0.5)
+           .fill(colors.border);
 
-        // Lábléc szöveg - abszolút pozícióban
+        // Lábléc szöveg
         doc.font('Helvetica')
-           .fontSize(7)
-           .fillColor(colors.secondary);
+           .fontSize(8)
+           .fillColor(colors.secondary)
+           .text('Norbert Bartus | www.nb-studio.net | Ez a számla elektronikusan készült és érvényes aláírás nélkül is.', 50, footerTop, {
+             align: 'center',
+             width: doc.page.width - 100
+           });
 
-        // Egyszerű lábléc szöveg - visszatérés az eredetihez
-        const footerText = 'Norbert Bartus | www.nb-studio.net | Ez a számla elektronikusan készült és érvényes aláírás nélkül is. | ' + (i + 1) + '. oldal';
-        doc.text(footerText, 40, footerTop + 5, {
-          align: 'center',
-          width: doc.page.width - 80,
-          lineBreak: false,
-          continued: false
-        });
+        // Oldalszám
+        doc.fontSize(8)
+           .fillColor(colors.primary)
+           .text(`${i + 1}. oldal`, 50, footerTop, {
+             align: 'right',
+             width: doc.page.width - 100
+           });
       }
 
       // Finalize the PDF
       doc.end();
       console.log('PDF generation completed using modern design');
-
-      // Próbáljunk QR kódot generálni a fizetéshez
-      try {
-        // QR kód kép generálása (ha van QRCode modul)
-        const QRCode = require('qrcode');
-        // QR kód generálás logika...
-      } catch (qrError) {
-        console.warn('QR kód generálási hiba:', qrError.message);
-        // Folytatjuk a PDF generálást QR kód nélkül
-      }
 
     } catch (pdfError) {
       console.error('Error generating PDF with fallback method:', pdfError);
