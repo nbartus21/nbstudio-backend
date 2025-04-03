@@ -628,18 +628,56 @@ const SharedProjectDashboard = ({
 
   // Update invoice status after payment
   const handleUpdateInvoiceStatus = async (invoiceId, newStatus) => {
+    console.log('INVOICE STATUS UPDATE:', { invoiceId, newStatus });
     debugLog('handleUpdateInvoiceStatus', `Updating invoice ${invoiceId} status to ${newStatus}`);
 
-    if (!normalizedProject || !normalizedProject.invoices) return;
+    if (!normalizedProject || !normalizedProject.invoices) {
+      console.error('No project or invoices found');
+      return;
+    }
 
     // Update invoice status in project locally
     const updatedProject = { ...normalizedProject };
-    const invoiceIndex = updatedProject.invoices.findIndex(inv =>
-      (inv._id && inv._id.toString() === invoiceId) ||
-      (inv.id && inv.id.toString() === invoiceId)
-    );
+
+    // Rugalmasabb keresés a számlára
+    let invoiceIndex = -1;
+
+    // Próbáljunk többféle módon keresni
+    for (let i = 0; i < updatedProject.invoices.length; i++) {
+      const inv = updatedProject.invoices[i];
+      const invIdStr = inv._id?.toString();
+      const invIdStr2 = inv.id?.toString();
+      const invoiceIdStr = invoiceId?.toString();
+
+      if (
+        invIdStr === invoiceIdStr ||
+        invIdStr2 === invoiceIdStr ||
+        inv._id === invoiceId ||
+        inv.id === invoiceId ||
+        inv.number === invoiceId
+      ) {
+        invoiceIndex = i;
+        break;
+      }
+    }
+
+    console.log('INVOICE SEARCH RESULT:', {
+      invoiceIndex,
+      invoiceCount: updatedProject.invoices.length,
+      invoiceIds: updatedProject.invoices.map(inv => ({
+        _id: inv._id?.toString(),
+        id: inv.id?.toString(),
+        number: inv.number
+      }))
+    });
 
     if (invoiceIndex >= 0) {
+      console.log('INVOICE FOUND, UPDATING STATUS');
+
+      // Mentük el a régi státuszt, hogy lássuk a változást
+      const oldStatus = updatedProject.invoices[invoiceIndex].status;
+
+      // Frissítsük a státuszt és a kapcsolódó mezőket
       updatedProject.invoices[invoiceIndex].status = newStatus;
 
       if (newStatus === 'fizetett' || newStatus === 'paid' || newStatus === 'bezahlt') {
@@ -647,12 +685,15 @@ const SharedProjectDashboard = ({
         updatedProject.invoices[invoiceIndex].paidAmount = updatedProject.invoices[invoiceIndex].totalAmount;
       }
 
+      console.log('STATUS CHANGE:', { oldStatus, newStatus });
+
       // Update project state locally
       setNormalizedProject(updatedProject);
 
       // Küldjük el a frissítést a szervernek is
       try {
         // Frissítsük a projektet a szerveren is a verify-pin végponton keresztül
+        console.log('SENDING UPDATE TO SERVER');
         debugLog('handleUpdateInvoiceStatus', 'Sending update to server');
 
         // Használjuk a refreshProjectData függvényt a szerver frissítéséhez
@@ -660,16 +701,24 @@ const SharedProjectDashboard = ({
 
         // Update project state in parent component
         if (onUpdate) {
+          console.log('UPDATING PARENT COMPONENT');
           onUpdate(updatedProject);
         }
 
         // Show success message
         showSuccessMessage('A számla státusza sikeresen frissítve');
 
+        console.log('SERVER UPDATE SUCCESSFUL');
         debugLog('handleUpdateInvoiceStatus', 'Server update successful');
+
+        // Frissítsük az oldalt, hogy biztos legyen a változás
+        setTimeout(() => {
+          console.log('RELOADING PAGE TO ENSURE CHANGES ARE VISIBLE');
+          window.location.reload();
+        }, 2000);
       } catch (error) {
+        console.error('ERROR UPDATING INVOICE STATUS ON SERVER:', error);
         debugLog('handleUpdateInvoiceStatus', 'Error updating invoice status on server', { error });
-        console.error('Error updating invoice status on server:', error);
 
         // Even if server update fails, we keep the local update
         if (onUpdate) {
@@ -677,6 +726,7 @@ const SharedProjectDashboard = ({
         }
       }
     } else {
+      console.error('INVOICE NOT FOUND IN PROJECT');
       debugLog('handleUpdateInvoiceStatus', `Invoice ${invoiceId} not found in project`);
     }
   };

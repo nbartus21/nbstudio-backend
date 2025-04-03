@@ -489,8 +489,32 @@ router.post('/webhook', (req, res, next) => {
     headers: req.headers,
     signature: sig ? 'Present' : 'Missing',
     contentType: req.headers['content-type'],
-    bodyLength: req.rawBody ? req.rawBody.length : 0
+    bodyLength: req.rawBody ? req.rawBody.length : 0,
+    timestamp: new Date().toISOString(),
+    url: req.originalUrl
   });
+
+  // Naplózzuk a teljes webhook tartalmát is
+  try {
+    const webhookBody = JSON.parse(req.rawBody || '{}');
+    console.log('Webhook body:', {
+      type: webhookBody.type,
+      id: webhookBody.id,
+      object: webhookBody.object,
+      apiVersion: webhookBody.api_version,
+      data: webhookBody.data ? 'Present' : 'Missing'
+    });
+
+    if (webhookBody.data && webhookBody.data.object) {
+      console.log('Webhook data object:', {
+        id: webhookBody.data.object.id,
+        object: webhookBody.data.object.object,
+        metadata: webhookBody.data.object.metadata
+      });
+    }
+  } catch (parseError) {
+    console.error('Error parsing webhook body:', parseError);
+  }
 
   try {
     // Ha nincs signature vagy endpointSecret, akkor közvetlenül parse-oljuk a JSON-t
@@ -519,14 +543,19 @@ router.post('/webhook', (req, res, next) => {
     const session = event.data.object;
 
     // Extract metadata
-    const { invoiceId, projectId } = session.metadata;
+    const { invoiceId, projectId } = session.metadata || {};
 
     console.log('Payment successful, received checkout.session.completed webhook', {
       sessionId: session.id,
       paymentIntentId: session.payment_intent,
       amount: session.amount_total / 100,
-      currency: session.currency
+      currency: session.currency,
+      metadata: session.metadata,
+      timestamp: new Date().toISOString()
     });
+
+    // Naplózzuk a metadata tartalmát részletesen
+    console.log('Session metadata details:', session.metadata);
 
     if (invoiceId && projectId) {
       try {
@@ -539,11 +568,16 @@ router.post('/webhook', (req, res, next) => {
 
           if (invoice) {
             // Frissítsük a számla alapadatait
+            console.log(`Updating invoice ${invoiceId} status to 'fizetett'`);
+            console.log('Current invoice status:', invoice.status);
+
             invoice.status = 'fizetett';
             invoice.paidDate = new Date();
             invoice.paidAmount = session.amount_total / 100; // Convert from cents
             invoice.paymentMethod = 'card';
             invoice.paymentReference = session.payment_intent;
+
+            console.log('Invoice status updated to:', invoice.status);
 
             // Most szerezzük be a részletes fizetési adatokat
             try {
@@ -647,8 +681,28 @@ router.post('/webhook', (req, res, next) => {
               console.error('Error handling accounting record:', accountingError);
             }
 
+            // Mentés előtt ellenőrizzük, hogy a projekt érvényes-e
+            if (!project || !project._id) {
+              console.error('Project is invalid or missing _id');
+              return res.status(400).json({ error: 'Invalid project' });
+            }
+
+            // Mentés előtt ellenőrizzük, hogy a számla státusza valóban változott-e
+            console.log('Final invoice status before save:', invoice.status);
+
+            // Mentés
             await project.save();
             console.log(`Invoice ${invoiceId} marked as paid via Stripe payment in project ${projectId}`);
+
+            // Ellenőrizzük, hogy a mentés után is megfelelő-e a státusz
+            const updatedProject = await mongoose.model('Project').findById(projectId);
+            const updatedInvoice = updatedProject?.invoices?.id(invoiceId);
+
+            if (updatedInvoice) {
+              console.log('Invoice status after save:', updatedInvoice.status);
+            } else {
+              console.error('Could not find invoice after save');
+            }
           } else {
             console.error(`Invoice ${invoiceId} not found in project ${projectId}`);
           }

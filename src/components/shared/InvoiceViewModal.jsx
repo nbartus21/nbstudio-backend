@@ -26,55 +26,96 @@ const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGenerat
 
   // Check for success or canceled payment in URL params when component mounts
   useEffect(() => {
-    const url = new URL(window.location.href);
-    const success = url.searchParams.get('success');
-    const canceled = url.searchParams.get('canceled');
-    const invoiceId = url.searchParams.get('invoice');
+    // Fontos: Ezt a useEffect-et csak egyszer futtassuk le, amikor a komponens betöltődik
+    const checkPaymentStatus = () => {
+      try {
+        const url = new URL(window.location.href);
+        const success = url.searchParams.get('success');
+        const canceled = url.searchParams.get('canceled');
+        const invoiceId = url.searchParams.get('invoice');
 
-    debugLog('InvoiceViewModal', 'Checking payment status from URL params', {
-      success,
-      canceled,
-      invoiceId,
-      currentInvoiceId: invoice._id
-    });
+        console.log('PAYMENT STATUS CHECK:', { success, canceled, invoiceId });
+        debugLog('InvoiceViewModal', 'Checking payment status from URL params', {
+          success,
+          canceled,
+          invoiceId,
+          currentInvoiceId: invoice._id
+        });
 
-    if (success === 'true' && invoiceId) {
-      debugLog('InvoiceViewModal', 'Payment was successful', { invoiceId });
+        if (success === 'true' && invoiceId) {
+          console.log('PAYMENT SUCCESS DETECTED!');
+          debugLog('InvoiceViewModal', 'Payment was successful', { invoiceId });
 
-      // Frissítsük a számla státuszát, ha a számla azonosító megegyezik
-      // Megjegyzés: Néha a számla._id egy objektum, ezért stringé konvertáljuk
-      const currentInvoiceId = invoice._id?.toString();
-      const urlInvoiceId = invoiceId.toString();
+          // Frissítsük a számla státuszát, ha a számla azonosító megegyezik
+          // Megjegyzés: Néha a számla._id egy objektum, ezért stringé konvertáljuk
+          const currentInvoiceId = invoice._id?.toString();
+          const urlInvoiceId = invoiceId.toString();
 
-      debugLog('InvoiceViewModal', 'Comparing invoice IDs', {
-        currentInvoiceId,
-        urlInvoiceId,
-        match: currentInvoiceId === urlInvoiceId
-      });
+          console.log('COMPARING IDs:', { currentInvoiceId, urlInvoiceId });
+          debugLog('InvoiceViewModal', 'Comparing invoice IDs', {
+            currentInvoiceId,
+            urlInvoiceId,
+            match: currentInvoiceId === urlInvoiceId
+          });
 
-      if (currentInvoiceId === urlInvoiceId || invoiceId === invoice._id) {
-        // Update invoice status locally
-        if (onUpdateStatus) {
-          debugLog('InvoiceViewModal', 'Updating invoice status to fizetett');
-          onUpdateStatus(invoice._id, 'fizetett');
+          // Rugalmasabb összehasonlítás, hogy biztosan működjön
+          const isMatch =
+            currentInvoiceId === urlInvoiceId ||
+            invoiceId === invoice._id ||
+            invoiceId === invoice._id?.toString() ||
+            invoiceId === invoice.id ||
+            invoiceId === invoice.id?.toString() ||
+            invoiceId === invoice.number;
 
-          // Mutassunk egy sikeres fizetés üzenetet
-          alert('A fizetés sikeres volt! A számla státusza frissítve lett.');
+          console.log('ID MATCH RESULT:', isMatch);
+
+          if (isMatch) {
+            // Update invoice status locally
+            if (onUpdateStatus) {
+              console.log('UPDATING INVOICE STATUS TO FIZETETT');
+              debugLog('InvoiceViewModal', 'Updating invoice status to fizetett');
+
+              // Késleltetés hozzáadása, hogy biztos legyen idő a komponens teljes betöltésére
+              setTimeout(() => {
+                onUpdateStatus(invoice._id, 'fizetett');
+
+                // Mutassunk egy sikeres fizetés üzenetet
+                alert('A fizetés sikeres volt! A számla státusza frissítve lett.');
+
+                // Frissítsük az oldalt, hogy biztos legyen a változás
+                setTimeout(() => {
+                  window.location.reload();
+                }, 1500);
+              }, 500);
+            }
+          } else {
+            console.log('INVOICE ID MISMATCH');
+            debugLog('InvoiceViewModal', 'Invoice ID mismatch, not updating status');
+          }
+        } else if (canceled === 'true') {
+          console.log('PAYMENT CANCELED DETECTED!');
+          debugLog('InvoiceViewModal', 'Payment was canceled', { invoiceId });
+          setPaymentError('A fizetés meg lett szakítva vagy elutasításra került.');
         }
-      } else {
-        debugLog('InvoiceViewModal', 'Invoice ID mismatch, not updating status');
-      }
-    } else if (canceled === 'true' && invoiceId === invoice._id) {
-      debugLog('InvoiceViewModal', 'Payment was canceled', { invoiceId });
-      setPaymentError('A fizetés meg lett szakítva vagy elutasításra került.');
-    }
 
-    // Clean up URL params
-    if (success || canceled) {
-      const cleanUrl = window.location.pathname;
-      window.history.replaceState({}, document.title, cleanUrl);
-    }
-  }, [invoice._id]);
+        // Clean up URL params
+        if (success || canceled) {
+          const cleanUrl = window.location.pathname;
+          window.history.replaceState({}, document.title, cleanUrl);
+        }
+      } catch (error) {
+        console.error('Error checking payment status:', error);
+      }
+    };
+
+    // Azonnal ellenőrizzük a fizetés státuszát
+    checkPaymentStatus();
+
+    // Adjunk hozzá egy kis késleltetést is, hogy biztos legyen
+    const timeoutId = setTimeout(checkPaymentStatus, 1000);
+
+    return () => clearTimeout(timeoutId);
+  }, []); // Üres függőségi tömb, hogy csak egyszer fusson le
 
   const currency = invoice?.currency || project?.financial?.currency || 'EUR';
 
