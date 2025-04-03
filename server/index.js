@@ -781,11 +781,11 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
       // Kiállító és vevő adatok - kompakt elrendezés
       const startY = headerHeight + 5; // Nagyon közel a fejléchez
 
-      // Háttér téglalapok a kiállító és vevő adatokhoz - kisebb méret
-      doc.roundedRect(40, startY, 220, 120, 5)
+      // Háttér téglalapok a kiállító és vevő adatokhoz - kiállító magasabb a céges adatok miatt
+      doc.roundedRect(40, startY, 220, 160, 5) // Magasabb a kiállító téglalap
          .fillAndStroke('#F9FAFB', colors.border);
 
-      doc.roundedRect(280, startY, 270, 120, 5)
+      doc.roundedRect(280, startY, 270, 120, 5) // Vevő téglalap változatlan
          .fillAndStroke('#F9FAFB', colors.border);
 
       // Kiállító adatok - egyértelmű pozíciókkal
@@ -810,10 +810,19 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
          .fontSize(9)
          .fillColor(colors.text);
       doc.text('Bartus Norbert', 50, startY + 50, { lineBreak: false });
-      doc.text('Adószám: 12345678-1-42', 50, startY + 65, { lineBreak: false });
-      doc.text('Cím: 1234 Budapest, Példa utca 1.', 50, startY + 80, { lineBreak: false });
-      doc.text('Email: info@nb-studio.net', 50, startY + 95, { lineBreak: false });
-      doc.text('Telefon: +36 30 123 4567', 50, startY + 110, { lineBreak: false });
+      doc.text('St.-Nr.: 68194547329', 50, startY + 65, { lineBreak: false });
+      doc.text('USt-IdNr.: DE346419031', 50, startY + 80, { lineBreak: false });
+      doc.text('IBAN: DE47 6634 0018 0473 4638 00', 50, startY + 95, { lineBreak: false });
+      doc.text('BANK: Commerzbank AG', 50, startY + 110, { lineBreak: false });
+      doc.text('SWIFT/BIC: COBADEFFXXX', 50, startY + 125, { lineBreak: false });
+
+      // Kleinunternehmer megjegyzés
+      doc.fontSize(8)
+         .fillColor('#666666');
+      doc.text('Als Kleinunternehmer im Sinne von § 19 Abs. 1 UStG wird keine Umsatzsteuer berechnet.', 50, startY + 140, {
+        width: 190,
+        lineBreak: false
+      });
 
       // Vevő adatok - egyértelmű pozíciókkal
       if (project.client) {
@@ -872,14 +881,14 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
         }
       }
 
-      // Tételek cím - fix pozíció
+      // Tételek cím - fix pozíció, magasabbra helyezve a kiállító adatok miatt
       doc.font('Helvetica-Bold')
          .fontSize(12)
          .fillColor(colors.secondary);
-      doc.text('TÉTELEK', 40, startY + 130, { lineBreak: false });
+      doc.text('TÉTELEK', 40, startY + 170, { lineBreak: false }); // Magasabbra helyezve
 
-      // Vízszintes vonal a cím alatt - fix pozíció
-      const tableTop = startY + 145;
+      // Vízszintes vonal a cím alatt - fix pozíció, magasabbra helyezve
+      const tableTop = startY + 185; // Magasabbra helyezve
       doc.moveTo(40, tableTop)
          .lineTo(550, tableTop)
          .lineWidth(0.5)
@@ -1046,52 +1055,13 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
            .fontSize(7)
            .fillColor(colors.secondary);
 
-        // Céges adatok a láblécben - több sorban
-        doc.fontSize(7)
-           .fillColor(colors.secondary);
-
-        // Bal oldali céges adatok
-        doc.text('NB Studio | Bartus Norbert', 40, footerTop + 5, {
-          align: 'left',
-          width: 200,
-          lineBreak: false
-        });
-
-        doc.text('St.-Nr.: 68194547329 | USt-IdNr.: DE346419031', 40, footerTop + 15, {
-          align: 'left',
-          width: 200,
-          lineBreak: false
-        });
-
-        doc.text('IBAN: DE47 6634 0018 0473 4638 00', 40, footerTop + 25, {
-          align: 'left',
-          width: 200,
-          lineBreak: false
-        });
-
-        doc.text('BANK: Commerzbank AG | SWIFT/BIC: COBADEFFXXX', 40, footerTop + 35, {
-          align: 'left',
-          width: 300,
-          lineBreak: false
-        });
-
-        // Jobb oldali szöveg
-        doc.text('Ez a számla elektronikusan készült és érvényes aláírás nélkül is.', 350, footerTop + 5, {
-          align: 'right',
-          width: 200,
-          lineBreak: false
-        });
-
-        doc.text('Als Kleinunternehmer im Sinne von § 19 Abs. 1 UStG wird keine Umsatzsteuer berechnet.', 350, footerTop + 15, {
-          align: 'right',
-          width: 200,
-          lineBreak: false
-        });
-
-        doc.text('www.nb-studio.net | ' + (i + 1) + '. oldal', 350, footerTop + 35, {
-          align: 'right',
-          width: 200,
-          lineBreak: false
+        // Egyszerű lábléc szöveg - visszatérés az eredetihez
+        const footerText = 'NB Studio | Bartus Norbert | www.nb-studio.net | Ez a számla elektronikusan készült és érvényes aláírás nélkül is. | ' + (i + 1) + '. oldal';
+        doc.text(footerText, 40, footerTop + 5, {
+          align: 'center',
+          width: doc.page.width - 80,
+          lineBreak: false,
+          continued: false
         });
       }
 
