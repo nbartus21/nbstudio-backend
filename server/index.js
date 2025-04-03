@@ -1014,6 +1014,77 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
       // Összegzés táblázat - ultra-kompakt, explicit opciókkal - kisebb távolsággal
       const summaryStartY = currentY + 2; // Kisebb távolság
 
+      // QR kód generálása a SEPA átutaláshoz
+      try {
+        const QRCode = require('qrcode');
+        const fs = require('fs');
+        const { join } = require('path');
+
+        // Ideiglenes mappa létrehozása, ha nem létezik
+        const tempDir = join(__dirname, 'temp');
+        if (!fs.existsSync(tempDir)) {
+          fs.mkdirSync(tempDir, { recursive: true });
+        }
+
+        // QR kód fájl útvonala
+        const qrCodePath = join(tempDir, `qr-${invoice._id || Date.now()}.png`);
+
+        // SEPA QR kód adatok
+        const currency = invoice.currency || 'EUR';
+        const amount = invoice.totalAmount.toFixed(2);
+        const qrData = [
+          'BCD',                                    // Service Tag
+          '002',                                    // Version
+          '1',                                      // Encoding
+          'SCT',                                    // SEPA Credit Transfer
+          'COBADEFFXXX',                           // BIC
+          'Norbert Bartus',                        // Beneficiary name
+          'DE47663400180473463800',               // IBAN
+          `${currency}${amount}`,                  // Amount
+          '',                                      // Purpose code (empty)
+          invoice.number || '',                    // Reference
+          `RECHNUNG ${invoice.number}`             // Description
+        ].join('\n');
+
+        // QR kód generálása
+        QRCode.toFileSync(qrCodePath, qrData, {
+          errorCorrectionLevel: 'M',
+          margin: 1,
+          width: 120
+        });
+
+        // QR kód hozzáadása a PDF-hez
+        if (fs.existsSync(qrCodePath)) {
+          // QR kód háttér
+          doc.roundedRect(40, summaryStartY, 150, 150, 5)
+             .fillAndStroke('#F9FAFB', colors.border);
+
+          // QR kód cím
+          doc.font('Helvetica-Bold')
+             .fontSize(10)
+             .fillColor(colors.primary)
+             .text('SEPA átutalás QR kód', 40, summaryStartY + 10, { width: 150, align: 'center', lineBreak: false });
+
+          // QR kód kép
+          doc.image(qrCodePath, 55, summaryStartY + 25, { width: 120 });
+
+          // QR kód magyarázat
+          doc.fontSize(8)
+             .fillColor(colors.text)
+             .text('Szkennelje be a QR kódot a banki alkalmazásával a gyors fizetéshez', 40, summaryStartY + 130, {
+               width: 150,
+               align: 'center',
+               lineBreak: false
+             });
+
+          // Ideiglenes fájl törlése
+          fs.unlinkSync(qrCodePath);
+        }
+      } catch (qrError) {
+        console.error('QR kód generálási hiba:', qrError);
+        // Folytatjuk a PDF generálást QR kód nélkül
+      }
+
       // Összegzés háttér - extrém kompakt
       doc.roundedRect(350, summaryStartY, 210, 35, 3) // Extrém kis magasság
          .fillAndStroke('#F9FAFB', colors.border);
