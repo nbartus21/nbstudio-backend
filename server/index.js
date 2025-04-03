@@ -745,11 +745,11 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
         statusText = 'Törölve';
       }
 
-      // Státusz badge - kompakt méret, bal oldalra helyezve
+      // Státusz badge - számla szám alá helyezve
       const statusBadgeWidth = 80;
       const statusBadgeHeight = 20;
       const statusBadgeX = 40; // Bal oldalra helyezve
-      const statusBadgeY = 15;
+      const statusBadgeY = 70; // Számla szám alá helyezve
 
       doc.roundedRect(statusBadgeX, statusBadgeY, statusBadgeWidth, statusBadgeHeight, 10)
          .fill(statusColor);
@@ -781,8 +781,8 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
       // Kiállító és vevő adatok - kompakt elrendezés
       const startY = headerHeight + 5; // Nagyon közel a fejléchez
 
-      // Háttér téglalapok a kiállító és vevő adatokhoz - kiállító még magasabb a cím és céges adatok miatt
-      doc.roundedRect(40, startY, 220, 200, 5) // Még magasabb a kiállító téglalap
+      // Háttér téglalapok a kiállító és vevő adatokhoz - kiállító alacsonyabb a kisebb sortávolságok miatt
+      doc.roundedRect(40, startY, 220, 180, 5) // Alacsonyabb a kiállító téglalap
          .fillAndStroke('#F9FAFB', colors.border);
 
       doc.roundedRect(280, startY, 270, 120, 5) // Vevő téglalap változatlan
@@ -804,24 +804,24 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
       doc.font('Helvetica-Bold')
          .fontSize(10)
          .fillColor(colors.secondary);
-      doc.text('Norbert Bartus', 50, startY + 35, { lineBreak: false });
+      doc.text('Norbert Bartus', 50, startY + 28, { lineBreak: false }); // Még kisebb távolság
 
       doc.font('Helvetica')
          .fontSize(9)
          .fillColor(colors.text);
-      doc.text('Salinenstraße 25', 50, startY + 65, { lineBreak: false });
-      doc.text('76646 Bruchsal, Baden-Württemberg', 50, startY + 80, { lineBreak: false });
-      doc.text('Deutschland', 50, startY + 95, { lineBreak: false });
-      doc.text('St.-Nr.: 68194547329', 50, startY + 110, { lineBreak: false });
-      doc.text('USt-IdNr.: DE346419031', 50, startY + 125, { lineBreak: false });
-      doc.text('IBAN: DE47 6634 0018 0473 4638 00', 50, startY + 140, { lineBreak: false });
-      doc.text('BANK: Commerzbank AG', 50, startY + 155, { lineBreak: false });
-      doc.text('SWIFT/BIC: COBADEFFXXX', 50, startY + 170, { lineBreak: false });
+      doc.text('Salinenstraße 25', 50, startY + 45, { lineBreak: false }); // Kisebb távolság
+      doc.text('76646 Bruchsal, Baden-Württemberg', 50, startY + 60, { lineBreak: false }); // Kisebb távolság
+      doc.text('Deutschland', 50, startY + 75, { lineBreak: false }); // Kisebb távolság
+      doc.text('St.-Nr.: 68194547329', 50, startY + 90, { lineBreak: false }); // Kisebb távolság
+      doc.text('USt-IdNr.: DE346419031', 50, startY + 105, { lineBreak: false }); // Kisebb távolság
+      doc.text('IBAN: DE47 6634 0018 0473 4638 00', 50, startY + 120, { lineBreak: false }); // Kisebb távolság
+      doc.text('BANK: Commerzbank AG', 50, startY + 135, { lineBreak: false }); // Kisebb távolság
+      doc.text('SWIFT/BIC: COBADEFFXXX', 50, startY + 150, { lineBreak: false }); // Kisebb távolság
 
-      // Kleinunternehmer megjegyzés
+      // Kleinunternehmer megjegyzés - kisebb távolság
       doc.fontSize(8)
          .fillColor('#666666');
-      doc.text('Als Kleinunternehmer im Sinne von § 19 Abs. 1 UStG wird keine Umsatzsteuer berechnet.', 50, startY + 185, {
+      doc.text('Als Kleinunternehmer im Sinne von § 19 Abs. 1 UStG wird keine Umsatzsteuer berechnet.', 50, startY + 165, {
         width: 190,
         lineBreak: false
       });
@@ -883,14 +883,14 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
         }
       }
 
-      // Tételek cím - fix pozíció, még magasabbra helyezve a kiállító adatok miatt
+      // Tételek cím - fix pozíció, alacsonyabbra helyezve a kisebb kiállító téglalap miatt
       doc.font('Helvetica-Bold')
          .fontSize(12)
          .fillColor(colors.secondary);
-      doc.text('TÉTELEK', 40, startY + 210, { lineBreak: false }); // Még magasabbra helyezve
+      doc.text('TÉTELEK', 40, startY + 190, { lineBreak: false }); // Alacsonyabbra helyezve
 
-      // Vízszintes vonal a cím alatt - fix pozíció, még magasabbra helyezve
-      const tableTop = startY + 225; // Még magasabbra helyezve
+      // Vízszintes vonal a cím alatt - fix pozíció, alacsonyabbra helyezve
+      const tableTop = startY + 205; // Alacsonyabbra helyezve
       doc.moveTo(40, tableTop)
          .lineTo(550, tableTop)
          .lineWidth(0.5)
@@ -1013,76 +1013,7 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
       // Összegzés táblázat - ultra-kompakt, explicit opciókkal - kisebb távolsággal
       const summaryStartY = currentY + 2; // Kisebb távolság
 
-      // QR kód generálása a SEPA átutaláshoz
-      try {
-        const QRCode = require('qrcode');
-        const fs = require('fs');
-        const { join } = require('path');
-
-        // Ideiglenes mappa létrehozása, ha nem létezik
-        const tempDir = join(__dirname, 'temp');
-        if (!fs.existsSync(tempDir)) {
-          fs.mkdirSync(tempDir, { recursive: true });
-        }
-
-        // QR kód fájl útvonala
-        const qrCodePath = join(tempDir, `qr-${invoice._id || Date.now()}.png`);
-
-        // SEPA QR kód adatok
-        const currency = invoice.currency || 'EUR';
-        const amount = invoice.totalAmount.toFixed(2);
-        const qrData = [
-          'BCD',                                    // Service Tag
-          '002',                                    // Version
-          '1',                                      // Encoding
-          'SCT',                                    // SEPA Credit Transfer
-          'COBADEFFXXX',                           // BIC
-          'Norbert Bartus',                        // Beneficiary name
-          'DE47663400180473463800',               // IBAN
-          `${currency}${amount}`,                  // Amount
-          '',                                      // Purpose code (empty)
-          invoice.number || '',                    // Reference
-          `RECHNUNG ${invoice.number}`             // Description
-        ].join('\n');
-
-        // QR kód generálása
-        QRCode.toFileSync(qrCodePath, qrData, {
-          errorCorrectionLevel: 'M',
-          margin: 1,
-          width: 120
-        });
-
-        // QR kód hozzáadása a PDF-hez
-        if (fs.existsSync(qrCodePath)) {
-          // QR kód háttér
-          doc.roundedRect(40, summaryStartY, 150, 150, 5)
-             .fillAndStroke('#F9FAFB', colors.border);
-
-          // QR kód cím
-          doc.font('Helvetica-Bold')
-             .fontSize(10)
-             .fillColor(colors.primary)
-             .text('SEPA átutalás QR kód', 40, summaryStartY + 10, { width: 150, align: 'center', lineBreak: false });
-
-          // QR kód kép
-          doc.image(qrCodePath, 55, summaryStartY + 25, { width: 120 });
-
-          // QR kód magyarázat
-          doc.fontSize(8)
-             .fillColor(colors.text)
-             .text('Szkennelje be a QR kódot a banki alkalmazásával a gyors fizetéshez', 40, summaryStartY + 130, {
-               width: 150,
-               align: 'center',
-               lineBreak: false
-             });
-
-          // Ideiglenes fájl törlése
-          fs.unlinkSync(qrCodePath);
-        }
-      } catch (qrError) {
-        console.error('QR kód generálási hiba:', qrError);
-        // Folytatjuk a PDF generálást QR kód nélkül
-      }
+      // QR kód generálás eltávolítva
 
       // Összegzés háttér - extrém kompakt
       doc.roundedRect(350, summaryStartY, 210, 35, 3) // Extrém kis magasság

@@ -476,7 +476,7 @@ router.get('/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => {
       margin: 50,
       info: {
         Title: `Számla-${invoice.number}`,
-        Author: 'NB Studio'
+        Author: 'Norbert Bartus'
       }
     });
 
@@ -562,19 +562,19 @@ router.get('/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => {
       statusText = 'Törölve';
     }
 
-    // Státusz badge
+    // Státusz badge - számla szám alá helyezve, bal oldalra
     const statusBadgeWidth = 100;
-    const statusBadgeHeight = 30;
-    const statusBadgeX = doc.page.width - statusBadgeWidth - 50;
-    const statusBadgeY = 40;
+    const statusBadgeHeight = 25;
+    const statusBadgeX = 50; // Bal oldalra helyezve
+    const statusBadgeY = 155; // Számla szám alá helyezve
 
-    doc.roundedRect(statusBadgeX, statusBadgeY, statusBadgeWidth, statusBadgeHeight, 15)
+    doc.roundedRect(statusBadgeX, statusBadgeY, statusBadgeWidth, statusBadgeHeight, 10)
        .fill(statusColor);
 
     doc.font('Helvetica-Bold')
-       .fontSize(14)
+       .fontSize(12)
        .fillColor('white')
-       .text(statusText, statusBadgeX, statusBadgeY + 7, { width: statusBadgeWidth, align: 'center' });
+       .text(statusText, statusBadgeX, statusBadgeY + 6, { width: statusBadgeWidth, align: 'center' });
 
     // Jobbra igazított fejléc info
     const rightColumnX = 400;
@@ -599,7 +599,7 @@ router.get('/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => {
     const startY = 230;
 
     // Háttér téglalapok a kiállító és vevő adatokhoz
-    doc.roundedRect(50, startY, 220, 140, 5)
+    doc.roundedRect(50, startY, 220, 200, 5) // Magasabb téglalap a több információhoz
        .fillAndStroke('#F9FAFB', colors.border);
 
     doc.roundedRect(300, startY, 250, 140, 5)
@@ -610,7 +610,7 @@ router.get('/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => {
        .fontSize(14)
        .fillColor(colors.primary)
        .text('KIÁLLÍTÓ', 65, startY + 15)
-       .moveDown(0.3);
+       .moveDown(0.1); // Csökkentett sortávolság
 
     // Vízszintes vonal
     doc.moveTo(65, startY + 35)
@@ -621,15 +621,25 @@ router.get('/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => {
     doc.font('Helvetica-Bold')
        .fontSize(12)
        .fillColor(colors.secondary)
-       .text('NB Studio', 65, startY + 45)
+       .text('Norbert Bartus', 65, startY + 40) // Közelebb a KIÁLLÍTÓ felirathoz
        .font('Helvetica')
        .fontSize(11)
        .fillColor(colors.text)
-       .text('Bartus Norbert', 65, startY + 60)
-       .text('Adószám: 12345678-1-42', 65, startY + 75)
-       .text('Cím: 1234 Budapest, Példa utca 1.', 65, startY + 90)
-       .text('Email: info@nb-studio.net', 65, startY + 105)
-       .text('Telefon: +36 30 123 4567', 65, startY + 120);
+       .text('Salinenstraße 25', 65, startY + 55)
+       .text('76646 Bruchsal, Baden-Württemberg', 65, startY + 70)
+       .text('Deutschland', 65, startY + 85)
+       .text('St.-Nr.: 68194547329', 65, startY + 100)
+       .text('USt-IdNr.: DE346419031', 65, startY + 115)
+       .text('IBAN: DE47 6634 0018 0473 4638 00', 65, startY + 130)
+       .text('BANK: Commerzbank AG', 65, startY + 145)
+       .text('SWIFT/BIC: COBADEFFXXX', 65, startY + 160);
+
+    // Kleinunternehmer megjegyzés
+    doc.fontSize(8)
+       .fillColor('#666666')
+       .text('Als Kleinunternehmer im Sinne von § 19 Abs. 1 UStG wird keine Umsatzsteuer berechnet.', 65, startY + 175, {
+         width: 190
+       });
 
     // Vevő adatok
     if (project.client) {
@@ -885,48 +895,7 @@ router.get('/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => {
        .font('Helvetica-Bold')
        .text(` ${invoice.number}`);
 
-    // QR kód a fizetéshez
-    try {
-      // SEPA QR kód adatok generálása
-      const qrData = [
-        'BCD',                                    // Service Tag
-        '002',                                    // Version
-        '1',                                      // Encoding
-        'SCT',                                    // SEPA Credit Transfer
-        'COBADEFF371',                           // BIC
-        'Norbert Bartus',                        // Beneficiary name
-        'DE47663400180473463800',               // IBAN
-        `EUR${invoice.totalAmount.toFixed(2)}`,  // Amount in EUR
-        '',                                      // Customer ID (empty)
-        invoice.number || '',                    // Invoice number
-        `RECHNUNG ${invoice.number}`             // Reference
-      ].join('\n');
-
-      // QR kód kép generálása (ha van QRCode modul)
-      const QRCode = require('qrcode');
-      const qrCodePath = join(__dirname, '..', 'temp', `qr-${invoice._id}.png`);
-
-      // Generáljuk a QR kódot egy fájlba
-      await QRCode.toFile(qrCodePath, qrData, {
-        errorCorrectionLevel: 'M',
-        margin: 1,
-        width: 120
-      });
-
-      // Hozzáadjuk a QR kódot a PDF-hez
-      if (fs.existsSync(qrCodePath)) {
-        doc.image(qrCodePath, 350, paymentBoxY + 10, { width: 80 });
-        doc.fontSize(9)
-           .fillColor(colors.text)
-           .text('Szkennelje be a QR kódot\na gyors fizetéshez', 350, paymentBoxY + 95, { width: 100, align: 'center' });
-
-        // Töröljük az ideiglenes fájlt
-        fs.unlinkSync(qrCodePath);
-      }
-    } catch (qrError) {
-      console.warn('QR kód generálási hiba:', qrError.message);
-      // Folytatjuk a PDF generálást QR kód nélkül
-    }
+    // QR kód generálás eltávolítva
 
     // Modern lábléc
     const footerTop = doc.page.height - 70;
@@ -940,18 +909,14 @@ router.get('/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => {
        .fill(colors.primary);
 
     // Lábléc szöveg
-    doc.font('Helvetica-Bold')
-       .fontSize(10)
-       .fillColor(colors.primary)
-       .text('NB Studio', 50, footerTop + 15, { align: 'center' })
-       .font('Helvetica')
+    doc.font('Helvetica')
        .fontSize(9)
        .fillColor(colors.secondary)
-       .text('Bartus Norbert | www.nb-studio.net', 50, footerTop + 30, { align: 'center' })
+       .text('Norbert Bartus | www.nb-studio.net', 50, footerTop + 15, { align: 'center' })
        .moveDown(0.3)
        .fontSize(8)
        .fillColor(colors.text)
-       .text('Ez a számla elektronikusan készült és érvényes aláírás nélkül is.', 50, footerTop + 45, { align: 'center' });
+       .text('Ez a számla elektronikusan készült és érvényes aláírás nélkül is.', 50, footerTop + 30, { align: 'center' });
 
     // Oldalszám modern stílusban
     doc.fontSize(9)
