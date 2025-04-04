@@ -283,9 +283,11 @@ const ProjectCard = ({
                 href={project.sharing.link} 
                 target="_blank" 
                 rel="noopener noreferrer"
-                className="text-blue-600 hover:underline truncate"
+                className="text-blue-600 hover:text-blue-800 inline-flex items-center"
+                title="Megosztási link megnyitása új ablakban"
               >
-                {project.sharing.link}
+                <Share2 className="h-3.5 w-3.5" />
+                <span className="ml-1">Megnyitás</span>
               </a>
             </div>
             <div className="mb-1">
