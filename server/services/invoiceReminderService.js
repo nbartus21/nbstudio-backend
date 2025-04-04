@@ -6,30 +6,23 @@ import Project from '../models/Project.js';
 
 dotenv.config();
 
-// SMTP beállítások ellenőrzése és naplózása
+// Környezeti változók ellenőrzése és alapértékek beállítása
 const SMTP_HOST = process.env.SMTP_HOST || 'nb-hosting.hu';
 const SMTP_PORT = process.env.SMTP_PORT || 25;
 const SMTP_SECURE = process.env.SMTP_SECURE === 'true';
 const SMTP_USER = process.env.SMTP_USER || 'noreply@nb-hosting.hu';
 const SMTP_PASS = process.env.SMTP_PASS;
+const FRONTEND_URL = process.env.FRONTEND_URL || 'https://project.nb-studio.net';
 
-// SMTP beállítások naplózása (jelszó nélkül)
-console.log('Invoice Reminder Service - SMTP beállítások:', {
-  host: SMTP_HOST,
-  port: SMTP_PORT,
-  secure: SMTP_SECURE,
-  auth: { user: SMTP_USER, pass: SMTP_PASS ? '******' : 'MISSING' }
-});
-
-// Ellenőrizzük, hogy a kötelező SMTP beállítások megvannak-e
+// Ellenőrizzük, hogy a kötelező környezeti változók be vannak-e állítva
 if (!SMTP_USER || !SMTP_PASS) {
-  console.error('Hiányzó SMTP beállítások! Ellenőrizd a .env fájlt:');
+  console.error('Hiányzó környezeti változók! Ellenőrizd a .env fájlt:');
   console.error('- SMTP_USER: ' + (SMTP_USER ? 'OK' : 'HIÁNYZIK'));
   console.error('- SMTP_PASS: ' + (SMTP_PASS ? 'OK' : 'HIÁNYZIK'));
 }
 
-// Email transporter beállítása
-const transporter = nodemailer.createTransport({
+// SMTP beállítások a .env fájlból
+const transporterConfig = {
   host: SMTP_HOST,
   port: SMTP_PORT,
   secure: SMTP_SECURE,
@@ -37,16 +30,29 @@ const transporter = nodemailer.createTransport({
     user: SMTP_USER,
     pass: SMTP_PASS
   }
+};
+
+console.log('Számla emlékeztető szolgáltatás - SMTP Konfiguráció (jelszó nélkül):', {
+  ...transporterConfig,
+  auth: { user: SMTP_USER, pass: '******' }
 });
 
-// Teszteljük a kapcsolatot
-transporter.verify((error) => {
-  if (error) {
-    console.error('SMTP kapcsolat hiba:', error);
-  } else {
-    console.log('SMTP szerver kapcsolat OK, kész az emailek küldésére');
-  }
-});
+// Nodemailer transporter létrehozása
+let transporter;
+try {
+  transporter = nodemailer.createTransport(transporterConfig);
+
+  // Teszteljük a kapcsolatot (aszinkron, nincs await, csak logolunk)
+  transporter.verify((error) => {
+    if (error) {
+      console.error('SMTP kapcsolat hiba a számla emlékeztető szolgáltatásban:', error);
+    } else {
+      console.log('SMTP szerver kapcsolat OK a számla emlékeztető szolgáltatásban, kész az emailek küldésére');
+    }
+  });
+} catch (error) {
+  console.error('Hiba a nodemailer transporter létrehozásakor a számla emlékeztető szolgáltatásban:', error);
+}
 
 // Fordítások a különböző nyelvekhez
 const translations = {
@@ -260,6 +266,12 @@ export const sendInvoiceReminder = async (projectId, invoiceId, type = 'dueSoon'
     // Email sablon generálása
     const { subject, html } = generateEmailTemplate(invoice, project, type, language);
 
+    // Ellenőrizzük, hogy a transporter létezik-e
+    if (!transporter) {
+      console.error('A nodemailer transporter nincs konfigurálva');
+      throw new Error('Email küldési szolgáltatás nincs megfelelően beállítva');
+    }
+
     // Email küldése
     const mailOptions = {
       from: `"Norbert Bartus" <${SMTP_USER}>`,
@@ -268,16 +280,20 @@ export const sendInvoiceReminder = async (projectId, invoiceId, type = 'dueSoon'
       html: html
     };
 
-    console.log('Email küldése:', {
+    console.log('Számla emlékeztető email küldése megkísérlése...', {
       to: project.client.email,
       subject: subject,
       from: `"Norbert Bartus" <${SMTP_USER}>`
     });
 
-    const info = await transporter.sendMail(mailOptions);
-    console.log('Email sent:', info.messageId);
-
-    return { success: true, messageId: info.messageId };
+    try {
+      const info = await transporter.sendMail(mailOptions);
+      console.log('Számla emlékeztető email sikeresen elküldve:', info.messageId);
+      return { success: true, messageId: info.messageId };
+    } catch (emailError) {
+      console.error('Hiba a számla emlékeztető email küldésekor:', emailError);
+      throw emailError;
+    }
   } catch (error) {
     console.error('Error sending invoice reminder:', error);
     return { success: false, error: error.message };
