@@ -883,7 +883,7 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
          .fill(colors.primary);
 
       const tableHeaders = ['Tétel', 'Mennyiség', 'Egységár', 'Összesen'];
-      const tableColumnWidths = [300, 60, 80, 80];
+      const tableColumnWidths = [280, 80, 90, 70]; // Átméretezett oszlopok
       const columnPositions = [50];
 
       // Kiszámoljuk a pozíciókat
@@ -1061,29 +1061,24 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
       for (let i = 0; i < pages.count; i++) {
         doc.switchToPage(i);
 
-        // Lábléc
-        const footerTop = doc.page.height - 40;
+        // Lábléc - feljebb helyezve
+        const footerTop = doc.page.height - 60;
 
         // Vékony vonal a lábléc tetején
         doc.rect(50, footerTop - 5, doc.page.width - 100, 0.5)
            .fill(colors.border);
 
-        // Lábléc szöveg
+        // Lábléc szöveg és oldalszám egy sorban
         doc.font('Helvetica')
            .fontSize(8)
-           .fillColor(colors.secondary)
-           .text('Norbert Bartus | www.nb-studio.net | Ez a számla elektronikusan készült és érvényes aláírás nélkül is.', 50, footerTop, {
-             align: 'center',
-             width: doc.page.width - 100
-           });
+           .fillColor(colors.secondary);
 
-        // Oldalszám
-        doc.fontSize(8)
-           .fillColor(colors.primary)
-           .text(`${i + 1}. oldal`, 50, footerTop, {
-             align: 'right',
-             width: doc.page.width - 100
-           });
+        // Teljes lábléc szöveg egy sorban az oldalszámmal együtt
+        const footerText = `Norbert Bartus | www.nb-studio.net | Ez a számla elektronikusan készült és érvényes aláírás nélkül is. | ${i + 1}. oldal`;
+        doc.text(footerText, 50, footerTop, {
+          align: 'center',
+          width: doc.page.width - 100
+        });
       }
 
       // Finalize the PDF
