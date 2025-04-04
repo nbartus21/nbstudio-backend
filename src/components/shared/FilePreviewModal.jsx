@@ -14,7 +14,10 @@ const translations = {
     size: "Size",
     type: "Type",
     loading: "Loading...",
-    previewNotAvailable: "Preview not available"
+    previewNotAvailable: "Preview not available",
+    uploadedBy: "Uploaded by",
+    loadError: "Error loading file",
+    unknown: "Unknown"
   },
   de: {
     file: "Datei",
@@ -25,43 +28,73 @@ const translations = {
     size: "Größe",
     type: "Typ",
     loading: "Laden...",
-    previewNotAvailable: "Vorschau nicht verfügbar"
+    previewNotAvailable: "Vorschau nicht verfügbar",
+    uploadedBy: "Hochgeladen von",
+    loadError: "Fehler beim Laden der Datei",
+    unknown: "Unbekannt"
   },
   hu: {
     file: "Fájl",
     close: "Bezárás",
     download: "Letöltés",
-    uploadedOn: "Feltöltve",
+    uploadedOn: "Feltöltés ideje",
     previewNotSupported: "A fájl előnézete nem támogatott",
     size: "Méret",
     type: "Típus",
     loading: "Betöltés...",
-    previewNotAvailable: "Nem elérhető előnézet"
+    previewNotAvailable: "Nem elérhető előnézet",
+    uploadedBy: "Feltöltő",
+    loadError: "Hiba a fájl betöltésekor",
+    unknown: "Ismeretlen"
   }
 };
 
 const FilePreviewModal = ({ file, onClose, language = 'hu' }) => {
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const isImage = file.type?.startsWith('image/');
   const isPdf = file.type === 'application/pdf';
   
+  console.log('🖼️ Fájl előnézet megnyitása:', {
+    név: file.name,
+    méret: formatFileSize(file.size),
+    típus: file.type,
+    feltöltésIdeje: file.uploadedAt,
+    s3url: file.s3url || 'nincs',
+    s3key: file.s3key || 'nincs',
+    vanTartalom: Boolean(file.content),
+    feltöltő: file.uploadedBy || 'ismeretlen'
+  });
+  
   // S3 URL kezelése
   const fileUrl = file.s3url || (file.s3key ? getS3Url(file.s3key) : file.content);
+  console.log('🔗 Fájl megjelenítési URL:', fileUrl?.substring(0, 100) + (fileUrl?.length > 100 ? '...' : ''));
   
   // Get translations for current language
   const t = translations[language] || translations.hu;
 
   useEffect(() => {
     // Add a slight delay to show the loading indicator
+    console.log('⏳ Fájl betöltés kezdése...');
     const timer = setTimeout(() => {
       setIsLoading(false);
+      console.log('✅ Fájl betöltés befejezve');
     }, 500);
 
     return () => clearTimeout(timer);
   }, []);
 
+  // Handle image load error
+  const handleImageError = () => {
+    console.error('❌ Kép betöltési hiba:', {
+      fájl: file.name,
+      url: fileUrl?.substring(0, 100) + '...'
+    });
+    setLoadError(true);
+  };
+
   if (!file) {
-    debugLog('FilePreviewModal', 'No file provided');
+    console.error('❌ Nincs fájl objektum a megjelenítéshez');
     return null;
   }
 
@@ -71,7 +104,10 @@ const FilePreviewModal = ({ file, onClose, language = 'hu' }) => {
         <div className="p-4 border-b flex justify-between items-center">
           <h2 className="text-lg font-medium truncate">{file.name}</h2>
           <button 
-            onClick={onClose}
+            onClick={() => {
+              console.log('🚪 Fájl előnézet bezárása');
+              onClose();
+            }}
             className="text-gray-400 hover:text-gray-500 focus:outline-none"
           >
             <X className="h-5 w-5" />
@@ -91,7 +127,8 @@ const FilePreviewModal = ({ file, onClose, language = 'hu' }) => {
                   src={fileUrl} 
                   alt={file.name} 
                   className="max-h-full max-w-full object-contain"
-                  onError={() => showError(true)}
+                  onError={handleImageError}
+                  onLoad={() => console.log('✅ Kép sikeresen betöltve:', file.name)}
                 />
               )}
               {isPdf && (
@@ -99,55 +136,53 @@ const FilePreviewModal = ({ file, onClose, language = 'hu' }) => {
                   src={fileUrl}
                   className="w-full h-full min-h-[60vh]"
                   title={file.name}
+                  onLoad={() => console.log('✅ PDF sikeresen betöltve:', file.name)}
+                  onError={() => {
+                    console.error('❌ PDF betöltési hiba:', file.name);
+                    setLoadError(true);
+                  }}
                 ></iframe>
               )}
-              {!isImage && !isPdf && (
+              {(!isImage && !isPdf) || loadError ? (
                 <div className="text-center p-8">
                   <FileText className="h-16 w-16 mx-auto text-gray-400 mb-4" />
-                  <p>{t.previewNotAvailable}</p>
+                  <p>{loadError ? t.loadError : t.previewNotAvailable}</p>
                   <a 
                     href={fileUrl}
                     download={file.name}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                    onClick={() => console.log('📥 Fájl letöltés kezdeményezve:', file.name)}
                   >
                     <Download className="mr-2 h-4 w-4" />
                     {t.download}
                   </a>
                 </div>
-              )}
+              ) : null}
             </>
           )}
         </div>
         
-        <div className="flex justify-between items-center p-4 border-t bg-gray-50">
-          <div className="text-sm text-gray-500">
-            {t.uploadedOn}: {formatDate(file.uploadedAt)}
+        {/* File details */}
+        <div className="p-4 bg-gray-50 border-t flex flex-wrap text-sm text-gray-500">
+          <div className="mr-6 mb-2">
+            <span className="font-medium">{t.size}:</span> {formatFileSize(file.size)}
           </div>
-          <div className="flex space-x-3">
-            <button
-              onClick={() => {
-                debugLog('FilePreviewModal-download', 'Downloading file', { fileName: file.name });
-                const link = document.createElement('a');
-                link.href = file.content;
-                link.download = file.name;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-              }}
-              className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex items-center text-sm"
-            >
-              <Download className="h-4 w-4 mr-1" />
-              {t.download}
-            </button>
-            <button
-              onClick={onClose}
-              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 text-sm"
-            >
-              {t.close}
-            </button>
+          <div className="mr-6 mb-2">
+            <span className="font-medium">{t.type}:</span> {file.type || 'unknown'}
           </div>
+          <div className="mr-6 mb-2">
+            <span className="font-medium">{t.uploadedOn}:</span> {formatDate(file.uploadedAt)}
+          </div>
+          <div className="mb-2">
+            <span className="font-medium">{t.uploadedBy}:</span> {file.uploadedBy || t.unknown}
+          </div>
+          {file.s3url && (
+            <div className="w-full mt-1 text-xs overflow-hidden text-gray-400">
+              <span className="font-medium">S3:</span> {file.s3url.substring(0, 60)}...
+            </div>
+          )}
         </div>
       </div>
     </div>

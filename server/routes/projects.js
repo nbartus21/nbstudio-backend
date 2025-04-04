@@ -629,12 +629,25 @@ const s3Client = new S3Client(S3_CONFIG);
 // Szerver oldali S3 feltöltési függvény
 const uploadToS3 = async (fileData) => {
   try {
+    console.log('🔄 [SZERVER] S3 feltöltés indítása:', {
+      fájlnév: fileData.name,
+      méret: fileData.size,
+      típus: fileData.type,
+      projektID: fileData.projectId,
+      feltöltő: fileData.uploadedBy
+    });
+
     // Base64 adat konvertálása bináris adattá
     const base64Data = fileData.content.split(';base64,').pop();
     const binaryData = Buffer.from(base64Data, 'base64');
+    console.log('🔄 [SZERVER] Base64 adat konvertálása bináris adattá:', {
+      binárisMéret: binaryData.length,
+      base64Méret: base64Data.length
+    });
 
     // Egyedi fájlnév generálása a projektazonosítóval
     const key = `${FILE_PREFIX}${fileData.projectId}/${Date.now()}_${fileData.name.replace(/\s+/g, '_')}`;
+    console.log('🔄 [SZERVER] Generált S3 kulcs:', key);
 
     const uploadParams = {
       Bucket: BUCKET_NAME,
@@ -647,14 +660,35 @@ const uploadToS3 = async (fileData) => {
         'original-name': fileData.name
       }
     };
+    console.log('🔄 [SZERVER] Feltöltési paraméterek összeállítva:', {
+      bucket: uploadParams.Bucket,
+      kulcs: uploadParams.Key,
+      contentType: uploadParams.ContentType,
+      metaadatMezők: Object.keys(uploadParams.Metadata)
+    });
 
     // A feltöltés végrehajtása
+    console.log('🔄 [SZERVER] S3 feltöltés végrehajtása...');
     const upload = new Upload({
       client: s3Client,
       params: uploadParams
     });
 
+    upload.on('httpUploadProgress', (progress) => {
+      console.log('🔄 [SZERVER] Feltöltési folyamat:', {
+        loaded: progress.loaded,
+        total: progress.total,
+        part: progress.part,
+        százalék: Math.round((progress.loaded / progress.total) * 100) + '%'
+      });
+    });
+
     const result = await upload.done();
+    console.log('✅ [SZERVER] S3 feltöltés befejezve:', {
+      bucket: result.Bucket,
+      kulcs: result.Key,
+      location: result.Location || `https://${BUCKET_NAME}.backup-minio.vddq6f.easypanel.host/${key}`
+    });
 
     // Visszaadjuk az S3 URL-t
     return {
@@ -662,7 +696,11 @@ const uploadToS3 = async (fileData) => {
       key: key
     };
   } catch (error) {
-    console.error('Hiba az S3 feltöltés során:', error);
+    console.error('❌ [SZERVER] HIBA az S3 feltöltés során:', {
+      hibaÜzenet: error.message,
+      hibakód: error.code,
+      stack: error.stack
+    });
     throw error;
   }
 };
@@ -670,23 +708,54 @@ const uploadToS3 = async (fileData) => {
 // ÚJ: Fájl hozzáadása projekthez S3 tárolóba
 router.post('/projects/:id/files', async (req, res) => {
   try {
+    console.log('📂 [SZERVER] Fájl feltöltési kérés érkezett:', {
+      projektId: req.params.id,
+      idő: new Date().toISOString()
+    });
+
     const project = await Project.findById(req.params.id);
     if (!project) {
+      console.error('❌ [SZERVER] Projekt nem található:', req.params.id);
       return res.status(404).json({ message: 'Projekt nem található' });
     }
 
+    console.log('✅ [SZERVER] Projekt megtalálva:', {
+      név: project.name,
+      státusz: project.status
+    });
+
     const fileData = req.body;
+    console.log('📄 [SZERVER] Fogadott fájl adatok:', {
+      név: fileData.name,
+      méret: fileData.size,
+      típus: fileData.type,
+      feltöltő: fileData.uploadedBy,
+      tartalom: fileData.content ? (fileData.content.length > 100 ? 
+        `${fileData.content.substring(0, 100)}... (${fileData.content.length} karakter)` : 
+        'Nincs tartalom')
+        : 'Nincs tartalom'
+    });
+
     if (!project.files) {
       project.files = [];
+      console.log('ℹ️ [SZERVER] Projekt fájlok inicializálása...');
     }
 
     // Ha van fájltartalom, feltöltjük az S3-ba
     let s3Data = {};
     if (fileData.content) {
+      console.log('🚀 [SZERVER] S3 feltöltés kezdeményezése...');
       try {
+        const startTime = Date.now();
         s3Data = await uploadToS3({
           ...fileData,
           projectId: req.params.id
+        });
+        const uploadDuration = Date.now() - startTime;
+        
+        console.log(`✅ [SZERVER] S3 feltöltés sikeres (${uploadDuration}ms):`, {
+          s3Url: s3Data.s3url,
+          s3Kulcs: s3Data.key
         });
         
         // Az eredeti content már nem szükséges, töröljük
@@ -696,16 +765,26 @@ router.post('/projects/:id/files', async (req, res) => {
         fileData.s3url = s3Data.s3url;
         fileData.s3key = s3Data.key;
       } catch (s3Error) {
-        console.error('Hiba az S3 feltöltés során:', s3Error);
+        console.error('❌ [SZERVER] HIBA az S3 feltöltés során:', s3Error);
         // Folytatjuk a hibával, de jelezzük a kliensnek
         fileData.s3Error = 'Hiba történt a fájl S3 tárolóba feltöltése során';
       }
+    } else {
+      console.warn('⚠️ [SZERVER] A fájlban nincs tartalom az S3 feltöltéshez');
     }
 
     // Fájl hozzáadása a projekt dokumentumaihoz
+    fileData.uploadedAt = new Date();
     project.files.push({
       ...fileData,
-      uploadedAt: new Date()
+      uploadedAt: fileData.uploadedAt
+    });
+
+    console.log('✅ [SZERVER] Fájl hozzáadva a projekthez:', {
+      projektNév: project.name,
+      fájlnév: fileData.name,
+      feltöltésIdeje: fileData.uploadedAt,
+      fájlokSzáma: project.files.length
     });
 
     // Frissítjük a fájl számlálókat
@@ -715,6 +794,7 @@ router.post('/projects/:id/files', async (req, res) => {
 
     // Értesítés küldése az adminnak, ha ügyfél töltötte fel
     if (fileData.uploadedBy !== 'Admin') {
+      console.log('ℹ️ [SZERVER] Értesítés küldése az adminnak az új fájlról');
       await Notification.create({
         userId: process.env.ADMIN_EMAIL || 'admin@example.com',
         type: 'project',
@@ -725,11 +805,16 @@ router.post('/projects/:id/files', async (req, res) => {
       });
     }
 
+    console.log('💾 [SZERVER] Projekt mentése adatbázisba...');
     await project.save();
+    console.log('✅ [SZERVER] Projekt sikeresen mentve a fájlfeltöltés után');
 
     res.status(201).json(project);
   } catch (error) {
-    console.error('Hiba a fájl feltöltésekor:', error);
+    console.error('❌ [SZERVER] HIBA a fájl feltöltésekor:', {
+      hiba: error.message,
+      stack: error.stack
+    });
     res.status(500).json({ message: error.message });
   }
 });

@@ -18,6 +18,11 @@ const FILE_PREFIX = 'project_';
 
 // S3 kliens létrehozása
 const s3Client = new S3Client(S3_CONFIG);
+console.log('S3 kliens létrehozva:', {
+  region: S3_CONFIG.region,
+  endpoint: S3_CONFIG.endpoint,
+  bucket: BUCKET_NAME
+});
 
 /**
  * Fájl feltöltése S3 tárolóba
@@ -30,12 +35,24 @@ const s3Client = new S3Client(S3_CONFIG);
  */
 export const uploadFileToS3 = async (fileData) => {
   try {
+    console.log('S3 feltöltés kezdése:', {
+      fileName: fileData.name,
+      fileType: fileData.type,
+      fileSize: fileData.size,
+      projectId: fileData.projectId
+    });
+
     // Base64 adat konvertálása bináris adattá
     const base64Data = fileData.content.split(';base64,').pop();
     const binaryData = Buffer.from(base64Data, 'base64');
+    console.log('Base64 adat konvertálva bináris adattá:', {
+      binaryLength: binaryData.length,
+      base64Length: base64Data.length
+    });
 
     // Egyedi fájlnév generálása a projektazonosítóval
     const key = `${FILE_PREFIX}${fileData.projectId}/${Date.now()}_${fileData.name.replace(/\s+/g, '_')}`;
+    console.log('Generált S3 kulcs:', key);
 
     const uploadParams = {
       Bucket: BUCKET_NAME,
@@ -48,14 +65,35 @@ export const uploadFileToS3 = async (fileData) => {
         'original-name': fileData.name
       }
     };
+    console.log('S3 feltöltési paraméterek összeállítva:', {
+      bucket: uploadParams.Bucket,
+      key: uploadParams.Key,
+      contentType: uploadParams.ContentType,
+      metadataFields: Object.keys(uploadParams.Metadata)
+    });
 
     // A feltöltés végrehajtása
+    console.log('S3 feltöltés indítása...');
     const upload = new Upload({
       client: s3Client,
       params: uploadParams
     });
 
+    upload.on('httpUploadProgress', (progress) => {
+      console.log('S3 feltöltési folyamat:', {
+        loaded: progress.loaded,
+        total: progress.total,
+        part: progress.part,
+        percent: (progress.loaded / progress.total * 100).toFixed(2) + '%'
+      });
+    });
+
     const result = await upload.done();
+    console.log('S3 feltöltés befejezve:', {
+      bucketName: result.Bucket,
+      key: result.Key,
+      location: result.Location || `https://${BUCKET_NAME}.backup-minio.vddq6f.easypanel.host/${key}`
+    });
 
     // Visszaadjuk az S3 URL-t
     return {
@@ -63,7 +101,11 @@ export const uploadFileToS3 = async (fileData) => {
       key: key
     };
   } catch (error) {
-    console.error('Hiba az S3 feltöltés során:', error);
+    console.error('❌ HIBA az S3 feltöltés során:', {
+      errorName: error.name,
+      errorMessage: error.message,
+      errorStack: error.stack
+    });
     throw error;
   }
 };
@@ -74,7 +116,9 @@ export const uploadFileToS3 = async (fileData) => {
  * @returns {string} - A fájl URL-je
  */
 export const getS3Url = (key) => {
-  return `https://${BUCKET_NAME}.backup-minio.vddq6f.easypanel.host/${key}`;
+  const url = `https://${BUCKET_NAME}.backup-minio.vddq6f.easypanel.host/${key}`;
+  console.log('S3 URL létrehozva:', url);
+  return url;
 };
 
 export default {

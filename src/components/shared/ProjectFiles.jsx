@@ -203,9 +203,15 @@ const ProjectFiles = ({
 
   // File upload handler with detailed debugging
   const handleFileUpload = async (event) => {
+    console.log('📂 FÁJLFELTÖLTÉS KEZDETE', {
+      időpont: new Date().toISOString(),
+      projektId: projectId,
+      adminMode: isAdmin
+    });
     debugLog('handleFileUpload', 'Upload started');
     
     if (!projectId) {
+      console.error('❌ HIBA: Hiányzó projekt azonosító');
       debugLog('handleFileUpload', 'ERROR: No project ID');
       showErrorMessage(t.projectIdError);
       return;
@@ -216,9 +222,16 @@ const ProjectFiles = ({
     
     try {
       uploadedFiles = Array.from(event.target.files);
+      console.log('📄 Feldolgozandó fájlok:', {
+        darabszám: uploadedFiles.length,
+        fájlnevek: uploadedFiles.map(f => f.name),
+        fájlMéretek: uploadedFiles.map(f => formatFileSize(f.size)),
+        összMéret: formatFileSize(uploadedFiles.reduce((sum, f) => sum + f.size, 0))
+      });
       debugLog('handleFileUpload', `Processing ${uploadedFiles.length} files`);
       
       if (uploadedFiles.length === 0) {
+        console.warn('⚠️ Nincsenek feltöltendő fájlok');
         debugLog('handleFileUpload', 'No files to upload');
         setIsUploading(false);
         return;
@@ -229,6 +242,7 @@ const ProjectFiles = ({
       
       const newFiles = await Promise.all(uploadedFiles.map(async (file) => {
         return new Promise((resolve) => {
+          console.log(`📄 Fájl olvasás kezdete: ${file.name} (${formatFileSize(file.size)})`);
           debugLog('handleFileUpload', `Reading file ${file.name} (${formatFileSize(file.size)})`);
           
           const reader = new FileReader();
@@ -237,6 +251,7 @@ const ProjectFiles = ({
             try {
               processedFiles++;
               setUploadProgress(Math.round((processedFiles / totalFiles) * 100));
+              console.log(`📊 Feldolgozási folyamat: ${processedFiles}/${totalFiles} (${Math.round((processedFiles / totalFiles) * 100)}%)`);
               debugLog('handleFileUpload', `File ${file.name} processed (${processedFiles}/${totalFiles})`);
               
               const fileData = {
@@ -249,15 +264,33 @@ const ProjectFiles = ({
                 projectId: projectId,
                 uploadedBy: isAdmin ? t.admin : t.client // Lokalizált értékek
               };
+              console.log('📄 Fájl objektum létrehozva:', {
+                id: fileData.id,
+                név: fileData.name,
+                méret: formatFileSize(fileData.size),
+                típus: fileData.type,
+                feltöltő: fileData.uploadedBy,
+                tartalom_mérete: e.target.result.length
+              });
 
               // Feltöltés az S3 tárolóba
+              console.log(`🚀 S3 feltöltés indítása: ${file.name}`);
               debugLog('handleFileUpload', `Uploading file ${file.name} to S3`);
               try {
+                const startTime = Date.now();
                 const s3Result = await uploadFileToS3(fileData);
+                const uploadDuration = Date.now() - startTime;
                 
                 // S3 információk hozzáadása a fájl objektumhoz
                 fileData.s3url = s3Result.s3url;
                 fileData.s3key = s3Result.key;
+                
+                console.log(`✅ S3 feltöltés sikeres (${uploadDuration}ms):`, {
+                  fájlnév: file.name,
+                  s3kulcs: s3Result.key,
+                  s3url: s3Result.s3url,
+                  feltöltési_idő: uploadDuration + 'ms'
+                });
                 
                 // Már nincs szükség a content mezőre, eltávolítjuk, hogy ne terhelje a localStorage-t
                 delete fileData.content;
@@ -265,17 +298,21 @@ const ProjectFiles = ({
                 debugLog('handleFileUpload', `File ${file.name} uploaded to S3 successfully`, s3Result);
                 resolve(fileData);
               } catch (s3Error) {
+                console.error(`❌ S3 FELTÖLTÉSI HIBA (${file.name}):`, s3Error);
                 debugLog('handleFileUpload', `Error uploading file ${file.name} to S3`, s3Error);
                 // Ha az S3 feltöltés sikertelen volt, akkor is megtartjuk a fájlt a helyi tárolóban
+                console.log('⚠️ Fájl megtartása csak helyi tárolóban S3 hiba miatt');
                 resolve(fileData);
               }
             } catch (error) {
+              console.error(`❌ FÁJL FELDOLGOZÁSI HIBA (${file.name}):`, error);
               debugLog('handleFileUpload', `Error processing file ${file.name}`, error);
               resolve(null);
             }
           };
           
           reader.onerror = (error) => {
+            console.error(`❌ FÁJL OLVASÁSI HIBA (${file.name}):`, error);
             debugLog('handleFileUpload', `Error reading file ${file.name}`, error);
             processedFiles++;
             setUploadProgress(Math.round((processedFiles / totalFiles) * 100));
@@ -288,6 +325,7 @@ const ProjectFiles = ({
 
       // Filter out any null results from failed file reads
       const validFiles = newFiles.filter(file => file !== null);
+      console.log(`📊 Feltöltés összesítés: ${validFiles.length}/${newFiles.length} fájl sikeresen feldolgozva`);
       debugLog('handleFileUpload', `Successfully processed ${validFiles.length} of ${newFiles.length} files`);
 
       // Update files state with new files
@@ -296,6 +334,11 @@ const ProjectFiles = ({
       
       // Save to localStorage
       const saved = saveToLocalStorage(project, 'files', updatedFiles);
+      console.log('💾 Mentés localStorage-ba:', {
+        sikerült: saved,
+        tárolóKulcs: `project_${projectId}_files`,
+        összesMéret: formatFileSize(new TextEncoder().encode(JSON.stringify(updatedFiles)).length)
+      });
       debugLog('handleFileUpload', 'Saved to localStorage:', saved);
       
       // Ha admin töltötte fel, akkor speciális üzenet a lokalizációval
@@ -305,11 +348,21 @@ const ProjectFiles = ({
         showSuccessMessage(`${validFiles.length} ${t.uploadSuccess}`);
       }
       
+      console.log('✅ FÁJLFELTÖLTÉS BEFEJEZVE', {
+        időpont: new Date().toISOString(),
+        sikeresFájlok: validFiles.length,
+        összesFájl: newFiles.length
+      });
+      
       // Simulate a slight delay to show 100% before hiding the progress bar
       setTimeout(() => {
         setIsUploading(false);
       }, 500);
     } catch (error) {
+      console.error('❌ ÁLTALÁNOS FELTÖLTÉSI HIBA:', {
+        hiba: error.message,
+        stack: error.stack
+      });
       debugLog('handleFileUpload', 'Error during upload', error);
       showErrorMessage(t.uploadError);
       setIsUploading(false);
