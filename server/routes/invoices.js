@@ -419,15 +419,48 @@ router.post('/projects/:projectId/invoices', async (req, res) => {
     console.log('Projekt sikeresen mentve');
 
     // Új számla értesítés küldése, ha van email cím a projekthez
+    console.log('Email küldés ellenőrzése:', {
+      hasClient: !!project.client,
+      hasEmail: project.client ? !!project.client.email : false,
+      clientEmail: project.client ? project.client.email : 'nincs kliens',
+      projectId: project._id,
+      invoiceId: invoice._id
+    });
+
     if (project.client && project.client.email) {
       try {
-        console.log('Új számla értesítés küldése:', project.client.email);
-        const notificationResult = await sendNewInvoiceNotification(project._id, invoice._id);
+        console.log('Új számla értesítés küldése megkezdődik:', {
+          email: project.client.email,
+          projectId: project._id,
+          invoiceId: invoice._id,
+          invoiceNumber: invoice.number
+        });
+
+        // Közvetlenül hívjuk meg a sendInvoiceReminder függvényt a sendNewInvoiceNotification helyett
+        // a könnyebb hibakeresés érdekében
+        try {
+          console.log('Közvetlen sendInvoiceReminder hívás...');
+          const directResult = await sendInvoiceReminder(project._id.toString(), invoice._id.toString(), 'new', project.language || 'hu');
+          console.log('Közvetlen sendInvoiceReminder eredménye:', directResult);
+        } catch (directError) {
+          console.error('Hiba a közvetlen sendInvoiceReminder hívásnál:', directError);
+        }
+
+        // Eredeti módszer megtartása is
+        console.log('sendNewInvoiceNotification hívása...');
+        const notificationResult = await sendNewInvoiceNotification(project._id.toString(), invoice._id.toString());
         console.log('Új számla értesítés küldés eredménye:', notificationResult);
       } catch (emailError) {
-        console.error('Hiba az új számla értesítés küldésekor, de folytatjuk:', emailError);
+        console.error('Hiba az új számla értesítés küldésekor, de folytatjuk:', {
+          error: emailError.message,
+          stack: emailError.stack,
+          code: emailError.code,
+          command: emailError.command
+        });
         // Folytatjuk hiba esetén is
       }
+    } else {
+      console.log('Nincs email cím a projekthez, nem küldünk értesítést');
     }
 
     res.status(201).json(project);
