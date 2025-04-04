@@ -137,9 +137,16 @@ const SharedProjectView = () => {
               setLanguage(session.language);
             }
 
-            // Használjuk az új handleProjectData függvényt a projektadatokkal
-            if (session.project) {
-              handleProjectData(session.project);
+            // Ensure project has _id field for compatibility
+            const projectData = session.project;
+            if (projectData) {
+              if (!projectData._id && projectData.id) {
+                debugLog('checkExistingSession', 'Adding _id from id field');
+                projectData._id = projectData.id;
+              }
+
+              setProject(projectData);
+              setIsVerified(true);
             } else {
               debugLog('checkExistingSession', 'Project data missing from session');
             }
@@ -159,7 +166,7 @@ const SharedProjectView = () => {
     checkExistingSession();
   }, [token]);
 
-  // Handle PIN verification
+  // Handle PIN verification - VISSZAÁLLÍTVA AZ EREDETI
   const verifyPin = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -191,7 +198,7 @@ const SharedProjectView = () => {
 
         // Különböző API útvonalak kipróbálása, mindegyiknél credentials: 'omit' használata
         try {
-          response = await fetch(`${API_URL}/projects/verify-pin`, {
+          response = await fetch(`${API_URL}/api/verify-pin`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -201,65 +208,98 @@ const SharedProjectView = () => {
             body: JSON.stringify({ token: cleanToken, pin }),
             credentials: 'omit'
           });
-        } catch (innerError) {
-          debugLog('verifyPin', 'Error with alternative endpoint', { error: innerError.message });
+
+          if (!response.ok) {
+            debugLog('verifyPin', `API endpoint failed with ${response.status}, trying next route`);
+            response = await fetch(`${API_URL}/public/projects/verify-pin`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-API-Key': API_KEY,
+                'Accept': 'application/json'
+              },
+              body: JSON.stringify({ token: cleanToken, pin }),
+              credentials: 'omit'
+            });
+
+            if (!response.ok) {
+              debugLog('verifyPin', `Public endpoint failed with ${response.status}, trying direct API call`);
+              response = await fetch(`${API_URL}/api/public/projects/verify-pin`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'X-API-Key': API_KEY,
+                  'Accept': 'application/json'
+                },
+                body: JSON.stringify({ token: cleanToken, pin }),
+                credentials: 'omit'
+              });
+            }
+          }
+        } catch (retryError) {
+          debugLog('verifyPin', 'All retry attempts failed', { error: retryError.message });
+          throw retryError;
         }
       }
 
-      if (response && response.ok) {
-        const data = await response.json();
-        debugLog('verifyPin', 'PIN verification successful', { data: { ...data, verified: data?.verified } });
+      debugLog('verifyPin', 'API response status', { status: response.status });
 
-        if (data.verified === true) {
-          // Sikeres PIN ellenőrzés
-          await fetchProjectData(cleanToken);
-        } else {
-          setError(t.invalidPin || 'Érvénytelen PIN kód');
-        }
-      } else {
-        // Ha az API hívás nem sikerült, próbáljuk meg közvetlenül lekérni a projekt adatokat
-        debugLog('verifyPin', 'PIN verification failed, trying to fetch project directly');
-        const directFetchResult = await fetchProjectData(cleanToken);
-        
-        if (!directFetchResult) {
-          setError(t.errorOccurred || 'Hiba történt az ellenőrzés során');
-        }
-      }
-    } catch (error) {
-      debugLog('verifyPin', 'Error during PIN verification', { error: error.message });
-      setError(t.errorOccurred || 'Hiba történt az ellenőrzés során');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Projekt adatok lekérése a token alapján
-  const fetchProjectData = async (cleanToken) => {
-    try {
-      debugLog('fetchProjectData', 'Fetching project data', { token: cleanToken });
-      const response = await fetch(`${API_URL}/shared-project/${cleanToken}`, {
-        method: 'GET',
-        headers: {
-          'X-API-Key': API_KEY,
-          'Accept': 'application/json'
-        },
-        credentials: 'omit'
-      });
+      const data = await response.json();
+      debugLog('verifyPin', 'API response data received');
 
       if (response.ok) {
-        const projectData = await response.json();
-        debugLog('fetchProjectData', 'Project data received', { name: projectData.name });
-        
-        // Használjuk az új handleProjectData funkciót
-        handleProjectData(projectData);
-        return true;
+        const projectData = data.project;
+
+        // Add an _id field if it doesn't exist (for compatibility)
+        if (!projectData._id) {
+          debugLog('verifyPin', 'Project data needs normalization');
+
+          if (projectData.id) {
+            debugLog('verifyPin', 'Using id as _id field');
+            projectData._id = projectData.id;
+          } else {
+            debugLog('verifyPin', 'Using token as temporary _id');
+            projectData._id = token;
+          }
+        }
+
+        // Debug log the project structure
+        debugLog('verifyPin', 'Project loaded successfully', {
+          hasId: Boolean(projectData.id),
+          has_Id: Boolean(projectData._id),
+          name: projectData.name
+        });
+
+        // Debug: nézd meg a projekt struktúráját, különösen az invoices tömböt
+        console.log('Betöltött projekt adatok:', JSON.stringify(projectData, null, 2));
+        console.log('Számlák száma:', projectData.invoices?.length || 0);
+
+        // Save project data to state
+        setProject(projectData);
+        setIsVerified(true);
+        setError(null);
+
+        // Save session to localStorage with language
+        // Mentjük a PIN kódot is a session-be, hogy később frissíteni tudjuk az adatokat
+        const session = {
+          project: projectData,
+          timestamp: new Date().toISOString(),
+          language: language,
+          pin: pin // Mentjük a PIN kódot, hogy később is tudjuk használni a frissítéshez
+        };
+        localStorage.setItem(`project_session_${cleanToken}`, JSON.stringify(session));
+
+        debugLog('verifyPin', 'Session saved with language preference');
       } else {
-        debugLog('fetchProjectData', 'Failed to fetch project data', { status: response.status });
-        return false;
+        debugLog('verifyPin', 'PIN verification failed', { message: data.message });
+        setError(data.message || t.invalidPin);
       }
     } catch (error) {
-      debugLog('fetchProjectData', 'Error fetching project data', { error: error.message });
-      return false;
+      debugLog('verifyPin', 'Error during verification', { error });
+      console.error('Error occurred:', error);
+      setError(t.errorOccurred);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -392,49 +432,6 @@ const SharedProjectView = () => {
     } else {
       debugLog('handleLogout', 'Logout cancelled by user');
     }
-  };
-
-  // If verification is successful, set up the project and save session
-  const handleProjectData = (projectData) => {
-    debugLog('handleProjectData', 'Setting up project data', { name: projectData.name });
-    
-    // Biztosítjuk, hogy a projekt adatban ott legyen a token is
-    if (!projectData.shareToken) {
-      projectData.shareToken = cleanToken;
-    }
-    
-    // Ha van sharing, de nincs benne token, akkor hozzáadjuk
-    if (projectData.sharing && !projectData.sharing.token) {
-      projectData.sharing = { ...projectData.sharing, token: cleanToken };
-    }
-    
-    // Ha nincs sharing objektum, akkor hozzuk létre
-    if (!projectData.sharing) {
-      projectData.sharing = { token: cleanToken };
-    }
-
-    setProject(projectData);
-    setIsVerified(true);
-
-    // Save session to localStorage for future visits
-    saveSession(projectData);
-  };
-
-  // Session mentése a helyi tárolóba a későbbi látogatásokhoz
-  const saveSession = (projectData) => {
-    // Tiszta token kinyerése a jelenlegi URL-ből
-    const cleanToken = token.split('?')[0];
-    
-    // Mentjük a PIN kódot is a session-be, hogy később frissíteni tudjuk az adatokat
-    const session = {
-      project: projectData,
-      timestamp: new Date().toISOString(),
-      language: language,
-      pin: pin // Mentjük a PIN kódot, hogy később is tudjuk használni a frissítéshez
-    };
-    
-    localStorage.setItem(`project_session_${cleanToken}`, JSON.stringify(session));
-    debugLog('saveSession', 'Session saved with project data and language preference');
   };
 
   // PIN verification form
