@@ -744,8 +744,9 @@ const handleCreateInvoice = async (selectedProjectForInvoice, invoiceData) => {
 
       {/* Szűrők */}
       <div className="bg-white p-4 rounded-lg shadow mb-6">
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="relative flex-grow max-w-xs">
+        {/* Keresés és szűrők törlése gomb */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="relative w-full max-w-md">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <Search className="h-5 w-5 text-gray-400" />
             </div>
@@ -758,11 +759,30 @@ const handleCreateInvoice = async (selectedProjectForInvoice, invoiceData) => {
             />
           </div>
 
-          <div className="flex-grow-0">
+          <button
+            onClick={() => {
+              setSearchTerm('');
+              setStatusFilter('all');
+              setDateFilter('all');
+              setProjectFilter('all');
+              setRecurringFilter('all');
+              setSortBy('date-desc');
+            }}
+            className="text-indigo-600 hover:text-indigo-800 text-sm flex items-center ml-4"
+          >
+            <RefreshCw className="h-4 w-4 mr-1" />
+            Szűrők törlése
+          </button>
+        </div>
+
+        {/* Szűrők első sora */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 mb-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Státusz</label>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="pl-3 pr-8 py-2 border rounded-md"
+              className="pl-3 pr-8 py-2 border rounded-md w-full"
             >
               <option value="all">Összes státusz</option>
               <option value="kiállított">Kiállított</option>
@@ -772,11 +792,12 @@ const handleCreateInvoice = async (selectedProjectForInvoice, invoiceData) => {
             </select>
           </div>
 
-          <div className="flex-grow-0">
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Számla típusa</label>
             <select
               value={recurringFilter}
               onChange={(e) => setRecurringFilter(e.target.value)}
-              className="pl-3 pr-8 py-2 border rounded-md"
+              className="pl-3 pr-8 py-2 border rounded-md w-full"
             >
               <option value="all">Összes számla</option>
               <option value="recurring">Ismétlődő számlák</option>
@@ -784,11 +805,12 @@ const handleCreateInvoice = async (selectedProjectForInvoice, invoiceData) => {
             </select>
           </div>
 
-          <div className="flex-grow-0">
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Dátum</label>
             <select
               value={dateFilter}
               onChange={(e) => setDateFilter(e.target.value)}
-              className="pl-3 pr-8 py-2 border rounded-md"
+              className="pl-3 pr-8 py-2 border rounded-md w-full"
             >
               <option value="all">Összes dátum</option>
               <option value="today">Ma</option>
@@ -800,26 +822,12 @@ const handleCreateInvoice = async (selectedProjectForInvoice, invoiceData) => {
             </select>
           </div>
 
-          <div className="flex-grow-0">
-            <select
-              value={projectFilter}
-              onChange={(e) => setProjectFilter(e.target.value)}
-              className="pl-3 pr-8 py-2 border rounded-md"
-            >
-              <option value="all">Összes projekt</option>
-              {projects.map(project => (
-                <option key={project._id} value={project._id}>
-                  {project.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="flex-grow-0 ml-auto">
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Rendezés</label>
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              className="pl-3 pr-8 py-2 border rounded-md"
+              className="pl-3 pr-8 py-2 border rounded-md w-full"
             >
               <option value="date-desc">Legújabb elöl</option>
               <option value="date-asc">Legrégebbi elöl</option>
@@ -832,25 +840,27 @@ const handleCreateInvoice = async (selectedProjectForInvoice, invoiceData) => {
           </div>
         </div>
 
-        <div className="flex justify-between items-center mt-4">
+        {/* Projekt szűrő és találatok száma */}
+        <div className="flex flex-wrap items-center justify-between">
+          <div className="w-full sm:w-auto mb-3 sm:mb-0">
+            <label className="block text-xs font-medium text-gray-500 mb-1">Projekt</label>
+            <select
+              value={projectFilter}
+              onChange={(e) => setProjectFilter(e.target.value)}
+              className="pl-3 pr-8 py-2 border rounded-md w-full sm:w-auto min-w-[200px]"
+            >
+              <option value="all">Összes projekt</option>
+              {projects.map(project => (
+                <option key={project._id} value={project._id}>
+                  {project.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <span className="text-sm text-gray-500">
             {filteredInvoices.length} számla megjelenítve az összes {invoices.length} számla közül
           </span>
-
-          <button
-            onClick={() => {
-              setSearchTerm('');
-              setStatusFilter('all');
-              setDateFilter('all');
-              setProjectFilter('all');
-              setRecurringFilter('all');
-              setSortBy('date-desc');
-            }}
-            className="text-indigo-600 hover:text-indigo-800 text-sm flex items-center"
-          >
-            <RefreshCw className="h-4 w-4 mr-1" />
-            Szűrők törlése
-          </button>
         </div>
       </div>
 
