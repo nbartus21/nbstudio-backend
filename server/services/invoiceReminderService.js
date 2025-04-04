@@ -6,14 +6,45 @@ import Project from '../models/Project.js';
 
 dotenv.config();
 
+// SMTP beállítások ellenőrzése és naplózása
+const SMTP_HOST = process.env.SMTP_HOST || 'nb-hosting.hu';
+const SMTP_PORT = process.env.SMTP_PORT || 25;
+const SMTP_SECURE = process.env.SMTP_SECURE === 'true';
+const SMTP_USER = process.env.SMTP_USER || 'noreply@nb-hosting.hu';
+const SMTP_PASS = process.env.SMTP_PASS;
+
+// SMTP beállítások naplózása (jelszó nélkül)
+console.log('Invoice Reminder Service - SMTP beállítások:', {
+  host: SMTP_HOST,
+  port: SMTP_PORT,
+  secure: SMTP_SECURE,
+  auth: { user: SMTP_USER, pass: SMTP_PASS ? '******' : 'MISSING' }
+});
+
+// Ellenőrizzük, hogy a kötelező SMTP beállítások megvannak-e
+if (!SMTP_USER || !SMTP_PASS) {
+  console.error('Hiányzó SMTP beállítások! Ellenőrizd a .env fájlt:');
+  console.error('- SMTP_USER: ' + (SMTP_USER ? 'OK' : 'HIÁNYZIK'));
+  console.error('- SMTP_PASS: ' + (SMTP_PASS ? 'OK' : 'HIÁNYZIK'));
+}
+
 // Email transporter beállítása
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: process.env.SMTP_PORT,
-  secure: process.env.SMTP_SECURE === 'true',
+  host: SMTP_HOST,
+  port: SMTP_PORT,
+  secure: SMTP_SECURE,
   auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS
+    user: SMTP_USER,
+    pass: SMTP_PASS
+  }
+});
+
+// Teszteljük a kapcsolatot
+transporter.verify((error) => {
+  if (error) {
+    console.error('SMTP kapcsolat hiba:', error);
+  } else {
+    console.log('SMTP szerver kapcsolat OK, kész az emailek küldésére');
   }
 });
 
@@ -109,7 +140,7 @@ const translations = {
 const formatDate = (date, language) => {
   const options = { year: 'numeric', month: 'long', day: 'numeric' };
   return new Date(date).toLocaleDateString(
-    language === 'hu' ? 'hu-HU' : (language === 'de' ? 'de-DE' : 'en-US'), 
+    language === 'hu' ? 'hu-HU' : (language === 'de' ? 'de-DE' : 'en-US'),
     options
   );
 };
@@ -122,10 +153,10 @@ const generateEmailTemplate = (invoice, project, type, language = 'hu') => {
   const invoiceNumber = invoice.number;
   const amount = `${invoice.totalAmount} ${invoice.currency || 'EUR'}`;
   const projectUrl = `https://project.nb-studio.net/shared-project/${project.shareId}`;
-  
+
   let subject = '';
   let message = '';
-  
+
   // Téma és üzenet beállítása a típus alapján
   if (type === 'overdue') {
     subject = t.subject.overdue.replace('{invoiceNumber}', invoiceNumber);
@@ -137,7 +168,7 @@ const generateEmailTemplate = (invoice, project, type, language = 'hu') => {
     subject = t.subject.new.replace('{invoiceNumber}', invoiceNumber);
     message = t.newInvoiceMessage;
   }
-  
+
   // HTML sablon
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333;">
@@ -146,7 +177,7 @@ const generateEmailTemplate = (invoice, project, type, language = 'hu') => {
         <p>${t.greeting.replace('{clientName}', clientName)}</p>
         <p>${message}</p>
       </div>
-      
+
       <div style="margin-bottom: 20px;">
         <h3 style="color: #4B5563; border-bottom: 1px solid #e5e7eb; padding-bottom: 10px;">${t.paymentDetails}</h3>
         <table style="width: 100%; border-collapse: collapse;">
@@ -164,7 +195,7 @@ const generateEmailTemplate = (invoice, project, type, language = 'hu') => {
           </tr>
         </table>
       </div>
-      
+
       <div style="margin-bottom: 20px;">
         <h3 style="color: #4B5563; border-bottom: 1px solid #e5e7eb; padding-bottom: 10px;">${t.paymentInstructions}</h3>
         <p><strong>${t.bankTransfer}:</strong></p>
@@ -188,13 +219,13 @@ const generateEmailTemplate = (invoice, project, type, language = 'hu') => {
         </table>
         <p style="font-size: 12px; color: #6B7280; margin-top: 10px;">${t.vatExempt}</p>
       </div>
-      
+
       <div style="text-align: center; margin: 30px 0;">
         <a href="${projectUrl}" style="background-color: #3B82F6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">
           ${t.viewInvoice}
         </a>
       </div>
-      
+
       <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; color: #6B7280; font-size: 14px;">
         <p>${t.thankYou}</p>
         <p>${t.questions}</p>
@@ -203,7 +234,7 @@ const generateEmailTemplate = (invoice, project, type, language = 'hu') => {
       </div>
     </div>
   `;
-  
+
   return { subject, html };
 };
 
@@ -215,31 +246,37 @@ export const sendInvoiceReminder = async (projectId, invoiceId, type = 'dueSoon'
     if (!project) {
       throw new Error('Project not found');
     }
-    
+
     const invoice = project.invoices.id(invoiceId);
     if (!invoice) {
       throw new Error('Invoice not found');
     }
-    
+
     // Ellenőrizzük, hogy van-e email cím a projekthez
     if (!project.client?.email) {
       throw new Error('Client email not found');
     }
-    
+
     // Email sablon generálása
     const { subject, html } = generateEmailTemplate(invoice, project, type, language);
-    
+
     // Email küldése
     const mailOptions = {
-      from: `"Norbert Bartus" <${process.env.SMTP_USER}>`,
+      from: `"Norbert Bartus" <${SMTP_USER}>`,
       to: project.client.email,
       subject: subject,
       html: html
     };
-    
+
+    console.log('Email küldése:', {
+      to: project.client.email,
+      subject: subject,
+      from: `"Norbert Bartus" <${SMTP_USER}>`
+    });
+
     const info = await transporter.sendMail(mailOptions);
     console.log('Email sent:', info.messageId);
-    
+
     return { success: true, messageId: info.messageId };
   } catch (error) {
     console.error('Error sending invoice reminder:', error);
@@ -252,31 +289,31 @@ export const checkOverdueInvoices = async () => {
   try {
     const now = new Date();
     console.log(`Checking overdue invoices: ${now.toISOString()}`);
-    
+
     // Keressük meg az összes projektet, amelyben van lejárt számla
     const projects = await Project.find({
       'invoices.status': { $nin: ['fizetett', 'paid', 'bezahlt', 'törölt', 'canceled', 'storniert'] },
       'invoices.dueDate': { $lt: now }
     });
-    
+
     console.log(`Found ${projects.length} projects with overdue invoices`);
-    
+
     let sentCount = 0;
     const results = [];
-    
+
     // Projektenként végigmegyünk a számlákon és küldünk emlékeztetőt
     for (const project of projects) {
       // Projekt nyelve
       const language = project.language || 'hu';
-      
+
       // Szűrjük ki a lejárt számlákat
-      const overdueInvoices = project.invoices.filter(inv => 
-        !['fizetett', 'paid', 'bezahlt', 'törölt', 'canceled', 'storniert'].includes(inv.status) && 
+      const overdueInvoices = project.invoices.filter(inv =>
+        !['fizetett', 'paid', 'bezahlt', 'törölt', 'canceled', 'storniert'].includes(inv.status) &&
         new Date(inv.dueDate) < now
       );
-      
+
       console.log(`Found ${overdueInvoices.length} overdue invoices in project ${project.name}`);
-      
+
       // Minden lejárt számlához küldünk emlékeztetőt
       for (const invoice of overdueInvoices) {
         const result = await sendInvoiceReminder(project._id, invoice._id, 'overdue', language);
@@ -286,13 +323,13 @@ export const checkOverdueInvoices = async () => {
           invoiceNumber: invoice.number,
           success: result.success
         });
-        
+
         if (result.success) {
           sentCount++;
         }
       }
     }
-    
+
     return { sentCount, results };
   } catch (error) {
     console.error('Error checking overdue invoices:', error);
@@ -306,33 +343,33 @@ export const checkDueSoonInvoices = async () => {
     const now = new Date();
     const threeDaysFromNow = new Date(now);
     threeDaysFromNow.setDate(now.getDate() + 3);
-    
+
     console.log(`Checking invoices due soon: ${now.toISOString()}`);
-    
+
     // Keressük meg az összes projektet, amelyben van hamarosan lejáró számla
     const projects = await Project.find({
       'invoices.status': { $nin: ['fizetett', 'paid', 'bezahlt', 'törölt', 'canceled', 'storniert'] },
       'invoices.dueDate': { $gte: now, $lte: threeDaysFromNow }
     });
-    
+
     console.log(`Found ${projects.length} projects with invoices due soon`);
-    
+
     let sentCount = 0;
     const results = [];
-    
+
     // Projektenként végigmegyünk a számlákon és küldünk emlékeztetőt
     for (const project of projects) {
       // Projekt nyelve
       const language = project.language || 'hu';
-      
+
       // Szűrjük ki a hamarosan lejáró számlákat
-      const dueSoonInvoices = project.invoices.filter(inv => 
-        !['fizetett', 'paid', 'bezahlt', 'törölt', 'canceled', 'storniert'].includes(inv.status) && 
+      const dueSoonInvoices = project.invoices.filter(inv =>
+        !['fizetett', 'paid', 'bezahlt', 'törölt', 'canceled', 'storniert'].includes(inv.status) &&
         new Date(inv.dueDate) >= now && new Date(inv.dueDate) <= threeDaysFromNow
       );
-      
+
       console.log(`Found ${dueSoonInvoices.length} invoices due soon in project ${project.name}`);
-      
+
       // Minden hamarosan lejáró számlához küldünk emlékeztetőt
       for (const invoice of dueSoonInvoices) {
         const result = await sendInvoiceReminder(project._id, invoice._id, 'dueSoon', language);
@@ -342,13 +379,13 @@ export const checkDueSoonInvoices = async () => {
           invoiceNumber: invoice.number,
           success: result.success
         });
-        
+
         if (result.success) {
           sentCount++;
         }
       }
     }
-    
+
     return { sentCount, results };
   } catch (error) {
     console.error('Error checking invoices due soon:', error);
@@ -364,20 +401,20 @@ export const sendNewInvoiceNotification = async (projectId, invoiceId) => {
     if (!project) {
       throw new Error('Project not found');
     }
-    
+
     const invoice = project.invoices.id(invoiceId);
     if (!invoice) {
       throw new Error('Invoice not found');
     }
-    
+
     // Ellenőrizzük, hogy van-e email cím a projekthez
     if (!project.client?.email) {
       throw new Error('Client email not found');
     }
-    
+
     // Projekt nyelve
     const language = project.language || 'hu';
-    
+
     // Email küldése
     return await sendInvoiceReminder(projectId, invoiceId, 'new', language);
   } catch (error) {
