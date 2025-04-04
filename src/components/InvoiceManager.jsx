@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   FileText, Download, Edit, Eye, Trash2, DollarSign, Filter, Search,
   Plus, ArrowUp, ArrowDown, CheckCircle, XCircle, AlertCircle, Calendar,
-  UserPlus, RefreshCw, Printer, Repeat, List, Clock, Activity, Terminal
+  UserPlus, RefreshCw, Printer, Repeat, List, Clock, Activity, Terminal,
+  CheckSquare, Square, MoreHorizontal, Trash
 } from 'lucide-react';
 import { api } from '../services/auth';
 import { formatShortDate, showMessage } from './shared/utils';
@@ -37,6 +38,11 @@ const InvoiceManager = () => {
   const [projectFilter, setProjectFilter] = useState('all');
   const [sortBy, setSortBy] = useState('date-desc');
   const [recurringFilter, setRecurringFilter] = useState('all'); // Ismétlődő számlák szűrője
+
+  // Tömeges műveletek állapotai
+  const [selectedInvoices, setSelectedInvoices] = useState([]);
+  const [selectAll, setSelectAll] = useState(false);
+  const [showBulkActionMenu, setShowBulkActionMenu] = useState(false);
 
   // Új számla állapota
   const [newInvoice, setNewInvoice] = useState({
@@ -265,6 +271,67 @@ const InvoiceManager = () => {
     } catch (err) {
       console.error('Hiba a számla törlésekor:', err);
       setError('Nem sikerült törölni a számlát. Kérjük, próbálja újra később.');
+    }
+  };
+
+  // Számla kijelölése
+  const toggleInvoiceSelection = (invoice) => {
+    setSelectedInvoices(prev => {
+      // Ellenőrizzük, hogy a számla már ki van-e jelölve
+      const isSelected = prev.some(i => i.invoiceId === invoice._id && i.projectId === invoice.projectId);
+
+      if (isSelected) {
+        // Ha már ki van jelölve, akkor távolítsuk el
+        return prev.filter(i => !(i.invoiceId === invoice._id && i.projectId === invoice.projectId));
+      } else {
+        // Ha nincs kijelölve, akkor adjuk hozzá
+        return [...prev, { invoiceId: invoice._id, projectId: invoice.projectId }];
+      }
+    });
+  };
+
+  // Összes számla kijelölése/kijelölés megszüntetése
+  const toggleSelectAll = () => {
+    if (selectAll) {
+      // Ha minden ki van jelölve, töröljük a kijelöléseket
+      setSelectedInvoices([]);
+    } else {
+      // Ha nincs minden kijelölve, jelöljük ki az összes szűrt számlát
+      const allInvoices = filteredInvoices.map(invoice => ({
+        invoiceId: invoice._id,
+        projectId: invoice.projectId
+      }));
+      setSelectedInvoices(allInvoices);
+    }
+    setSelectAll(!selectAll);
+  };
+
+  // Tömeges törlés
+  const handleBulkDelete = async () => {
+    if (selectedInvoices.length === 0) {
+      setError('Nincs kijelölt számla a törléshez');
+      return;
+    }
+
+    if (!window.confirm(`Biztosan törölni szeretné a kijelölt ${selectedInvoices.length} számlát?`)) {
+      return;
+    }
+
+    try {
+      // Tömeges törlés végpont hívása
+      const response = await api.post('/invoices/bulk-delete', { invoices: selectedInvoices });
+      if (!response.ok) throw new Error('Tömeges törlés sikertelen');
+
+      // Frissítjük a számlák listáját és töröljük a kijelöléseket
+      fetchInvoices();
+      setSelectedInvoices([]);
+      setSelectAll(false);
+      setShowBulkActionMenu(false);
+
+      showMessage(setSuccessMessage, `${selectedInvoices.length} számla sikeresen törölve`);
+    } catch (err) {
+      console.error('Hiba a tömeges törlés során:', err);
+      setError('Nem sikerült végrehajtani a tömeges törlést. Kérjük, próbálja újra később.');
     }
   };
 
@@ -787,12 +854,50 @@ const handleCreateInvoice = async (selectedProjectForInvoice, invoiceData) => {
         </div>
       </div>
 
+      {/* Tömeges műveletek */}
+      {selectedInvoices.length > 0 && (
+        <div className="bg-white p-4 rounded-lg shadow mb-4 flex justify-between items-center">
+          <div>
+            <span className="text-sm font-medium text-gray-700">{selectedInvoices.length} számla kijelölve</span>
+          </div>
+          <div className="flex space-x-2">
+            <button
+              onClick={handleBulkDelete}
+              className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 flex items-center text-sm"
+            >
+              <Trash className="h-4 w-4 mr-1" />
+              Törlés
+            </button>
+            <button
+              onClick={() => setSelectedInvoices([])}
+              className="bg-gray-200 text-gray-700 px-3 py-1 rounded hover:bg-gray-300 text-sm"
+            >
+              Kijelölés törlése
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Számla lista */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
+                <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <div className="flex items-center">
+                    <button
+                      onClick={toggleSelectAll}
+                      className="focus:outline-none"
+                      title={selectAll ? 'Kijelölés megszüntetése' : 'Összes kijelölése'}
+                    >
+                      {selectAll ?
+                        <CheckSquare className="h-5 w-5 text-indigo-600" /> :
+                        <Square className="h-5 w-5 text-gray-400" />
+                      }
+                    </button>
+                  </div>
+                </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Számlaszám
                 </th>
@@ -821,8 +926,24 @@ const handleCreateInvoice = async (selectedProjectForInvoice, invoiceData) => {
                 filteredInvoices.map((invoice) => {
                   const dueStatus = getDueStatus(invoice.dueDate, invoice.status);
 
+                  const isSelected = selectedInvoices.some(i => i.invoiceId === invoice._id && i.projectId === invoice.projectId);
+
                   return (
-                    <tr key={invoice._id} className="hover:bg-gray-50">
+                    <tr key={invoice._id} className={`hover:bg-gray-50 ${isSelected ? 'bg-indigo-50' : ''}`}>
+                      <td className="px-3 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          <button
+                            onClick={() => toggleInvoiceSelection(invoice)}
+                            className="focus:outline-none"
+                            title={isSelected ? 'Kijelölés megszüntetése' : 'Kijelölés'}
+                          >
+                            {isSelected ?
+                              <CheckSquare className="h-5 w-5 text-indigo-600" /> :
+                              <Square className="h-5 w-5 text-gray-400" />
+                            }
+                          </button>
+                        </div>
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           <div className="text-sm font-medium text-gray-900">{invoice.number}</div>

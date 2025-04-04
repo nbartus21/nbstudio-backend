@@ -1162,6 +1162,71 @@ router.patch('/projects/:projectId/invoices/:invoiceId', async (req, res) => {
   }
 });
 
+// Tömeges számla törlés
+router.post('/bulk-delete', async (req, res) => {
+  try {
+    const { invoices } = req.body;
+
+    if (!invoices || !Array.isArray(invoices) || invoices.length === 0) {
+      return res.status(400).json({ message: 'Nincs megadva törölni kívánt számla' });
+    }
+
+    console.log(`Tömeges törlés: ${invoices.length} számla törlése megkezdődik`);
+
+    // Törlési műveletek végrehajtása
+    const results = [];
+    const errors = [];
+
+    for (const item of invoices) {
+      try {
+        const { projectId, invoiceId } = item;
+
+        if (!projectId || !invoiceId) {
+          errors.push({ projectId, invoiceId, error: 'Hiányzó projektId vagy invoiceId' });
+          continue;
+        }
+
+        // Projekt megkeresése
+        const project = await Project.findById(projectId);
+        if (!project) {
+          errors.push({ projectId, invoiceId, error: 'Projekt nem található' });
+          continue;
+        }
+
+        // Számla megkeresése a projekten belül
+        const invoice = project.invoices.id(invoiceId);
+        if (!invoice) {
+          errors.push({ projectId, invoiceId, error: 'Számla nem található' });
+          continue;
+        }
+
+        // Számla törlése
+        project.invoices.pull(invoiceId);
+
+        // Projekt frissítése
+        await project.save();
+
+        results.push({ projectId, invoiceId, success: true });
+        console.log(`Számla sikeresen törölve: ${invoiceId} (Projekt: ${projectId})`);
+      } catch (err) {
+        console.error(`Hiba a számla törlésekor:`, err);
+        errors.push({ projectId: item.projectId, invoiceId: item.invoiceId, error: err.message });
+      }
+    }
+
+    // Válasz küldése
+    res.status(200).json({
+      success: true,
+      message: `${results.length} számla sikeresen törölve`,
+      results,
+      errors: errors.length > 0 ? errors : undefined
+    });
+  } catch (err) {
+    console.error('Hiba a tömeges törlés során:', err);
+    res.status(500).json({ message: 'Szerver hiba a tömeges törlés során', error: err.message });
+  }
+});
+
 // Ismétlődő számlák generálása (cron job által meghívható)
 router.post('/recurring/process', async (req, res) => {
   try {
