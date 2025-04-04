@@ -3,6 +3,7 @@ import {
   Upload, FileText, Search, Filter, ArrowDown, Trash2, Eye, Download, AlertCircle
 } from 'lucide-react';
 import { formatFileSize, formatShortDate, debugLog, saveToLocalStorage, getProjectId } from './utils';
+import { uploadFileToS3, getS3Url } from '../../services/s3Service';
 
 // Translation data for all UI elements
 const translations = {
@@ -232,22 +233,46 @@ const ProjectFiles = ({
           
           const reader = new FileReader();
           
-          reader.onload = (e) => {
-            processedFiles++;
-            setUploadProgress(Math.round((processedFiles / totalFiles) * 100));
-            debugLog('handleFileUpload', `File ${file.name} processed (${processedFiles}/${totalFiles})`);
-            
-            const fileData = {
-              id: Date.now() + '_' + file.name.replace(/\s+/g, '_'),
-              name: file.name,
-              size: file.size,
-              type: file.type,
-              uploadedAt: new Date().toISOString(),
-              content: e.target.result,
-              projectId: projectId,
-              uploadedBy: isAdmin ? t.admin : t.client // Lokalizált értékek
-            };
-            resolve(fileData);
+          reader.onload = async (e) => {
+            try {
+              processedFiles++;
+              setUploadProgress(Math.round((processedFiles / totalFiles) * 100));
+              debugLog('handleFileUpload', `File ${file.name} processed (${processedFiles}/${totalFiles})`);
+              
+              const fileData = {
+                id: Date.now() + '_' + file.name.replace(/\s+/g, '_'),
+                name: file.name,
+                size: file.size,
+                type: file.type,
+                uploadedAt: new Date().toISOString(),
+                content: e.target.result,
+                projectId: projectId,
+                uploadedBy: isAdmin ? t.admin : t.client // Lokalizált értékek
+              };
+
+              // Feltöltés az S3 tárolóba
+              debugLog('handleFileUpload', `Uploading file ${file.name} to S3`);
+              try {
+                const s3Result = await uploadFileToS3(fileData);
+                
+                // S3 információk hozzáadása a fájl objektumhoz
+                fileData.s3url = s3Result.s3url;
+                fileData.s3key = s3Result.key;
+                
+                // Már nincs szükség a content mezőre, eltávolítjuk, hogy ne terhelje a localStorage-t
+                delete fileData.content;
+                
+                debugLog('handleFileUpload', `File ${file.name} uploaded to S3 successfully`, s3Result);
+                resolve(fileData);
+              } catch (s3Error) {
+                debugLog('handleFileUpload', `Error uploading file ${file.name} to S3`, s3Error);
+                // Ha az S3 feltöltés sikertelen volt, akkor is megtartjuk a fájlt a helyi tárolóban
+                resolve(fileData);
+              }
+            } catch (error) {
+              debugLog('handleFileUpload', `Error processing file ${file.name}`, error);
+              resolve(null);
+            }
           };
           
           reader.onerror = (error) => {

@@ -105,37 +105,37 @@ const ProjectManager = () => {
     }
   };
 
-  // Fájl feltöltése
+  // File upload handler for project cards
   const handleFileUpload = async (projectId, file) => {
     try {
-      const fileData = {
-        name: file.name,
-        size: file.size,
-        type: file.type,
-        content: file.content, // Base64 format
-        uploadedBy: 'Admin'
-      };
-      
-      const response = await api.post(`/api/projects/${projectId}/files`, fileData);
-      
-      if (response.ok) {
-        const updatedProject = await response.json();
+      console.log('Uploading file to project:', projectId);
+
+      // API hívás a fájl feltöltésére a szerveroldalon (ami mostantól az S3-ba is feltölti)
+      const response = await api.post(`/api/projects/${projectId}/files`, file);
+
+      if (response.status === 201) {
+        // Frissítjük a projektadatokat a válasz alapján
+        const projectData = response.data;
         
-        // Update projects with the newest data
+        // Frissítjük a lokális projektek állapotát is
         setProjects(prevProjects => 
-          prevProjects.map(p => p._id === projectId ? updatedProject : p)
+          prevProjects.map(proj => 
+            proj._id === projectId ? projectData : proj
+          )
         );
-  
-        // Also update project files state if needed
-        setProjectFiles(prevFiles => [...prevFiles, { ...fileData, projectId }]);
-  
-        showSuccessMessage('Fájl sikeresen feltöltve');
+
+        // Sikeres feltöltés üzenet
+        showSuccessMessage('Fájl sikeresen feltöltve!');
+        return true;
       } else {
-        throw new Error('Hiba a fájl feltöltésekor');
+        console.error('Hiba a fájl feltöltése során:', response.statusText);
+        showErrorMessage('Hiba a fájl feltöltése során!');
+        return false;
       }
     } catch (error) {
-      console.error('Hiba a fájl feltöltésekor:', error);
-      setError('Nem sikerült feltölteni a fájlt');
+      console.error('Fájl feltöltési hiba:', error);
+      showErrorMessage('Fájl feltöltési hiba történt!');
+      return false;
     }
   };
   

@@ -2,6 +2,9 @@ import express from 'express';
 import Project from '../models/Project.js';
 import { v4 as uuidv4 } from 'uuid';
 import Notification from '../models/Notification.js';
+import { S3Client } from '@aws-sdk/client-s3';
+import { Upload } from '@aws-sdk/lib-storage';
+import { Readable } from 'stream';
 
 const router = express.Router();
 
@@ -605,7 +608,66 @@ router.get('/projects/:id/share', async (req, res) => {
   }
 });
 
-// ÚJ: Fájl hozzáadása projekthez
+// S3 konfigurációs beállítások
+const S3_CONFIG = {
+  credentials: {
+    accessKeyId: '8dJM9m6z6I9kdM5IhoBv',
+    secretAccessKey: 'bexUZRKqVBERCGohsGm0cEx1IAPhijQiePFqUvoE'
+  },
+  region: 'eu',
+  endpoint: 'https://backup-minio.vddq6f.easypanel.host',
+  forcePathStyle: true // MinIO esetén fontos
+};
+
+// Bucket név, ahová a fájlokat feltöltjük
+const BUCKET_NAME = 'nbstudioapp';
+const FILE_PREFIX = 'project_';
+
+// S3 kliens létrehozása
+const s3Client = new S3Client(S3_CONFIG);
+
+// Szerver oldali S3 feltöltési függvény
+const uploadToS3 = async (fileData) => {
+  try {
+    // Base64 adat konvertálása bináris adattá
+    const base64Data = fileData.content.split(';base64,').pop();
+    const binaryData = Buffer.from(base64Data, 'base64');
+
+    // Egyedi fájlnév generálása a projektazonosítóval
+    const key = `${FILE_PREFIX}${fileData.projectId}/${Date.now()}_${fileData.name.replace(/\s+/g, '_')}`;
+
+    const uploadParams = {
+      Bucket: BUCKET_NAME,
+      Key: key,
+      Body: binaryData,
+      ContentType: fileData.type,
+      Metadata: {
+        'project-id': fileData.projectId,
+        'uploaded-by': fileData.uploadedBy || 'unknown',
+        'original-name': fileData.name
+      }
+    };
+
+    // A feltöltés végrehajtása
+    const upload = new Upload({
+      client: s3Client,
+      params: uploadParams
+    });
+
+    const result = await upload.done();
+
+    // Visszaadjuk az S3 URL-t
+    return {
+      s3url: result.Location || `https://${BUCKET_NAME}.backup-minio.vddq6f.easypanel.host/${key}`,
+      key: key
+    };
+  } catch (error) {
+    console.error('Hiba az S3 feltöltés során:', error);
+    throw error;
+  }
+};
+
+// ÚJ: Fájl hozzáadása projekthez S3 tárolóba
 router.post('/projects/:id/files', async (req, res) => {
   try {
     const project = await Project.findById(req.params.id);
@@ -618,7 +680,29 @@ router.post('/projects/:id/files', async (req, res) => {
       project.files = [];
     }
 
-    // Fájl hozzáadása
+    // Ha van fájltartalom, feltöltjük az S3-ba
+    let s3Data = {};
+    if (fileData.content) {
+      try {
+        s3Data = await uploadToS3({
+          ...fileData,
+          projectId: req.params.id
+        });
+        
+        // Az eredeti content már nem szükséges, töröljük
+        delete fileData.content;
+        
+        // S3 adatok hozzáadása
+        fileData.s3url = s3Data.s3url;
+        fileData.s3key = s3Data.key;
+      } catch (s3Error) {
+        console.error('Hiba az S3 feltöltés során:', s3Error);
+        // Folytatjuk a hibával, de jelezzük a kliensnek
+        fileData.s3Error = 'Hiba történt a fájl S3 tárolóba feltöltése során';
+      }
+    }
+
+    // Fájl hozzáadása a projekt dokumentumaihoz
     project.files.push({
       ...fileData,
       uploadedAt: new Date()
