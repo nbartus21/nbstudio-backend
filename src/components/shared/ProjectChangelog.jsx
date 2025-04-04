@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Tag, Clock, AlertCircle, CheckCircle, ArrowUp, Plus } from 'lucide-react';
+import { api } from '../../services/auth';
 
 // Translations
 const translations = {
@@ -92,16 +93,28 @@ const ProjectChangelog = ({ project, language = 'hu', onRefresh }) => {
       setIsLoading(true);
       setError(null);
       
-      // If we have a token, use the public endpoint
+      // Ha megosztott projekt (token van), akkor használjuk a megfelelő végpontot az API kulccsal
       const endpoint = project.sharing?.token
         ? `/api/public/projects/${project.sharing.token}/changelog`
         : `/api/projects/${project._id}/changelog`;
       
-      const response = await fetch(endpoint, {
-        headers: {
-          'X-API-Key': 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0'
-        }
-      });
+      let response;
+      
+      if (project.sharing?.token) {
+        // Publikus API hívás esetén közvetlenül fetch-et használunk API kulccsal
+        const apiUrl = 'https://admin.nb-studio.net:5001';
+        const fullEndpoint = `${apiUrl}${endpoint}`;
+        
+        response = await fetch(fullEndpoint, {
+          headers: {
+            'Content-Type': 'application/json',
+            'X-API-Key': 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0'
+          }
+        });
+      } else {
+        // Védett API hívás esetén az api.get szolgáltatást használjuk (auth token-nel)
+        response = await api.get(endpoint);
+      }
       
       if (!response.ok) {
         throw new Error(`Error fetching changelog: ${response.status}`);
