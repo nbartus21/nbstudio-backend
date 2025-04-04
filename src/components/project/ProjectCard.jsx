@@ -1,291 +1,288 @@
 import React, { useState } from 'react';
-import { MessageCircle, File, Calendar, Clock, Tag, Mail, Briefcase, Reply, Bell, CheckCircle, Star } from 'lucide-react';
+import { formatDistance } from 'date-fns';
+import { hu } from 'date-fns/locale';
+import { 
+  Bell, Clock, FileText, Share2, 
+  DollarSign, CircleAlert, MessageSquare,
+  Upload, Eye, Trash2, Download, MoreVertical,
+  PenTool, UserPlus, Shield, File, FileUp
+} from 'lucide-react';
+import { formatFileSize, formatShortDate } from '../shared/utils';
 import ProjectActivityModal from './ProjectActivityModal'; // Módosítsd az elérési utat, ha szükséges
 
-const ProjectCard = ({ 
-  project, 
-  isAdmin, 
-  onShare, 
-  onNewInvoice, 
-  onViewDetails, 
-  onDelete,
+const ProjectCard = ({
+  project,
   comments = [],
   files = [],
+  isAdmin = false,
+  onShare,
+  onNewInvoice,
+  onViewDetails,
+  onDeleteFile,
   onReplyToComment,
   onViewFile,
   onMarkAsRead,
   onUploadFile
 }) => {
-  const [showActivityModal, setShowActivityModal] = useState(false);
-  const [activeModalTab, setActiveModalTab] = useState('');
-  const [isHovered, setIsHovered] = useState(false);
-
-  // Szöveg rövidítés
-  const truncateDescription = (description, maxLength = 140) => {
-    if (!description) return '';
-    return description.length > maxLength 
-      ? `${description.substring(0, maxLength)}...` 
-      : description;
-  };
-
-  // Projekt-specifikus kommentek és fájlok szűrése
-  const projectComments = comments.filter(comment => comment.projectId === project._id);
-  const projectFiles = files.filter(file => file.projectId === project._id);
-
-  // Projekt adatok kiegészítése
-  const hasActivityCounters = project.activityCounters !== undefined;
-  const hasNewComments = hasActivityCounters && project.activityCounters.hasNewComments;
-  const hasNewFiles = hasActivityCounters && project.activityCounters.hasNewFiles;
-  const needsAdminResponse = hasActivityCounters && project.activityCounters.adminResponseRequired;
+  const [showFiles, setShowFiles] = useState(false);
+  const [showFileOptions, setShowFileOptions] = useState(null);
+  const projectId = project._id || project.id;
   
-  // Kommentek és fájlok számlálóinak megjelenítése
-  const commentsCount = hasActivityCounters ? project.activityCounters.commentsCount : (project.comments ? project.comments.length : 0);
-  const filesCount = hasActivityCounters ? project.activityCounters.filesCount : (project.files ? project.files.length : 0);
-
-  // Modal megnyitása
-  const openModal = (tab) => {
-    setActiveModalTab(tab);
-    setShowActivityModal(true);
-  };
-
-  // Olvasottnak jelölés
-  const handleMarkAsRead = (e) => {
-    e.stopPropagation();
+  // Kiemeljük a projekt fájljait
+  const projectFiles = files.filter(file => file.projectId === projectId);
+  
+  // Új aktivitások olvasottnak jelölése
+  const handleMarkAsRead = () => {
     if (onMarkAsRead) {
-      onMarkAsRead(project._id);
+      onMarkAsRead(projectId);
     }
   };
 
-  // Állapot színek
+  // Fájl feltöltés gomb kezelése
+  const handleUploadClick = () => {
+    if (onUploadFile) {
+      onUploadFile(projectId);
+    } else {
+      console.warn('Fájl feltöltés handler nincs definiálva');
+    }
+  };
+  
+  // Fájl megtekintés
+  const handleViewFile = (file) => {
+    if (onViewFile) {
+      onViewFile(file);
+    } else {
+      console.warn('Fájl megtekintés handler nincs definiálva');
+    }
+  };
+  
+  // Fájl törlése
+  const handleDeleteFile = (fileId) => {
+    if (onDeleteFile) {
+      onDeleteFile(projectId, fileId);
+    } else {
+      console.warn('Fájl törlés handler nincs definiálva');
+    }
+  };
+  
+  // Fájl letöltése
+  const handleDownloadFile = (file) => {
+    if (file.s3url) {
+      window.open(file.s3url, '_blank');
+    } else {
+      console.warn('Fájlhoz nem tartozik S3 URL', file);
+    }
+  };
+  
+  // Fájl műveletek kezelése
+  const toggleFileOptions = (fileId) => {
+    setShowFileOptions(showFileOptions === fileId ? null : fileId);
+  };
+
   const getStatusColor = (status) => {
-    switch(status) {
-      case 'aktív':
-        return 'bg-gradient-to-r from-green-500 to-green-600 text-white';
-      case 'befejezett':
-        return 'bg-gradient-to-r from-blue-500 to-blue-600 text-white';
-      case 'felfüggesztett':
-        return 'bg-gradient-to-r from-amber-500 to-amber-600 text-white';
-      case 'törölt':
-        return 'bg-gradient-to-r from-gray-500 to-gray-600 text-white';
-      default:
-        return 'bg-gradient-to-r from-gray-500 to-gray-600 text-white';
-    }
-  };
-
-  // Priority színek
-  const getPriorityColor = (priority) => {
-    switch(priority) {
-      case 'magas':
-        return 'bg-red-100 text-red-800 border border-red-200';
-      case 'közepes':
-        return 'bg-amber-100 text-amber-800 border border-amber-200';
-      case 'alacsony':
-        return 'bg-blue-100 text-blue-800 border border-blue-200';
-      default:
-        return 'bg-gray-100 text-gray-800 border border-gray-200';
+    switch (status?.toLowerCase()) {
+      case 'aktív': return 'bg-green-500';
+      case 'befejezett': return 'bg-blue-500';
+      case 'felfüggesztett': return 'bg-yellow-500';
+      case 'törölt': return 'bg-red-500';
+      default: return 'bg-gray-500';
     }
   };
 
   return (
-    <div 
-      className="bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-    >
-      {/* Fejléc */}
-      <div className="border-b border-gray-100 p-5 pb-4">
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <h3 className="text-lg font-bold text-gray-800 mb-1 flex items-center">
-              {project.name}
-              {project.priority && (
-                <span className={`ml-2 px-2 py-0.5 text-xs rounded-full ${getPriorityColor(project.priority)}`}>
-                  {project.priority}
-                </span>
-              )}
-            </h3>
-            <div className="flex items-center text-gray-500 text-sm">
-              <Calendar className="h-3.5 w-3.5 mr-1" />
-              <span>{project.date || (project.createdAt ? new Date(project.createdAt).toLocaleDateString() : '')}</span>
-              {project.client && project.client.name && (
-                <>
-                  <span className="mx-2">•</span>
-                  <Briefcase className="h-3.5 w-3.5 mr-1" />
-                  <span>{project.client.name}</span>
-                </>
-              )}
-            </div>
-          </div>
+    <div className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow p-6">
+      {/* Projekt fejléc */}
+      <div className="flex justify-between items-start mb-4">
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900 truncate">{project.name}</h3>
+          <p className="text-sm text-gray-500 mt-1">
+            {project.client?.name || 'Nincs ügyfél'}
+          </p>
+        </div>
+        <div className="flex space-x-2">
+          <span className={`px-2 py-1 rounded-full text-xs text-white font-medium ${getStatusColor(project.status)}`}>
+            {project.status || 'Nincs állapot'}
+          </span>
           
-          {/* Jelzések/Értesítések */}
-          <div className="flex items-start space-x-1.5">
-            {needsAdminResponse && (
-              <span className="inline-flex items-center px-2 py-1 bg-red-100 text-red-800 border border-red-200 rounded-full text-xs font-medium">
-                <Bell className="h-3 w-3 mr-1" />
-                Válasz szükséges
+          {project.unreadFiles > 0 || project.unreadComments > 0 ? (
+            <button
+              onClick={handleMarkAsRead}
+              className="relative p-1 rounded-full bg-red-100 text-red-600 hover:bg-red-200"
+              title="Új aktivitások olvasottnak jelölése"
+            >
+              <Bell className="h-4 w-4" />
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
+                {(project.unreadFiles || 0) + (project.unreadComments || 0)}
               </span>
-            )}
-            {(hasNewComments || hasNewFiles) && (
-              <button 
-                onClick={handleMarkAsRead}
-                className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 border border-blue-200 rounded-full text-xs font-medium hover:bg-blue-200 transition-colors"
-                title="Jelölés olvasottként"
-              >
-                <CheckCircle className="h-3 w-3 mr-1" />
-                Olvasott
-              </button>
-            )}
-          </div>
+            </button>
+          ) : null}
         </div>
       </div>
       
-      {/* Tartalom */}
-      <div className="p-5 flex-1 flex flex-col">
-        <p className="text-gray-600 mb-4 text-sm leading-relaxed flex-1">
-          {truncateDescription(project.description, 180)}
-        </p>
-        
-        {/* Állapot jelző */}
-        <div className="flex justify-between items-center mb-4">
-          <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(project.status)}`}>
-            {project.status}
-          </span>
-          
-          {/* Kommunikációs ikonok */}
-          <div className="flex space-x-3">
-            <button 
-              onClick={() => openModal('comments')}
-              className={`flex items-center ${hasNewComments ? 'text-indigo-600 font-medium' : 'text-gray-600'} hover:text-indigo-600 transition-colors`}
-            >
-              <div className="relative">
-                <MessageCircle className={`h-5 w-5 ${hasNewComments ? 'text-indigo-600' : 'text-gray-500'}`} />
-                {hasNewComments && (
-                  <span className="absolute -top-1 -right-1 h-2.5 w-2.5 bg-red-500 rounded-full border-2 border-white"></span>
-                )}
-              </div>
-              <span className="text-sm ml-1.5">{commentsCount}</span>
-            </button>
-            
-            <button 
-              onClick={() => openModal('files')}
-              className={`flex items-center ${hasNewFiles ? 'text-indigo-600 font-medium' : 'text-gray-600'} hover:text-indigo-600 transition-colors`}
-            >
-              <div className="relative">
-                <File className={`h-5 w-5 ${hasNewFiles ? 'text-indigo-600' : 'text-gray-500'}`} />
-                {hasNewFiles && (
-                  <span className="absolute -top-1 -right-1 h-2.5 w-2.5 bg-red-500 rounded-full border-2 border-white"></span>
-                )}
-              </div>
-              <span className="text-sm ml-1.5">{filesCount}</span>
-            </button>
-          </div>
+      {/* Projekt információk */}
+      <div className="mb-4">
+        <div className="flex items-center text-sm text-gray-500 mb-2">
+          <Clock className="h-4 w-4 mr-1" />
+          <span>Létrehozva: {formatDistance(new Date(project.createdAt), new Date(), { addSuffix: true, locale: hu })}</span>
         </div>
+        
+        {project.financial?.budget?.min > 0 && (
+          <div className="flex items-center text-sm text-gray-500 mb-2">
+            <DollarSign className="h-4 w-4 mr-1" />
+            <span>
+              Budget: {project.financial.budget.min} - {project.financial.budget.max} {project.financial.currency || 'EUR'}
+            </span>
+          </div>
+        )}
+        
+        {project.description && (
+          <p className="text-sm text-gray-600 mt-2 line-clamp-3">
+            {project.description}
+          </p>
+        )}
+      </div>
       
-        {/* Megosztási panel */}
-        {project.sharing && (
-          <div className="mt-2 mb-4 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-100">
-            <h4 className="text-sm font-medium text-blue-800 mb-2 flex items-center">
-              <Mail className="h-3.5 w-3.5 mr-1.5" />
-              Aktív megosztás
-            </h4>
-            <div className="grid grid-cols-2 gap-2 text-sm">
-              <div className="col-span-2">
-                <p className="flex items-center text-blue-800">
-                  <span className="w-20 text-xs text-gray-500">Link:</span>
-                  <a 
-                    href={project.sharing.link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:text-blue-800 hover:underline truncate transition-colors text-xs"
-                  >
-                    {project.sharing.link}
-                  </a>
-                </p>
+      {/* Fájlok szekció */}
+      <div className="mt-4">
+        <div 
+          className="flex items-center justify-between p-2 bg-gray-50 rounded-md cursor-pointer hover:bg-gray-100" 
+          onClick={() => setShowFiles(!showFiles)}
+        >
+          <div className="flex items-center">
+            <FileText className="h-4 w-4 mr-2 text-blue-500" />
+            <span className="text-sm font-medium">
+              Fájlok ({projectFiles.length || 0})
+            </span>
+          </div>
+          
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleUploadClick();
+            }}
+            className="p-1 text-gray-500 hover:text-blue-500 hover:bg-blue-50 rounded-full"
+            title="Új fájl feltöltése"
+          >
+            <Upload className="h-4 w-4" />
+          </button>
+        </div>
+        
+        {showFiles && (
+          <div className="mt-2 pl-2">
+            {projectFiles.length === 0 ? (
+              <div className="text-sm text-gray-500 p-2">
+                Nincsenek feltöltött fájlok. Kattints a feltöltés ikonra új fájl hozzáadásához.
               </div>
-              <p className="flex items-center text-blue-800">
-                <span className="w-16 text-xs text-gray-500">PIN:</span>
-                <span className="font-medium">{project.sharing.pin}</span>
-              </p>
-              <p className="flex items-center text-blue-800">
-                <span className="w-16 text-xs text-gray-500">Lejárat:</span>
-                <span>{project.sharing.expiryDate || (project.sharing.expiresAt ? new Date(project.sharing.expiresAt).toLocaleDateString() : 'N/A')}</span>
-              </p>
-              {project.sharing.isExpired && (
-                <p className="col-span-2 text-red-600 font-medium flex items-center text-xs mt-1">
-                  <Clock className="h-3 w-3 mr-1" />
-                  Lejárt megosztás
-                </p>
-              )}
-            </div>
+            ) : (
+              <ul className="divide-y divide-gray-100">
+                {projectFiles.map(file => (
+                  <li key={file.id} className="py-2 px-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center max-w-[70%]">
+                        {file.type?.startsWith('image/') ? (
+                          <img 
+                            src={file.s3url} 
+                            alt={file.name}
+                            className="h-8 w-8 mr-2 rounded object-cover"
+                          />
+                        ) : (
+                          <File className="h-5 w-5 mr-2 text-gray-400" />
+                        )}
+                        <div className="mr-2">
+                          <div className="text-sm font-medium text-gray-700 truncate" title={file.name}>
+                            {file.name}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {formatFileSize(file.size)} - {formatShortDate(file.uploadedAt)}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center relative">
+                        <button
+                          onClick={() => toggleFileOptions(file.id)}
+                          className="p-1 text-gray-400 hover:text-gray-700 rounded"
+                        >
+                          <MoreVertical className="h-4 w-4" />
+                        </button>
+                        
+                        {showFileOptions === file.id && (
+                          <div className="absolute right-0 top-6 z-10 bg-white shadow-lg rounded-md py-1 border border-gray-200 min-w-[140px]">
+                            <button
+                              onClick={() => handleViewFile(file)}
+                              className="flex items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                            >
+                              <Eye className="h-4 w-4 mr-2" />
+                              Előnézet
+                            </button>
+                            <button
+                              onClick={() => handleDownloadFile(file)}
+                              className="flex items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                            >
+                              <Download className="h-4 w-4 mr-2" />
+                              Letöltés
+                            </button>
+                            <button
+                              onClick={() => handleDeleteFile(file.id)}
+                              className="flex items-center w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Törlés
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         )}
       </div>
       
-      {/* Műveleti gombok */}
-      {isAdmin && (
-        <div className="border-t border-gray-100 p-4 bg-gray-50 grid grid-cols-2 gap-2">
-          <button
-            onClick={() => onShare?.(project._id)}
-            className={`px-4 py-2 rounded-lg transition-all ${
-              project.sharing
-                ? 'bg-blue-100 text-blue-800 hover:bg-blue-200 border border-blue-200'
-                : 'bg-white border border-green-600 text-green-600 hover:bg-green-50'
-            } flex items-center justify-center`}
+      {/* Akciógombok */}
+      <div className="flex justify-between mt-6 pt-4 border-t border-gray-100">
+        <div className="flex space-x-2">
+          <button 
+            onClick={() => onShare(projectId)}
+            className="px-3 py-1 text-xs bg-indigo-50 text-indigo-600 rounded-md hover:bg-indigo-100 flex items-center"
           >
-            <Mail className="h-4 w-4 mr-1.5" />
-            {project.sharing ? 'Új megosztás' : 'Megosztás'}
+            <Share2 className="h-3 w-3 mr-1" />
+            Megosztás
           </button>
           
-          <button
-            onClick={() => onNewInvoice?.(project)}
-            className="bg-white border border-indigo-600 text-indigo-600 px-4 py-2 rounded-lg hover:bg-indigo-50 transition-all flex items-center justify-center"
+          <button 
+            onClick={() => onNewInvoice(project)}
+            className="px-3 py-1 text-xs bg-green-50 text-green-600 rounded-md hover:bg-green-100 flex items-center"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 mr-1.5">
-              <rect x="3" y="4" width="18" height="16" rx="2" />
-              <line x1="12" y1="2" x2="12" y2="6" />
-              <line x1="8" y1="2" x2="8" y2="6" />
-              <line x1="16" y1="2" x2="16" y2="6" />
-              <line x1="3" y1="10" x2="21" y2="10" />
-              <line x1="8" y1="14" x2="16" y2="14" />
-              <line x1="8" y1="18" x2="12" y2="18" />
-            </svg>
-            Új Számla
-          </button>
-          
-          <button
-            onClick={() => onViewDetails?.(project)}
-            className="col-span-2 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white px-4 py-2.5 rounded-lg hover:from-indigo-700 hover:to-indigo-800 transition-all flex items-center justify-center shadow-sm"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 mr-1.5">
-              <circle cx="12" cy="12" r="10" />
-              <path d="M12 16v-4M12 8h.01" />
-            </svg>
-            Részletek
-          </button>
-          
-          <button
-            onClick={() => onDelete?.(project._id)}
-            className="col-span-2 bg-red-50 text-red-600 border border-red-200 px-4 py-2 rounded-lg hover:bg-red-100 transition-all flex items-center justify-center mt-1"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 mr-1.5">
-              <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2M10 11v6M14 11v6" />
-            </svg>
-            Törlés
+            <DollarSign className="h-3 w-3 mr-1" />
+            Új számla
           </button>
         </div>
-      )}
-
-      {/* Aktivitás Modal */}
-      {showActivityModal && (
-        <ProjectActivityModal
-          project={project}
-          isOpen={showActivityModal}
-          onClose={() => setShowActivityModal(false)}
-          onSendComment={onReplyToComment}
-          onUploadFile={onUploadFile}
-          onMarkAsRead={onMarkAsRead}
-          initialTab={activeModalTab}
-        />
+        
+        <button 
+          onClick={() => onViewDetails(project)}
+          className="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
+        >
+          Részletek
+        </button>
+      </div>
+      
+      {/* Megosztási információk */}
+      {project.sharing && (
+        <div className="mt-4 p-2 bg-blue-50 rounded-md text-xs text-blue-700">
+          <div className="flex items-center mb-1">
+            <Shield className="h-3 w-3 mr-1" />
+            <span className="font-medium">Megosztás aktív</span>
+          </div>
+          <div className="ml-4">
+            <p>Lejárat: {project.sharing.expiryDate}</p>
+            {project.sharing.isExpired && (
+              <p className="text-red-500 font-medium">Lejárt!</p>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );

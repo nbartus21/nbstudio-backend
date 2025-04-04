@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../services/auth';
 import ProjectCard from './project/ProjectCard'; // Hozzáadott import
 import ProjectFilters from './ProjectFilters';
@@ -8,6 +8,9 @@ import ProjectAccordion from './project/ProjectAccordion';
 import ProjectDetailsModal from './project/ProjectDetailsModal';
 import NewInvoiceModal from './project/NewInvoiceModal';
 import ShareProjectModal from './project/ShareProjectModal';
+import FilePreviewModal from './shared/FilePreviewModal';
+import { uploadFileToS3 } from '../services/s3Service';
+import { saveToLocalStorage, formatFileSize } from './shared/utils';
 
 const API_URL = 'https://admin.nb-studio.net:5001/api';
 
@@ -33,6 +36,10 @@ const ProjectManager = () => {
   // Nézet típusok: grid, list, accordion
   const [viewType, setViewType] = useState('grid');
   const [expandedProjects, setExpandedProjects] = useState({});
+
+  const [previewFile, setPreviewFile] = useState(null);
+  const [errorMessage, setErrorMessage] = useState('');
+  const fileInputRef = useRef(null);
 
   // Sikeres művelet üzenet megjelenítése
   const showSuccessMessage = (message) => {
@@ -105,37 +112,130 @@ const ProjectManager = () => {
     }
   };
 
+  // Show error message helper
+  const showErrorMessage = (message) => {
+    setErrorMessage(message);
+    setTimeout(() => {
+      setErrorMessage('');
+    }, 3000);
+  };
+
   // File upload handler for project cards
-  const handleFileUpload = async (projectId, file) => {
+  const handleFileUpload = async (event, projectId) => {
     try {
       console.log('Uploading file to project:', projectId);
-
-      // API hívás a fájl feltöltésére a szerveroldalon (ami mostantól az S3-ba is feltölti)
-      const response = await api.post(`/api/projects/${projectId}/files`, file);
-
-      if (response.status === 201) {
-        // Frissítjük a projektadatokat a válasz alapján
-        const projectData = response.data;
+      
+      if (!projectId) {
+        showErrorMessage('Nincs kiválasztva projekt!');
+        return false;
+      }
+      
+      const uploadedFiles = Array.from(event.target.files);
+      console.log('Feldolgozandó fájlok:', {
+        darabszám: uploadedFiles.length,
+        fájlnevek: uploadedFiles.map(f => f.name),
+        fájlMéretek: uploadedFiles.map(f => formatFileSize(f.size)),
+        összMéret: formatFileSize(uploadedFiles.reduce((sum, f) => sum + f.size, 0))
+      });
+      
+      if (uploadedFiles.length === 0) {
+        console.warn('Nincsenek feltöltendő fájlok');
+        return false;
+      }
+      
+      const processedFiles = [];
+      
+      for (const file of uploadedFiles) {
+        try {
+          console.log(`Fájl olvasás kezdete: ${file.name} (${formatFileSize(file.size)})`);
+          
+          // Fájl olvasása és feltöltése
+          const reader = new FileReader();
+          
+          const fileData = await new Promise((resolve, reject) => {
+            reader.onload = (e) => {
+              const fileObj = {
+                id: Date.now() + '_' + file.name.replace(/\s+/g, '_'),
+                name: file.name,
+                size: file.size,
+                type: file.type,
+                uploadedAt: new Date().toISOString(),
+                content: e.target.result,
+                projectId: projectId,
+                uploadedBy: 'Admin' // Az admin oldalon mindig admin a feltöltő
+              };
+              resolve(fileObj);
+            };
+            
+            reader.onerror = (error) => {
+              console.error(`Fájl olvasási hiba (${file.name}):`, error);
+              reject(error);
+            };
+            
+            reader.readAsDataURL(file);
+          });
+          
+          console.log(`S3 feltöltés indítása: ${file.name}`);
+          const startTime = Date.now();
+          const s3Result = await uploadFileToS3(fileData);
+          const uploadDuration = Date.now() - startTime;
+          
+          // S3 információk hozzáadása a fájl objektumhoz
+          fileData.s3url = s3Result.s3url;
+          fileData.s3key = s3Result.key;
+          
+          console.log(`S3 feltöltés sikeres (${uploadDuration}ms):`, {
+            fájlnév: file.name,
+            s3kulcs: s3Result.key,
+            s3url: s3Result.s3url,
+            feltöltési_idő: uploadDuration + 'ms'
+          });
+          
+          // Már nincs szükség a content mezőre az S3 után
+          delete fileData.content;
+          
+          processedFiles.push(fileData);
+          
+        } catch (fileError) {
+          console.error(`Hiba a fájl feltöltése közben (${file.name}):`, fileError);
+        }
+      }
+      
+      if (processedFiles.length > 0) {
+        // Update the project files state
+        setProjectFiles(prev => [...prev, ...processedFiles]);
         
-        // Frissítjük a lokális projektek állapotát is
-        setProjects(prevProjects => 
-          prevProjects.map(proj => 
-            proj._id === projectId ? projectData : proj
-          )
-        );
-
+        // Find the project and update its files in the projects state
+        const projectToUpdate = projects.find(p => p._id === projectId);
+        if (projectToUpdate) {
+          const updatedProject = {
+            ...projectToUpdate,
+            files: [...(projectToUpdate.files || []), ...processedFiles]
+          };
+          
+          setProjects(prevProjects => 
+            prevProjects.map(p => p._id === projectId ? updatedProject : p)
+          );
+          
+          // Save to localStorage
+          saveToLocalStorage({ _id: projectId }, 'files', updatedProject.files);
+        }
+        
         // Sikeres feltöltés üzenet
-        showSuccessMessage('Fájl sikeresen feltöltve!');
+        showSuccessMessage(`${processedFiles.length} fájl sikeresen feltöltve!`);
         return true;
       } else {
-        console.error('Hiba a fájl feltöltése során:', response.statusText);
-        showErrorMessage('Hiba a fájl feltöltése során!');
+        showErrorMessage('Nem sikerült feltölteni a fájlokat!');
         return false;
       }
     } catch (error) {
       console.error('Fájl feltöltési hiba:', error);
       showErrorMessage('Fájl feltöltési hiba történt!');
       return false;
+    } finally {
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
   
@@ -421,31 +521,70 @@ const ProjectManager = () => {
     }));
   };
 
-  // Delete project
-  const handleDelete = async (id) => {
-    if (!window.confirm('Biztosan törli ezt a projektet?')) return;
-    
+  // File delete handler
+  const handleDeleteFile = async (projectId, fileId) => {
     try {
-      const response = await api.delete(`${API_URL}/projects/${id}`);
+      console.log(`Fájl törlése: ${fileId} (Projekt: ${projectId})`);
       
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Hiba történt a törlés során');
+      if (!window.confirm('Biztosan törölni szeretné ezt a fájlt?')) {
+        console.log('Törlés megszakítva a felhasználó által');
+        return;
       }
-  
-      setProjects(prevProjects => prevProjects.filter(project => project._id !== id));
-      setError(null);
-      showSuccessMessage('Projekt sikeresen törölve');
+      
+      // Find the project and file
+      const projectToUpdate = projects.find(p => p._id === projectId);
+      if (!projectToUpdate || !projectToUpdate.files) {
+        showErrorMessage('A projekt vagy a fájl nem található!');
+        return;
+      }
+      
+      const fileToDelete = projectToUpdate.files.find(file => file.id === fileId);
+      if (!fileToDelete) {
+        showErrorMessage('A fájl nem található!');
+        return;
+      }
+      
+      console.log('Törlendő fájl:', fileToDelete.name);
+      
+      // Update the project files without the deleted file
+      const updatedFiles = projectToUpdate.files.filter(file => file.id !== fileId);
+      const updatedProject = {
+        ...projectToUpdate,
+        files: updatedFiles
+      };
+      
+      // Update project state
+      setProjects(prevProjects => 
+        prevProjects.map(p => p._id === projectId ? updatedProject : p)
+      );
+      
+      // Update projectFiles state
+      setProjectFiles(prev => prev.filter(file => file.id !== fileId));
+      
+      // Save to localStorage
+      saveToLocalStorage({ _id: projectId }, 'files', updatedFiles);
+      
+      showSuccessMessage('Fájl sikeresen törölve!');
+      
+      // TODO: S3-ból való törlés implementálása a jövőben
+      // Jelenleg csak a helyi nyilvántartásból töröljük
+      
     } catch (error) {
-      console.error('Hiba:', error);
-      setError(error.message);
+      console.error('Hiba a fájl törlésekor:', error);
+      showErrorMessage('Hiba történt a fájl törlése során!');
     }
   };
-
-  // File kezelés
-  const handleViewFile = (file) => {
-    // Itt kezeljük a fájl megtekintést
-    console.log('File megtekintése:', file);
+  
+  // Handler for showing file preview
+  const handleShowFilePreview = (file) => {
+    console.log('Fájl előnézet megnyitása:', file.name);
+    setPreviewFile(file);
+  };
+  
+  // Handler for closing file preview
+  const handleCloseFilePreview = () => {
+    console.log('Fájl előnézet bezárása');
+    setPreviewFile(null);
   };
 
   // Apply filters to projects
@@ -685,9 +824,9 @@ const ProjectManager = () => {
   onShare={setShowShareModal}
   onNewInvoice={handleNewInvoice}
   onViewDetails={setSelectedProject}
-  onDelete={handleDelete}
+  onDelete={handleDeleteFile}
   onReplyToComment={handleSendComment}
-  onViewFile={handleViewFile}
+  onViewFile={handleShowFilePreview}
   onMarkAsRead={handleMarkAsRead}
   onUploadFile={handleFileUpload}
 />
@@ -698,7 +837,7 @@ const ProjectManager = () => {
           onShare={setShowShareModal}
           onNewInvoice={handleNewInvoice}
           onViewDetails={setSelectedProject}
-          onDelete={handleDelete}
+          onDelete={handleDeleteFile}
           onMarkAsRead={handleMarkAsRead}
         />
       ) : (
@@ -710,7 +849,7 @@ const ProjectManager = () => {
           onShare={setShowShareModal}
           onNewInvoice={handleNewInvoice}
           onViewDetails={setSelectedProject}
-          onDelete={handleDelete}
+          onDelete={handleDeleteFile}
           onMarkAsRead={handleMarkAsRead}
         />
       )}
@@ -747,6 +886,24 @@ const ProjectManager = () => {
             generateShareLink(showShareModal);
             setShowShareModal(null);
           }}
+        />
+      )}
+
+      {/* File upload input */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={(e) => handleFileUpload(e, selectedProject?._id)}
+        className="hidden"
+        multiple
+      />
+      
+      {/* File preview modal */}
+      {previewFile && (
+        <FilePreviewModal
+          file={previewFile}
+          onClose={handleCloseFilePreview}
+          language="hu"
         />
       )}
     </div>

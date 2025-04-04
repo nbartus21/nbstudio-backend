@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import ProjectCard from './ProjectCard';
 import FilePreviewModal from '../shared/FilePreviewModal';
+import { Upload, AlertTriangle } from 'lucide-react';
 
 const ProjectGrid = ({ 
   projects, 
@@ -11,9 +12,14 @@ const ProjectGrid = ({
   onNewInvoice, 
   onViewDetails, 
   onDelete,
-  onReplyToComment
+  onReplyToComment,
+  onViewFile,
+  onMarkAsRead,
+  onUploadFile
 }) => {
   const [previewFile, setPreviewFile] = useState(null);
+  const [selectedProjectId, setSelectedProjectId] = useState(null);
+  const fileInputRef = useRef(null);
   
   // Hozzászólások kezelése
   const handleReplyToComment = (reply) => {
@@ -34,6 +40,31 @@ const ProjectGrid = ({
     setPreviewFile(null);
   };
   
+  // Fájl feltöltés kezelése
+  const handleUploadButtonClick = (projectId) => {
+    setSelectedProjectId(projectId);
+    fileInputRef.current?.click();
+  };
+  
+  // Fájl feltöltés végrehajtása
+  const handleFileUpload = (event) => {
+    if (selectedProjectId && onUploadFile) {
+      onUploadFile(event, selectedProjectId);
+      event.target.value = '';
+    } else {
+      console.warn('Nincs kiválasztva projekt a fájlfeltöltéshez vagy hiányzik a handler');
+    }
+  };
+  
+  // Fájl törlés kezelése
+  const handleDeleteFile = (projectId, fileId) => {
+    if (onDelete) {
+      onDelete(projectId, fileId);
+    } else {
+      console.warn('onDelete handler nincs definiálva');
+    }
+  };
+  
   return (
     <>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -51,14 +82,16 @@ const ProjectGrid = ({
               } : null
             }}
             comments={comments}
-            files={files}
+            files={files.filter(f => f.projectId === project._id)}
             isAdmin={true}
             onShare={onShare}
             onNewInvoice={onNewInvoice}
             onViewDetails={onViewDetails}
-            onDelete={onDelete}
+            onDeleteFile={handleDeleteFile}
             onReplyToComment={handleReplyToComment}
-            onViewFile={handleViewFile}
+            onViewFile={onViewFile || (() => {})}
+            onMarkAsRead={onMarkAsRead}
+            onUploadFile={() => handleUploadButtonClick(project._id)}
           />
         ))}
         {projects.length === 0 && (
@@ -75,6 +108,15 @@ const ProjectGrid = ({
           onClose={handleCloseFilePreview}
         />
       )}
+      
+      {/* Rejtett fájl input */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileUpload}
+        className="hidden"
+        multiple
+      />
     </>
   );
 };
