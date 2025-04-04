@@ -340,13 +340,10 @@ const manuallyGenerateInvoice = async (projectId, invoiceId) => {
 
 // Új számla létrehozása projekthez
 router.post('/projects/:projectId/invoices', async (req, res) => {
-  // Egyedi naplóbejegyzés, amely könnyen azonosítható
-  console.log('EGYEDI_NAPLOBEJEGYZES_VEGPONT: Számla létrehozás végpont elindult');
-  console.log('EGYEDI_NAPLOBEJEGYZES_VEGPONT: Projekt ID:', req.params.projectId);
-  console.log('EGYEDI_NAPLOBEJEGYZES_VEGPONT: Számla adatok:', req.body);
-  console.log('EGYEDI_NAPLOBEJEGYZES_VEGPONT: Időpont:', new Date().toISOString());
-  console.log('EGYEDI_NAPLOBEJEGYZES_VEGPONT: Git commit:', '8be12913');
-  console.log('EGYEDI_NAPLOBEJEGYZES_VEGPONT: __dirname:', __dirname);
+  // Egyszerű teszt naplóbejegyzés
+  console.log('TESZT_NAPLOBEJEGYZES: Számla létrehozás végpont elindult');
+  console.log('TESZT_NAPLOBEJEGYZES: Projekt ID:', req.params.projectId);
+  console.log('TESZT_NAPLOBEJEGYZES: Időpont:', new Date().toISOString());
 
   try {
     console.log('Számla létrehozási kérés érkezett');
