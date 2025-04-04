@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, X, Save, Trash2, AlertCircle, Tag, ArrowUp } from 'lucide-react';
+import { api } from '../../services/auth';
 
 const ChangelogEditor = ({ projectId, onUpdate }) => {
   const [changelog, setChangelog] = useState([]);
@@ -18,7 +19,7 @@ const ChangelogEditor = ({ projectId, onUpdate }) => {
       setIsLoading(true);
       setError(null);
       
-      const response = await fetch(`/api/projects/${projectId}/changelog`);
+      const response = await api.get(`/api/projects/${projectId}/changelog`);
       
       if (!response.ok) {
         throw new Error(`Error fetching changelog: ${response.status}`);
@@ -42,13 +43,7 @@ const ChangelogEditor = ({ projectId, onUpdate }) => {
         return;
       }
       
-      const response = await fetch(`/api/projects/${projectId}/changelog`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(newEntry)
-      });
+      const response = await api.post(`/api/projects/${projectId}/changelog`, newEntry);
       
       if (!response.ok) {
         throw new Error(`Error adding changelog entry: ${response.status}`);
@@ -80,9 +75,7 @@ const ChangelogEditor = ({ projectId, onUpdate }) => {
     }
     
     try {
-      const response = await fetch(`/api/projects/${projectId}/changelog/${entryId}`, {
-        method: 'DELETE'
-      });
+      const response = await api.delete(`/api/projects/${projectId}/changelog/${entryId}`);
       
       if (!response.ok) {
         throw new Error(`Error deleting changelog entry: ${response.status}`);
