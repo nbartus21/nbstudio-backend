@@ -105,66 +105,32 @@ const ProjectChangelog = ({ project, language = 'hu', onRefresh }) => {
       let response;
 
       if (project.sharing?.token) {
-        // Próbáljuk meg különböző CORS beállításokkal, ahogy a SharedProjectDashboard.jsx-ben is
+        // Egyszerűsített megközelítés, ahogy a számlák PDF generálásánál is
+        console.log('Fetching changelog with simplified approach');
 
-        // 1. Kísérlet: credentials: same-origin
-        try {
-          console.log('Trying with credentials: same-origin');
-          response = await fetch(`${API_URL}${endpoint}`, {
+        // Használjuk ugyanazt a megközelítést, mint a handleGeneratePDF függvényben
+        response = await fetch(`${API_URL}${endpoint}`, {
+          method: 'GET',
+          headers: {
+            'X-API-Key': API_KEY
+          }
+        });
+
+        console.log('Response status:', response.status);
+
+        if (!response.ok) {
+          console.log('Request failed, trying fallback endpoint');
+
+          // Próbáljunk meg egy másik végpontot
+          const fallbackEndpoint = `/projects/${project._id}/changelog`;
+          response = await fetch(`${API_URL}${fallbackEndpoint}`, {
             method: 'GET',
             headers: {
-              'Content-Type': 'application/json',
-              'Accept': 'application/json',
               'X-API-Key': API_KEY
-            },
-            credentials: 'same-origin'
+            }
           });
 
-          console.log('Response status (same-origin):', response.status);
-
-          if (response.ok) {
-            console.log('Request successful with same-origin');
-          } else {
-            throw new Error(`Failed with status: ${response.status}`);
-          }
-        } catch (error) {
-          console.log('First attempt failed, trying with credentials: include', error);
-
-          // 2. Kísérlet: credentials: include
-          try {
-            response = await fetch(`${API_URL}${endpoint}`, {
-              method: 'GET',
-              headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'X-API-Key': API_KEY
-              },
-              credentials: 'include'
-            });
-
-            console.log('Response status (include):', response.status);
-
-            if (response.ok) {
-              console.log('Request successful with include');
-            } else {
-              throw new Error(`Failed with status: ${response.status}`);
-            }
-          } catch (error) {
-            console.log('Second attempt failed, trying with credentials: omit', error);
-
-            // 3. Kísérlet: credentials: omit
-            response = await fetch(`${API_URL}${endpoint}`, {
-              method: 'GET',
-              headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'X-API-Key': API_KEY
-              },
-              credentials: 'omit'
-            });
-
-            console.log('Response status (omit):', response.status);
-          }
+          console.log('Fallback response status:', response.status);
         }
       } else {
         // Védett API hívás esetén az api.get szolgáltatást használjuk (auth token-nel)
