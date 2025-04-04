@@ -1062,6 +1062,7 @@ const SharedProjectDashboard = ({
             <ProjectInvoices
               project={normalizedProject}
               onViewInvoice={handleViewInvoice}
+              onGeneratePDF={handleGeneratePDF}
               language={language}
             />
           </div>

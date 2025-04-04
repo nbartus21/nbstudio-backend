@@ -69,27 +69,27 @@ const statusClasses = {
   "fizetett": "bg-green-100 text-green-800",
   "paid": "bg-green-100 text-green-800",
   "bezahlt": "bg-green-100 text-green-800",
-  
+
   "kiállított": "bg-blue-100 text-blue-800",
   "issued": "bg-blue-100 text-blue-800",
   "ausgestellt": "bg-blue-100 text-blue-800",
-  
+
   "késedelmes": "bg-red-100 text-red-800",
   "overdue": "bg-red-100 text-red-800",
   "überfällig": "bg-red-100 text-red-800",
-  
+
   "törölt": "bg-gray-100 text-gray-800",
   "canceled": "bg-gray-100 text-gray-800",
   "storniert": "bg-gray-100 text-gray-800"
 };
 
-const ProjectInvoices = ({ project, onViewInvoice, language = 'hu' }) => {
+const ProjectInvoices = ({ project, onViewInvoice, onGeneratePDF, language = 'hu' }) => {
   debugLog('ProjectInvoices', 'Rendering invoices view', {
     projectId: project?._id,
     invoicesCount: project?.invoices?.length || 0,
     language: language
   });
-  
+
   // Debuggolási célból jelenítsük meg a konzolon a számlák adatait
   console.log('A projekthez tartozó számlák:', JSON.stringify(project?.invoices || [], null, 2));
 
@@ -145,7 +145,11 @@ const ProjectInvoices = ({ project, onViewInvoice, language = 'hu' }) => {
                 <button
                   onClick={() => {
                     debugLog('ProjectInvoices-downloadPDF', 'PDF download clicked');
-                    window.alert(t.downloadInProgress);
+                    if (onGeneratePDF) {
+                      onGeneratePDF(invoice);
+                    } else {
+                      window.alert(t.downloadInProgress);
+                    }
                   }}
                   className="px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 flex items-center"
                 >
@@ -167,7 +171,7 @@ const ProjectInvoices = ({ project, onViewInvoice, language = 'hu' }) => {
                     </div>
                     <div className="flex justify-center">
                       <div>
-                        <QRCode 
+                        <QRCode
                           value={generateSepaQrData(invoice)}
                           size={150}
                           level="M"
