@@ -1504,13 +1504,30 @@ function setupProjectDomain() {
 // ==============================================
 // SERVER STARTUP
 // ==============================================
+// Fájl írása a lemezre a szerver indításakor
+const fs = require('fs');
+const path = require('path');
+const startupFilePath = path.join(process.cwd(), 'server-started.txt');
+fs.writeFileSync(startupFilePath, `Szerver indítva: ${new Date().toISOString()}\n`, { flag: 'a' });
+console.log('Fájl sikeresen írva a szerver indításakor:', startupFilePath);
+
 mongoose.connect(process.env.MONGO_URI)
   .then(() => {
     console.log('Connected to MongoDB');
 
+    // Fájl írása a lemezre a MongoDB kapcsolat után
+    const mongoConnectedFilePath = path.join(process.cwd(), 'mongo-connected.txt');
+    fs.writeFileSync(mongoConnectedFilePath, `MongoDB kapcsolat sikeres: ${new Date().toISOString()}\n`, { flag: 'a' });
+    console.log('Fájl sikeresen írva a MongoDB kapcsolat után:', mongoConnectedFilePath);
+
     // Start HTTPS API server
     https.createServer(sslOptions, app).listen(port, host, () => {
       console.log(`API Server running on https://${host}:${port}`);
+
+      // Fájl írása a lemezre a szerver indítása után
+      const serverStartedFilePath = path.join(process.cwd(), 'api-server-started.txt');
+      fs.writeFileSync(serverStartedFilePath, `API szerver indítása sikeres: ${new Date().toISOString()}\n`, { flag: 'a' });
+      console.log('Fájl sikeresen írva a szerver indítása után:', serverStartedFilePath);
     });
 
     // Start HTTP server for Socket.IO
