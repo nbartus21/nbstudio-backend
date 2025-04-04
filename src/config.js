@@ -2,6 +2,8 @@
 
 // API alap URL
 export const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+export const API_URL = 'https://admin.nb-studio.net:5001/api';
+export const API_KEY = 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0';
 
 // Alapértelmezett nyelv
 export const DEFAULT_LANGUAGE = 'hu';
