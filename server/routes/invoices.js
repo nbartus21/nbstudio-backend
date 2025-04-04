@@ -483,21 +483,24 @@ router.post('/projects/:projectId/invoices', async (req, res) => {
         throw new Error(`SMTP kapcsolat hiba: ${verifyResult.error.message}`);
       }
 
-      // Teszt email küldése
-      console.log('Teszt email küldése a számla létrehozás végpontból...');
+      // Teszt email küldése a projekt kliens email címére
+      console.log('Teszt email küldése a számla létrehozás végpontból a kliens email címére:', project.client.email);
       const mailOptions = {
         from: `"Norbert Bartus" <${SMTP_USER}>`,
-        to: 'nbartus21@gmail.com',
-        subject: `Teszt email a számla létrehozás végpontból - Számla: ${invoice.number}`,
+        to: project.client.email, // A projekt kliens email címe
+        subject: `Új számla értesítés - Számla: ${invoice.number}`,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333;">
-            <h2 style="color: #3B82F6;">Teszt Email a Számla Létrehozás Végpontból</h2>
-            <p>Ez egy teszt email a számla létrehozás végpontból.</p>
-            <p>Számla szám: ${invoice.number}</p>
-            <p>Projekt: ${project.name}</p>
-            <p>Kliens: ${project.client ? project.client.name : 'Nincs kliens'}</p>
-            <p>Kliens email: ${project.client ? project.client.email : 'Nincs email'}</p>
-            <p>Időbélyeg: ${new Date().toISOString()}</p>
+            <h2 style="color: #3B82F6;">Új Számla Értesítés</h2>
+            <p>Tisztelt Ügyfelünk!</p>
+            <p>Ezzel az emailmel értesítjük, hogy új számla készült az Ön részére.</p>
+            <p><strong>Számla szám:</strong> ${invoice.number}</p>
+            <p><strong>Projekt:</strong> ${project.name}</p>
+            <p><strong>Összeg:</strong> ${invoice.totalAmount} ${project.financial?.currency || 'EUR'}</p>
+            <p><strong>Fizetési határidő:</strong> ${new Date(invoice.dueDate).toLocaleDateString()}</p>
+            <p>Kérjük, jelentkezzen be a rendszerbe a számla megtekintéséhez és kifizetéséhez.</p>
+            <p>Köszönjük!</p>
+            <p>Norbert Bartus</p>
           </div>
         `
       };
