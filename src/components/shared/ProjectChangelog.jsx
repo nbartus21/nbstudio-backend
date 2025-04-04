@@ -2,6 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, Tag, Clock, AlertCircle, CheckCircle, ArrowUp, Plus } from 'lucide-react';
 import { api } from '../../services/auth';
 
+// API configuration
+const API_URL = 'https://admin.nb-studio.net:5001/api';
+const API_KEY = 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0';
+
 // Translations
 const translations = {
   hu: {
@@ -101,18 +105,67 @@ const ProjectChangelog = ({ project, language = 'hu', onRefresh }) => {
       let response;
 
       if (project.sharing?.token) {
-        // Publikus API hívás esetén közvetlenül fetch-et használunk API kulccsal
-        const apiUrl = 'https://admin.nb-studio.net:5001';
-        const fullEndpoint = `${apiUrl}/api${endpoint}`;
+        // Próbáljuk meg különböző CORS beállításokkal, ahogy a SharedProjectDashboard.jsx-ben is
 
-        console.log('Fetching changelog from:', fullEndpoint);
+        // 1. Kísérlet: credentials: same-origin
+        try {
+          console.log('Trying with credentials: same-origin');
+          response = await fetch(`${API_URL}${endpoint}`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'X-API-Key': API_KEY
+            },
+            credentials: 'same-origin'
+          });
 
-        response = await fetch(fullEndpoint, {
-          headers: {
-            'Content-Type': 'application/json',
-            'X-API-Key': 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0'
+          console.log('Response status (same-origin):', response.status);
+
+          if (response.ok) {
+            console.log('Request successful with same-origin');
+          } else {
+            throw new Error(`Failed with status: ${response.status}`);
           }
-        });
+        } catch (error) {
+          console.log('First attempt failed, trying with credentials: include', error);
+
+          // 2. Kísérlet: credentials: include
+          try {
+            response = await fetch(`${API_URL}${endpoint}`, {
+              method: 'GET',
+              headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-API-Key': API_KEY
+              },
+              credentials: 'include'
+            });
+
+            console.log('Response status (include):', response.status);
+
+            if (response.ok) {
+              console.log('Request successful with include');
+            } else {
+              throw new Error(`Failed with status: ${response.status}`);
+            }
+          } catch (error) {
+            console.log('Second attempt failed, trying with credentials: omit', error);
+
+            // 3. Kísérlet: credentials: omit
+            response = await fetch(`${API_URL}${endpoint}`, {
+              method: 'GET',
+              headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-API-Key': API_KEY
+              },
+              credentials: 'omit'
+            });
+
+            console.log('Response status (omit):', response.status);
+          }
+        }
       } else {
         // Védett API hívás esetén az api.get szolgáltatást használjuk (auth token-nel)
         response = await api.get(endpoint);
