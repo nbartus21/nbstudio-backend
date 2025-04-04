@@ -878,12 +878,13 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
       // Tételek táblázat
       const tableStartY = infoStartY + 180;
 
-      // Táblázat fejléc - csökkentett jobb oldali margóval
-      doc.rect(50, tableStartY, doc.page.width - 80, 30) // 100 helyett 80 (jobb oldali margó 20px-el kisebb)
+      // Táblázat fejléc - eredeti margókkal
+      doc.rect(50, tableStartY, doc.page.width - 100, 30) // Visszaállítva az eredeti margókra
          .fill(colors.primary);
 
-      const tableHeaders = ['Tétel', 'Mennyiség', 'Egységár', 'Összesen'];
-      const tableColumnWidths = [265, 80, 100, 95]; // Szélesebb Egységár és Összesen oszlopok a nagyobb táblázathoz
+      const tableHeaders = ['Tétel', 'Mennyiség', 'Egységár', 'Összesen', 'Valuta'];
+      // Újratervezett oszlopszélességek, hogy minden belférjen
+      const tableColumnWidths = [240, 60, 60, 60, 40]; // Külön oszlop a valutának
       const columnPositions = [50];
 
       // Kiszámoljuk a pozíciókat
