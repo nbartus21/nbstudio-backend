@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Upload, Check, AlertTriangle, LogOut, Users, Calendar,
-  Globe, ChevronDown, File, Download, FileText, History
+  Globe, ChevronDown, File, Download, FileText, History,
+  LayoutDashboard, FileText as InvoiceIcon, Archive, Flag
 } from 'lucide-react';
 import { formatShortDate, debugLog, loadFromLocalStorage, getProjectId } from './shared/utils';
 
@@ -954,8 +955,9 @@ const SharedProjectDashboard = ({
                   activeTab === 'overview'
                     ? 'border-indigo-500 text-indigo-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center`}
               >
+                <LayoutDashboard className="h-4 w-4 mr-1" />
                 {t.overview}
               </button>
               <button
@@ -964,8 +966,9 @@ const SharedProjectDashboard = ({
                   activeTab === 'invoices'
                     ? 'border-indigo-500 text-indigo-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm relative`}
+                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm relative flex items-center`}
               >
+                <InvoiceIcon className="h-4 w-4 mr-1" />
                 {t.invoices}
                 {normalizedProject.invoices && normalizedProject.invoices.length > 0 && (
                   <span className="absolute -top-1 -right-1 h-5 w-5 text-xs flex items-center justify-center rounded-full bg-indigo-100 text-indigo-600">
@@ -979,8 +982,9 @@ const SharedProjectDashboard = ({
                   activeTab === 'files'
                     ? 'border-indigo-500 text-indigo-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm relative`}
+                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm relative flex items-center`}
               >
+                <File className="h-4 w-4 mr-1" />
                 {t.files}
                 {files.filter(file => file.projectId === projectId).length > 0 && (
                   <span className="absolute -top-1 -right-1 h-5 w-5 text-xs flex items-center justify-center rounded-full bg-indigo-100 text-indigo-600">
@@ -994,8 +998,9 @@ const SharedProjectDashboard = ({
                   activeTab === 'documents'
                     ? 'border-indigo-500 text-indigo-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm relative`}
+                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm relative flex items-center`}
               >
+                <Archive className="h-4 w-4 mr-1" />
                 {t.documents}
                 {documents.filter(doc => doc.projectId === projectId).length > 0 && (
                   <span className="absolute -top-1 -right-1 h-5 w-5 text-xs flex items-center justify-center rounded-full bg-indigo-100 text-indigo-600">
@@ -1026,8 +1031,9 @@ const SharedProjectDashboard = ({
                     activeTab === 'milestones'
                       ? 'border-indigo-500 text-indigo-600'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+                  } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center`}
                 >
+                  <Flag className="h-4 w-4 mr-1" />
                   {t.milestones}
                 </button>
               )}
