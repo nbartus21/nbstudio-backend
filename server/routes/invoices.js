@@ -698,10 +698,12 @@ router.get('/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => {
     tableHeaders.forEach((header, i) => {
       const position = columnPositions[i];
       const align = i === 0 ? 'left' : 'right';
-      const padding = i === 0 ? 8 : 8;
+      // Nagyobb padding a jobb oldali oszlopoknál, hogy a szöveg biztosan belférjen
+      const padding = i === 0 ? 8 : 12;
 
       doc.text(header, position + padding, tableStartY + 10, {
-        width: tableColumnWidths[i] - (padding * 2),
+        // Csökkentett szövegszélesség, hogy ne lógjon ki
+        width: tableColumnWidths[i] - (padding * 2) - (i > 0 ? 5 : 0),
         align: align
       });
     });
@@ -739,10 +741,12 @@ router.get('/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => {
         tableHeaders.forEach((header, i) => {
           const position = columnPositions[i];
           const align = i === 0 ? 'left' : 'right';
-          const padding = i === 0 ? 8 : 8;
+          // Nagyobb padding a jobb oldali oszlopoknál, hogy a szöveg biztosan belférjen
+          const padding = i === 0 ? 8 : 12;
 
           doc.text(header, position + padding, currentY + 10, {
-            width: tableColumnWidths[i] - (padding * 2),
+            // Csökkentett szövegszélesség, hogy ne lógjon ki
+            width: tableColumnWidths[i] - (padding * 2) - (i > 0 ? 5 : 0),
             align: align
           });
         });
@@ -776,10 +780,12 @@ router.get('/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => {
       row.forEach((cell, i) => {
         const position = columnPositions[i];
         const align = i === 0 ? 'left' : 'right';
-        const padding = i === 0 ? 8 : 8;
+        // Nagyobb padding a jobb oldali oszlopoknál, hogy a szöveg biztosan belférjen
+        const padding = i === 0 ? 8 : 12;
 
         doc.text(cell, position + padding, currentY + 8, {
-          width: tableColumnWidths[i] - (padding * 2),
+          // Csökkentett szövegszélesség, hogy ne lógjon ki
+          width: tableColumnWidths[i] - (padding * 2) - (i > 0 ? 5 : 0),
           align: align
         });
       });
