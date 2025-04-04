@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { 
-  LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, 
+import {
+  LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   AreaChart, Area, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis
 } from 'recharts';
-import { 
-  AlertCircle, CheckCircle, Clock, FileText, Globe, 
+import {
+  AlertCircle, CheckCircle, Clock, FileText, Globe,
   DollarSign, Users, MessageSquare, Bell, ArrowUp, ArrowDown,
   Calendar, Database, Shield, CreditCard, Archive, RefreshCw,
   Settings, Info, Clipboard, TrendingUp, Zap, Server, HardDrive, Coffee,
@@ -90,17 +90,17 @@ const AdminDashboard = () => {
       '90d': 90,
       '1y': 365
     };
-    
+
     const days = ranges[range] || 30;
     const startDate = new Date(now);
     startDate.setDate(now.getDate() - days);
-    
+
     return {
       ...data,
-      financialData: data.financialData?.filter(item => 
+      financialData: data.financialData?.filter(item =>
         new Date(item.date) >= startDate
       ) || [],
-      recentActivity: data.recentActivity?.filter(item => 
+      recentActivity: data.recentActivity?.filter(item =>
         new Date(item.timestamp) >= startDate
       ) || []
     };
@@ -110,7 +110,7 @@ const AdminDashboard = () => {
   const fetchDashboardData = async () => {
     setIsLoading(true);
     setError(null);
-    
+
     try {
       // Initialize data collection object
       const data = {
@@ -121,14 +121,14 @@ const AdminDashboard = () => {
         financialData: [],
         recentActivity: [] // Initialize recentActivity array
       };
-      
+
       // Fetch projects - this is critical, so we don't catch errors here
       const projectsResponse = await api.get(`${API_URL}/projects`);
       if (!projectsResponse.ok) throw new Error(`Failed to fetch projects: ${projectsResponse.status}`);
       data.projects = await projectsResponse.json();
-      
+
       // Fetch other data with try/catch for each endpoint to prevent one failure from stopping everything
-      
+
       // Try to fetch support tickets
       try {
         const ticketsResponse = await api.get(`${API_URL}/support/tickets`);
@@ -139,7 +139,7 @@ const AdminDashboard = () => {
       } catch (err) {
         console.warn('Could not fetch tickets:', err.message);
       }
-      
+
       // Try to fetch domains
       try {
         const domainsResponse = await api.get(`${API_URL}/domains`);
@@ -149,7 +149,7 @@ const AdminDashboard = () => {
       } catch (err) {
         console.warn('Could not fetch domains:', err.message);
       }
-      
+
       // Try to fetch financial data
       try {
         const financialResponse = await api.get(`${API_URL}/accounting/transactions`);
@@ -159,24 +159,34 @@ const AdminDashboard = () => {
       } catch (err) {
         console.warn('Could not fetch financial data:', err.message);
       }
-      
+
       // Process data for the dashboard
       const now = new Date();
       const thirtyDaysFromNow = new Date(now);
       thirtyDaysFromNow.setDate(now.getDate() + 30);
-      
+
       // Process projects data
       const activeProjects = data.projects.filter(project => project.status === 'aktív').length;
-      
+
       // Process tickets data
       const tickets = data.tickets;
       const newTickets = tickets.filter(ticket => ticket.status === 'new').length;
       const openTickets = tickets.filter(ticket => ticket.status === 'open').length;
       const pendingTickets = tickets.filter(ticket => ticket.status === 'pending').length;
-      
-      // Process tasks data (not using this since the endpoint returns 404)
-      const activeTasks = 0;
-      
+
+      // Try to fetch tasks data
+      try {
+        const tasksResponse = await api.get(`${API_URL}/translation/tasks`);
+        if (tasksResponse.ok) {
+          data.tasks = await tasksResponse.json();
+        }
+      } catch (err) {
+        console.warn('Could not fetch tasks:', err.message);
+      }
+
+      // Process tasks data
+      const activeTasks = data.tasks?.filter(task => task.status === 'active')?.length || 0;
+
       // Process domains data
       const activeDomainsCount = data.domains.filter(domain => domain.status === 'active').length;
       const expiringSoonDomainsCount = data.domains.filter(domain => {
@@ -184,7 +194,7 @@ const AdminDashboard = () => {
         const expiryDate = new Date(domain.expiryDate);
         return domain.status === 'active' && expiryDate <= thirtyDaysFromNow;
       }).length;
-      
+
       // Generate mock server status data (since we don't have a real endpoint)
       const serverStatus = {
         cpu: Math.floor(Math.random() * 35) + 15, // 15-50% CPU usage
@@ -192,55 +202,55 @@ const AdminDashboard = () => {
         disk: Math.floor(Math.random() * 30) + 40, // 40-70% disk usage
         uptime: Math.floor(Math.random() * 90) + 30 // 30-120 days uptime
       };
-      
+
       // Generate mock user statistics (since we don't have a real endpoint)
       const userStats = {
         total: Math.floor(Math.random() * 50) + 150, // 150-200 total users
         active: Math.floor(Math.random() * 30) + 70, // 70-100 active users
         newThisMonth: Math.floor(Math.random() * 15) + 5 // 5-20 new users this month
       };
-      
+
       // Process financial data
       // Calculate total revenue
       const paidInvoices = data.financialData.filter(
         transaction => transaction.type === 'income' && transaction.paymentStatus === 'paid'
       );
       const totalRevenue = paidInvoices.reduce((sum, inv) => sum + (inv.amount || 0), 0);
-      
+
       // Calculate pending invoices
       const pendingInvoices = data.financialData.filter(
         transaction => transaction.type === 'income' && transaction.paymentStatus === 'pending'
       ).length;
-      
+
       // Prepare monthly financial data (last 3 months)
       const last3Months = getLastMonths(3);
       const monthlyFinancialData = last3Months.map(month => {
         const monthlyRevenue = data.financialData
           .filter(t => t.type === 'income' && t.date && new Date(t.date).getMonth() === month.index)
           .reduce((sum, t) => sum + (t.amount || 0), 0);
-          
+
         const monthlyExpenses = data.financialData
           .filter(t => t.type === 'expense' && t.date && new Date(t.date).getMonth() === month.index)
           .reduce((sum, t) => sum + (t.amount || 0), 0);
-          
+
         return {
           month: month.name,
           revenue: monthlyRevenue,
           expenses: monthlyExpenses
         };
       });
-      
+
       // Prepare invoice status data
       const paidCount = data.financialData.filter(t => t.type === 'income' && t.paymentStatus === 'paid').length;
       const pendingCount = data.financialData.filter(t => t.type === 'income' && t.paymentStatus === 'pending').length;
       const overdueCount = data.financialData.filter(t => t.type === 'income' && t.paymentStatus === 'overdue').length;
-      
+
       const invoiceStatusData = [
         { name: 'Fizetve', value: paidCount },
         { name: 'Függőben', value: pendingCount },
         { name: 'Lejárt', value: overdueCount }
       ];
-      
+
       // Generate quarterly growth data
       const quarterlyGrowth = [
         { quarter: 'Q1', revenue: Math.floor(Math.random() * 5000) + 15000, growth: Math.floor(Math.random() * 30) - 10 },
@@ -248,7 +258,7 @@ const AdminDashboard = () => {
         { quarter: 'Q3', revenue: Math.floor(Math.random() * 10000) + 20000, growth: Math.floor(Math.random() * 20) + 10 },
         { quarter: 'Q4', revenue: Math.floor(Math.random() * 12000) + 25000, growth: Math.floor(Math.random() * 15) + 15 }
       ];
-      
+
       // Generate project statistics
       // Project status distribution
       const projectStatusCounts = {
@@ -257,14 +267,14 @@ const AdminDashboard = () => {
         suspended: data.projects.filter(p => p.status === 'felfüggesztett').length,
         planning: data.projects.filter(p => p.status === 'tervezés').length || Math.floor(Math.random() * 5) + 1
       };
-      
+
       const projectStatusDistribution = [
         { name: 'Aktív', value: projectStatusCounts.active },
         { name: 'Befejezett', value: projectStatusCounts.completed },
         { name: 'Felfüggesztett', value: projectStatusCounts.suspended },
         { name: 'Tervezés', value: projectStatusCounts.planning }
       ];
-      
+
       // Project type distribution (mocked)
       const projectTypeDistribution = [
         { name: 'Webfejlesztés', value: Math.floor(Math.random() * 20) + 20 },
@@ -272,21 +282,21 @@ const AdminDashboard = () => {
         { name: 'UI/UX Design', value: Math.floor(Math.random() * 10) + 5 },
         { name: 'Tanácsadás', value: Math.floor(Math.random() * 10) + 5 }
       ];
-      
+
       // Monthly project completion (mocked)
       const monthlyProjectCompletion = getLastMonths(6).map(month => ({
         month: month.name,
         completed: Math.floor(Math.random() * 6) + 1
       }));
-      
+
       // Prepare recent activity
       const recentActivity = [];
-      
+
       // Add recent projects
       const recentProjects = data.projects
         .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
         .slice(0, 2);
-        
+
       recentProjects.forEach(project => {
         recentActivity.push({
           type: 'project',
@@ -295,12 +305,12 @@ const AdminDashboard = () => {
           timestamp: project.createdAt || new Date().toISOString()
         });
       });
-      
+
       // Add recent paid invoices
       const recentPaidInvoices = paidInvoices
         .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
         .slice(0, 2);
-        
+
       recentPaidInvoices.forEach(invoice => {
         recentActivity.push({
           type: 'invoice',
@@ -310,13 +320,13 @@ const AdminDashboard = () => {
           timestamp: invoice.date || new Date().toISOString()
         });
       });
-      
+
       // Add recently resolved tickets
       const resolvedTickets = tickets
         .filter(ticket => ticket.status === 'resolved')
         .sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0))
         .slice(0, 2);
-        
+
       resolvedTickets.forEach(ticket => {
         recentActivity.push({
           type: 'ticket',
@@ -325,7 +335,22 @@ const AdminDashboard = () => {
           timestamp: ticket.updatedAt || new Date().toISOString()
         });
       });
-      
+
+      // Add recently completed tasks
+      const completedTasks = data.tasks
+        ?.filter(task => task.status === 'completed' && task.completedAt)
+        ?.sort((a, b) => new Date(b.completedAt || 0) - new Date(a.completedAt || 0))
+        ?.slice(0, 2) || [];
+
+      completedTasks.forEach(task => {
+        recentActivity.push({
+          type: 'task',
+          action: 'completed',
+          name: task.title || 'Unknown Task',
+          timestamp: task.completedAt || new Date().toISOString()
+        });
+      });
+
       // Add recently renewed domains
       const recentlyRenewedDomains = data.domains
         .filter(domain => {
@@ -336,7 +361,7 @@ const AdminDashboard = () => {
           return history.some(h => h.action === 'renew' && h.date && new Date(h.date) >= lastWeek);
         })
         .slice(0, 1);
-        
+
       recentlyRenewedDomains.forEach(domain => {
         recentActivity.push({
           type: 'domain',
@@ -345,13 +370,13 @@ const AdminDashboard = () => {
           timestamp: domain.updatedAt || new Date().toISOString()
         });
       });
-      
+
       // Sort all recent activity by timestamp
       recentActivity.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
-      
+
       // Prepare alerts
       const alerts = [];
-      
+
       // Add domain expiry alerts
       data.domains
         .filter(domain => {
@@ -370,7 +395,7 @@ const AdminDashboard = () => {
             timestamp: now.toISOString()
           });
         });
-      
+
       // Add ticket response alerts
       const oldPendingTickets = tickets.filter(ticket => {
         if (!ticket.updatedAt && !ticket.createdAt) return false;
@@ -379,7 +404,7 @@ const AdminDashboard = () => {
         oneDayAgo.setDate(now.getDate() - 1);
         return (ticket.status === 'new' || ticket.status === 'pending') && lastActivity <= oneDayAgo;
       });
-      
+
       if (oldPendingTickets.length > 0) {
         alerts.push({
           id: 'ticket-response',
@@ -388,7 +413,7 @@ const AdminDashboard = () => {
           timestamp: now.toISOString()
         });
       }
-      
+
       // Add overdue invoice alerts
       if (overdueCount > 0) {
         alerts.push({
@@ -398,13 +423,31 @@ const AdminDashboard = () => {
           timestamp: now.toISOString()
         });
       }
-      
+
+      // Add upcoming task deadline alerts
+      const upcomingTasks = data.tasks?.filter(task => {
+        if (!task.dueDate || task.status === 'completed') return false;
+        const dueDate = new Date(task.dueDate);
+        const threeDaysFromNow = new Date();
+        threeDaysFromNow.setDate(now.getDate() + 3);
+        return dueDate <= threeDaysFromNow && dueDate >= now;
+      }) || [];
+
+      if (upcomingTasks.length > 0) {
+        alerts.push({
+          id: 'upcoming-tasks',
+          severity: 'medium',
+          message: `${upcomingTasks.length} feladat határideje 3 napon belül esedékes`,
+          timestamp: now.toISOString()
+        });
+      }
+
       // Add recentActivity to data object
       data.recentActivity = recentActivity;
-      
+
       // Add date range filtering
       const filteredData = filterDataByDateRange(data, dateRange);
-      
+
       // Process the filtered data
       const processedData = {
         stats: {
@@ -413,14 +456,14 @@ const AdminDashboard = () => {
           pendingInvoices,
           activeTasks,
           totalRevenue,
-          domains: { 
-            active: activeDomainsCount, 
-            expiringSoon: expiringSoonDomainsCount 
+          domains: {
+            active: activeDomainsCount,
+            expiringSoon: expiringSoonDomainsCount
           },
-          tickets: { 
-            new: newTickets, 
-            open: openTickets, 
-            pending: pendingTickets 
+          tickets: {
+            new: newTickets,
+            open: openTickets,
+            pending: pendingTickets
           },
           serverStatus: serverStatus,
           userStats: userStats
@@ -436,9 +479,10 @@ const AdminDashboard = () => {
           typeDistribution: projectTypeDistribution,
           monthlyCompletion: monthlyProjectCompletion
         },
+        tasks: data.tasks || [],
         alerts
       };
-      
+
       setDashboardData(processedData);
       setIsLoading(false);
     } catch (err) {
@@ -467,18 +511,18 @@ const AdminDashboard = () => {
   const getLastMonths = (count) => {
     const months = [];
     const now = new Date();
-    
+
     for (let i = 0; i < count; i++) {
       const month = new Date();
       month.setMonth(now.getMonth() - i);
-      
+
       const monthName = month.toLocaleString('hu-HU', { month: 'short' });
       months.unshift({
         name: monthName,
         index: month.getMonth()
       });
     }
-    
+
     return months;
   };
 
@@ -516,7 +560,7 @@ const AdminDashboard = () => {
         method: 'POST',
         credentials: 'include' // Include cookies
       });
-      
+
       if (refreshResponse.ok) {
         // Reload the page to use the new token
         window.location.reload();
@@ -558,14 +602,14 @@ const AdminDashboard = () => {
             </div>
           </div>
           <div className="mt-6 flex space-x-4">
-            <button 
+            <button
               onClick={() => window.location.reload()}
               className="inline-flex items-center px-4 py-2 bg-red-100 hover:bg-red-200 text-red-800 font-semibold rounded-lg transition-colors"
             >
               <RefreshCw className="h-4 w-4 mr-2" />
               Újrapróbálkozás
             </button>
-            <button 
+            <button
               onClick={handleTokenRefresh}
               className="inline-flex items-center px-4 py-2 bg-blue-100 hover:bg-blue-200 text-blue-800 font-semibold rounded-lg transition-colors"
             >
@@ -630,6 +674,7 @@ const AdminDashboard = () => {
                 <option value="overview">Áttekintés</option>
                 <option value="financial">Pénzügyek</option>
                 <option value="projects">Projektek</option>
+                <option value="tasks">Feladatok</option>
               </select>
 
               <button className="p-2 text-gray-400 hover:text-gray-500 rounded-full hover:bg-gray-100">
@@ -742,6 +787,29 @@ const AdminDashboard = () => {
               </div>
             </div>
           </div>
+          <div className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Aktív Feladatok</p>
+                <div className="mt-2 flex items-baseline">
+                  <p className="text-2xl font-semibold text-gray-900">{dashboardData.stats.activeTasks}</p>
+                  <p className="ml-2 flex items-baseline text-sm font-semibold text-blue-600">
+                    <ArrowDown className="h-4 w-4 mr-1" />
+                    5%
+                  </p>
+                </div>
+              </div>
+              <div className="p-3 bg-purple-100 rounded-lg">
+                <CheckSquare className="h-6 w-6 text-purple-600" />
+              </div>
+            </div>
+            <div className="mt-4">
+              <div className="flex items-center text-sm text-gray-500">
+                <Clock className="h-4 w-4 mr-1" />
+                <span>3 feladat közelgő határidővel</span>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Charts Section - Conditional Rendering based on selectedView */}
@@ -786,9 +854,9 @@ const AdminDashboard = () => {
                       <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
                       <XAxis dataKey="month" stroke="#6B7280" />
                       <YAxis stroke="#6B7280" />
-                      <Tooltip 
-                        contentStyle={{ 
-                          backgroundColor: 'white', 
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: 'white',
                           border: '1px solid #E5E7EB',
                           borderRadius: '0.5rem',
                           boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
@@ -855,20 +923,89 @@ const AdminDashboard = () => {
                           } />
                         ))}
                       </Pie>
-                      <Tooltip 
-                        contentStyle={{ 
-                          backgroundColor: 'white', 
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: 'white',
                           border: '1px solid #E5E7EB',
                           borderRadius: '0.5rem',
                           boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
                         }}
-                        formatter={(value) => [`${value} db`, 'Projektek']} 
+                        formatter={(value) => [`${value} db`, 'Projektek']}
                       />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
               </div>
             </>
+          )}
+
+          {selectedView === 'tasks' && (
+            <div className="lg:col-span-3 bg-white rounded-xl shadow-sm p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900">Feladatok Áttekintése</h2>
+                  <p className="text-sm text-gray-500 mt-1">Aktív és közelgő feladatok</p>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <button className="p-2 text-gray-400 hover:text-gray-500 rounded-lg hover:bg-gray-100">
+                    <Plus className="h-5 w-5" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Feladat</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Prioritás</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Határidő</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Haladás</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Státusz</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {dashboardData.tasks?.slice(0, 5).map((task, index) => (
+                      <tr key={index} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{task.title}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            task.priority === 'high' ? 'bg-red-100 text-red-800' :
+                            task.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-green-100 text-green-800'
+                          }`}>
+                            {task.priority === 'high' ? 'Magas' : task.priority === 'medium' ? 'Közepes' : 'Alacsony'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatDate(task.dueDate)}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          <div className="w-full bg-gray-200 rounded-full h-2.5">
+                            <div className={`h-2.5 rounded-full ${
+                              task.progress >= 80 ? 'bg-green-500' :
+                              task.progress >= 40 ? 'bg-yellow-500' :
+                              'bg-red-500'
+                            }`} style={{ width: `${task.progress}%` }}></div>
+                          </div>
+                          <span className="text-xs mt-1 block text-right">{task.progress}%</span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            task.status === 'completed' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
+                          }`}>
+                            {task.status === 'completed' ? 'Befejezve' : 'Aktív'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                    {(!dashboardData.tasks || dashboardData.tasks.length === 0) && (
+                      <tr>
+                        <td colSpan="5" className="px-6 py-4 text-center text-sm text-gray-500">Nincsenek feladatok</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           )}
 
           {selectedView === 'financial' && (
@@ -893,9 +1030,9 @@ const AdminDashboard = () => {
                     <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
                     <XAxis dataKey="month" stroke="#6B7280" />
                     <YAxis stroke="#6B7280" />
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: 'white', 
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'white',
                         border: '1px solid #E5E7EB',
                         borderRadius: '0.5rem',
                         boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
@@ -939,9 +1076,9 @@ const AdminDashboard = () => {
                       fill="#10B981"
                       fillOpacity={0.6}
                     />
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: 'white', 
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'white',
                         border: '1px solid #E5E7EB',
                         borderRadius: '0.5rem',
                         boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
@@ -970,8 +1107,8 @@ const AdminDashboard = () => {
             {dashboardData.alerts.length > 0 ? (
               <div className="space-y-4">
                 {dashboardData.alerts.map((alert) => (
-                  <div 
-                    key={alert.id} 
+                  <div
+                    key={alert.id}
                     className={`p-4 rounded-lg ${
                       alert.severity === 'high' ? 'bg-red-50 border-l-4 border-red-500' :
                       alert.severity === 'medium' ? 'bg-yellow-50 border-l-4 border-yellow-500' :
@@ -1082,35 +1219,35 @@ const AdminDashboard = () => {
               </div>
               <span className="mt-2 text-sm font-medium text-indigo-700">Projektek</span>
             </a>
-            
+
             <a href="/accounting" className="group flex flex-col items-center justify-center p-4 bg-green-50 rounded-lg hover:bg-green-100 transition-colors">
               <div className="p-3 bg-green-100 rounded-lg group-hover:bg-green-200 transition-colors">
                 <FileText className="h-6 w-6 text-green-600" />
               </div>
               <span className="mt-2 text-sm font-medium text-green-700">Számlák</span>
             </a>
-            
+
             <a href="/support" className="group flex flex-col items-center justify-center p-4 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors">
               <div className="p-3 bg-blue-100 rounded-lg group-hover:bg-blue-200 transition-colors">
                 <MessageSquare className="h-6 w-6 text-blue-600" />
               </div>
               <span className="mt-2 text-sm font-medium text-blue-700">Support</span>
             </a>
-            
+
             <a href="/domains" className="group flex flex-col items-center justify-center p-4 bg-yellow-50 rounded-lg hover:bg-yellow-100 transition-colors">
               <div className="p-3 bg-yellow-100 rounded-lg group-hover:bg-yellow-200 transition-colors">
                 <Globe className="h-6 w-6 text-yellow-600" />
               </div>
               <span className="mt-2 text-sm font-medium text-yellow-700">Domain-ek</span>
             </a>
-            
+
             <a href="/users" className="group flex flex-col items-center justify-center p-4 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors">
               <div className="p-3 bg-purple-100 rounded-lg group-hover:bg-purple-200 transition-colors">
                 <Users className="h-6 w-6 text-purple-600" />
               </div>
               <span className="mt-2 text-sm font-medium text-purple-700">Felhasználók</span>
             </a>
-            
+
             <a href="/reports" className="group flex flex-col items-center justify-center p-4 bg-red-50 rounded-lg hover:bg-red-100 transition-colors">
               <div className="p-3 bg-red-100 rounded-lg group-hover:bg-red-200 transition-colors">
                 <Clipboard className="h-6 w-6 text-red-600" />
@@ -1118,7 +1255,7 @@ const AdminDashboard = () => {
               <span className="mt-2 text-sm font-medium text-red-700">Jelentések</span>
             </a>
           </div>
-          
+
           <div className="mt-6 flex items-center justify-center">
             <button className="inline-flex items-center px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shadow-sm transition-colors">
               <Plus className="h-5 w-5 mr-2" />
