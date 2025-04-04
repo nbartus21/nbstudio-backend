@@ -288,21 +288,56 @@ const ProjectManager = () => {
         // Preserve sharing information if it exists in the current project
         sharing: currentProject?.sharing || selectedProject.sharing
       };
+      
+      // Hibaelhárítás: naplózzuk a küldendő adatokat
+      console.log('Küldendő projekt adatok:', JSON.stringify(projectData, null, 2));
+
+      // Ellenőrizzük, hogy vannak-e érvénytelen adatok
+      if (projectData.changelog && Array.isArray(projectData.changelog)) {
+        projectData.changelog = projectData.changelog.filter(entry => 
+          entry && typeof entry === 'object' && entry.title
+        );
+      }
+      
+      // Távolítsuk el a ciklikus hivatkozásokat vagy érvénytelen mezőket
+      const cleanedData = JSON.parse(JSON.stringify(projectData));
   
       let response;
-      if (selectedProject._id) {
-        response = await api.put(`${API_URL}/projects/${selectedProject._id}`, projectData);
-      } else {
-        response = await api.post(`${API_URL}/projects`, projectData);
+      const apiEndpoint = selectedProject._id ? 
+        `${API_URL}/projects/${selectedProject._id}` : 
+        `${API_URL}/projects`;
+      
+      console.log('API végpont:', apiEndpoint);
+      
+      try {
+        if (selectedProject._id) {
+          response = await api.put(apiEndpoint, cleanedData);
+        } else {
+          response = await api.post(apiEndpoint, cleanedData);
+        }
+      } catch (fetchError) {
+        console.error('Hiba a fetch művelet során:', fetchError);
+        throw new Error(`Hálózati hiba: ${fetchError.message}`);
       }
-  
-      const data = await response.json();
+      
+      let responseData;
+      try {
+        responseData = await response.json();
+      } catch (jsonError) {
+        console.error('Hiba a válasz JSON feldolgozása során:', jsonError);
+        if (!response.ok) {
+          throw new Error(`Szerver hiba: ${response.status} - ${response.statusText}`);
+        }
+      }
       
       if (!response.ok) {
         if (response.status === 404) {
           throw new Error('A projekt nem található');
+        } else if (response.status === 500) {
+          console.error('Szerver hiba részletek:', responseData);
+          throw new Error(`Szerver hiba: ${responseData.message || 'Belső szerver hiba'}`);
         }
-        throw new Error(data.message || 'Nem sikerült menteni a projektet');
+        throw new Error(responseData.message || `Hiba: ${response.status} - ${response.statusText}`);
       }
   
       setSelectedProject(null);

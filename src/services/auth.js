@@ -32,6 +32,12 @@ export const getAuthToken = () => {
     };
   
     try {
+      // Logging for PUT requests to help with debugging
+      if (options.method === 'PUT') {
+        console.log(`API PUT kérés: ${url}`);
+        console.log('Hitelesítési token:', token ? 'Jelen' : 'Hiányzik');
+      }
+      
       const response = await fetch(url, config);
   
       // Ha 401-es hibát kapunk (unauthorized), akkor töröljük a tokent és átirányítunk a login oldalra
@@ -49,11 +55,34 @@ export const getAuthToken = () => {
           json: async () => ({ message: 'Endpoint not found' })
         };
       }
+      
+      // Ha PUT kérés és 500-as hiba, ellenőrizzük részletesebben
+      if (options.method === 'PUT' && response.status === 500) {
+        console.error('500-as szerver hiba a PUT kérés során:', url);
+        try {
+          // Próbáljuk meg kinyerni a hiba részleteit
+          const errorDetails = await response.json().catch(() => ({}));
+          console.error('Szerver hiba részletek:', errorDetails);
+        } catch (e) {
+          console.error('Nem sikerült a hibaválaszt kiolvasni:', e);
+        }
+      }
   
       // Ha nem 2xx-es a válasz, dobunk egy hibát
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+        let errorMessage = `HTTP error! status: ${response.status}`;
+        
+        try {
+          const errorData = await response.json();
+          if (errorData && errorData.message) {
+            errorMessage = errorData.message;
+          }
+        } catch (jsonError) {
+          // Ha nem sikerül a JSON-t értelmezni, használjuk az eredeti hibaüzenetet
+          console.error('Nem sikerült a JSON hibaüzenetet értelmezni:', jsonError);
+        }
+        
+        throw new Error(errorMessage);
       }
   
       return response;
