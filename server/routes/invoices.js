@@ -549,6 +549,15 @@ router.post('/projects/:projectId/invoices', async (req, res) => {
       console.log('Nincs email cím a projekthez, nem küldünk értesítést');
     }
 
+    // Fájl írása a lemezre a számla létrehozásának ellenőrzésére
+    const fs = require('fs');
+    try {
+      fs.writeFileSync('/tmp/invoice-created.txt', `Számla létrehozva: ${invoice.number} - ${new Date().toISOString()}\n`, { flag: 'a' });
+      console.log('Fájl sikeresen írva: /tmp/invoice-created.txt');
+    } catch (fileError) {
+      console.error('Hiba a fájl írásakor:', fileError);
+    }
+
     res.status(201).json(project);
   } catch (error) {
     console.error('Hiba a számla létrehozásánál:', error);
