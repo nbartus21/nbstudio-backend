@@ -44,9 +44,17 @@ export const uploadFileToS3 = async (fileData) => {
 
     // Base64 adat konvertálása bináris adattá
     const base64Data = fileData.content.split(';base64,').pop();
-    const binaryData = Buffer.from(base64Data, 'base64');
+    
+    // Buffer helyett böngésző kompatibilis megoldás használata
+    const binaryString = atob(base64Data);
+    const len = binaryString.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    
     console.log('Base64 adat konvertálva bináris adattá:', {
-      binaryLength: binaryData.length,
+      binaryLength: bytes.length,
       base64Length: base64Data.length
     });
 
@@ -57,7 +65,7 @@ export const uploadFileToS3 = async (fileData) => {
     const uploadParams = {
       Bucket: BUCKET_NAME,
       Key: key,
-      Body: binaryData,
+      Body: bytes,
       ContentType: fileData.type,
       Metadata: {
         'project-id': fileData.projectId,
