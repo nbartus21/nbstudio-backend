@@ -8,7 +8,7 @@ import { dirname, join } from 'path';
 import fs from 'fs';
 import path from 'path';
 import cron from 'node-cron';
-import { checkOverdueInvoices, checkDueSoonInvoices, sendNewInvoiceNotification } from '../services/invoiceReminderService.js';
+import { checkOverdueInvoices, checkDueSoonInvoices } from '../services/invoiceReminderService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -521,84 +521,8 @@ router.post('/projects/:projectId/invoices', async (req, res) => {
       });
     }
 
-    // Eredeti email küldési logika
-    if (project.client && project.client.email) {
-      try {
-        console.log('EGYSZERŰSÍTETT_EMAIL_KÜLDÉS: Új számla értesítés küldése:', project.client.email);
-
-        // Csak a közvetlen email küldést végezzük, ne hívjuk meg a komplex láncolatot
-        try {
-          console.log('EGYSZERŰSÍTETT_EMAIL_KÜLDÉS: Közvetlen email küldés...');
-
-          // SMTP beállítások
-          const SMTP_HOST = process.env.SMTP_HOST || 'nb-hosting.hu';
-          const SMTP_PORT = process.env.SMTP_PORT || 25;
-          const SMTP_SECURE = process.env.SMTP_SECURE === 'true';
-          const SMTP_USER = process.env.SMTP_USER || 'noreply@nb-hosting.hu';
-          const SMTP_PASS = process.env.SMTP_PASS;
-
-          console.log('EGYSZERŰSÍTETT_EMAIL_KÜLDÉS: SMTP beállítások:', {
-            host: SMTP_HOST,
-            port: SMTP_PORT,
-            secure: SMTP_SECURE,
-            auth: { user: SMTP_USER, pass: SMTP_PASS ? '******' : 'MISSING' }
-          });
-
-          // Transporter létrehozása
-          const transporter = nodemailer.createTransport({
-            host: SMTP_HOST,
-            port: SMTP_PORT,
-            secure: SMTP_SECURE,
-            auth: {
-              user: SMTP_USER,
-              pass: SMTP_PASS
-            }
-          });
-
-          // Email küldése
-          console.log('EGYSZERŰSÍTETT_EMAIL_KÜLDÉS: Email küldése a kliens email címére:', project.client.email);
-          const mailOptions = {
-            from: `"Norbert Bartus" <${SMTP_USER}>`,
-            to: project.client.email,
-            subject: `Új számla értesítés - Számla: ${invoice.number}`,
-            html: `
-              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333;">
-                <h2 style="color: #3B82F6;">Új Számla Értesítés</h2>
-                <p>Tisztelt Ügyfelünk!</p>
-                <p>Ezzel az emailmel értesítjük, hogy új számla készült az Ön részére.</p>
-                <p><strong>Számla szám:</strong> ${invoice.number}</p>
-                <p><strong>Projekt:</strong> ${project.name}</p>
-                <p><strong>Összeg:</strong> ${invoice.totalAmount} ${project.financial?.currency || 'EUR'}</p>
-                <p><strong>Fizetési határidő:</strong> ${new Date(invoice.dueDate).toLocaleDateString()}</p>
-                <p>Kérjük, jelentkezzen be a rendszerbe a számla megtekintéséhez és kifizetéséhez.</p>
-                <p>Köszönjük!</p>
-                <p>Norbert Bartus</p>
-              </div>
-            `
-          };
-
-          const info = await transporter.sendMail(mailOptions);
-          console.log('EGYSZERŰSÍTETT_EMAIL_KÜLDÉS: Email sikeresen elküldve:', {
-            messageId: info.messageId,
-            response: info.response,
-            accepted: info.accepted,
-            rejected: info.rejected
-          });
-        } catch (emailError) {
-          console.error('EGYSZERŰSÍTETT_EMAIL_KÜLDÉS: Hiba az email küldésekor:', {
-            error: emailError.message,
-            stack: emailError.stack,
-            code: emailError.code,
-            command: emailError.command
-          });
-        }
-      } catch (emailError) {
-        console.error('EGYSZERŰSÍTETT_EMAIL_KÜLDÉS: Hiba az új számla értesítés küldésekor, de folytatjuk:', emailError);
-        // Folytatjuk hiba esetén is
-      }
-    } else {
-      console.log('EGYSZERŰSÍTETT_EMAIL_KÜLDÉS: Nincs email cím a projekthez, nem küldünk értesítést');
-    }
+    // Email értesítések küldése eltávolítva
+    // Később, ha szükséges, újra implementálható
 
     // Fájl írása a lemezre a számla létrehozásának ellenőrzésére
     try {
