@@ -427,6 +427,92 @@ router.post('/projects/:projectId/invoices', async (req, res) => {
       invoiceId: invoice._id
     });
 
+    // Közvetlen teszt email küldése a nodemailer segítségével
+    try {
+      console.log('Közvetlen teszt email küldése...');
+
+      // Nodemailer importálása
+      const nodemailer = require('nodemailer');
+
+      // SMTP beállítások
+      const SMTP_HOST = process.env.SMTP_HOST || 'nb-hosting.hu';
+      const SMTP_PORT = process.env.SMTP_PORT || 25;
+      const SMTP_SECURE = process.env.SMTP_SECURE === 'true';
+      const SMTP_USER = process.env.SMTP_USER || 'noreply@nb-hosting.hu';
+      const SMTP_PASS = process.env.SMTP_PASS;
+
+      console.log('SMTP beállítások a számla létrehozás végpontban:', {
+        host: SMTP_HOST,
+        port: SMTP_PORT,
+        secure: SMTP_SECURE,
+        auth: { user: SMTP_USER, pass: SMTP_PASS ? '******' : 'MISSING' }
+      });
+
+      // Transporter létrehozása
+      const transporter = nodemailer.createTransport({
+        host: SMTP_HOST,
+        port: SMTP_PORT,
+        secure: SMTP_SECURE,
+        auth: {
+          user: SMTP_USER,
+          pass: SMTP_PASS
+        }
+      });
+
+      // Kapcsolat tesztelése
+      console.log('SMTP kapcsolat tesztelése a számla létrehozás végpontban...');
+      const verifyResult = await new Promise((resolve) => {
+        transporter.verify((error, success) => {
+          if (error) {
+            console.error('SMTP kapcsolat hiba a számla létrehozás végpontban:', error);
+            resolve({ success: false, error });
+          } else {
+            console.log('SMTP szerver kapcsolat OK a számla létrehozás végpontban');
+            resolve({ success: true });
+          }
+        });
+      });
+
+      if (!verifyResult.success) {
+        throw new Error(`SMTP kapcsolat hiba: ${verifyResult.error.message}`);
+      }
+
+      // Teszt email küldése
+      console.log('Teszt email küldése a számla létrehozás végpontból...');
+      const mailOptions = {
+        from: `"Norbert Bartus" <${SMTP_USER}>`,
+        to: 'nbartus21@gmail.com',
+        subject: `Teszt email a számla létrehozás végpontból - Számla: ${invoice.number}`,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333;">
+            <h2 style="color: #3B82F6;">Teszt Email a Számla Létrehozás Végpontból</h2>
+            <p>Ez egy teszt email a számla létrehozás végpontból.</p>
+            <p>Számla szám: ${invoice.number}</p>
+            <p>Projekt: ${project.name}</p>
+            <p>Kliens: ${project.client ? project.client.name : 'Nincs kliens'}</p>
+            <p>Kliens email: ${project.client ? project.client.email : 'Nincs email'}</p>
+            <p>Időbélyeg: ${new Date().toISOString()}</p>
+          </div>
+        `
+      };
+
+      const info = await transporter.sendMail(mailOptions);
+      console.log('Teszt email sikeresen elküldve a számla létrehozás végpontból:', {
+        messageId: info.messageId,
+        response: info.response,
+        accepted: info.accepted,
+        rejected: info.rejected
+      });
+    } catch (testEmailError) {
+      console.error('Hiba a teszt email küldésekor a számla létrehozás végpontból:', {
+        error: testEmailError.message,
+        stack: testEmailError.stack,
+        code: testEmailError.code,
+        command: testEmailError.command
+      });
+    }
+
+    // Eredeti email küldési logika
     if (project.client && project.client.email) {
       try {
         console.log('Új számla értesítés küldése megkezdődik:', {
