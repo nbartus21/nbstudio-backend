@@ -246,22 +246,44 @@ const generateEmailTemplate = (invoice, project, type, language = 'hu') => {
 
 // Emlékeztető küldése egy adott számlához
 export const sendInvoiceReminder = async (projectId, invoiceId, type = 'dueSoon', language = 'hu') => {
+  console.log('sendInvoiceReminder hívás:', { projectId, invoiceId, type, language });
   try {
     // Projekt és számla lekérése
+    console.log('Projekt lekérése sendInvoiceReminder-ben:', projectId);
     const project = await Project.findById(projectId);
     if (!project) {
+      console.error('Projekt nem található sendInvoiceReminder-ben:', projectId);
       throw new Error('Project not found');
     }
+    console.log('Projekt megtalálva sendInvoiceReminder-ben:', {
+      projectId: project._id,
+      projectName: project.name,
+      clientName: project.client?.name,
+      clientEmail: project.client?.email
+    });
 
+    console.log('Számla keresése a projektben sendInvoiceReminder-ben:', invoiceId);
     const invoice = project.invoices.id(invoiceId);
     if (!invoice) {
+      console.error('Számla nem található a projektben sendInvoiceReminder-ben:', { projectId, invoiceId });
       throw new Error('Invoice not found');
     }
+    console.log('Számla megtalálva sendInvoiceReminder-ben:', {
+      invoiceId: invoice._id,
+      invoiceNumber: invoice.number,
+      amount: invoice.totalAmount,
+      status: invoice.status
+    });
 
     // Ellenőrizzük, hogy van-e email cím a projekthez
     if (!project.client?.email) {
+      console.error('Nincs email cím a projekthez sendInvoiceReminder-ben:', {
+        projectId,
+        clientName: project.client?.name
+      });
       throw new Error('Client email not found');
     }
+    console.log('Kliens email cím megtalálva sendInvoiceReminder-ben:', project.client.email);
 
     // Email sablon generálása
     const { subject, html } = generateEmailTemplate(invoice, project, type, language);
@@ -287,11 +309,47 @@ export const sendInvoiceReminder = async (projectId, invoiceId, type = 'dueSoon'
     });
 
     try {
+      console.log('transporter.sendMail hívása a következő paraméterekkel:', {
+        from: mailOptions.from,
+        to: mailOptions.to,
+        subject: mailOptions.subject
+      });
+
+      // Teszteljük a kapcsolatot küldés előtt
+      console.log('SMTP kapcsolat tesztelése küldés előtt...');
+      const verifyResult = await new Promise((resolve) => {
+        transporter.verify((error, success) => {
+          if (error) {
+            console.error('SMTP kapcsolat hiba a küldés előtt:', error);
+            resolve({ success: false, error });
+          } else {
+            console.log('SMTP kapcsolat OK a küldés előtt');
+            resolve({ success: true });
+          }
+        });
+      });
+
+      if (!verifyResult.success) {
+        throw new Error(`SMTP kapcsolat hiba: ${verifyResult.error.message}`);
+      }
+
+      // Email küldése
+      console.log('Email küldése megkezdődik...');
       const info = await transporter.sendMail(mailOptions);
-      console.log('Számla emlékeztető email sikeresen elküldve:', info.messageId);
-      return { success: true, messageId: info.messageId };
+      console.log('Számla emlékeztető email sikeresen elküldve:', {
+        messageId: info.messageId,
+        response: info.response,
+        accepted: info.accepted,
+        rejected: info.rejected
+      });
+      return { success: true, messageId: info.messageId, info };
     } catch (emailError) {
-      console.error('Hiba a számla emlékeztető email küldésekor:', emailError);
+      console.error('Hiba a számla emlékeztető email küldésekor:', {
+        error: emailError.message,
+        stack: emailError.stack,
+        code: emailError.code,
+        command: emailError.command
+      });
       throw emailError;
     }
   } catch (error) {
@@ -411,30 +469,58 @@ export const checkDueSoonInvoices = async () => {
 
 // Új számla értesítés küldése
 export const sendNewInvoiceNotification = async (projectId, invoiceId) => {
+  console.log('sendNewInvoiceNotification hívás kezdete:', { projectId, invoiceId });
   try {
     // Projekt és számla lekérése
+    console.log('Projekt lekérése:', projectId);
     const project = await Project.findById(projectId);
     if (!project) {
+      console.error('Projekt nem található:', projectId);
       throw new Error('Project not found');
     }
+    console.log('Projekt megtalálva:', {
+      projectId: project._id,
+      projectName: project.name,
+      clientName: project.client?.name,
+      clientEmail: project.client?.email,
+      language: project.language
+    });
 
+    console.log('Számla keresése a projektben:', invoiceId);
     const invoice = project.invoices.id(invoiceId);
     if (!invoice) {
+      console.error('Számla nem található a projektben:', { projectId, invoiceId });
       throw new Error('Invoice not found');
     }
+    console.log('Számla megtalálva:', {
+      invoiceId: invoice._id,
+      invoiceNumber: invoice.number,
+      amount: invoice.totalAmount,
+      status: invoice.status,
+      dueDate: invoice.dueDate
+    });
 
     // Ellenőrizzük, hogy van-e email cím a projekthez
     if (!project.client?.email) {
+      console.error('Nincs email cím a projekthez:', {
+        projectId,
+        clientName: project.client?.name
+      });
       throw new Error('Client email not found');
     }
+    console.log('Kliens email cím megtalálva:', project.client.email);
 
     // Projekt nyelve
     const language = project.language || 'hu';
+    console.log('Használt nyelv:', language);
 
     // Email küldése
-    return await sendInvoiceReminder(projectId, invoiceId, 'new', language);
+    console.log('Email küldés megkísérlése sendInvoiceReminder hívásával...');
+    const result = await sendInvoiceReminder(projectId, invoiceId, 'new', language);
+    console.log('sendInvoiceReminder eredménye:', result);
+    return result;
   } catch (error) {
-    console.error('Error sending new invoice notification:', error);
+    console.error('Hiba az új számla értesítés küldésekor:', error);
     return { success: false, error: error.message };
   }
 };
