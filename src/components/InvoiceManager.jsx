@@ -319,7 +319,7 @@ const InvoiceManager = () => {
 
     try {
       // Tömeges törlés végpont hívása
-      const response = await api.post('/invoices/bulk-delete', { invoices: selectedInvoices });
+      const response = await api.post('/api/invoices/bulk-delete', { invoices: selectedInvoices });
       if (!response.ok) throw new Error('Tömeges törlés sikertelen');
 
       // Frissítjük a számlák listáját és töröljük a kijelöléseket
