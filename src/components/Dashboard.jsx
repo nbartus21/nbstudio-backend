@@ -11,7 +11,7 @@ import {
   Settings, Info, Clipboard, TrendingUp, Zap, Server, HardDrive, Coffee,
   ChevronRight, ChevronLeft, Search, Filter, Download, Share2,
   MoreVertical, Plus, BarChart2, PieChart as PieChartIcon,
-  LineChart as LineChartIcon, Activity, AlertTriangle
+  LineChart as LineChartIcon, Activity, AlertTriangle, CheckSquare
 } from 'lucide-react';
 import { api } from '../services/auth'; // Import api with authentication
 
