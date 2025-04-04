@@ -719,13 +719,15 @@ const SharedProjectDashboard = ({
       }
 
       // Call API to generate PDF
+      const pdfUrl = `${API_URL}/projects/${projectId}/invoices/${invoice._id}/pdf?language=${language}`;
       debugLog('handleGeneratePDF', 'Calling API', {
         projectId: projectId,
         invoiceId: invoice._id,
-        url: `${API_URL}/projects/${projectId}/invoices/${invoice._id}/pdf`
+        language: language,
+        url: pdfUrl
       });
 
-      const response = await fetch(`${API_URL}/projects/${projectId}/invoices/${invoice._id}/pdf`, {
+      const response = await fetch(pdfUrl, {
         method: 'GET',
         headers: {
           'X-API-Key': API_KEY
@@ -740,7 +742,10 @@ const SharedProjectDashboard = ({
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.setAttribute('download', `szamla-${invoice.number}.pdf`);
+        // Set filename based on language
+        const fileName = language === 'hu' ? `szamla-${invoice.number}.pdf` :
+                        (language === 'de' ? `rechnung-${invoice.number}.pdf` : `invoice-${invoice.number}.pdf`);
+        link.setAttribute('download', fileName);
         document.body.appendChild(link);
         link.click();
         link.remove();

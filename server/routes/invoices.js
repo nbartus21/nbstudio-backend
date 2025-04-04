@@ -424,8 +424,87 @@ router.post('/projects/:projectId/invoices', async (req, res) => {
   }
 });
 
+// PDF fordítások különböző nyelvekhez
+const pdfTranslations = {
+  en: {
+    invoice: "INVOICE",
+    invoiceNumber: "Invoice Number",
+    issueDate: "Issue Date",
+    dueDate: "Due Date",
+    provider: "PROVIDER",
+    client: "CLIENT",
+    item: "Item",
+    quantity: "Quantity",
+    unitPrice: "Unit Price",
+    total: "Total",
+    grandTotal: "Grand Total",
+    paid: "Paid",
+    vatExempt: "VAT exempt according to § 19 Abs. 1 UStG.",
+    footer: "This invoice was created electronically and is valid without signature.",
+    status: {
+      issued: "Issued",
+      paid: "Paid",
+      overdue: "Overdue",
+      cancelled: "Cancelled"
+    },
+    taxId: "Tax ID"
+  },
+  de: {
+    invoice: "RECHNUNG",
+    invoiceNumber: "Rechnungsnummer",
+    issueDate: "Ausstellungsdatum",
+    dueDate: "Fälligkeitsdatum",
+    provider: "ANBIETER",
+    client: "KUNDE",
+    item: "Artikel",
+    quantity: "Menge",
+    unitPrice: "Stückpreis",
+    total: "Gesamt",
+    grandTotal: "Gesamtsumme",
+    paid: "Bezahlt",
+    vatExempt: "Als Kleinunternehmer im Sinne von § 19 Abs. 1 UStG wird keine Umsatzsteuer berechnet.",
+    footer: "Diese Rechnung wurde elektronisch erstellt und ist ohne Unterschrift gültig.",
+    status: {
+      issued: "Ausgestellt",
+      paid: "Bezahlt",
+      overdue: "Überfällig",
+      cancelled: "Storniert"
+    },
+    taxId: "Steuernummer"
+  },
+  hu: {
+    invoice: "SZÁMLA",
+    invoiceNumber: "Számlaszám",
+    issueDate: "Kiállítás dátuma",
+    dueDate: "Fizetési határidő",
+    provider: "KIÁLLÍTÓ",
+    client: "VEVŐ",
+    item: "Tétel",
+    quantity: "Mennyiség",
+    unitPrice: "Egységár",
+    total: "Összesen",
+    grandTotal: "Végösszeg",
+    paid: "Fizetve",
+    vatExempt: "Alanyi adómentes a § 19 Abs. 1 UStG. szerint.",
+    footer: "Ez a számla elektronikusan készült és érvényes aláírás nélkül is.",
+    status: {
+      issued: "Kiállítva",
+      paid: "Fizetve",
+      overdue: "Lejárt",
+      cancelled: "Törölve"
+    },
+    taxId: "Adószám"
+  }
+};
+
 // PDF generálás és letöltés
 router.get('/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => {
+  // Nyelvi paraméter kezelése (alapértelmezett: hu)
+  const language = req.query.language || 'hu';
+  // Csak támogatott nyelvek engedélyezése
+  const validLanguage = ['hu', 'en', 'de'].includes(language) ? language : 'hu';
+  // Fordítások betöltése a megfelelő nyelvhez
+  const t = pdfTranslations[validLanguage];
   try {
     console.log(`PDF generálási kérés: projectId=${req.params.projectId}, invoiceId=${req.params.invoiceId}`);
 
@@ -475,13 +554,14 @@ router.get('/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => {
       size: 'A4',
       margin: 50,
       info: {
-        Title: `Számla-${invoice.number}`,
+        Title: `${t.invoice}-${invoice.number}`,
         Author: 'Norbert Bartus'
       }
     });
 
     // Response headerek beállítása
-    let fileName = `szamla-${invoice.number}`;
+    let fileName = validLanguage === 'hu' ? `szamla-${invoice.number}` :
+                  (validLanguage === 'de' ? `rechnung-${invoice.number}` : `invoice-${invoice.number}`);
     if (!fileName.toLowerCase().endsWith('.pdf')) {
       fileName += '.pdf';
     }
@@ -531,24 +611,24 @@ router.get('/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => {
 
     // Státusz jelölés a fejlécben
     let statusColor = colors.accent;
-    let statusText = 'Kiállítva';
+    let statusText = t.status.issued;
 
-    if (invoice.status === 'fizetett') {
+    if (invoice.status === 'fizetett' || invoice.status === 'paid' || invoice.status === 'bezahlt') {
       statusColor = colors.success;
-      statusText = 'Fizetve';
-    } else if (invoice.status === 'késedelmes') {
+      statusText = t.status.paid;
+    } else if (invoice.status === 'késedelmes' || invoice.status === 'overdue' || invoice.status === 'überfällig') {
       statusColor = colors.warning;
-      statusText = 'Lejárt';
-    } else if (invoice.status === 'törölt') {
+      statusText = t.status.overdue;
+    } else if (invoice.status === 'törölt' || invoice.status === 'cancelled' || invoice.status === 'storniert') {
       statusColor = '#9CA3AF';
-      statusText = 'Törölve';
+      statusText = t.status.cancelled;
     }
 
     // Számla felirat és szám
     doc.font('Helvetica-Bold')
        .fontSize(28)
        .fillColor(colors.primary)
-       .text('SZÁMLA', 50, 30)
+       .text(t.invoice, 50, 30)
        .fontSize(14)
        .fillColor(colors.secondary)
        .text(`#${invoice.number}`, 50, 65);
@@ -571,16 +651,16 @@ router.get('/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => {
     const rightColumnX = 400;
     doc.fontSize(10)
        .fillColor(colors.secondary)
-       .text('Kiállítás dátuma:', rightColumnX, 30, { align: 'right' })
+       .text(t.issueDate + ':', rightColumnX, 30, { align: 'right' })
        .fontSize(12)
        .fillColor(colors.primary)
-       .text(new Date(invoice.date).toLocaleDateString('hu-HU'), rightColumnX, 45, { align: 'right' })
+       .text(new Date(invoice.date).toLocaleDateString(validLanguage === 'hu' ? 'hu-HU' : (validLanguage === 'de' ? 'de-DE' : 'en-US')), rightColumnX, 45, { align: 'right' })
        .fontSize(10)
        .fillColor(colors.secondary)
-       .text('Fizetési határidő:', rightColumnX, 65, { align: 'right' })
+       .text(t.dueDate + ':', rightColumnX, 65, { align: 'right' })
        .fontSize(12)
        .fillColor(colors.primary)
-       .text(new Date(invoice.dueDate).toLocaleDateString('hu-HU'), rightColumnX, 80, { align: 'right' });
+       .text(new Date(invoice.dueDate).toLocaleDateString(validLanguage === 'hu' ? 'hu-HU' : (validLanguage === 'de' ? 'de-DE' : 'en-US')), rightColumnX, 80, { align: 'right' });
 
     // Vékony elválasztó vonal a fejléc után
     doc.rect(50, 140, doc.page.width - 100, 1)
@@ -593,7 +673,7 @@ router.get('/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => {
     doc.font('Helvetica-Bold')
        .fontSize(12)
        .fillColor(colors.primary)
-       .text('KIÁLLÍTÓ', 50, infoStartY);
+       .text(t.provider, 50, infoStartY);
 
     doc.rect(50, infoStartY + 18, 220, 1)
        .fill(colors.primary);
@@ -617,7 +697,7 @@ router.get('/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => {
     // Kleinunternehmer megjegyzés
     doc.fontSize(7)
        .fillColor('#666666')
-       .text('Als Kleinunternehmer im Sinne von § 19 Abs. 1 UStG wird keine Umsatzsteuer berechnet.', 50, infoStartY + 140, {
+       .text(t.vatExempt, 50, infoStartY + 140, {
          width: 220
        });
 
@@ -625,7 +705,7 @@ router.get('/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => {
     doc.font('Helvetica-Bold')
        .fontSize(12)
        .fillColor(colors.primary)
-       .text('VEVŐ', 320, infoStartY);
+       .text(t.client, 320, infoStartY);
 
     doc.rect(320, infoStartY + 18, 220, 1)
        .fill(colors.primary);
@@ -648,7 +728,7 @@ router.get('/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => {
       }
 
       if (project.client.taxNumber) {
-        doc.text(`Adószám: ${project.client.taxNumber}`, 320, rowY);
+        doc.text(`${t.taxId}: ${project.client.taxNumber}`, 320, rowY);
         rowY += 12;
       }
 
@@ -681,7 +761,7 @@ router.get('/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => {
     doc.rect(50, tableStartY, doc.page.width - 100, 30)
        .fill(colors.primary);
 
-    const tableHeaders = ['Tétel', 'Mennyiség', 'Egységár', 'Összesen'];
+    const tableHeaders = [t.item, t.quantity, t.unitPrice, t.total];
     const tableColumnWidths = [280, 80, 90, 70]; // Átméretezett oszlopok
     const columnPositions = [50];
 
@@ -798,7 +878,7 @@ router.get('/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => {
     doc.font('Helvetica-Bold')
        .fontSize(11)
        .fillColor(colors.primary)
-       .text('FIZETÉSI INFORMÁCIÓK', 65, summaryStartY + 15);
+       .text(validLanguage === 'hu' ? 'FIZETÉSI INFORMÁCIÓK' : (validLanguage === 'de' ? 'ZAHLUNGSINFORMATIONEN' : 'PAYMENT INFORMATION'), 65, summaryStartY + 15);
 
     doc.font('Helvetica')
        .fontSize(9)
@@ -815,7 +895,7 @@ router.get('/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => {
        .font('Helvetica-Bold')
        .text(' Commerzbank AG')
        .font('Helvetica')
-       .text('Közlemény:', 65, summaryStartY + 85, { continued: true })
+       .text(validLanguage === 'hu' ? 'Közlemény:' : (validLanguage === 'de' ? 'Verwendungszweck:' : 'Reference:'), 65, summaryStartY + 85, { continued: true })
        .font('Helvetica-Bold')
        .text(` ${invoice.number}`);
 
@@ -826,17 +906,17 @@ router.get('/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => {
     doc.font('Helvetica-Bold')
        .fontSize(11)
        .fillColor(colors.primary)
-       .text('ÖSSZEGZÉS', 365, summaryStartY + 15);
+       .text(validLanguage === 'hu' ? 'ÖSSZEGZÉS' : (validLanguage === 'de' ? 'ZUSAMMENFASSUNG' : 'SUMMARY'), 365, summaryStartY + 15);
 
     // Részösszeg sor
     doc.font('Helvetica')
        .fillColor(colors.text)
        .fontSize(10)
-       .text('Részösszeg:', 365, summaryStartY + 40, { width: 100, align: 'left' })
+       .text(validLanguage === 'hu' ? 'Részösszeg:' : (validLanguage === 'de' ? 'Zwischensumme:' : 'Subtotal:'), 365, summaryStartY + 40, { width: 100, align: 'left' })
        .text(`${invoice.totalAmount} ${invoice.currency || 'EUR'}`, 465, summaryStartY + 40, { width: 90, align: 'right' });
 
     // ÁFA sor (ha van)
-    doc.text('ÁFA (0%):', 365, summaryStartY + 60, { width: 100, align: 'left' })
+    doc.text(validLanguage === 'hu' ? 'ÁFA (0%):' : (validLanguage === 'de' ? 'MwSt. (0%):' : 'VAT (0%):'), 365, summaryStartY + 60, { width: 100, align: 'left' })
        .text('0.00 EUR', 465, summaryStartY + 60, { width: 90, align: 'right' });
 
     // Végösszeg kiemelése
@@ -847,7 +927,7 @@ router.get('/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => {
     doc.font('Helvetica-Bold')
        .fillColor('white')
        .fontSize(12);
-    doc.text('Végösszeg:', 375, summaryStartY + 90, { width: 100, align: 'left' });
+    doc.text(validLanguage === 'hu' ? 'Végösszeg:' : (validLanguage === 'de' ? 'Gesamtsumme:' : 'Grand Total:'), 375, summaryStartY + 90, { width: 100, align: 'left' });
     doc.text(`${invoice.totalAmount} ${invoice.currency || 'EUR'}`, 465, summaryStartY + 90, { width: 80, align: 'right' });
 
     // QR kód generálás eltávolítva
@@ -865,7 +945,7 @@ router.get('/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => {
        .fillColor(colors.secondary);
 
     // Teljes lábléc szöveg egy sorban az oldalszámmal együtt
-    const footerText = `Norbert Bartus | www.nb-studio.net | Ez a számla elektronikusan készült és érvényes aláírás nélkül is. | ${currentPage}. oldal`;
+    const footerText = `Norbert Bartus | www.nb-studio.net | ${t.footer} | ${validLanguage === 'hu' ? `${currentPage}. oldal` : (validLanguage === 'de' ? `Seite ${currentPage}` : `Page ${currentPage}`)}`;
     doc.text(footerText, 50, footerTop, {
       align: 'center',
       width: doc.page.width - 100
