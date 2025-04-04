@@ -3,7 +3,7 @@ import { formatDistance } from 'date-fns';
 import { hu } from 'date-fns/locale';
 import { 
   Bell, Clock, FileText, Share2, 
-  DollarSign, CircleAlert, MessageSquare,
+  DollarSign, AlertCircle, MessageSquare,
   Upload, Eye, Trash2, Download, MoreVertical,
   PenTool, UserPlus, Shield, File, FileUp
 } from 'lucide-react';
