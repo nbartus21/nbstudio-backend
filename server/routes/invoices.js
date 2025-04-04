@@ -6,6 +6,7 @@ import authMiddleware from '../middleware/auth.js';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import fs from 'fs';
+import path from 'path';
 import cron from 'node-cron';
 import { checkOverdueInvoices, checkDueSoonInvoices, sendNewInvoiceNotification } from '../services/invoiceReminderService.js';
 
@@ -550,13 +551,16 @@ router.post('/projects/:projectId/invoices', async (req, res) => {
     }
 
     // Fájl írása a lemezre a számla létrehozásának ellenőrzésére
-    const fs = require('fs');
-    const path = require('path');
     try {
       // A fájl útvonalja a projekt gyökérmappájában
-      const filePath = path.join(process.cwd(), 'invoice-created.txt');
-      fs.writeFileSync(filePath, `Számla létrehozva: ${invoice.number} - ${new Date().toISOString()}\n`, { flag: 'a' });
-      console.log('Fájl sikeresen írva:', filePath);
+      const invoiceFilePath = path.join(process.cwd(), 'invoice-created.txt');
+      fs.writeFileSync(invoiceFilePath, `Számla létrehozva: ${invoice.number} - ${new Date().toISOString()}\n`, { flag: 'a' });
+      console.log('Fájl sikeresen írva:', invoiceFilePath);
+
+      // Próbáljunk meg egy másik fájlt is írni
+      const testFilePath = path.join(process.cwd(), 'invoice-test.txt');
+      fs.writeFileSync(testFilePath, `Teszt fájl: ${new Date().toISOString()}\n`, { flag: 'a' });
+      console.log('Teszt fájl sikeresen írva:', testFilePath);
     } catch (fileError) {
       console.error('Hiba a fájl írásakor:', fileError);
     }
