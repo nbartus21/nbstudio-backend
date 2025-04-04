@@ -551,9 +551,12 @@ router.post('/projects/:projectId/invoices', async (req, res) => {
 
     // Fájl írása a lemezre a számla létrehozásának ellenőrzésére
     const fs = require('fs');
+    const path = require('path');
     try {
-      fs.writeFileSync('/tmp/invoice-created.txt', `Számla létrehozva: ${invoice.number} - ${new Date().toISOString()}\n`, { flag: 'a' });
-      console.log('Fájl sikeresen írva: /tmp/invoice-created.txt');
+      // A fájl útvonalja a projekt gyökérmappájában
+      const filePath = path.join(process.cwd(), 'invoice-created.txt');
+      fs.writeFileSync(filePath, `Számla létrehozva: ${invoice.number} - ${new Date().toISOString()}\n`, { flag: 'a' });
+      console.log('Fájl sikeresen írva:', filePath);
     } catch (fileError) {
       console.error('Hiba a fájl írásakor:', fileError);
     }
