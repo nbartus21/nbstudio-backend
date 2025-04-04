@@ -15,22 +15,22 @@ import SharedProjectView from './SharedProjectView';
 import InvoiceManager from './InvoiceManager';
 import AccountingManager from './AccountingManager';
 import HostingManager from './HostingManager';
-import TranslationTool from './TranslationTool'; 
+import TranslationTool from './TranslationTool';
 import SupportTicketManager from './SupportTicketManager';
 import QRLogin from './QRLogin';
 import DocumentManager from './DocumentManager';
-import AIChat from './AIChat'; 
-import SideChat from './SideChat'; 
+import AIChat from './AIChat';
+import SideChat from './SideChat';
 import Help from './Help';
-import PartnersAdmin from './PartnersAdmin'; 
+import PartnersAdmin from './PartnersAdmin';
 import WebPagesAdmin from './WebPagesAdmin'; // Weboldalak kezelő komponens importálása
-
+import SettingsManager from './SettingsManager'; // Beállítások kezelő komponens importálása
 
 
 const App = () => {
  const PrivateRoute = ({ children }) => {
    const isAuthenticated = sessionStorage.getItem('isAuthenticated') === 'true';
-   
+
    if (!isAuthenticated) {
      return <Navigate to="/login" />;
    }
@@ -48,7 +48,7 @@ const App = () => {
    <Routes>
      <Route path="/login" element={<Login />} />
      <Route path="/magic-login" element={<MagicLogin />} />
-     
+
      <Route
        path="/"
        element={
@@ -162,6 +162,14 @@ const App = () => {
        }
      />
      <Route
+       path="/settings"
+       element={
+         <PrivateRoute>
+           <SettingsManager />
+         </PrivateRoute>
+       }
+     />
+     <Route
        path="/support"
        element={
          <PrivateRoute>
@@ -188,8 +196,8 @@ const App = () => {
      />
      <Route path="*" element={<Navigate to="/magic-login" />} />
      <Route path="/shared-project/:token" element={<SharedProjectView />} />
-     <Route 
-       path="/ai-chat" 
+     <Route
+       path="/ai-chat"
        element={
          <PrivateRoute>
            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 h-[calc(100vh-64px)] flex flex-col">
