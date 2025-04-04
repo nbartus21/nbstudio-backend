@@ -478,7 +478,7 @@ const pdfTranslations = {
     issueDate: "Kiállítás dátuma",
     dueDate: "Fizetési határidő",
     provider: "KIÁLLÍTÓ",
-    client: "VEVŐ",
+    client: "ÜGYFÈL",
     item: "Tétel",
     quantity: "Mennyiség",
     unitPrice: "Egységár",

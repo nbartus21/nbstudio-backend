@@ -717,7 +717,7 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
       issueDate: "Kiállítás dátuma",
       dueDate: "Fizetési határidő",
       provider: "KIÁLLÍTÓ",
-      client: "VEVŐ",
+      client: "ÜGYFÉL",
       item: "Tétel",
       quantity: "Mennyiség",
       unitPrice: "Egységár",
