@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Upload, Check, AlertTriangle, LogOut, Users, Calendar,
-  Globe, ChevronDown, File, Download, FileText
+  Globe, ChevronDown, File, Download, FileText, History
 } from 'lucide-react';
 import { formatShortDate, debugLog, loadFromLocalStorage, getProjectId } from './shared/utils';
 
@@ -10,6 +10,7 @@ import ProjectOverview from './shared/ProjectOverview';
 import ProjectInvoices from './shared/ProjectInvoices';
 import ProjectFiles from './shared/ProjectFiles';
 import ProjectDocuments from './shared/ProjectDocuments'; // New component for documents
+import ProjectChangelog from './shared/ProjectChangelog'; // New component for changelog
 import FilePreviewModal from './shared/FilePreviewModal';
 import InvoiceViewModal from './shared/InvoiceViewModal';
 import DocumentViewModal from './shared/DocumentViewModal'; // New component for document preview
@@ -23,6 +24,7 @@ const translations = {
     files: "Files",
     documents: "Documents",
     milestones: "Milestones",
+    changelog: "Changelog",
     uploadFile: "Upload File",
     noProject: "No project loaded",
     selectProject: "Please select a project or log in again",
@@ -51,6 +53,7 @@ const translations = {
     files: "Dateien",
     documents: "Dokumente",
     milestones: "Meilensteine",
+    changelog: "Änderungsprotokoll",
     uploadFile: "Datei hochladen",
     noProject: "Kein Projekt geladen",
     selectProject: "Bitte wählen Sie ein Projekt aus oder melden Sie sich erneut an",
@@ -79,6 +82,7 @@ const translations = {
     files: "Fájlok",
     documents: "Dokumentumok",
     milestones: "Mérföldkövek",
+    changelog: "Fejlesztési napló",
     uploadFile: "Fájl feltöltése",
     noProject: "Nincs betöltve projekt",
     selectProject: "Kérjük, válasszon egy projektet vagy jelentkezzen be újra",
@@ -999,6 +1003,22 @@ const SharedProjectDashboard = ({
                   </span>
                 )}
               </button>
+              <button
+                onClick={() => setActiveTab('changelog')}
+                className={`${
+                  activeTab === 'changelog'
+                    ? 'border-indigo-500 text-indigo-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm relative flex items-center`}
+              >
+                <History className="h-4 w-4 mr-1" />
+                {t.changelog || 'Fejlesztési napló'}
+                {normalizedProject.changelog && normalizedProject.changelog.length > 0 && (
+                  <span className="absolute -top-1 -right-1 h-5 w-5 text-xs flex items-center justify-center rounded-full bg-indigo-100 text-indigo-600">
+                    {normalizedProject.changelog.length}
+                  </span>
+                )}
+              </button>
               {normalizedProject.milestones && normalizedProject.milestones.length > 0 && (
                 <button
                   onClick={() => setActiveTab('milestones')}
@@ -1096,6 +1116,14 @@ const SharedProjectDashboard = ({
             showErrorMessage={showErrorMessage}
             isAdmin={adminMode}
             language={language}
+          />
+        )}
+
+        {activeTab === 'changelog' && (
+          <ProjectChangelog
+            project={normalizedProject}
+            language={language}
+            onRefresh={refreshProjectData}
           />
         )}
 

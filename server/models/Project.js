@@ -177,7 +177,20 @@ comments: [{
     link: String,
     expiresAt: Date,
     createdAt: Date
-  }
+  },
+
+  // Changelog - fejlesztési napló
+  changelog: [{
+    title: { type: String, required: true },
+    description: String,
+    date: { type: Date, default: Date.now },
+    type: {
+      type: String,
+      enum: ['feature', 'bugfix', 'improvement', 'other'],
+      default: 'feature'
+    },
+    createdBy: String
+  }]
 }, {
   timestamps: true
 });
@@ -185,25 +198,25 @@ comments: [{
 // Update timestamp middleware
 projectSchema.pre('save', function(next) {
   this.updatedAt = new Date();
-  
+
   // Frissítjük a számlálókat
   if (this.isModified('comments')) {
     this.activityCounters.commentsCount = this.comments.length;
-    
+
     // Ellenőrizzük, hogy van-e új (nem admin) hozzászólás, amire még nem válaszoltak
     const nonAdminComments = this.comments.filter(c => !c.isAdminComment);
     const adminComments = this.comments.filter(c => c.isAdminComment);
-    
+
     if (nonAdminComments.length > 0) {
-      const lastNonAdminComment = nonAdminComments.sort((a, b) => 
+      const lastNonAdminComment = nonAdminComments.sort((a, b) =>
         new Date(b.timestamp) - new Date(a.timestamp)
       )[0];
-      
+
       if (adminComments.length > 0) {
-        const lastAdminComment = adminComments.sort((a, b) => 
+        const lastAdminComment = adminComments.sort((a, b) =>
           new Date(b.timestamp) - new Date(a.timestamp)
         )[0];
-        
+
         // Ellenőrizzük, hogy az utolsó nem-admin hozzászólás után volt-e admin válasz
         this.activityCounters.adminResponseRequired = new Date(lastNonAdminComment.timestamp) > new Date(lastAdminComment.timestamp);
         this.activityCounters.lastAdminCommentAt = lastAdminComment.timestamp;
@@ -211,26 +224,26 @@ projectSchema.pre('save', function(next) {
         // Ha nincs admin hozzászólás, akkor válasz szükséges
         this.activityCounters.adminResponseRequired = true;
       }
-      
+
       this.activityCounters.lastCommentAt = lastNonAdminComment.timestamp;
       this.activityCounters.hasNewComments = true;
     }
   }
-  
+
   if (this.isModified('files')) {
     this.activityCounters.filesCount = this.files.length;
-    
+
     if (this.files.length > 0) {
       // Frissítjük az utolsó fájl dátumát
-      const lastFile = this.files.sort((a, b) => 
+      const lastFile = this.files.sort((a, b) =>
         new Date(b.uploadedAt) - new Date(a.uploadedAt)
       )[0];
-      
+
       this.activityCounters.lastFileAt = lastFile.uploadedAt;
       this.activityCounters.hasNewFiles = true;
     }
   }
-  
+
   next();
 });
 

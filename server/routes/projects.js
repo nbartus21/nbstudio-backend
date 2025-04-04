@@ -811,4 +811,95 @@ router.get('/projects/:id/activity', async (req, res) => {
   }
 });
 
+// Changelog bejegyzés hozzáadása
+router.post('/projects/:id/changelog', async (req, res) => {
+  try {
+    const { title, description, type, createdBy } = req.body;
+
+    if (!title) {
+      return res.status(400).json({ message: 'A cím megadása kötelező' });
+    }
+
+    const project = await Project.findById(req.params.id);
+    if (!project) {
+      return res.status(404).json({ message: 'Projekt nem található' });
+    }
+
+    const changelogEntry = {
+      title,
+      description,
+      date: new Date(),
+      type: type || 'feature',
+      createdBy: createdBy || 'Admin'
+    };
+
+    project.changelog = project.changelog || [];
+    project.changelog.push(changelogEntry);
+
+    await project.save();
+
+    res.status(201).json(changelogEntry);
+  } catch (error) {
+    console.error('Hiba a changelog bejegyzés hozzáadásakor:', error);
+    res.status(500).json({ message: 'Szerver hiba történt', error: error.message });
+  }
+});
+
+// Changelog bejegyzések lekérése
+router.get('/projects/:id/changelog', async (req, res) => {
+  try {
+    const project = await Project.findById(req.params.id);
+    if (!project) {
+      return res.status(404).json({ message: 'Projekt nem található' });
+    }
+
+    res.json(project.changelog || []);
+  } catch (error) {
+    console.error('Hiba a changelog bejegyzések lekérésekor:', error);
+    res.status(500).json({ message: 'Szerver hiba történt', error: error.message });
+  }
+});
+
+// Changelog bejegyzés törlése
+router.delete('/projects/:id/changelog/:entryId', async (req, res) => {
+  try {
+    const project = await Project.findById(req.params.id);
+    if (!project) {
+      return res.status(404).json({ message: 'Projekt nem található' });
+    }
+
+    if (!project.changelog) {
+      return res.status(404).json({ message: 'Changelog nem található' });
+    }
+
+    const entryIndex = project.changelog.findIndex(entry => entry._id.toString() === req.params.entryId);
+    if (entryIndex === -1) {
+      return res.status(404).json({ message: 'Changelog bejegyzés nem található' });
+    }
+
+    project.changelog.splice(entryIndex, 1);
+    await project.save();
+
+    res.status(200).json({ message: 'Changelog bejegyzés sikeresen törölve' });
+  } catch (error) {
+    console.error('Hiba a changelog bejegyzés törlésekor:', error);
+    res.status(500).json({ message: 'Szerver hiba történt', error: error.message });
+  }
+});
+
+// Changelog bejegyzés lekérése a megosztott projekthez
+router.get('/public/projects/:token/changelog', async (req, res) => {
+  try {
+    const project = await Project.findOne({ 'sharing.token': req.params.token });
+    if (!project) {
+      return res.status(404).json({ message: 'Projekt nem található' });
+    }
+
+    res.json(project.changelog || []);
+  } catch (error) {
+    console.error('Hiba a changelog bejegyzések lekérésekor:', error);
+    res.status(500).json({ message: 'Szerver hiba történt', error: error.message });
+  }
+});
+
 export default router;
