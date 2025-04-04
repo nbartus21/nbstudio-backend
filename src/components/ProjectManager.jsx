@@ -259,10 +259,14 @@ const ProjectManager = () => {
         currentProject = existingProject || null;
       }
   
+      // Alapvető adatszerkezet létrehozása
       const projectData = {
-        ...selectedProject,
+        name: selectedProject.name,
+        description: selectedProject.description || '',
         status: selectedProject.status || 'aktív',
         priority: selectedProject.priority || 'közepes',
+        
+        // Client adatok strukturált kezelése
         client: {
           name: selectedProject.client.name,
           email: selectedProject.client.email,
@@ -278,66 +282,72 @@ const ProjectManager = () => {
             country: selectedProject.client?.address?.country || ''
           }
         },
+        
+        // Pénzügyi adatok
         financial: {
           budget: {
             min: selectedProject.financial?.budget?.min || 0,
             max: selectedProject.financial?.budget?.max || 0
           },
           currency: selectedProject.financial?.currency || 'EUR'
-        },
-        // Preserve sharing information if it exists in the current project
-        sharing: currentProject?.sharing || selectedProject.sharing
+        }
       };
       
-      // Hibaelhárítás: naplózzuk a küldendő adatokat
-      console.log('Küldendő projekt adatok:', JSON.stringify(projectData, null, 2));
-
-      // Ellenőrizzük, hogy vannak-e érvénytelen adatok
-      if (projectData.changelog && Array.isArray(projectData.changelog)) {
-        projectData.changelog = projectData.changelog.filter(entry => 
+      // Csak a szükséges mezőket adjuk hozzá a sharing-ből
+      if (currentProject?.sharing || selectedProject.sharing) {
+        projectData.sharing = {
+          token: (currentProject?.sharing?.token || selectedProject.sharing?.token),
+          pin: (currentProject?.sharing?.pin || selectedProject.sharing?.pin)
+        };
+      }
+      
+      // Changelog kezelése - csak ha van és jó formátumú
+      if (selectedProject.changelog && Array.isArray(selectedProject.changelog)) {
+        projectData.changelog = selectedProject.changelog.filter(entry => 
           entry && typeof entry === 'object' && entry.title
         );
       }
       
-      // Távolítsuk el a ciklikus hivatkozásokat vagy érvénytelen mezőket
-      const cleanedData = JSON.parse(JSON.stringify(projectData));
-  
-      let response;
+      // Invoices megőrzése - csak ha van és jó formátumú
+      if (selectedProject.invoices && Array.isArray(selectedProject.invoices)) {
+        projectData.invoices = selectedProject.invoices;
+      }
+
+      console.log('Küldendő projekt adatok:', JSON.stringify(projectData, null, 2));
+      
+      // API végpont
       const apiEndpoint = selectedProject._id ? 
         `${API_URL}/projects/${selectedProject._id}` : 
         `${API_URL}/projects`;
       
       console.log('API végpont:', apiEndpoint);
       
+      let response;
       try {
         if (selectedProject._id) {
-          response = await api.put(apiEndpoint, cleanedData);
+          response = await api.put(apiEndpoint, projectData);
         } else {
-          response = await api.post(apiEndpoint, cleanedData);
+          response = await api.post(apiEndpoint, projectData);
         }
       } catch (fetchError) {
         console.error('Hiba a fetch művelet során:', fetchError);
         throw new Error(`Hálózati hiba: ${fetchError.message}`);
       }
       
-      let responseData;
-      try {
-        responseData = await response.json();
-      } catch (jsonError) {
-        console.error('Hiba a válasz JSON feldolgozása során:', jsonError);
-        if (!response.ok) {
-          throw new Error(`Szerver hiba: ${response.status} - ${response.statusText}`);
-        }
-      }
-      
+      // Mivel a response.json() már az api.put/post-ban már feldolgozásra került
+      // itt óvatosan kezeljük a választ
       if (!response.ok) {
+        let errorMessage;
+        
         if (response.status === 404) {
-          throw new Error('A projekt nem található');
+          errorMessage = 'A projekt nem található';
         } else if (response.status === 500) {
-          console.error('Szerver hiba részletek:', responseData);
-          throw new Error(`Szerver hiba: ${responseData.message || 'Belső szerver hiba'}`);
+          errorMessage = 'Szerver oldali hiba történt. Kérjük, próbálja újra később.';
+        } else {
+          errorMessage = `Hiba: ${response.status} - ${response.statusText}`;
         }
-        throw new Error(responseData.message || `Hiba: ${response.status} - ${response.statusText}`);
+        
+        throw new Error(errorMessage);
       }
   
       setSelectedProject(null);

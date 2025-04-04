@@ -56,36 +56,67 @@ export const getAuthToken = () => {
         };
       }
       
-      // Ha PUT kérés és 500-as hiba, ellenőrizzük részletesebben
-      if (options.method === 'PUT' && response.status === 500) {
-        console.error('500-as szerver hiba a PUT kérés során:', url);
-        try {
-          // Próbáljuk meg kinyerni a hiba részleteit
-          const errorDetails = await response.json().catch(() => ({}));
-          console.error('Szerver hiba részletek:', errorDetails);
-        } catch (e) {
-          console.error('Nem sikerült a hibaválaszt kiolvasni:', e);
-        }
-      }
-  
-      // Ha nem 2xx-es a válasz, dobunk egy hibát
+      // Ha PUT kérés és 500-as hiba, próbáljuk kinyerni a hiba részleteit
+      // klónozva a response-t, hogy később is használhassuk
+      let errorDetails = null;
       if (!response.ok) {
+        if (options.method === 'PUT' && response.status === 500) {
+          console.error('500-as szerver hiba a PUT kérés során:', url);
+          
+          try {
+            // Klónozzuk a response-t, hogy ne használjuk el a body streamet
+            const responseClone = response.clone();
+            errorDetails = await responseClone.json().catch(() => null);
+            
+            if (errorDetails) {
+              console.error('Szerver hiba részletek:', errorDetails);
+            }
+          } catch (e) {
+            console.error('Nem sikerült a hibaválaszt kiolvasni:', e);
+          }
+        }
+        
+        // Ha nem 2xx-es a válasz, dobunk egy hibát
         let errorMessage = `HTTP error! status: ${response.status}`;
         
-        try {
-          const errorData = await response.json();
-          if (errorData && errorData.message) {
-            errorMessage = errorData.message;
+        if (errorDetails && errorDetails.message) {
+          errorMessage = errorDetails.message;
+        } else {
+          try {
+            // Csak akkor próbáljuk meg JSON-ként értelmezni, ha még nem tettük meg
+            if (!errorDetails) {
+              const responseClone = response.clone();
+              const errorData = await responseClone.json().catch(() => null);
+              
+              if (errorData && errorData.message) {
+                errorMessage = errorData.message;
+              }
+            }
+          } catch (jsonError) {
+            // Ha nem sikerül a JSON-t értelmezni, használjuk az eredeti hibaüzenetet
+            console.error('Nem sikerült a JSON hibaüzenetet értelmezni:', jsonError);
           }
-        } catch (jsonError) {
-          // Ha nem sikerül a JSON-t értelmezni, használjuk az eredeti hibaüzenetet
-          console.error('Nem sikerült a JSON hibaüzenetet értelmezni:', jsonError);
         }
         
         throw new Error(errorMessage);
       }
   
-      return response;
+      // Sikeres response esetén adjunk vissza bővített objektumot a json metódussal
+      const enhancedResponse = {
+        ...response,
+        json: async () => {
+          try {
+            // A clone metódust használjuk, hogy elkerüljük a stream többszöri olvasását
+            const clone = response.clone();
+            return await clone.json();
+          } catch (e) {
+            console.error('Hiba a válasz JSON olvasása közben:', e);
+            throw new Error('Nem sikerült JSON-ként értelmezni a választ');
+          }
+        }
+      };
+      
+      return enhancedResponse;
     } catch (error) {
       // Csak akkor naplózzuk a hibát, ha nem az /expenses végponthoz kapcsolódik
       if (!url.includes('/expenses')) {
