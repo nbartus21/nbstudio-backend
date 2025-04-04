@@ -93,77 +93,35 @@ const ProjectChangelog = ({ project, language = 'hu', onRefresh }) => {
       setIsLoading(true);
       setError(null);
       
-      // Ha token-alapú megosztott projekt
-      if (project.sharing?.token || (typeof project.token === 'string' && project.token)) {
-        const token = project.sharing?.token || project.token;
-        
-        // API alapok
+      // Ha megosztott projekt (token van), akkor használjuk a megfelelő végpontot az API kulccsal
+      const endpoint = project.sharing?.token
+        ? `/api/public/projects/${project.sharing.token}/changelog`
+        : `/api/projects/${project._id}/changelog`;
+      
+      let response;
+      
+      if (project.sharing?.token) {
+        // Publikus API hívás esetén közvetlenül fetch-et használunk API kulccsal
         const apiUrl = 'https://admin.nb-studio.net:5001';
-        const backupApiUrl = 'https://project.nb-studio.net';
-        const apiKey = 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0';
+        const fullEndpoint = `${apiUrl}${endpoint}`;
         
-        // Kipróbálandó végpontok
-        const endpoints = [
-          `/api/public/projects/${token}/changelog`,
-          `/public/projects/${token}/changelog`,
-          `/api/projects/public/${token}/changelog`,
-          `/projects/changelog/${token}`
-        ];
-        
-        let response = null;
-        let lastError = null;
-        
-        // Próbáljuk meg mindegyik végpontot mindkét API URL-lel
-        for (const endpoint of endpoints) {
-          try {
-            // Próbáljuk meg az elsődleges API URL-lel
-            response = await fetch(`${apiUrl}${endpoint}`, {
-              headers: {
-                'Content-Type': 'application/json',
-                'X-API-Key': apiKey,
-                'Accept': 'application/json'
-              },
-              credentials: 'omit' // CORS problémák elkerülése
-            });
-            
-            if (response.ok) break;
-            
-            // Ha nem sikerült, próbáljuk meg a backup URL-lel
-            response = await fetch(`${backupApiUrl}${endpoint}`, {
-              headers: {
-                'Content-Type': 'application/json',
-                'X-API-Key': apiKey,
-                'Accept': 'application/json'
-              },
-              credentials: 'omit' // CORS problémák elkerülése
-            });
-            
-            if (response.ok) break;
-          } catch (e) {
-            lastError = e;
-            console.log(`Végpont hiba: ${endpoint}`, e);
-            // Folytatjuk a következő végponttal
+        response = await fetch(fullEndpoint, {
+          headers: {
+            'Content-Type': 'application/json',
+            'X-API-Key': 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0'
           }
-        }
-        
-        if (!response || !response.ok) {
-          throw new Error(lastError?.message || `Error fetching changelog: ${response?.status || 'Ismeretlen hiba'}`);
-        }
-        
-        const data = await response.json();
-        setChangelog(data);
+        });
       } else {
-        // Ha normál projekt, használjuk az auth tokent
-        const endpoint = `/api/projects/${project._id}/changelog`;
-        const response = await api.get(endpoint);
-        
-        if (!response.ok) {
-          throw new Error(`Error fetching changelog: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        setChangelog(data);
+        // Védett API hívás esetén az api.get szolgáltatást használjuk (auth token-nel)
+        response = await api.get(endpoint);
       }
+      
+      if (!response.ok) {
+        throw new Error(`Error fetching changelog: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      setChangelog(data);
     } catch (error) {
       console.error('Error fetching changelog:', error);
       setError(error.message);
