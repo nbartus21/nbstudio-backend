@@ -1505,8 +1505,7 @@ function setupProjectDomain() {
 // SERVER STARTUP
 // ==============================================
 // Fájl írása a lemezre a szerver indításakor
-const fs = require('fs');
-const path = require('path');
+import path from 'path';
 const startupFilePath = path.join(process.cwd(), 'server-started.txt');
 fs.writeFileSync(startupFilePath, `Szerver indítva: ${new Date().toISOString()}\n`, { flag: 'a' });
 console.log('Fájl sikeresen írva a szerver indításakor:', startupFilePath);
