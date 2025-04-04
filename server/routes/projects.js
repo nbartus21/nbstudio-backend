@@ -2,6 +2,7 @@ import express from 'express';
 import Project from '../models/Project.js';
 import { v4 as uuidv4 } from 'uuid';
 import Notification from '../models/Notification.js';
+import { validateApiKey } from '../middleware/validateApiKey.js';
 
 const router = express.Router();
 

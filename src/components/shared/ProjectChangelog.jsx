@@ -97,23 +97,28 @@ const ProjectChangelog = ({ project, language = 'hu', onRefresh }) => {
       setIsLoading(true);
       setError(null);
 
-      // Ha megosztott projekt (token van), akkor használjuk a megfelelő végpontot az API kulccsal
-      const endpoint = project.sharing?.token
-        ? `/public/projects/${project.sharing.token}/changelog`
+      // Ellenőrizzük a sharing token meglétét
+      const sharingToken = project.sharing?.token || project.sharingToken;
+
+      // Endpoint kiválasztása a megosztási token alapján
+      const endpoint = sharingToken
+        ? `/public/projects/${sharingToken}/changelog`
         : `/projects/${project._id}/changelog`;
 
       let response;
 
-      if (project.sharing?.token) {
-        // Egyszerűsített megközelítés, ahogy a számlák PDF generálásánál is
+      if (sharingToken) {
+        // Egyszerűsített megközelítés, API kulccsal
         console.log('Fetching changelog with simplified approach');
 
-        // Használjuk ugyanazt a megközelítést, mint a handleGeneratePDF függvényben
         response = await fetch(`${API_URL}${endpoint}`, {
           method: 'GET',
           headers: {
-            'X-API-Key': API_KEY
-          }
+            'X-API-Key': API_KEY,
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          },
+          credentials: 'omit' // Ne küldjön cookie-kat a kéréssel
         });
 
         console.log('Response status:', response.status);
@@ -121,16 +126,21 @@ const ProjectChangelog = ({ project, language = 'hu', onRefresh }) => {
         if (!response.ok) {
           console.log('Request failed, trying fallback endpoint');
 
-          // Próbáljunk meg egy másik végpontot
-          const fallbackEndpoint = `/projects/${project._id}/changelog`;
-          response = await fetch(`${API_URL}${fallbackEndpoint}`, {
-            method: 'GET',
-            headers: {
-              'X-API-Key': API_KEY
-            }
-          });
+          // Ha nem sikerült a token alapján, próbáljuk meg a projektID alapján (ha van)
+          if (project._id) {
+            const fallbackEndpoint = `/projects/${project._id}/changelog`;
+            response = await fetch(`${API_URL}${fallbackEndpoint}`, {
+              method: 'GET',
+              headers: {
+                'X-API-Key': API_KEY,
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+              },
+              credentials: 'omit'
+            });
 
-          console.log('Fallback response status:', response.status);
+            console.log('Fallback response status:', response.status);
+          }
         }
       } else {
         // Védett API hívás esetén az api.get szolgáltatást használjuk (auth token-nel)
@@ -165,14 +175,17 @@ const ProjectChangelog = ({ project, language = 'hu', onRefresh }) => {
   // Fetch changelog on component mount
   useEffect(() => {
     fetchChangelog();
-  }, [project._id, project.sharing?.token]);
+  }, [project._id, project.sharing?.token, project.sharingToken]);
 
   // Debug log
   useEffect(() => {
+    const projectId = project._id;
+    const sharingToken = project.sharing?.token || project.sharingToken;
+    
     console.log('ProjectChangelog component mounted with project:', {
-      projectId: project._id,
-      sharingToken: project.sharing?.token,
-      hasSharing: Boolean(project.sharing),
+      projectId: projectId,
+      sharingToken: sharingToken,
+      hasSharing: Boolean(project.sharing) || Boolean(project.sharingToken),
       changelog: project.changelog?.length || 0
     });
   }, []);
