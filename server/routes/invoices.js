@@ -341,29 +341,12 @@ const manuallyGenerateInvoice = async (projectId, invoiceId) => {
 // Új számla létrehozása projekthez
 router.post('/projects/:projectId/invoices', async (req, res) => {
   // Egyedi naplóbejegyzés, amely könnyen azonosítható
-  console.log('EGYEDI_NAPLOBEJEGYZES: Számla létrehozás végpont elindult');
-  console.log('EGYEDI_NAPLOBEJEGYZES: Projekt ID:', req.params.projectId);
-  console.log('EGYEDI_NAPLOBEJEGYZES: Számla adatok:', req.body);
-
-  // Fájl írása a lemezre a végpont elején
-  console.log('EGYEDI_NAPLOBEJEGYZES: Fájl írás megkísérlése a végpont elején...');
-  try {
-    console.log('EGYEDI_NAPLOBEJEGYZES: process.cwd():', process.cwd());
-    console.log('EGYEDI_NAPLOBEJEGYZES: __dirname:', __dirname);
-    console.log('EGYEDI_NAPLOBEJEGYZES: path.join(process.cwd(), "endpoint-start.txt"):', path.join(process.cwd(), 'endpoint-start.txt'));
-
-    // Próbáljunk meg írni a /tmp mappába
-    fs.writeFileSync('/tmp/endpoint-start.txt', `Számla létrehozás végpont elindult: ${new Date().toISOString()}\n`, { flag: 'a' });
-    console.log('EGYEDI_NAPLOBEJEGYZES: Fájl sikeresen írva a /tmp mappába: /tmp/endpoint-start.txt');
-
-    // Próbáljunk meg írni a projekt mappájába
-    const endpointStartFilePath = path.join(process.cwd(), 'endpoint-start.txt');
-    fs.writeFileSync(endpointStartFilePath, `Számla létrehozás végpont elindult: ${new Date().toISOString()}\n`, { flag: 'a' });
-    console.log('EGYEDI_NAPLOBEJEGYZES: Fájl sikeresen írva a végpont elején:', endpointStartFilePath);
-  } catch (fileError) {
-    console.error('EGYEDI_NAPLOBEJEGYZES: Hiba a fájl írásakor a végpont elején:', fileError);
-    console.error('EGYEDI_NAPLOBEJEGYZES: Hiba részletei:', fileError.message, fileError.code, fileError.path);
-  }
+  console.log('EGYEDI_NAPLOBEJEGYZES_VEGPONT: Számla létrehozás végpont elindult');
+  console.log('EGYEDI_NAPLOBEJEGYZES_VEGPONT: Projekt ID:', req.params.projectId);
+  console.log('EGYEDI_NAPLOBEJEGYZES_VEGPONT: Számla adatok:', req.body);
+  console.log('EGYEDI_NAPLOBEJEGYZES_VEGPONT: Időpont:', new Date().toISOString());
+  console.log('EGYEDI_NAPLOBEJEGYZES_VEGPONT: Git commit:', '8be12913');
+  console.log('EGYEDI_NAPLOBEJEGYZES_VEGPONT: __dirname:', __dirname);
 
   try {
     console.log('Számla létrehozási kérés érkezett');
