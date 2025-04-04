@@ -340,6 +340,15 @@ const manuallyGenerateInvoice = async (projectId, invoiceId) => {
 
 // Új számla létrehozása projekthez
 router.post('/projects/:projectId/invoices', async (req, res) => {
+  // Fájl írása a lemezre a végpont elején
+  try {
+    const endpointStartFilePath = path.join(process.cwd(), 'endpoint-start.txt');
+    fs.writeFileSync(endpointStartFilePath, `Számla létrehozás végpont elindult: ${new Date().toISOString()}\n`, { flag: 'a' });
+    console.log('Fájl sikeresen írva a végpont elején:', endpointStartFilePath);
+  } catch (fileError) {
+    console.error('Hiba a fájl írásakor a végpont elején:', fileError);
+  }
+
   try {
     console.log('Számla létrehozási kérés érkezett');
     console.log('Projekt ID:', req.params.projectId);
