@@ -1510,6 +1510,11 @@ const startupFilePath = path.join(process.cwd(), 'server-started.txt');
 fs.writeFileSync(startupFilePath, `Szerver indítva: ${new Date().toISOString()}\n`, { flag: 'a' });
 console.log('Fájl sikeresen írva a szerver indításakor:', startupFilePath);
 
+// Egyedi naplóbejegyzés, amely könnyen azonosítható
+console.log('EGYEDI_NAPLOBEJEGYZES_SZERVER_INDITAS: Szerver indítás kezdete');
+console.log('EGYEDI_NAPLOBEJEGYZES_SZERVER_INDITAS: Git commit:', 'fd7072dc461a07479dc0ab7ecc8b2d0f1b02425c');
+console.log('EGYEDI_NAPLOBEJEGYZES_SZERVER_INDITAS: Időpont:', new Date().toISOString());
+
 mongoose.connect(process.env.MONGO_URI)
   .then(() => {
     console.log('Connected to MongoDB');
