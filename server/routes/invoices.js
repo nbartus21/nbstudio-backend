@@ -341,12 +341,23 @@ const manuallyGenerateInvoice = async (projectId, invoiceId) => {
 // Új számla létrehozása projekthez
 router.post('/projects/:projectId/invoices', async (req, res) => {
   // Fájl írása a lemezre a végpont elején
+  console.log('Fájl írás megkísérlése a végpont elején...');
   try {
+    console.log('process.cwd():', process.cwd());
+    console.log('__dirname:', __dirname);
+    console.log('path.join(process.cwd(), "endpoint-start.txt"):', path.join(process.cwd(), 'endpoint-start.txt'));
+
+    // Próbáljunk meg írni a /tmp mappába
+    fs.writeFileSync('/tmp/endpoint-start.txt', `Számla létrehozás végpont elindult: ${new Date().toISOString()}\n`, { flag: 'a' });
+    console.log('Fájl sikeresen írva a /tmp mappába: /tmp/endpoint-start.txt');
+
+    // Próbáljunk meg írni a projekt mappájába
     const endpointStartFilePath = path.join(process.cwd(), 'endpoint-start.txt');
     fs.writeFileSync(endpointStartFilePath, `Számla létrehozás végpont elindult: ${new Date().toISOString()}\n`, { flag: 'a' });
     console.log('Fájl sikeresen írva a végpont elején:', endpointStartFilePath);
   } catch (fileError) {
     console.error('Hiba a fájl írásakor a végpont elején:', fileError);
+    console.error('Hiba részletei:', fileError.message, fileError.code, fileError.path);
   }
 
   try {
