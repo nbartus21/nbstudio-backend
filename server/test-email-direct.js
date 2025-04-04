@@ -1,6 +1,9 @@
 // Egyszerű teszt script a nodemailer működésének ellenőrzésére
-const nodemailer = require('nodemailer');
-require('dotenv').config();
+import nodemailer from 'nodemailer';
+import dotenv from 'dotenv';
+
+// Környezeti változók betöltése
+dotenv.config();
 
 // SMTP beállítások
 const SMTP_HOST = process.env.SMTP_HOST || 'nb-hosting.hu';
@@ -34,7 +37,7 @@ transporter.verify((error, success) => {
     console.error('SMTP kapcsolat hiba:', error);
   } else {
     console.log('SMTP szerver kapcsolat OK, kész az emailek küldésére');
-    
+
     // Teszt email küldése
     console.log('Teszt email küldése...');
     const mailOptions = {
@@ -49,7 +52,7 @@ transporter.verify((error, success) => {
         </div>
       `
     };
-    
+
     transporter.sendMail(mailOptions, (error, info) => {
       if (error) {
         console.error('Email küldési hiba:', error);
@@ -57,7 +60,7 @@ transporter.verify((error, success) => {
         console.log('Email sikeresen elküldve:', info.messageId);
         console.log('Válasz:', info.response);
       }
-      
+
       process.exit(0);
     });
   }
