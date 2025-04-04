@@ -5,6 +5,7 @@ import {
   CreditCard, RefreshCw
 } from 'lucide-react';
 import { formatShortDate, debugLog } from './utils';
+import { API_URL, API_KEY } from '../../config';
 import QRCode from 'qrcode.react';
 import { downloadInvoicePDF } from '../../services/invoiceService';
 
@@ -271,10 +272,44 @@ const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGenerat
 
   const invoiceStatus = checkInvoiceStatus();
 
-  // Emlékeztető küldése - a backend később implementálhatja
-  const handleSendReminder = () => {
+  // Emlékeztető küldése
+  const handleSendReminder = async () => {
     debugLog('InvoiceViewModal-sendReminder', 'Sending reminder for invoice', invoice.number);
-    alert('Emlékeztető küldése funkcionalitás hamarosan elérhető lesz!');
+
+    try {
+      // Megerősítés kérése
+      if (!confirm(language === 'hu' ? 'Biztos, hogy emlékeztetőt szeretne küldeni erről a számláról?' :
+                  (language === 'de' ? 'Sind Sie sicher, dass Sie eine Erinnerung für diese Rechnung senden möchten?' :
+                                      'Are you sure you want to send a reminder for this invoice?'))) {
+        return;
+      }
+
+      // API hívás az emlékeztető küldéséhez
+      const response = await fetch(`${API_URL}/projects/${projectId}/invoices/${invoice._id}/send-reminder`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-API-Key': API_KEY
+        },
+        body: JSON.stringify({ language })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Hiba történt az emlékeztető küldése közben');
+      }
+
+      // Sikeres küldés esetén értesítés
+      alert(language === 'hu' ? 'Emlékeztető sikeresen elküldve!' :
+            (language === 'de' ? 'Erinnerung erfolgreich gesendet!' :
+                                'Reminder successfully sent!'));
+    } catch (error) {
+      console.error('Error sending reminder:', error);
+      alert(language === 'hu' ? `Hiba történt: ${error.message}` :
+            (language === 'de' ? `Ein Fehler ist aufgetreten: ${error.message}` :
+                                `An error occurred: ${error.message}`));
+    }
   };
 
   // Bankkártyás fizetés - eltávolítva

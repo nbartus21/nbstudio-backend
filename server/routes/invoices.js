@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import fs from 'fs';
 import cron from 'node-cron';
+import { checkOverdueInvoices, checkDueSoonInvoices, sendNewInvoiceNotification } from '../services/invoiceReminderService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -417,6 +418,18 @@ router.post('/projects/:projectId/invoices', async (req, res) => {
     await project.save();
     console.log('Projekt sikeresen mentve');
 
+    // Új számla értesítés küldése, ha van email cím a projekthez
+    if (project.client && project.client.email) {
+      try {
+        console.log('Új számla értesítés küldése:', project.client.email);
+        const notificationResult = await sendNewInvoiceNotification(project._id, invoice._id);
+        console.log('Új számla értesítés küldés eredménye:', notificationResult);
+      } catch (emailError) {
+        console.error('Hiba az új számla értesítés küldésekor, de folytatjuk:', emailError);
+        // Folytatjuk hiba esetén is
+      }
+    }
+
     res.status(201).json(project);
   } catch (error) {
     console.error('Hiba a számla létrehozásánál:', error);
@@ -478,7 +491,7 @@ const pdfTranslations = {
     issueDate: "Kiállítás dátuma",
     dueDate: "Fizetési határidő",
     provider: "KIÁLLÍTÓ",
-    client: "ÜGYFÈL",
+    client: "ÜGYFÉL",
     item: "Tétel",
     quantity: "Mennyiség",
     unitPrice: "Egységár",
@@ -1198,6 +1211,85 @@ cron.schedule('0 0,12 * * *', async () => {
     console.log(`Automatikus számlafeldolgozás befejezve, ${count} számla generálva`);
   } catch (error) {
     console.error('Hiba az automatikus számlafeldolgozás során:', error);
+  }
+});
+
+// Cron job beállítása a lejárt számlák ellenőrzéséhez és emlékeztetők küldéséhez
+// Minden nap 09:00-kor lefut
+cron.schedule('0 9 * * *', async () => {
+  try {
+    console.log('Lejárt számlák ellenőrzése és emlékeztetők küldése indul...');
+    const result = await checkOverdueInvoices();
+    console.log(`Lejárt számla emlékeztetők küldése befejezve, ${result.sentCount} email elküldve`);
+  } catch (error) {
+    console.error('Hiba a lejárt számla emlékeztetők küldése során:', error);
+  }
+});
+
+// Cron job beállítása a hamarosan lejáró számlák ellenőrzéséhez és emlékeztetők küldéséhez
+// Minden nap 10:00-kor lefut
+cron.schedule('0 10 * * *', async () => {
+  try {
+    console.log('Hamarosan lejáró számlák ellenőrzése és emlékeztetők küldése indul...');
+    const result = await checkDueSoonInvoices();
+    console.log(`Hamarosan lejáró számla emlékeztetők küldése befejezve, ${result.sentCount} email elküldve`);
+  } catch (error) {
+    console.error('Hiba a hamarosan lejáró számla emlékeztetők küldése során:', error);
+  }
+});
+
+// Számla emlékeztető küldése manuálisan
+router.post('/projects/:projectId/invoices/:invoiceId/send-reminder', async (req, res) => {
+  try {
+    const { projectId, invoiceId } = req.params;
+    const { language = 'hu' } = req.body;
+
+    // Ellenőrizzük az ID-k érvényességét
+    if (!mongoose.Types.ObjectId.isValid(projectId) || !mongoose.Types.ObjectId.isValid(invoiceId)) {
+      return res.status(400).json({ message: 'Érvénytelen projekt vagy számla azonosító' });
+    }
+
+    // Projekt és számla lekérése
+    const project = await Project.findById(projectId);
+    if (!project) {
+      return res.status(404).json({ message: 'Projekt nem található' });
+    }
+
+    const invoice = project.invoices.id(invoiceId);
+    if (!invoice) {
+      return res.status(404).json({ message: 'Számla nem található' });
+    }
+
+    // Ellenőrizzük, hogy a számla nem fizetett vagy törölt státuszú-e
+    if (['fizetett', 'paid', 'bezahlt', 'törölt', 'canceled', 'storniert'].includes(invoice.status)) {
+      return res.status(400).json({
+        message: 'Nem küldhető emlékeztető fizetett vagy törölt számlához',
+        status: invoice.status
+      });
+    }
+
+    // Emlékeztető küldése
+    const result = await sendInvoiceReminder(projectId, invoiceId, 'dueSoon', language);
+
+    if (!result.success) {
+      return res.status(500).json({
+        message: 'Hiba történt az emlékeztető küldése közben',
+        error: result.error
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Emlékeztető sikeresen elküldve',
+      result
+    });
+  } catch (error) {
+    console.error('Hiba a számla emlékeztető küldésekor:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Hiba történt az emlékeztető küldése közben',
+      error: error.message
+    });
   }
 });
 
