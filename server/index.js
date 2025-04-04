@@ -883,7 +883,7 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
          .fill(colors.primary);
 
       const tableHeaders = ['Tétel', 'Mennyiség', 'Egységár', 'Összesen'];
-      const tableColumnWidths = [280, 80, 90, 70]; // Átméretezett oszlopok
+      const tableColumnWidths = [265, 80, 90, 85]; // Tovább csökkentett Tétel oszlop
       const columnPositions = [50];
 
       // Kiszámoljuk a pozíciókat
