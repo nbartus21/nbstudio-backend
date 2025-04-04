@@ -97,64 +97,54 @@ const ProjectChangelog = ({ project, language = 'hu', onRefresh }) => {
       setIsLoading(true);
       setError(null);
 
-      // Ellenőrizzük a sharing token meglétét
-      const sharingToken = project.sharing?.token || project.sharingToken;
-
-      // Endpoint kiválasztása a megosztási token alapján
-      const endpoint = sharingToken
-        ? `/public/projects/${sharingToken}/changelog`
-        : `/projects/${project._id}/changelog`;
+      // Új logika a megosztott projekt token kezeléséhez
+      let endpoint;
+      
+      // A token többféle helyen lehet, ellenőrizzük mindegyiket
+      if (project.sharing?.token) {
+        endpoint = `/public/projects/${project.sharing.token}/changelog`;
+      } else if (project.shareToken) {
+        endpoint = `/public/projects/${project.shareToken}/changelog`;
+      } else if (project._id) {
+        endpoint = `/projects/${project._id}/changelog`;
+      } else {
+        throw new Error('Nem található projekt azonosító a changelog lekéréséhez');
+      }
 
       let response;
 
-      if (sharingToken) {
-        // Egyszerűsített megközelítés, API kulccsal
-        console.log('Fetching changelog with simplified approach');
+      // Használjuk az API kulcsot a lekéréshez
+      response = await fetch(`${API_URL}${endpoint}`, {
+        method: 'GET',
+        headers: {
+          'X-API-Key': API_KEY
+        }
+      });
 
-        response = await fetch(`${API_URL}${endpoint}`, {
+      console.log('Changelog lekérés válasz:', response.status, endpoint);
+
+      // Ha nincs OK válasz, próbáljuk meg a közvetlen projekt ID-val
+      if (!response.ok && project._id) {
+        console.log('Sikertelen lekérés, próbálkozás közvetlen projekt ID-val');
+        const fallbackEndpoint = `/projects/${project._id}/changelog`;
+        response = await fetch(`${API_URL}${fallbackEndpoint}`, {
           method: 'GET',
           headers: {
-            'X-API-Key': API_KEY,
-            'Accept': 'application/json',
-            'Content-Type': 'application/json'
-          },
-          credentials: 'omit' // Ne küldjön cookie-kat a kéréssel
-        });
-
-        console.log('Response status:', response.status);
-
-        if (!response.ok) {
-          console.log('Request failed, trying fallback endpoint');
-
-          // Ha nem sikerült a token alapján, próbáljuk meg a projektID alapján (ha van)
-          if (project._id) {
-            const fallbackEndpoint = `/projects/${project._id}/changelog`;
-            response = await fetch(`${API_URL}${fallbackEndpoint}`, {
-              method: 'GET',
-              headers: {
-                'X-API-Key': API_KEY,
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
-              },
-              credentials: 'omit'
-            });
-
-            console.log('Fallback response status:', response.status);
+            'X-API-Key': API_KEY
           }
-        }
-      } else {
-        // Védett API hívás esetén az api.get szolgáltatást használjuk (auth token-nel)
-        response = await api.get(endpoint);
+        });
+        
+        console.log('Fallback lekérés válasz:', response.status);
       }
 
       if (!response.ok) {
-        throw new Error(`Error fetching changelog: ${response.status}`);
+        throw new Error(`Hiba a changelog lekérésekor: ${response.status}`);
       }
 
       const data = await response.json();
       setChangelog(data);
     } catch (error) {
-      console.error('Error fetching changelog:', error);
+      console.error('Hiba a changelog lekérésekor:', error);
       setError(error.message);
     } finally {
       setIsLoading(false);
@@ -175,17 +165,14 @@ const ProjectChangelog = ({ project, language = 'hu', onRefresh }) => {
   // Fetch changelog on component mount
   useEffect(() => {
     fetchChangelog();
-  }, [project._id, project.sharing?.token, project.sharingToken]);
+  }, [project._id, project.sharing?.token]);
 
   // Debug log
   useEffect(() => {
-    const projectId = project._id;
-    const sharingToken = project.sharing?.token || project.sharingToken;
-    
     console.log('ProjectChangelog component mounted with project:', {
-      projectId: projectId,
-      sharingToken: sharingToken,
-      hasSharing: Boolean(project.sharing) || Boolean(project.sharingToken),
+      projectId: project._id,
+      sharingToken: project.sharing?.token,
+      hasSharing: Boolean(project.sharing),
       changelog: project.changelog?.length || 0
     });
   }, []);

@@ -519,28 +519,6 @@ app.get('/api/public/projects/:projectId/documents', validateApiKey, async (req,
   }
 });
 
-// Public endpoint to fetch project changelog
-app.get('/api/public/projects/:token/changelog', validateApiKey, async (req, res) => {
-  try {
-    console.log(`Public changelog request for project token: ${req.params.token}`);
-    
-    // Import necessary models
-    const Project = mongoose.model('Project');
-    
-    // Find project by sharing token
-    const project = await Project.findOne({ 'sharing.token': req.params.token });
-    if (!project) {
-      return res.status(404).json({ message: 'Projekt nem található' });
-    }
-    
-    console.log(`Found changelog entries for project: ${project._id}`);
-    res.json(project.changelog || []);
-  } catch (error) {
-    console.error(`Error fetching project changelog: ${error.message}`);
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-});
-
 // ==============================================
 // PUBLIC PDF ENDPOINTS (No authentication required)
 // ==============================================

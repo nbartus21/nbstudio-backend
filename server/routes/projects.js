@@ -2,7 +2,6 @@ import express from 'express';
 import Project from '../models/Project.js';
 import { v4 as uuidv4 } from 'uuid';
 import Notification from '../models/Notification.js';
-import { validateApiKey } from '../middleware/validateApiKey.js';
 
 const router = express.Router();
 
@@ -891,7 +890,14 @@ router.delete('/projects/:id/changelog/:entryId', async (req, res) => {
 // Changelog bejegyzés lekérése a megosztott projekthez
 router.get('/public/projects/:token/changelog', async (req, res) => {
   try {
-    const project = await Project.findOne({ 'sharing.token': req.params.token });
+    // Keresés először a shareToken mezőben
+    let project = await Project.findOne({ shareToken: req.params.token });
+    
+    // Ha nem található, próbáljuk a sharing.token mezőben is
+    if (!project) {
+      project = await Project.findOne({ 'sharing.token': req.params.token });
+    }
+    
     if (!project) {
       return res.status(404).json({ message: 'Projekt nem található' });
     }
