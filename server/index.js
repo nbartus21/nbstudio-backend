@@ -878,13 +878,12 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
       // Tételek táblázat
       const tableStartY = infoStartY + 180;
 
-      // Táblázat fejléc - eredeti margókkal
-      doc.rect(50, tableStartY, doc.page.width - 100, 30) // Visszaállítva az eredeti margókra
+      // Táblázat fejléc
+      doc.rect(50, tableStartY, doc.page.width - 100, 30)
          .fill(colors.primary);
 
-      const tableHeaders = ['Tétel', 'Mennyiség', 'Egységár', 'Összesen', 'Valuta'];
-      // Újratervezett oszlopszélességek, hogy minden belférjen
-      const tableColumnWidths = [240, 60, 60, 60, 40]; // Külön oszlop a valutának
+      const tableHeaders = ['Tétel', 'Mennyiség', 'Egységár', 'Összesen'];
+      const tableColumnWidths = [280, 80, 90, 70]; // Átméretezett oszlopok
       const columnPositions = [50];
 
       // Kiszámoljuk a pozíciókat
@@ -900,12 +899,10 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
       tableHeaders.forEach((header, i) => {
         const position = columnPositions[i];
         const align = i === 0 ? 'left' : 'right';
-        // Nagyobb padding a jobb oldali oszlopoknál, hogy a szöveg biztosan belférjen
-        const padding = i === 0 ? 8 : 12;
+        const padding = i === 0 ? 8 : 8;
 
         doc.text(header, position + padding, tableStartY + 10, {
-          // Csökkentett szövegszélesség, hogy ne lógjon ki
-          width: tableColumnWidths[i] - (padding * 2) - (i > 0 ? 5 : 0),
+          width: tableColumnWidths[i] - (padding * 2),
           align: align
         });
       });
@@ -933,8 +930,8 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
             currentPage++;
             currentY = 50;
 
-            // Új oldal fejléce - csökkentett jobb oldali margóval
-            doc.rect(50, currentY, doc.page.width - 80, 30) // 100 helyett 80 (jobb oldali margó 20px-el kisebb)
+            // Új oldal fejléce
+            doc.rect(50, currentY, doc.page.width - 100, 30)
                .fill(colors.primary);
 
             doc.font('Helvetica-Bold')
@@ -944,12 +941,10 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
             tableHeaders.forEach((header, i) => {
               const position = columnPositions[i];
               const align = i === 0 ? 'left' : 'right';
-              // Nagyobb padding a jobb oldali oszlopoknál, hogy a szöveg biztosan belférjen
-              const padding = i === 0 ? 8 : 12;
+              const padding = i === 0 ? 8 : 8;
 
               doc.text(header, position + padding, currentY + 10, {
-                // Csökkentett szövegszélesség, hogy ne lógjon ki
-                width: tableColumnWidths[i] - (padding * 2) - (i > 0 ? 5 : 0),
+                width: tableColumnWidths[i] - (padding * 2),
                 align: align
               });
             });
@@ -958,14 +953,14 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
             rowBackground = true;
           }
 
-          // Zebra csíkos táblázat - csökkentett jobb oldali margóval
+          // Zebra csíkos táblázat
           if (rowBackground) {
-            doc.rect(50, currentY, doc.page.width - 80, 25) // 100 helyett 80 (jobb oldali margó 20px-el kisebb)
+            doc.rect(50, currentY, doc.page.width - 100, 25)
                .fill('#F9FAFB');
           }
 
-          // Vékony elválasztó vonal minden sor után - csökkentett jobb oldali margóval
-          doc.rect(50, currentY + 25, doc.page.width - 80, 0.5) // 100 helyett 80 (jobb oldali margó 20px-el kisebb)
+          // Vékony elválasztó vonal minden sor után
+          doc.rect(50, currentY + 25, doc.page.width - 100, 0.5)
              .fill(colors.border);
 
           doc.font('Helvetica')
@@ -983,12 +978,10 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
           row.forEach((cell, i) => {
             const position = columnPositions[i];
             const align = i === 0 ? 'left' : 'right';
-            // Nagyobb padding a jobb oldali oszlopoknál, hogy a szöveg biztosan belférjen
-            const padding = i === 0 ? 8 : 12;
+            const padding = i === 0 ? 8 : 8;
 
             doc.text(cell, position + padding, currentY + 8, {
-              // Csökkentett szövegszélesség, hogy ne lógjon ki
-              width: tableColumnWidths[i] - (padding * 2) - (i > 0 ? 5 : 0),
+              width: tableColumnWidths[i] - (padding * 2),
               align: align
             });
           });
@@ -1071,8 +1064,8 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
         // Lábléc - feljebb helyezve
         const footerTop = doc.page.height - 60;
 
-        // Vékony vonal a lábléc tetején - csökkentett jobb oldali margóval
-        doc.rect(50, footerTop - 5, doc.page.width - 80, 0.5) // 100 helyett 80 (jobb oldali margó 20px-el kisebb)
+        // Vékony vonal a lábléc tetején
+        doc.rect(50, footerTop - 5, doc.page.width - 100, 0.5)
            .fill(colors.border);
 
         // Lábléc szöveg és oldalszám egy sorban
@@ -1084,7 +1077,7 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
         const footerText = `Norbert Bartus | www.nb-studio.net | Ez a számla elektronikusan készült és érvényes aláírás nélkül is. | ${i + 1}. oldal`;
         doc.text(footerText, 50, footerTop, {
           align: 'center',
-          width: doc.page.width - 80 // 100 helyett 80 (jobb oldali margó 20px-el kisebb)
+          width: doc.page.width - 100
         });
       }
 

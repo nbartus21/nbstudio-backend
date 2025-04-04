@@ -677,13 +677,12 @@ router.get('/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => {
     // Tételek táblázat
     const tableStartY = infoStartY + 180;
 
-    // Táblázat fejléc - eredeti margókkal
-    doc.rect(50, tableStartY, doc.page.width - 100, 30) // Visszaállítva az eredeti margókra
+    // Táblázat fejléc
+    doc.rect(50, tableStartY, doc.page.width - 100, 30)
        .fill(colors.primary);
 
-    const tableHeaders = ['Tétel', 'Mennyiség', 'Egységár', 'Összesen', 'Valuta'];
-    // Újratervezett oszlopszélességek, hogy minden belférjen
-    const tableColumnWidths = [240, 60, 60, 60, 40]; // Külön oszlop a valutának
+    const tableHeaders = ['Tétel', 'Mennyiség', 'Egységár', 'Összesen'];
+    const tableColumnWidths = [280, 80, 90, 70]; // Átméretezett oszlopok
     const columnPositions = [50];
 
     // Kiszámoljuk a pozíciókat
@@ -698,18 +697,11 @@ router.get('/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => {
 
     tableHeaders.forEach((header, i) => {
       const position = columnPositions[i];
-      // Különböző igazítás az oszlopoknak
-      let align = 'left';
-      if (i === 1 || i === 4) { // Mennyiség és Valuta középre
-        align = 'center';
-      } else if (i === 2 || i === 3) { // Egységár és Összesen jobbra
-        align = 'right';
-      }
-
-      const padding = 10; // Egységes padding minden oszlopnál
+      const align = i === 0 ? 'left' : 'right';
+      const padding = i === 0 ? 8 : 8;
 
       doc.text(header, position + padding, tableStartY + 10, {
-        width: tableColumnWidths[i] - (padding * 2), // Egységes szélesség számítás
+        width: tableColumnWidths[i] - (padding * 2),
         align: align
       });
     });
@@ -736,8 +728,8 @@ router.get('/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => {
         currentPage++;
         currentY = 50;
 
-        // Új oldal fejléce - eredeti margókkal
-        doc.rect(50, currentY, doc.page.width - 100, 30) // Visszaállítva az eredeti margókra
+        // Új oldal fejléce
+        doc.rect(50, currentY, doc.page.width - 100, 30)
            .fill(colors.primary);
 
         doc.font('Helvetica-Bold')
@@ -746,18 +738,11 @@ router.get('/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => {
 
         tableHeaders.forEach((header, i) => {
           const position = columnPositions[i];
-          // Különböző igazítás az oszlopoknak
-          let align = 'left';
-          if (i === 1 || i === 4) { // Mennyiség és Valuta középre
-            align = 'center';
-          } else if (i === 2 || i === 3) { // Egységár és Összesen jobbra
-            align = 'right';
-          }
-
-          const padding = 10; // Egységes padding minden oszlopnál
+          const align = i === 0 ? 'left' : 'right';
+          const padding = i === 0 ? 8 : 8;
 
           doc.text(header, position + padding, currentY + 10, {
-            width: tableColumnWidths[i] - (padding * 2), // Egységes szélesség számítás
+            width: tableColumnWidths[i] - (padding * 2),
             align: align
           });
         });
@@ -766,14 +751,14 @@ router.get('/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => {
         rowBackground = true;
       }
 
-      // Zebra csíkos táblázat - eredeti margókkal
+      // Zebra csíkos táblázat
       if (rowBackground) {
-        doc.rect(50, currentY, doc.page.width - 100, 25) // Visszaállítva az eredeti margókra
+        doc.rect(50, currentY, doc.page.width - 100, 25)
            .fill('#F9FAFB');
       }
 
-      // Vékony elválasztó vonal minden sor után - eredeti margókkal
-      doc.rect(50, currentY + 25, doc.page.width - 100, 0.5) // Visszaállítva az eredeti margókra
+      // Vékony elválasztó vonal minden sor után
+      doc.rect(50, currentY + 25, doc.page.width - 100, 0.5)
          .fill(colors.border);
 
       doc.font('Helvetica')
@@ -784,25 +769,17 @@ router.get('/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => {
       const row = [
         item.description,
         item.quantity.toString(),
-        item.unitPrice.toString(), // Csak a szám
-        item.total.toString(), // Csak a szám
-        currency // Külön oszlopban a valuta
+        `${item.unitPrice} ${currency}`,
+        `${item.total} ${currency}`
       ];
 
       row.forEach((cell, i) => {
         const position = columnPositions[i];
-        // Különböző igazítás az oszlopoknak
-        let align = 'left';
-        if (i === 1 || i === 4) { // Mennyiség és Valuta középre
-          align = 'center';
-        } else if (i === 2 || i === 3) { // Egységár és Összesen jobbra
-          align = 'right';
-        }
-
-        const padding = 10; // Egységes padding minden oszlopnál
+        const align = i === 0 ? 'left' : 'right';
+        const padding = i === 0 ? 8 : 8;
 
         doc.text(cell, position + padding, currentY + 8, {
-          width: tableColumnWidths[i] - (padding * 2), // Egységes szélesség számítás
+          width: tableColumnWidths[i] - (padding * 2),
           align: align
         });
       });
@@ -878,8 +855,8 @@ router.get('/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => {
     // Lábléc - feljebb helyezve
     const footerTop = doc.page.height - 60;
 
-    // Vékony vonal a lábléc tetején - eredeti margókkal
-    doc.rect(50, footerTop - 5, doc.page.width - 100, 0.5) // Visszaállítva az eredeti margókra
+    // Vékony vonal a lábléc tetején
+    doc.rect(50, footerTop - 5, doc.page.width - 100, 0.5)
        .fill(colors.border);
 
     // Lábléc szöveg és oldalszám egy sorban
@@ -891,7 +868,7 @@ router.get('/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => {
     const footerText = `Norbert Bartus | www.nb-studio.net | Ez a számla elektronikusan készült és érvényes aláírás nélkül is. | ${currentPage}. oldal`;
     doc.text(footerText, 50, footerTop, {
       align: 'center',
-      width: doc.page.width - 100 // Visszaállítva az eredeti margókra
+      width: doc.page.width - 100
     });
 
     // PDF lezárása
