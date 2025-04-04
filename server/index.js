@@ -247,6 +247,7 @@ if (process.env.NODE_ENV !== 'production') {
         !req.url.includes('/monitoring/network') &&
         !req.url.includes('/monitoring/security')) {
       console.log(`${req.method} ${req.url}`);
+      console.log('EGYEDI_NAPLOBEJEGYZES_MIDDLEWARE: Kérés érkezett:', req.method, req.url);
     }
     next();
   });
