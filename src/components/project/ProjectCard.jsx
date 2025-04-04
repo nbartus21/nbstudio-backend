@@ -277,7 +277,25 @@ const ProjectCard = ({
             <span className="font-medium">Megosztás aktív</span>
           </div>
           <div className="ml-4">
-            <p>Lejárat: {project.sharing.expiryDate}</p>
+            <div className="mb-1">
+              <span className="font-medium">Link: </span>
+              <a 
+                href={project.sharing.link} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:underline truncate"
+              >
+                {project.sharing.link}
+              </a>
+            </div>
+            <div className="mb-1">
+              <span className="font-medium">PIN: </span>
+              <span>{project.sharing.pin}</span>
+            </div>
+            <div className="mb-1">
+              <span className="font-medium">Lejárat: </span>
+              <span>{project.sharing.expiryDate}</span>
+            </div>
             {project.sharing.isExpired && (
               <p className="text-red-500 font-medium">Lejárt!</p>
             )}
