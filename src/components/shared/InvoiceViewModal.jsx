@@ -8,13 +8,168 @@ import { formatShortDate, debugLog } from './utils';
 import QRCode from 'qrcode.react';
 import { downloadInvoicePDF } from '../../services/invoiceService';
 
-const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGeneratePDF }) => {
+// Translation data for all UI elements
+const translations = {
+  en: {
+    invoice: "INVOICE",
+    invoiceNumber: "Invoice Number",
+    date: "Date",
+    dueDate: "Due Date",
+    provider: "Provider",
+    client: "Client",
+    items: "Items",
+    description: "Description",
+    quantity: "Quantity",
+    unitPrice: "Unit Price",
+    total: "Total",
+    grandTotal: "Grand Total",
+    paid: "Paid",
+    paymentInfo: "Payment Information",
+    bankTransfer: "Bank Transfer",
+    reference: "Reference",
+    showQrCode: "Show QR Code",
+    sepaQrCode: "SEPA Transfer QR Code",
+    paymentDetails: "Payment Transaction Details",
+    successfulPayment: "Successful Payment",
+    transactionId: "Transaction ID",
+    amount: "Amount",
+    cardType: "Card Type",
+    status: "Status",
+    downloadableReceipt: "Downloadable Receipt",
+    receiptNumber: "Receipt Number",
+    recurringInvoiceInfo: "Recurring Invoice Information",
+    recurringInvoiceDesc: "This is a recurring invoice that is issued regularly at the specified interval.",
+    frequency: "Frequency",
+    nextInvoiceDate: "Next invoice expected date",
+    notes: "Notes",
+    thankYou: "Thank you for choosing us!",
+    validWithoutSignature: "This invoice was created electronically and is valid without signature.",
+    downloadPdf: "Download PDF",
+    close: "Close",
+    statusLabels: {
+      paid: "Paid",
+      paidOn: "Paid on",
+      cancelled: "Cancelled",
+      cancelledDesc: "This invoice has been invalidated",
+      overdue: "Overdue",
+      overdueDesc: "Payment deadline has passed",
+      dueSoon: "Due Soon",
+      issued: "Issued",
+      paymentDeadline: "Payment deadline"
+    },
+    vatExempt: "VAT exempt according to § 19 Abs. 1 UStG."
+  },
+  de: {
+    invoice: "RECHNUNG",
+    invoiceNumber: "Rechnungsnummer",
+    date: "Datum",
+    dueDate: "Fälligkeitsdatum",
+    provider: "Anbieter",
+    client: "Kunde",
+    items: "Artikel",
+    description: "Beschreibung",
+    quantity: "Menge",
+    unitPrice: "Stückpreis",
+    total: "Gesamt",
+    grandTotal: "Gesamtsumme",
+    paid: "Bezahlt",
+    paymentInfo: "Zahlungsinformationen",
+    bankTransfer: "Banküberweisung",
+    reference: "Verwendungszweck",
+    showQrCode: "QR-Code anzeigen",
+    sepaQrCode: "SEPA-Überweisung QR-Code",
+    paymentDetails: "Zahlungstransaktionsdetails",
+    successfulPayment: "Erfolgreiche Zahlung",
+    transactionId: "Transaktions-ID",
+    amount: "Betrag",
+    cardType: "Kartentyp",
+    status: "Status",
+    downloadableReceipt: "Herunterladbarer Beleg",
+    receiptNumber: "Belegnummer",
+    recurringInvoiceInfo: "Informationen zur wiederkehrenden Rechnung",
+    recurringInvoiceDesc: "Dies ist eine wiederkehrende Rechnung, die regelmäßig im angegebenen Intervall ausgestellt wird.",
+    frequency: "Häufigkeit",
+    nextInvoiceDate: "Voraussichtliches Datum der nächsten Rechnung",
+    notes: "Anmerkungen",
+    thankYou: "Vielen Dank, dass Sie sich für uns entschieden haben!",
+    validWithoutSignature: "Diese Rechnung wurde elektronisch erstellt und ist ohne Unterschrift gültig.",
+    downloadPdf: "PDF herunterladen",
+    close: "Schließen",
+    statusLabels: {
+      paid: "Bezahlt",
+      paidOn: "Bezahlt am",
+      cancelled: "Storniert",
+      cancelledDesc: "Diese Rechnung wurde ungültig gemacht",
+      overdue: "Überfällig",
+      overdueDesc: "Zahlungsfrist ist abgelaufen",
+      dueSoon: "Bald fällig",
+      issued: "Ausgestellt",
+      paymentDeadline: "Zahlungsfrist"
+    },
+    vatExempt: "Umsatzsteuerbefreit gemäß § 19 Abs. 1 UStG."
+  },
+  hu: {
+    invoice: "SZÁMLA",
+    invoiceNumber: "Számlaszám",
+    date: "Kelt",
+    dueDate: "Fizetési határidő",
+    provider: "Szolgáltató",
+    client: "Vevő",
+    items: "Tételek",
+    description: "Leírás",
+    quantity: "Mennyiség",
+    unitPrice: "Egységár",
+    total: "Összesen",
+    grandTotal: "Végösszeg",
+    paid: "Fizetve",
+    paymentInfo: "Fizetési információk",
+    bankTransfer: "Banki átutalás",
+    reference: "Közlemény",
+    showQrCode: "QR kód mutatása",
+    sepaQrCode: "SEPA átutalás QR kód",
+    paymentDetails: "Fizetési tranzakció részletei",
+    successfulPayment: "Sikeres fizetés",
+    transactionId: "Tranzakció azonosító",
+    amount: "Összeg",
+    cardType: "Kártyatípus",
+    status: "Státusz",
+    downloadableReceipt: "Letölthető bizonylat",
+    receiptNumber: "Bizonylat száma",
+    recurringInvoiceInfo: "Ismétlődő számla információ",
+    recurringInvoiceDesc: "Ez egy ismétlődő számla, amely rendszeresen kiállításra kerül a megadott időközönként.",
+    frequency: "Ismétlődés gyakorisága",
+    nextInvoiceDate: "Következő számla várható dátuma",
+    notes: "Megjegyzések",
+    thankYou: "Köszönjük, hogy minket választott!",
+    validWithoutSignature: "Ez a számla elektronikusan készült és érvényes aláírás nélkül is.",
+    downloadPdf: "PDF letöltése",
+    close: "Bezárás",
+    statusLabels: {
+      paid: "Fizetve",
+      paidOn: "Fizetve",
+      cancelled: "Törölt",
+      cancelledDesc: "Ez a számla érvénytelenítve lett",
+      overdue: "Lejárt",
+      overdueDesc: "Fizetési határidő lejárt",
+      dueSoon: "Hamarosan esedékes",
+      issued: "Kiállítva",
+      paymentDeadline: "Fizetési határidő"
+    },
+    vatExempt: "Alanyi adómentes a § 19 Abs. 1 UStG. szerint."
+  }
+};
+
+const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGeneratePDF, language = 'hu' }) => {
   debugLog('InvoiceViewModal', 'Rendering invoice view', {
     invoiceNumber: invoice?.number,
-    invoiceStatus: invoice?.status
+    invoiceStatus: invoice?.status,
+    language: language
   });
 
   const [showQRCode, setShowQRCode] = useState(false);
+
+  // Get translations for current language
+  const t = translations[language] || translations.hu;
 
   if (!invoice) {
     debugLog('InvoiceViewModal', 'No invoice provided');
@@ -52,32 +207,32 @@ const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGenerat
       '002',                                    // Version
       '1',                                      // Encoding
       'SCT',                                    // SEPA Credit Transfer
-      'COBADEFF371',                           // BIC
+      'COBADEFFXXX',                           // BIC
       'Norbert Bartus',                        // Beneficiary name
       'DE47663400180473463800',               // IBAN
       `EUR${amount}`,                          // Amount in EUR
       '',                                      // Customer ID (empty)
       invoice.number || '',                    // Invoice number
-      `RECHNUNG ${invoice.number}`             // Reference
+      language === 'de' ? `RECHNUNG ${invoice.number}` : (language === 'en' ? `INVOICE ${invoice.number}` : `SZÁMLA ${invoice.number}`)             // Reference
     ].join('\n');
   };
 
   // Számla állapotának ellenőrzése a színezéshez
   const checkInvoiceStatus = () => {
-    if (invoice.status === 'fizetett') {
+    if (invoice.status === 'fizetett' || invoice.status === 'paid' || invoice.status === 'bezahlt') {
       return {
         icon: <CheckCircle className="h-5 w-5 text-green-600 mr-2" />,
-        text: 'Fizetve',
-        description: invoice.paidDate ? `Fizetve: ${formatShortDate(invoice.paidDate)}` : 'A számla ki van fizetve',
+        text: t.statusLabels.paid,
+        description: invoice.paidDate ? `${t.statusLabels.paidOn}: ${formatShortDate(invoice.paidDate)}` : t.statusLabels.paid,
         color: 'bg-green-50 border-green-200'
       };
     }
 
-    if (invoice.status === 'törölt') {
+    if (invoice.status === 'törölt' || invoice.status === 'canceled' || invoice.status === 'storniert') {
       return {
         icon: <X className="h-5 w-5 text-gray-600 mr-2" />,
-        text: 'Törölt',
-        description: 'Ez a számla érvénytelenítve lett',
+        text: t.statusLabels.cancelled,
+        description: t.statusLabels.cancelledDesc,
         color: 'bg-gray-50 border-gray-200'
       };
     }
@@ -88,8 +243,8 @@ const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGenerat
     if (dueDate < now) {
       return {
         icon: <AlertCircle className="h-5 w-5 text-red-600 mr-2" />,
-        text: 'Lejárt',
-        description: `Fizetési határidő lejárt: ${formatShortDate(invoice.dueDate)}`,
+        text: t.statusLabels.overdue,
+        description: `${t.statusLabels.overdueDesc}: ${formatShortDate(invoice.dueDate)}`,
         color: 'bg-red-50 border-red-200'
       };
     }
@@ -100,16 +255,16 @@ const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGenerat
     if (dueDate <= threeDaysFromNow) {
       return {
         icon: <Clock className="h-5 w-5 text-yellow-600 mr-2" />,
-        text: 'Hamarosan esedékes',
-        description: `Fizetési határidő: ${formatShortDate(invoice.dueDate)}`,
+        text: t.statusLabels.dueSoon,
+        description: `${t.statusLabels.paymentDeadline}: ${formatShortDate(invoice.dueDate)}`,
         color: 'bg-yellow-50 border-yellow-200'
       };
     }
 
     return {
       icon: <FileText className="h-5 w-5 text-blue-600 mr-2" />,
-      text: 'Kiállítva',
-      description: `Fizetési határidő: ${formatShortDate(invoice.dueDate)}`,
+      text: t.statusLabels.issued,
+      description: `${t.statusLabels.paymentDeadline}: ${formatShortDate(invoice.dueDate)}`,
       color: 'bg-blue-50 border-blue-200'
     };
   };
@@ -133,11 +288,11 @@ const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGenerat
         <div className="flex justify-between items-center p-4 border-b">
           <h3 className="text-lg font-medium flex items-center">
             <FileText className="h-5 w-5 mr-2 text-gray-500" />
-            Számla: {invoice.number}
+            {t.invoice}: {invoice.number}
             {invoice.recurring?.isRecurring && (
               <span className="ml-2 px-2 py-0.5 bg-purple-100 text-purple-800 text-xs rounded-full border border-purple-200 flex items-center">
                 <RefreshCw className="h-3 w-3 mr-1" />
-                Ismétlődő
+                {language === 'en' ? 'Recurring' : (language === 'de' ? 'Wiederkehrend' : 'Ismétlődő')}
               </span>
             )}
           </h3>
@@ -163,12 +318,12 @@ const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGenerat
             {/* Invoice Header */}
             <div className="flex justify-between items-start mb-8">
               <div>
-                <h2 className="text-2xl font-bold">SZÁMLA</h2>
-                <p className="text-gray-600">Számlaszám: {invoice.number}</p>
+                <h2 className="text-2xl font-bold">{t.invoice}</h2>
+                <p className="text-gray-600">{t.invoiceNumber}: {invoice.number}</p>
               </div>
               <div className="text-right">
-                <p className="font-medium">Kelt: {formatShortDate(invoice.date)}</p>
-                <p className="text-gray-600">Fizetési határidő: {formatShortDate(invoice.dueDate)}</p>
+                <p className="font-medium">{t.date}: {formatShortDate(invoice.date)}</p>
+                <p className="text-gray-600">{t.dueDate}: {formatShortDate(invoice.dueDate)}</p>
                 <span className={`inline-block mt-2 px-2 py-1 rounded-full text-xs font-medium ${getStatusBadgeClass(invoice.status)}`}>
                   {invoice.status}
                 </span>
@@ -178,18 +333,19 @@ const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGenerat
             {/* Company Information */}
             <div className="grid grid-cols-2 gap-8 mb-8">
               <div>
-                <h3 className="font-bold mb-2 text-gray-700">Szolgáltató:</h3>
+                <h3 className="font-bold mb-2 text-gray-700">{t.provider}:</h3>
                 <p className="font-medium">Norbert Bartus</p>
-                <p>NB Studio</p>
-                <p>Adószám: 12345678-1-42</p>
-                <p>1234 Budapest, Példa utca 1.</p>
-                <p>Email: info@nb-studio.net</p>
+                <p>Salinenstraße 25</p>
+                <p>76646 Bruchsal, Baden-Württemberg</p>
+                <p>Deutschland</p>
+                <p>St.-Nr.: 68194547329</p>
+                <p>USt-IdNr.: DE346419031</p>
               </div>
               <div>
-                <h3 className="font-bold mb-2 text-gray-700">Vevő:</h3>
+                <h3 className="font-bold mb-2 text-gray-700">{t.client}:</h3>
                 <p className="font-medium">{invoice.clientName || project?.client?.name || 'N/A'}</p>
                 {project?.client?.companyName && <p>{project.client.companyName}</p>}
-                {project?.client?.taxNumber && <p>Adószám: {project.client.taxNumber}</p>}
+                {project?.client?.taxNumber && <p>{language === 'hu' ? 'Adószám' : (language === 'de' ? 'Steuernummer' : 'Tax ID')}: {project.client.taxNumber}</p>}
                 <p>Email: {project?.client?.email || 'N/A'}</p>
                 {project?.client?.address && (
                   <p>
@@ -201,14 +357,14 @@ const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGenerat
 
             {/* Items Table */}
             <div className="mb-8">
-              <h3 className="font-bold mb-2 text-gray-700">Tételek:</h3>
+              <h3 className="font-bold mb-2 text-gray-700">{t.items}:</h3>
               <table className="min-w-full border border-gray-200">
                 <thead>
                   <tr className="bg-gray-50">
-                    <th className="py-2 px-3 text-left border-b border-gray-200 text-gray-700">Leírás</th>
-                    <th className="py-2 px-3 text-right border-b border-gray-200 text-gray-700">Mennyiség</th>
-                    <th className="py-2 px-3 text-right border-b border-gray-200 text-gray-700">Egységár</th>
-                    <th className="py-2 px-3 text-right border-b border-gray-200 text-gray-700">Összesen</th>
+                    <th className="py-2 px-3 text-left border-b border-gray-200 text-gray-700">{t.description}</th>
+                    <th className="py-2 px-3 text-right border-b border-gray-200 text-gray-700">{t.quantity}</th>
+                    <th className="py-2 px-3 text-right border-b border-gray-200 text-gray-700">{t.unitPrice}</th>
+                    <th className="py-2 px-3 text-right border-b border-gray-200 text-gray-700">{t.total}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -223,12 +379,12 @@ const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGenerat
                 </tbody>
                 <tfoot>
                   <tr className="bg-gray-50 font-bold">
-                    <td colSpan="3" className="py-2 px-3 text-right">Végösszeg:</td>
+                    <td colSpan="3" className="py-2 px-3 text-right">{t.grandTotal}:</td>
                     <td className="py-2 px-3 text-right">{invoice.totalAmount} {currency}</td>
                   </tr>
-                  {invoice.status === 'fizetett' && invoice.paidAmount > 0 && (
+                  {(invoice.status === 'fizetett' || invoice.status === 'paid' || invoice.status === 'bezahlt') && invoice.paidAmount > 0 && (
                     <tr className="bg-green-50 text-green-800">
-                      <td colSpan="3" className="py-2 px-3 text-right">Fizetve:</td>
+                      <td colSpan="3" className="py-2 px-3 text-right">{t.paid}:</td>
                       <td className="py-2 px-3 text-right">{invoice.paidAmount} {currency}</td>
                     </tr>
                   )}
@@ -237,22 +393,18 @@ const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGenerat
             </div>
 
             {/* Payment Information */}
-            {invoice.status !== 'törölt' && invoice.status !== 'fizetett' && (
+            {(invoice.status !== 'törölt' && invoice.status !== 'fizetett' && invoice.status !== 'paid' && invoice.status !== 'bezahlt' && invoice.status !== 'canceled' && invoice.status !== 'storniert') && (
               <div className="mb-8">
-                <h3 className="font-bold mb-2 text-gray-700">Fizetési információk:</h3>
+                <h3 className="font-bold mb-2 text-gray-700">{t.paymentInfo}:</h3>
                 <div className="bg-gray-50 p-4 border border-gray-200 rounded">
                   <div className="flex flex-col md:flex-row gap-6">
                     <div className="flex-1">
-                      <p className="mb-1 font-medium">Banki átutalás:</p>
-                      <p>IBAN: DE47 6634 0014 0743 4638 00</p>
+                      <p className="mb-1 font-medium">{t.bankTransfer}:</p>
+                      <p>IBAN: DE47 6634 0018 0473 4638 00</p>
                       <p>SWIFT/BIC: COBADEFFXXX</p>
                       <p>Bank: Commerzbank AG</p>
-                      <p className="mt-2">Közlemény: {invoice.number}</p>
-
-                      {/* Bankkártyás fizetés - eltávolítva */}
-                      <div className="mt-4">
-                        <p className="text-sm text-gray-500 italic">A bankkártyás fizetési lehetőség jelenleg nem elérhető.</p>
-                      </div>
+                      <p className="mt-2">{t.reference}: {invoice.number}</p>
+                      <p className="mt-4 text-sm text-gray-600">{t.vatExempt}</p>
                     </div>
 
                     <div className="flex flex-col items-center">
@@ -265,7 +417,7 @@ const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGenerat
                             renderAs="svg"
                           />
                           <p className="text-xs text-gray-500 mt-2 text-center">
-                            SEPA átutalás QR kód
+                            {t.sepaQrCode}
                           </p>
                         </>
                       ) : (
@@ -274,7 +426,7 @@ const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGenerat
                           className="px-3 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 flex items-center text-sm"
                         >
                           <Share2 className="h-4 w-4 mr-1" />
-                          QR kód mutatása
+                          {t.showQrCode}
                         </button>
                       )}
                     </div>
@@ -284,16 +436,16 @@ const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGenerat
             )}
 
             {/* Fizetési tranzakció adatok - csak fizetett számláknál */}
-            {invoice.status === 'fizetett' && invoice.transactions && invoice.transactions.length > 0 && (
+            {(invoice.status === 'fizetett' || invoice.status === 'paid' || invoice.status === 'bezahlt') && invoice.transactions && invoice.transactions.length > 0 && (
               <div className="mb-8">
-                <h3 className="font-bold mb-2 text-gray-700">Fizetési tranzakció részletei:</h3>
+                <h3 className="font-bold mb-2 text-gray-700">{t.paymentDetails}:</h3>
                 <div className="bg-green-50 p-4 border border-green-200 rounded">
                   {invoice.transactions.map((transaction, idx) => (
                     <div key={transaction.transactionId || idx} className="mb-3 last:mb-0">
                       <div className="flex flex-wrap items-center justify-between mb-2">
                         <div className="font-medium text-green-700 flex items-center">
                           <CheckCircle className="h-4 w-4 mr-2" />
-                          Sikeres fizetés
+                          {t.successfulPayment}
                           <span className="ml-2 text-xs bg-green-200 text-green-800 px-2 py-0.5 rounded-full">
                             {transaction.paymentMethod?.type || 'card'}
                           </span>
@@ -305,15 +457,15 @@ const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGenerat
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                         <div>
-                          <p><span className="font-medium">Tranzakció azonosító:</span> {transaction.transactionId || 'N/A'}</p>
-                          <p><span className="font-medium">Összeg:</span> {transaction.amount} {transaction.currency?.toUpperCase()}</p>
+                          <p><span className="font-medium">{t.transactionId}:</span> {transaction.transactionId || 'N/A'}</p>
+                          <p><span className="font-medium">{t.amount}:</span> {transaction.amount} {transaction.currency?.toUpperCase()}</p>
                           {transaction.paymentMethod?.brand && (
                             <p>
-                              <span className="font-medium">Kártyatípus:</span> {transaction.paymentMethod.brand?.toUpperCase()}
+                              <span className="font-medium">{t.cardType}:</span> {transaction.paymentMethod.brand?.toUpperCase()}
                               {transaction.paymentMethod.last4 && ` (xxxx-xxxx-xxxx-${transaction.paymentMethod.last4})`}
                             </p>
                           )}
-                          <p><span className="font-medium">Státusz:</span> {transaction.status}</p>
+                          <p><span className="font-medium">{t.status}:</span> {transaction.status}</p>
                         </div>
 
                         {transaction.metadata && (
@@ -326,11 +478,11 @@ const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGenerat
                                 className="inline-flex items-center text-blue-600 hover:text-blue-800"
                               >
                                 <Download className="h-4 w-4 mr-1" />
-                                Letölthető bizonylat
+                                {t.downloadableReceipt}
                               </a>
                             )}
                             {transaction.metadata.receiptNumber && (
-                              <p><span className="font-medium">Bizonylat száma:</span> {transaction.metadata.receiptNumber}</p>
+                              <p><span className="font-medium">{t.receiptNumber}:</span> {transaction.metadata.receiptNumber}</p>
                             )}
                           </div>
                         )}
@@ -346,15 +498,15 @@ const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGenerat
               <div className="mb-8">
                 <h3 className="font-bold mb-2 text-gray-700 flex items-center">
                   <RefreshCw className="h-4 w-4 mr-2 text-purple-600" />
-                  Ismétlődő számla információ:
+                  {t.recurringInvoiceInfo}:
                 </h3>
                 <div className="bg-purple-50 p-3 border border-purple-200 rounded">
-                  <p>Ez egy ismétlődő számla, amely rendszeresen kiállításra kerül a megadott időközönként.</p>
+                  <p>{t.recurringInvoiceDesc}</p>
                   {invoice.recurring.interval && (
-                    <p className="mt-1">Ismétlődés gyakorisága: <span className="font-medium">{invoice.recurring.interval}</span></p>
+                    <p className="mt-1">{t.frequency}: <span className="font-medium">{invoice.recurring.interval}</span></p>
                   )}
                   {invoice.recurring.nextDate && (
-                    <p className="mt-1">Következő számla várható dátuma: <span className="font-medium">{formatShortDate(invoice.recurring.nextDate)}</span></p>
+                    <p className="mt-1">{t.nextInvoiceDate}: <span className="font-medium">{formatShortDate(invoice.recurring.nextDate)}</span></p>
                   )}
                 </div>
               </div>
@@ -363,7 +515,7 @@ const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGenerat
             {/* Notes */}
             {invoice.notes && (
               <div className="mb-8">
-                <h3 className="font-bold mb-2 text-gray-700">Megjegyzések:</h3>
+                <h3 className="font-bold mb-2 text-gray-700">{t.notes}:</h3>
                 <div className="bg-gray-50 p-3 border border-gray-200 rounded">
                   <p className="whitespace-pre-line">{invoice.notes}</p>
                 </div>
@@ -372,26 +524,13 @@ const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGenerat
 
             {/* Footer */}
             <div className="text-center text-gray-600 text-sm mt-12">
-              <p>Köszönjük, hogy minket választott!</p>
-              <p className="mt-1">Ez a számla elektronikusan készült és érvényes aláírás nélkül is.</p>
+              <p>{t.thankYou}</p>
+              <p className="mt-1">{t.validWithoutSignature}</p>
             </div>
           </div>
         </div>
 
         <div className="flex justify-between items-center p-4 border-t bg-gray-50">
-          {/* Bal oldali gombok - csak nem fizetett és nem törölt számlánál */}
-          {invoice.status !== 'fizetett' && invoice.status !== 'törölt' && (
-            <div className="flex space-x-2">
-              <button
-                onClick={handleSendReminder}
-                className="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 flex items-center text-sm"
-              >
-                <Mail className="h-4 w-4 mr-1" />
-                Emlékeztető küldése
-              </button>
-            </div>
-          )}
-
           {/* Jobb oldali gombok */}
           <div className="flex space-x-3 ml-auto">
             <button
@@ -403,20 +542,13 @@ const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGenerat
               className="px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 flex items-center text-sm"
             >
               <Download className="h-4 w-4 mr-1" />
-              PDF letöltése
-            </button>
-            <button
-              onClick={() => window.print()}
-              className="px-3 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex items-center text-sm"
-            >
-              <Printer className="h-4 w-4 mr-1" />
-              Nyomtatás
+              {t.downloadPdf}
             </button>
             <button
               onClick={onClose}
               className="px-3 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 text-sm"
             >
-              Bezárás
+              {t.close}
             </button>
           </div>
         </div>
