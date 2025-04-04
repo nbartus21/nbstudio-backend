@@ -72,10 +72,10 @@ const ProjectChangelog = ({ project, language = 'hu', onRefresh }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  
+
   // Get translations for current language
   const t = translations[language] || translations.hu;
-  
+
   // Format date
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
@@ -86,25 +86,27 @@ const ProjectChangelog = ({ project, language = 'hu', onRefresh }) => {
       day: 'numeric'
     });
   };
-  
+
   // Fetch changelog data
   const fetchChangelog = async () => {
     try {
       setIsLoading(true);
       setError(null);
-      
+
       // Ha megosztott projekt (token van), akkor használjuk a megfelelő végpontot az API kulccsal
       const endpoint = project.sharing?.token
-        ? `/api/public/projects/${project.sharing.token}/changelog`
-        : `/api/projects/${project._id}/changelog`;
-      
+        ? `/public/projects/${project.sharing.token}/changelog`
+        : `/projects/${project._id}/changelog`;
+
       let response;
-      
+
       if (project.sharing?.token) {
         // Publikus API hívás esetén közvetlenül fetch-et használunk API kulccsal
         const apiUrl = 'https://admin.nb-studio.net:5001';
-        const fullEndpoint = `${apiUrl}${endpoint}`;
-        
+        const fullEndpoint = `${apiUrl}/api${endpoint}`;
+
+        console.log('Fetching changelog from:', fullEndpoint);
+
         response = await fetch(fullEndpoint, {
           headers: {
             'Content-Type': 'application/json',
@@ -115,11 +117,11 @@ const ProjectChangelog = ({ project, language = 'hu', onRefresh }) => {
         // Védett API hívás esetén az api.get szolgáltatást használjuk (auth token-nel)
         response = await api.get(endpoint);
       }
-      
+
       if (!response.ok) {
         throw new Error(`Error fetching changelog: ${response.status}`);
       }
-      
+
       const data = await response.json();
       setChangelog(data);
     } catch (error) {
@@ -129,23 +131,33 @@ const ProjectChangelog = ({ project, language = 'hu', onRefresh }) => {
       setIsLoading(false);
     }
   };
-  
+
   // Refresh changelog data
   const refreshChangelog = async () => {
     setIsRefreshing(true);
     await fetchChangelog();
     setIsRefreshing(false);
-    
+
     if (onRefresh) {
       onRefresh();
     }
   };
-  
+
   // Fetch changelog on component mount
   useEffect(() => {
     fetchChangelog();
   }, [project._id, project.sharing?.token]);
-  
+
+  // Debug log
+  useEffect(() => {
+    console.log('ProjectChangelog component mounted with project:', {
+      projectId: project._id,
+      sharingToken: project.sharing?.token,
+      hasSharing: Boolean(project.sharing),
+      changelog: project.changelog?.length || 0
+    });
+  }, []);
+
   // If loading, show loading state
   if (isLoading && !isRefreshing) {
     return (
@@ -159,7 +171,7 @@ const ProjectChangelog = ({ project, language = 'hu', onRefresh }) => {
       </div>
     );
   }
-  
+
   // If error, show error state
   if (error) {
     return (
@@ -179,7 +191,7 @@ const ProjectChangelog = ({ project, language = 'hu', onRefresh }) => {
       </div>
     );
   }
-  
+
   return (
     <div className="bg-white rounded-lg shadow p-6">
       <div className="flex items-center justify-between mb-6">
@@ -194,7 +206,7 @@ const ProjectChangelog = ({ project, language = 'hu', onRefresh }) => {
           {isRefreshing ? t.refreshing : t.refresh}
         </button>
       </div>
-      
+
       {changelog && changelog.length > 0 ? (
         <div className="space-y-6">
           {changelog.map((entry, index) => (
