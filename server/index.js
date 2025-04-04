@@ -878,12 +878,12 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
       // Tételek táblázat
       const tableStartY = infoStartY + 180;
 
-      // Táblázat fejléc
-      doc.rect(50, tableStartY, doc.page.width - 100, 30)
+      // Táblázat fejléc - csökkentett jobb oldali margóval
+      doc.rect(50, tableStartY, doc.page.width - 80, 30) // 100 helyett 80 (jobb oldali margó 20px-el kisebb)
          .fill(colors.primary);
 
       const tableHeaders = ['Tétel', 'Mennyiség', 'Egységár', 'Összesen'];
-      const tableColumnWidths = [265, 80, 90, 85]; // Tovább csökkentett Tétel oszlop
+      const tableColumnWidths = [265, 80, 100, 95]; // Szélesebb Egységár és Összesen oszlopok a nagyobb táblázathoz
       const columnPositions = [50];
 
       // Kiszámoljuk a pozíciókat
@@ -930,8 +930,8 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
             currentPage++;
             currentY = 50;
 
-            // Új oldal fejléce
-            doc.rect(50, currentY, doc.page.width - 100, 30)
+            // Új oldal fejléce - csökkentett jobb oldali margóval
+            doc.rect(50, currentY, doc.page.width - 80, 30) // 100 helyett 80 (jobb oldali margó 20px-el kisebb)
                .fill(colors.primary);
 
             doc.font('Helvetica-Bold')
@@ -953,14 +953,14 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
             rowBackground = true;
           }
 
-          // Zebra csíkos táblázat
+          // Zebra csíkos táblázat - csökkentett jobb oldali margóval
           if (rowBackground) {
-            doc.rect(50, currentY, doc.page.width - 100, 25)
+            doc.rect(50, currentY, doc.page.width - 80, 25) // 100 helyett 80 (jobb oldali margó 20px-el kisebb)
                .fill('#F9FAFB');
           }
 
-          // Vékony elválasztó vonal minden sor után
-          doc.rect(50, currentY + 25, doc.page.width - 100, 0.5)
+          // Vékony elválasztó vonal minden sor után - csökkentett jobb oldali margóval
+          doc.rect(50, currentY + 25, doc.page.width - 80, 0.5) // 100 helyett 80 (jobb oldali margó 20px-el kisebb)
              .fill(colors.border);
 
           doc.font('Helvetica')
@@ -1064,8 +1064,8 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
         // Lábléc - feljebb helyezve
         const footerTop = doc.page.height - 60;
 
-        // Vékony vonal a lábléc tetején
-        doc.rect(50, footerTop - 5, doc.page.width - 100, 0.5)
+        // Vékony vonal a lábléc tetején - csökkentett jobb oldali margóval
+        doc.rect(50, footerTop - 5, doc.page.width - 80, 0.5) // 100 helyett 80 (jobb oldali margó 20px-el kisebb)
            .fill(colors.border);
 
         // Lábléc szöveg és oldalszám egy sorban
@@ -1077,7 +1077,7 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
         const footerText = `Norbert Bartus | www.nb-studio.net | Ez a számla elektronikusan készült és érvényes aláírás nélkül is. | ${i + 1}. oldal`;
         doc.text(footerText, 50, footerTop, {
           align: 'center',
-          width: doc.page.width - 100
+          width: doc.page.width - 80 // 100 helyett 80 (jobb oldali margó 20px-el kisebb)
         });
       }
 
