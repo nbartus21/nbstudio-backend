@@ -8,14 +8,13 @@ import ProjectAccordion from './project/ProjectAccordion';
 import ProjectDetailsModal from './project/ProjectDetailsModal';
 import NewInvoiceModal from './project/NewInvoiceModal';
 import ShareProjectModal from './project/ShareProjectModal';
-import FilePreviewModal from './shared/FilePreviewModal';
-import { uploadFileToS3 } from '../services/s3Service';
+// Fájlokkal kapcsolatos import-ok eltávolítva
 import { saveToLocalStorage, formatFileSize } from './shared/utils';
 
 const API_URL = 'https://admin.nb-studio.net:5001/api';
 
 const ProjectManager = () => {
-  const [projectFiles, setProjectFiles] = useState([]);
+  // Fájlokkal kapcsolatos állapot eltávolítva
   const [projectComments, setProjectComments] = useState([]);
   const [projects, setProjects] = useState([]);
   const [filteredProjects, setFilteredProjects] = useState([]);
@@ -37,9 +36,7 @@ const ProjectManager = () => {
   const [viewType, setViewType] = useState('grid');
   const [expandedProjects, setExpandedProjects] = useState({});
 
-  const [previewFile, setPreviewFile] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
-  const fileInputRef = useRef(null);
 
   // Sikeres művelet üzenet megjelenítése
   const showSuccessMessage = (message) => {
@@ -86,22 +83,22 @@ const ProjectManager = () => {
   const handleSendComment = async (projectId, comment) => {
     try {
       const response = await api.post(`/api/projects/${projectId}/comments`, comment);
-      
+
       if (response.ok) {
         const updatedProject = await response.json();
-        
+
         // Update projects with the newest data from backend
-        setProjects(prevProjects => 
+        setProjects(prevProjects =>
           prevProjects.map(p => p._id === projectId ? updatedProject : p)
         );
-  
+
         // Also update projectComments state to immediately reflect in UI
         setProjectComments(prevComments => [
           // Add the new comment with projectId reference
           { ...comment, projectId, timestamp: new Date().toISOString() },
           ...prevComments
         ]);
-  
+
         showSuccessMessage('Hozzászólás sikeresen elküldve');
       } else {
         throw new Error('Hiba a hozzászólás küldésekor');
@@ -120,125 +117,8 @@ const ProjectManager = () => {
     }, 3000);
   };
 
-  // File upload handler for project cards
-  const handleFileUpload = async (event, projectId) => {
-    try {
-      console.log('Uploading file to project:', projectId);
-      
-      if (!projectId) {
-        showErrorMessage('Nincs kiválasztva projekt!');
-        return false;
-      }
-      
-      const uploadedFiles = Array.from(event.target.files);
-      console.log('Feldolgozandó fájlok:', {
-        darabszám: uploadedFiles.length,
-        fájlnevek: uploadedFiles.map(f => f.name),
-        fájlMéretek: uploadedFiles.map(f => formatFileSize(f.size)),
-        összMéret: formatFileSize(uploadedFiles.reduce((sum, f) => sum + f.size, 0))
-      });
-      
-      if (uploadedFiles.length === 0) {
-        console.warn('Nincsenek feltöltendő fájlok');
-        return false;
-      }
-      
-      const processedFiles = [];
-      
-      for (const file of uploadedFiles) {
-        try {
-          console.log(`Fájl olvasás kezdete: ${file.name} (${formatFileSize(file.size)})`);
-          
-          // Fájl olvasása és feltöltése
-          const reader = new FileReader();
-          
-          const fileData = await new Promise((resolve, reject) => {
-            reader.onload = (e) => {
-              const fileObj = {
-                id: Date.now() + '_' + file.name.replace(/\s+/g, '_'),
-                name: file.name,
-                size: file.size,
-                type: file.type,
-                uploadedAt: new Date().toISOString(),
-                content: e.target.result,
-                projectId: projectId,
-                uploadedBy: 'Admin' // Az admin oldalon mindig admin a feltöltő
-              };
-              resolve(fileObj);
-            };
-            
-            reader.onerror = (error) => {
-              console.error(`Fájl olvasási hiba (${file.name}):`, error);
-              reject(error);
-            };
-            
-            reader.readAsDataURL(file);
-          });
-          
-          console.log(`S3 feltöltés indítása: ${file.name}`);
-          const startTime = Date.now();
-          const s3Result = await uploadFileToS3(fileData);
-          const uploadDuration = Date.now() - startTime;
-          
-          // S3 információk hozzáadása a fájl objektumhoz
-          fileData.s3url = s3Result.s3url;
-          fileData.s3key = s3Result.key;
-          
-          console.log(`S3 feltöltés sikeres (${uploadDuration}ms):`, {
-            fájlnév: file.name,
-            s3kulcs: s3Result.key,
-            s3url: s3Result.s3url,
-            feltöltési_idő: uploadDuration + 'ms'
-          });
-          
-          // Már nincs szükség a content mezőre az S3 után
-          delete fileData.content;
-          
-          processedFiles.push(fileData);
-          
-        } catch (fileError) {
-          console.error(`Hiba a fájl feltöltése közben (${file.name}):`, fileError);
-        }
-      }
-      
-      if (processedFiles.length > 0) {
-        // Update the project files state
-        setProjectFiles(prev => [...prev, ...processedFiles]);
-        
-        // Find the project and update its files in the projects state
-        const projectToUpdate = projects.find(p => p._id === projectId);
-        if (projectToUpdate) {
-          const updatedProject = {
-            ...projectToUpdate,
-            files: [...(projectToUpdate.files || []), ...processedFiles]
-          };
-          
-          setProjects(prevProjects => 
-            prevProjects.map(p => p._id === projectId ? updatedProject : p)
-          );
-          
-          // Save to localStorage
-          saveToLocalStorage({ _id: projectId }, 'files', updatedProject.files);
-        }
-        
-        // Sikeres feltöltés üzenet
-        showSuccessMessage(`${processedFiles.length} fájl sikeresen feltöltve!`);
-        return true;
-      } else {
-        showErrorMessage('Nem sikerült feltölteni a fájlokat!');
-        return false;
-      }
-    } catch (error) {
-      console.error('Fájl feltöltési hiba:', error);
-      showErrorMessage('Fájl feltöltési hiba történt!');
-      return false;
-    } finally {
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-    }
-  };
-  
+  // Fájl feltöltési funkció eltávolítva
+
   // Aktivitások olvasottnak jelölése
   const handleMarkAsRead = async (projectId) => {
     try {
@@ -247,14 +127,14 @@ const ProjectManager = () => {
         api.put(`/api/projects/${projectId}/comments/reset-counters`),
         api.put(`/api/projects/${projectId}/files/reset-counters`)
       ]);
-      
+
       if (commentsResponse.ok && filesResponse.ok) {
         // Az egyik válasz tartalmazza a frissített projektet
         const updatedData = await commentsResponse.json();
         const updatedProject = updatedData.project || updatedData;
-        
+
         // Frissítjük a projekteket
-        setProjects(prevProjects => 
+        setProjects(prevProjects =>
           prevProjects.map(p => p._id === projectId ? updatedProject : p)
         );
 
@@ -267,12 +147,12 @@ const ProjectManager = () => {
       setError('Nem sikerült olvasottnak jelölni az aktivitásokat');
     }
   };
-  
+
   // Projekt aktivitások lekérése
   const fetchProjectActivity = async (projectId) => {
     try {
       const response = await api.get(`/api/projects/${projectId}/activity`);
-      
+
       if (response.ok) {
         const activityData = await response.json();
         return activityData;
@@ -292,16 +172,16 @@ const ProjectManager = () => {
       const response = await api.post(`${API_URL}/projects/${projectId}/share`, {
         expiresAt: expiryDate
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Hiba történt a link generálása során');
       }
-  
+
       const data = await response.json();
       setShareLink(data.shareLink);
       setSharePin(data.pin);
-      
+
       setActiveShares(prev => ({
         ...prev,
         [projectId]: {
@@ -312,7 +192,7 @@ const ProjectManager = () => {
           createdAt: data.createdAt
         }
       }));
-      
+
       setError(null);
       showSuccessMessage('Megosztási link sikeresen létrehozva');
     } catch (error) {
@@ -326,12 +206,12 @@ const ProjectManager = () => {
     try {
       const response = await api.get(`${API_URL}/projects/${projectId}/share`);
       const data = await response.json();
-      
+
       setActiveShares(prev => ({
         ...prev,
         [projectId]: data
       }));
-      
+
       return data;
     } catch (error) {
       console.error('Hiba a megosztási adatok lekérésekor:', error);
@@ -346,19 +226,19 @@ const ProjectManager = () => {
         setError('A projekt neve kötelező!');
         return;
       }
-  
+
       if (!selectedProject.client?.name || !selectedProject.client?.email) {
         setError('Az ügyfél neve és email címe kötelező!');
         return;
       }
-  
+
       // Get the current project from state if it exists to preserve sharing data
       let currentProject = null;
       if (selectedProject._id) {
         const existingProject = projects.find(p => p._id === selectedProject._id);
         currentProject = existingProject || null;
       }
-  
+
       const projectData = {
         ...selectedProject,
         status: selectedProject.status || 'aktív',
@@ -388,27 +268,27 @@ const ProjectManager = () => {
         // Preserve sharing information if it exists in the current project
         sharing: currentProject?.sharing || selectedProject.sharing
       };
-      
+
       // Hibaelhárítás: naplózzuk a küldendő adatokat
       console.log('Küldendő projekt adatok:', JSON.stringify(projectData, null, 2));
 
       // Ellenőrizzük, hogy vannak-e érvénytelen adatok
       if (projectData.changelog && Array.isArray(projectData.changelog)) {
-        projectData.changelog = projectData.changelog.filter(entry => 
+        projectData.changelog = projectData.changelog.filter(entry =>
           entry && typeof entry === 'object' && entry.title
         );
       }
-      
+
       // Távolítsuk el a ciklikus hivatkozásokat vagy érvénytelen mezőket
       const cleanedData = JSON.parse(JSON.stringify(projectData));
-  
+
       let response;
-      const apiEndpoint = selectedProject._id ? 
-        `${API_URL}/projects/${selectedProject._id}` : 
+      const apiEndpoint = selectedProject._id ?
+        `${API_URL}/projects/${selectedProject._id}` :
         `${API_URL}/projects`;
-      
+
       console.log('API végpont:', apiEndpoint);
-      
+
       try {
         if (selectedProject._id) {
           response = await api.put(apiEndpoint, cleanedData);
@@ -419,7 +299,7 @@ const ProjectManager = () => {
         console.error('Hiba a fetch művelet során:', fetchError);
         throw new Error(`Hálózati hiba: ${fetchError.message}`);
       }
-      
+
       let responseData;
       try {
         responseData = await response.json();
@@ -429,7 +309,7 @@ const ProjectManager = () => {
           throw new Error(`Szerver hiba: ${response.status} - ${response.statusText}`);
         }
       }
-      
+
       if (!response.ok) {
         if (response.status === 404) {
           throw new Error('A projekt nem található');
@@ -439,7 +319,7 @@ const ProjectManager = () => {
         }
         throw new Error(responseData.message || `Hiba: ${response.status} - ${response.statusText}`);
       }
-  
+
       setSelectedProject(null);
       await fetchProjects();
       showSuccessMessage('Projekt sikeresen mentve');
@@ -512,7 +392,7 @@ const ProjectManager = () => {
       setError(`Hiba történt a számla létrehozásakor: ${error.message}`);
     }
   };
-  
+
   // Add invoice item
   const handleAddInvoiceItem = () => {
     setNewInvoice(prev => ({
@@ -521,71 +401,7 @@ const ProjectManager = () => {
     }));
   };
 
-  // File delete handler
-  const handleDeleteFile = async (projectId, fileId) => {
-    try {
-      console.log(`Fájl törlése: ${fileId} (Projekt: ${projectId})`);
-      
-      if (!window.confirm('Biztosan törölni szeretné ezt a fájlt?')) {
-        console.log('Törlés megszakítva a felhasználó által');
-        return;
-      }
-      
-      // Find the project and file
-      const projectToUpdate = projects.find(p => p._id === projectId);
-      if (!projectToUpdate || !projectToUpdate.files) {
-        showErrorMessage('A projekt vagy a fájl nem található!');
-        return;
-      }
-      
-      const fileToDelete = projectToUpdate.files.find(file => file.id === fileId);
-      if (!fileToDelete) {
-        showErrorMessage('A fájl nem található!');
-        return;
-      }
-      
-      console.log('Törlendő fájl:', fileToDelete.name);
-      
-      // Update the project files without the deleted file
-      const updatedFiles = projectToUpdate.files.filter(file => file.id !== fileId);
-      const updatedProject = {
-        ...projectToUpdate,
-        files: updatedFiles
-      };
-      
-      // Update project state
-      setProjects(prevProjects => 
-        prevProjects.map(p => p._id === projectId ? updatedProject : p)
-      );
-      
-      // Update projectFiles state
-      setProjectFiles(prev => prev.filter(file => file.id !== fileId));
-      
-      // Save to localStorage
-      saveToLocalStorage({ _id: projectId }, 'files', updatedFiles);
-      
-      showSuccessMessage('Fájl sikeresen törölve!');
-      
-      // TODO: S3-ból való törlés implementálása a jövőben
-      // Jelenleg csak a helyi nyilvántartásból töröljük
-      
-    } catch (error) {
-      console.error('Hiba a fájl törlésekor:', error);
-      showErrorMessage('Hiba történt a fájl törlése során!');
-    }
-  };
-  
-  // Handler for showing file preview
-  const handleShowFilePreview = (file) => {
-    console.log('Fájl előnézet megnyitása:', file.name);
-    setPreviewFile(file);
-  };
-  
-  // Handler for closing file preview
-  const handleCloseFilePreview = () => {
-    console.log('Fájl előnézet bezárása');
-    setPreviewFile(null);
-  };
+  // Fájl törlési és előnézet funkciók eltávolítva
 
   // Apply filters to projects
   const applyFilters = (filters) => {
@@ -645,7 +461,7 @@ const ProjectManager = () => {
         setActiveShares(shares);
       }
     };
-    
+
     fetchAllShareInfo();
   }, [projects]);
 
@@ -659,7 +475,7 @@ const ProjectManager = () => {
     try {
       // API hívás a projekt törléséhez
       const response = await api.delete(`${API_URL}/projects/${projectId}`);
-      
+
       if (response.ok) {
         // Projekt törlése a helyi állapotból
         setProjects(projects.filter(project => project._id !== projectId));
@@ -708,31 +524,31 @@ const ProjectManager = () => {
             <div className="flex items-center space-x-2">
               <span className="text-sm">Link:</span>
               <div className="flex-1 flex items-center">
-                <input 
-                  type="text" 
-                  value={shareLink} 
-                  readOnly 
+                <input
+                  type="text"
+                  value={shareLink}
+                  readOnly
                   className="flex-1 p-1 border rounded-l bg-white"
                 />
-                <a 
+                <a
                   href={shareLink}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="p-1 border-t border-r border-b rounded-r bg-white hover:bg-gray-50"
                   title="Megnyitás új ablakban"
                 >
-                  <svg 
-                    xmlns="http://www.w3.org/2000/svg" 
-                    className="h-6 w-6 text-gray-600" 
-                    fill="none" 
-                    viewBox="0 0 24 24" 
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-6 w-6 text-gray-600"
+                    fill="none"
+                    viewBox="0 0 24 24"
                     stroke="currentColor"
                   >
-                    <path 
-                      strokeLinecap="round" 
-                      strokeLinejoin="round" 
-                      strokeWidth={2} 
-                      d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" 
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
                     />
                   </svg>
                 </a>
@@ -740,10 +556,10 @@ const ProjectManager = () => {
             </div>
             <div className="flex items-center space-x-2">
               <span className="text-sm">PIN kód:</span>
-              <input 
-                type="text" 
-                value={sharePin} 
-                readOnly 
+              <input
+                type="text"
+                value={sharePin}
+                readOnly
                 className="w-24 p-1 border rounded bg-white"
               />
             </div>
@@ -780,7 +596,7 @@ const ProjectManager = () => {
       </div>
 
       {/* Filters */}
-      <ProjectFilters 
+      <ProjectFilters
         projects={projects}
         onFilterChange={applyFilters}
       />
@@ -794,8 +610,8 @@ const ProjectManager = () => {
           <button
             onClick={() => setViewType('grid')}
             className={`p-2 rounded ${
-              viewType === 'grid' 
-                ? 'bg-indigo-100 text-indigo-700' 
+              viewType === 'grid'
+                ? 'bg-indigo-100 text-indigo-700'
                 : 'bg-gray-100 text-gray-600'
             }`}
             title="Grid nézet"
@@ -807,8 +623,8 @@ const ProjectManager = () => {
           <button
             onClick={() => setViewType('list')}
             className={`p-2 rounded ${
-              viewType === 'list' 
-                ? 'bg-indigo-100 text-indigo-700' 
+              viewType === 'list'
+                ? 'bg-indigo-100 text-indigo-700'
                 : 'bg-gray-100 text-gray-600'
             }`}
             title="Lista nézet"
@@ -820,8 +636,8 @@ const ProjectManager = () => {
           <button
             onClick={() => setViewType('accordion')}
             className={`p-2 rounded ${
-              viewType === 'accordion' 
-                ? 'bg-indigo-100 text-indigo-700' 
+              viewType === 'accordion'
+                ? 'bg-indigo-100 text-indigo-700'
                 : 'bg-gray-100 text-gray-600'
             }`}
             title="Összecsukható nézet"
@@ -835,23 +651,23 @@ const ProjectManager = () => {
 
       {/* Project views based on selected view type */}
       {viewType === 'grid' ? (
-        <ProjectGrid 
+        <ProjectGrid
           projects={filteredProjects}
           activeShares={activeShares}
           comments={projectComments}
-          files={projectFiles}
+          // Fájlok prop eltávolítva
           onShare={setShowShareModal}
           onNewInvoice={handleNewInvoice}
           onViewDetails={setSelectedProject}
-          onDelete={handleDeleteFile}
+          // Fájl törlés prop eltávolítva
           onDeleteProject={handleDeleteProject}
           onReplyToComment={handleSendComment}
-          onViewFile={handleShowFilePreview}
+          // Fájl előnézet prop eltávolítva
           onMarkAsRead={handleMarkAsRead}
-          onUploadFile={handleFileUpload}
+          // Fájl feltöltés prop eltávolítva
         />
       ) : viewType === 'list' ? (
-        <ProjectList 
+        <ProjectList
           projects={filteredProjects}
           activeShares={activeShares}
           onShare={setShowShareModal}
@@ -862,7 +678,7 @@ const ProjectManager = () => {
           onMarkAsRead={handleMarkAsRead}
         />
       ) : (
-        <ProjectAccordion 
+        <ProjectAccordion
           projects={filteredProjects}
           expandedProjects={expandedProjects}
           activeShares={activeShares}
@@ -911,23 +727,9 @@ const ProjectManager = () => {
         />
       )}
 
-      {/* File upload input */}
-      <input
-        type="file"
-        ref={fileInputRef}
-        onChange={(e) => handleFileUpload(e, selectedProject?._id)}
-        className="hidden"
-        multiple
-      />
-      
-      {/* File preview modal */}
-      {previewFile && (
-        <FilePreviewModal
-          file={previewFile}
-          onClose={handleCloseFilePreview}
-          language="hu"
-        />
-      )}
+      {/* Fájl feltöltés és előnézet komponensek eltávolítva */}
+
+
     </div>
   );
 };
