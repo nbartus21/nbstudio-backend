@@ -534,8 +534,8 @@ export const verifyPin = async (req, res) => {
       financial: {
         currency: project.financial?.currency || 'EUR'
       },
-      // Hozzáadjuk a nem törölt fájlokat
-      files: (project.files || [])
+      // Hozzáadjuk a nem törölt fájlokat, ha nincsenek elrejtve
+      files: project.sharing?.hideFiles ? [] : (project.files || [])
         .filter(file => !file.isDeleted)
         .map(file => ({
           id: file.id,
@@ -550,7 +550,9 @@ export const verifyPin = async (req, res) => {
       sharing: {
         token: project.sharing.token, // Hozzáadjuk a tokent is, hogy a kliens használhassa
         expiresAt: project.sharing.expiresAt,
-        createdAt: project.sharing.createdAt
+        createdAt: project.sharing.createdAt,
+        hideFiles: project.sharing?.hideFiles || false,
+        hideDocuments: project.sharing?.hideDocuments || false
       }
     };
 
@@ -665,7 +667,7 @@ const uploadToS3 = async (fileData) => {
     const safeFileName = fileData.name
       .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // Ékezetek eltávolítása
       .replace(/[^\w.-]/g, '_'); // Nem biztonságos karakterek cseréje alulvonásra
-    
+
     const key = `${FILE_PREFIX}${fileData.projectId}/${Date.now()}_${safeFileName}`;
     console.log('🔄 [SZERVER] Generált S3 kulcs:', key);
 
@@ -756,8 +758,8 @@ router.post('/projects/:id/files', async (req, res) => {
       méret: fileData.size,
       típus: fileData.type,
       feltöltő: fileData.uploadedBy,
-      tartalom: fileData.content ? (fileData.content.length > 100 ? 
-        `${fileData.content.substring(0, 100)}... (${fileData.content.length} karakter)` : 
+      tartalom: fileData.content ? (fileData.content.length > 100 ?
+        `${fileData.content.substring(0, 100)}... (${fileData.content.length} karakter)` :
         'Nincs tartalom')
         : 'Nincs tartalom'
     });
@@ -778,15 +780,15 @@ router.post('/projects/:id/files', async (req, res) => {
           projectId: req.params.id
         });
         const uploadDuration = Date.now() - startTime;
-        
+
         console.log(`✅ [SZERVER] S3 feltöltés sikeres (${uploadDuration}ms):`, {
           s3Url: s3Data.s3url,
           s3Kulcs: s3Data.key
         });
-        
+
         // Az eredeti content már nem szükséges, töröljük
         delete fileData.content;
-        
+
         // S3 adatok hozzáadása
         fileData.s3url = s3Data.s3url;
         fileData.s3key = s3Data.key;
@@ -1087,12 +1089,12 @@ router.get('/public/projects/:token/changelog', async (req, res) => {
   try {
     // Keresés először a shareToken mezőben
     let project = await Project.findOne({ shareToken: req.params.token });
-    
+
     // Ha nem található, próbáljuk a sharing.token mezőben is
     if (!project) {
       project = await Project.findOne({ 'sharing.token': req.params.token });
     }
-    
+
     if (!project) {
       return res.status(404).json({ message: 'Projekt nem található' });
     }
@@ -1109,13 +1111,13 @@ router.get('/:id/files', auth, async (req, res) => {
   try {
     const { id } = req.params;
     console.log(`GET /api/projects/${id}/files kérés`);
-    
+
     const project = await Project.findById(id);
     if (!project) {
       console.log(`Projekt nem található: ${id}`);
       return res.status(404).json({ message: 'Projekt nem található' });
     }
-    
+
     console.log(`Fájlok visszaadása a projekthez: ${id}, talált fájlok: ${project.files.length}`);
     res.json(project.files || []);
   } catch (error) {
@@ -1134,24 +1136,24 @@ router.post('/:id/files', auth, async (req, res) => {
       méret: fileData.size,
       típus: fileData.type
     });
-    
+
     const project = await Project.findById(id);
     if (!project) {
       console.log(`Projekt nem található: ${id}`);
       return res.status(404).json({ message: 'Projekt nem található' });
     }
-    
+
     // Validáljuk a fájl adatokat
     if (!fileData.id || !fileData.name || !fileData.size || !fileData.type) {
-      console.log('Hiányzó kötelező adatok:', { 
-        van_id: !!fileData.id, 
-        van_név: !!fileData.name, 
-        van_méret: !!fileData.size, 
-        van_típus: !!fileData.type 
+      console.log('Hiányzó kötelező adatok:', {
+        van_id: !!fileData.id,
+        van_név: !!fileData.name,
+        van_méret: !!fileData.size,
+        van_típus: !!fileData.type
       });
       return res.status(400).json({ message: 'Hiányzó fájl adatok' });
     }
-    
+
     // Előkészítjük a fájl objektumot a MongoDB számára
     const fileToSave = {
       id: fileData.id,
@@ -1164,23 +1166,23 @@ router.post('/:id/files', auth, async (req, res) => {
       s3key: fileData.s3key || null,
       isDeleted: false
     };
-    
+
     // Ha van content, akkor azt is mentjük (base64 kép)
     if (fileData.content) {
       fileToSave.content = fileData.content;
     }
-    
-    console.log('Fájl mentése a MongoDB-be:', { 
-      id: fileToSave.id, 
-      név: fileToSave.name, 
-      s3_url_létezik: !!fileToSave.s3url 
+
+    console.log('Fájl mentése a MongoDB-be:', {
+      id: fileToSave.id,
+      név: fileToSave.name,
+      s3_url_létezik: !!fileToSave.s3url
     });
-    
+
     // Az új fájl objektum hozzáadása a tömbhöz a push helyett egy megbízhatóbb módon
     if (!project.files) {
       project.files = [];
     }
-    
+
     // Ellenőrizzük, hogy ez a fájl nem létezik-e már (id alapján)
     const existingFileIndex = project.files.findIndex(f => f.id === fileToSave.id);
     if (existingFileIndex !== -1) {
@@ -1194,18 +1196,18 @@ router.post('/:id/files', auth, async (req, res) => {
       // Új fájl hozzáadása
       project.files.push(fileToSave);
     }
-    
+
     await project.save();
     console.log(`Fájl sikeresen mentve a projekthez: ${fileToSave.name}`);
-    
+
     res.json({
       message: 'Fájl sikeresen hozzáadva',
       files: project.files.filter(f => !f.isDeleted)
     });
   } catch (error) {
     console.error('Hiba a fájl projekthez adása során:', error);
-    res.status(500).json({ 
-      message: 'Szerver hiba történt', 
+    res.status(500).json({
+      message: 'Szerver hiba történt',
       error: error.message,
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
@@ -1217,26 +1219,26 @@ router.delete('/:projectId/files/:fileId', auth, async (req, res) => {
   try {
     const { projectId, fileId } = req.params;
     console.log(`DELETE /api/projects/${projectId}/files/${fileId} kérés`);
-    
+
     const project = await Project.findById(projectId);
     if (!project) {
       console.log(`Projekt nem található: ${projectId}`);
       return res.status(404).json({ message: 'Projekt nem található' });
     }
-    
+
     const fileIndex = project.files.findIndex(file => file.id === fileId);
     if (fileIndex === -1) {
       console.log(`Fájl nem található: ${fileId}`);
       return res.status(404).json({ message: 'Fájl nem található' });
     }
-    
+
     // Csak logikai törlés - megjelöljük a fájlt töröltként
     project.files[fileIndex].isDeleted = true;
     project.files[fileIndex].deletedAt = new Date();
-    
+
     await project.save();
     console.log(`Fájl sikeresen törölve: ${fileId}`);
-    
+
     res.json({ message: 'Fájl sikeresen törölve' });
   } catch (error) {
     console.error('Hiba a fájl törlése során:', error);
@@ -1249,27 +1251,27 @@ router.get('/public/projects/:token/files', async (req, res) => {
   try {
     const { token } = req.params;
     console.log(`GET /api/public/projects/${token}/files publikus kérés érkezett`);
-    
+
     // Keresés a sharing.token mezőben
     let project = await Project.findOne({ 'sharing.token': token });
-    
+
     // Ha nem találja, próbáljuk a régebbi shareToken mezővel is
     if (!project) {
       project = await Project.findOne({ shareToken: token });
     }
-    
+
     if (!project) {
       console.log(`Megosztott projekt nem található a tokennel: ${token}`);
       return res.status(404).json({ message: 'Megosztott projekt nem található' });
     }
-    
+
     console.log(`Megosztott projekt megtalálva: ${project.name}, fájlok száma: ${project.files?.length || 0}`);
-    
+
     // Szűrjük a fájlokat, hogy csak a nem törölteket küldjük vissza
     const activeFiles = (project.files || []).filter(file => !file.isDeleted);
-    
+
     console.log(`Aktív fájlok száma: ${activeFiles.length}`);
-    
+
     res.json(activeFiles);
   } catch (error) {
     console.error('Hiba a megosztott projekt fájlok lekérdezése során:', error);
@@ -1287,33 +1289,33 @@ router.post('/public/projects/:token/files', async (req, res) => {
       méret: fileData.size,
       típus: fileData.type
     });
-    
+
     // Keresés a sharing.token mezőben
     let project = await Project.findOne({ 'sharing.token': token });
-    
+
     // Ha nem találja, próbáljuk a régebbi shareToken mezővel is
     if (!project) {
       project = await Project.findOne({ shareToken: token });
     }
-    
+
     if (!project) {
       console.log(`Megosztott projekt nem található a tokennel: ${token}`);
       return res.status(404).json({ message: 'Megosztott projekt nem található' });
     }
-    
+
     console.log(`Megosztott projekt megtalálva: ${project.name}`);
-    
+
     // Validáljuk a fájl adatokat
     if (!fileData.id || !fileData.name || !fileData.size || !fileData.type) {
-      console.log('Hiányzó kötelező adatok:', { 
-        van_id: !!fileData.id, 
-        van_név: !!fileData.name, 
-        van_méret: !!fileData.size, 
-        van_típus: !!fileData.type 
+      console.log('Hiányzó kötelező adatok:', {
+        van_id: !!fileData.id,
+        van_név: !!fileData.name,
+        van_méret: !!fileData.size,
+        van_típus: !!fileData.type
       });
       return res.status(400).json({ message: 'Hiányzó fájl adatok' });
     }
-    
+
     // Előkészítjük a fájl objektumot a MongoDB számára
     const fileToSave = {
       id: fileData.id,
@@ -1326,7 +1328,7 @@ router.post('/public/projects/:token/files', async (req, res) => {
       s3key: fileData.s3key || null,
       isDeleted: false
     };
-    
+
     // Ha van fájltartalom, feltöltjük az S3-ba
     if (fileData.content) {
       try {
@@ -1335,28 +1337,28 @@ router.post('/public/projects/:token/files', async (req, res) => {
           ...fileData,
           projectId: project._id.toString()
         });
-        
+
         // S3 adatok hozzáadása
         fileToSave.s3url = s3Result.s3url;
         fileToSave.s3key = s3Result.key;
         console.log('S3 feltöltés sikeres:', { url: fileToSave.s3url });
-        
+
         // Content eltávolítása, mert már feltöltöttük S3-ba
         delete fileData.content;
       } catch (s3Error) {
         console.error('Hiba az S3 feltöltés során:', s3Error);
-        return res.status(500).json({ 
-          message: 'Hiba a fájl feltöltése során', 
-          error: s3Error.message 
+        return res.status(500).json({
+          message: 'Hiba a fájl feltöltése során',
+          error: s3Error.message
         });
       }
     }
-    
+
     // Az új fájl objektum hozzáadása a tömbhöz
     if (!project.files) {
       project.files = [];
     }
-    
+
     // Ellenőrizzük, hogy ez a fájl nem létezik-e már (id alapján)
     const existingFileIndex = project.files.findIndex(f => f.id === fileToSave.id);
     if (existingFileIndex !== -1) {
@@ -1367,7 +1369,7 @@ router.post('/public/projects/:token/files', async (req, res) => {
       // Új fájl hozzáadása
       project.files.push(fileToSave);
     }
-    
+
     // Értesítés küldése az adminnak az új fájlról
     try {
       await Notification.create({
@@ -1383,10 +1385,10 @@ router.post('/public/projects/:token/files', async (req, res) => {
       console.error('Hiba az értesítés küldése során:', notifError);
       // Ezt a hibát csak naplózzuk, de nem szakítjuk meg a feltöltést
     }
-    
+
     await project.save();
     console.log(`Fájl sikeresen mentve a megosztott projekthez: ${fileToSave.name}`);
-    
+
     // Csak a nem törölt fájlokat küldjük vissza
     const activeFiles = project.files.filter(f => !f.isDeleted);
     res.status(201).json({
@@ -1395,11 +1397,12 @@ router.post('/public/projects/:token/files', async (req, res) => {
     });
   } catch (error) {
     console.error('Hiba a fájl megosztott projekthez adása során:', error);
-    res.status(500).json({ 
-      message: 'Szerver hiba történt', 
+    res.status(500).json({
+      message: 'Szerver hiba történt',
       error: error.message
     });
   }
 });
 
+export { uploadToS3, verifyPin };
 export default router;

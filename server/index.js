@@ -464,8 +464,8 @@ app.get('/api/public/webpages/:identifier', validateApiKey, async (req, res) => 
   }
 });
 
-// Importáljuk a PIN ellenőrző függvényt
-import { verifyPin } from './routes/projects.js';
+// Importáljuk a szükséges függvényeket a projects.js fájlból
+import { verifyPin, uploadToS3 } from './routes/projects.js';
 
 // Különböző útvonalon regisztráljuk ugyanazt a PIN ellenőrző végpontot
 // Így biztosítjuk, hogy több URL-ről is elérhető legyen
@@ -505,6 +505,20 @@ app.get('/api/public/projects/:projectId/documents', validateApiKey, async (req,
 
     // Import necessary models
     const GeneratedDocument = mongoose.model('GeneratedDocument');
+    const Project = mongoose.model('Project');
+
+    // Ellenőrizzük, hogy a projekt megosztási beállításai engedélyezik-e a dokumentumok megjelenítését
+    const project = await Project.findById(req.params.projectId);
+    if (!project) {
+      console.error(`Project not found with ID: ${req.params.projectId}`);
+      return res.status(404).json({ message: 'Project not found' });
+    }
+
+    // Ha a dokumentumok el vannak rejtve, üres tömböt küldünk vissza
+    if (project.sharing && project.sharing.hideDocuments) {
+      console.log(`Documents are hidden for shared project: ${req.params.projectId}`);
+      return res.json([]);
+    }
 
     // Find documents for this project
     const documents = await GeneratedDocument.find({
@@ -539,6 +553,12 @@ app.get('/api/public/shared-projects/:token/files', validateApiKey, async (req, 
     }
 
     console.log(`Megosztott projekt megtalálva: ${project.name}, fájlok száma: ${project.files?.length || 0}`);
+
+    // Ellenőrizzük, hogy a fájlok el vannak-e rejtve
+    if (project.sharing && project.sharing.hideFiles) {
+      console.log(`Fájlok el vannak rejtve ennél a megosztott projektnél: ${project.name}`);
+      return res.json([]);
+    }
 
     // Szűrjük a fájlokat, hogy csak a nem törölteket küldjük vissza
     const activeFiles = (project.files || []).filter(file => !file.isDeleted);
