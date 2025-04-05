@@ -10,10 +10,29 @@ struct Project: Identifiable, Codable {
     var invoices: [Invoice]
     var files: [ProjectFile]
     var changelog: [ChangelogEntry]? // Opcionális, mert nem minden válaszban van jelen
+    var financial: Financial?
     var sharing: Sharing
 
     enum CodingKeys: String, CodingKey {
-        case _id, name, description, status, client, invoices, files, changelog, sharing
+        case _id, name, description, status, client, invoices, files, changelog, financial, sharing
+    }
+
+    // Egyedi dekodóló implementáció az opcionális mezők kezeléséhez
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        _id = try container.decode(String.self, forKey: ._id)
+        name = try container.decode(String.self, forKey: .name)
+        description = try container.decode(String.self, forKey: .description)
+        status = try container.decode(String.self, forKey: .status)
+        client = try container.decode(Client.self, forKey: .client)
+        invoices = try container.decode([Invoice].self, forKey: .invoices)
+        files = try container.decode([ProjectFile].self, forKey: .files)
+        sharing = try container.decode(Sharing.self, forKey: .sharing)
+
+        // Opcionális mezők dekodólása
+        changelog = try container.decodeIfPresent([ChangelogEntry].self, forKey: .changelog)
+        financial = try container.decodeIfPresent(Financial.self, forKey: .financial)
     }
 
     struct Client: Codable {
@@ -36,6 +55,16 @@ struct Project: Identifiable, Codable {
         var pin: String
         var expiresAt: String
         var createdAt: String
+    }
+
+    struct Financial: Codable {
+        var currency: String
+        var budget: Budget?
+
+        struct Budget: Codable {
+            var min: Double?
+            var max: Double?
+        }
     }
 }
 
