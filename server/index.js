@@ -527,24 +527,24 @@ app.get('/api/public/shared-projects/:token/files', validateApiKey, async (req, 
 
     // Keresés a sharing.token mezőben
     let project = await mongoose.model('Project').findOne({ 'sharing.token': token });
-    
+
     // Ha nem találja, próbáljuk a régebbi shareToken mezővel is
     if (!project) {
       project = await mongoose.model('Project').findOne({ shareToken: token });
     }
-    
+
     if (!project) {
       console.log(`Megosztott projekt nem található a tokennel: ${token}`);
       return res.status(404).json({ message: 'Megosztott projekt nem található' });
     }
-    
+
     console.log(`Megosztott projekt megtalálva: ${project.name}, fájlok száma: ${project.files?.length || 0}`);
-    
+
     // Szűrjük a fájlokat, hogy csak a nem törölteket küldjük vissza
     const activeFiles = (project.files || []).filter(file => !file.isDeleted);
-    
+
     console.log(`Aktív fájlok száma: ${activeFiles.length}`);
-    
+
     res.json(activeFiles);
   } catch (error) {
     console.error('Hiba a megosztott projekt fájlok lekérdezése során:', error);
@@ -558,28 +558,28 @@ app.post('/api/public/shared-projects/:token/files', validateApiKey, async (req,
     const { token } = req.params;
     const fileData = req.body;
     console.log(`Megosztott projekthez fájl feltöltés (Token: ${token})`);
-    
+
     // Keresés a sharing.token mezőben
     let project = await mongoose.model('Project').findOne({ 'sharing.token': token });
-    
+
     // Ha nem találja, próbáljuk a régebbi shareToken mezővel is
     if (!project) {
       project = await mongoose.model('Project').findOne({ shareToken: token });
     }
-    
+
     if (!project) {
       console.log(`Megosztott projekt nem található a tokennel: ${token}`);
       return res.status(404).json({ message: 'Megosztott projekt nem található' });
     }
-    
+
     console.log(`Megosztott projekt megtalálva: ${project.name}`);
-    
+
     // Validáljuk a fájl adatokat
     if (!fileData.id || !fileData.name || !fileData.size || !fileData.type) {
       console.log('Hiányzó kötelező adatok a fájlnál');
       return res.status(400).json({ message: 'Hiányzó fájl adatok' });
     }
-    
+
     // Előkészítjük a fájl objektumot a MongoDB számára
     const fileToSave = {
       id: fileData.id,
@@ -592,7 +592,7 @@ app.post('/api/public/shared-projects/:token/files', validateApiKey, async (req,
       s3key: fileData.s3key || null,
       isDeleted: false
     };
-    
+
     // Ha van fájltartalom, feltöltjük az S3-ba
     if (fileData.content) {
       try {
@@ -600,27 +600,27 @@ app.post('/api/public/shared-projects/:token/files', validateApiKey, async (req,
           ...fileData,
           projectId: project._id.toString()
         });
-        
+
         // S3 adatok hozzáadása
         fileToSave.s3url = s3Result.s3url;
         fileToSave.s3key = s3Result.key;
-        
+
         // Content eltávolítása, mert már feltöltöttük S3-ba
         delete fileData.content;
       } catch (s3Error) {
         console.error('Hiba az S3 feltöltés során:', s3Error);
-        return res.status(500).json({ 
-          message: 'Hiba a fájl feltöltése során', 
-          error: s3Error.message 
+        return res.status(500).json({
+          message: 'Hiba a fájl feltöltése során',
+          error: s3Error.message
         });
       }
     }
-    
+
     // Az új fájl objektum hozzáadása a tömbhöz
     if (!project.files) {
       project.files = [];
     }
-    
+
     // Ellenőrizzük, hogy ez a fájl nem létezik-e már (id alapján)
     const existingFileIndex = project.files.findIndex(f => f.id === fileToSave.id);
     if (existingFileIndex !== -1) {
@@ -630,10 +630,10 @@ app.post('/api/public/shared-projects/:token/files', validateApiKey, async (req,
       // Új fájl hozzáadása
       project.files.push(fileToSave);
     }
-    
+
     await project.save();
     console.log(`Fájl sikeresen mentve a megosztott projekthez: ${fileToSave.name}`);
-    
+
     // Csak a nem törölt fájlokat küldjük vissza
     const activeFiles = project.files.filter(f => !f.isDeleted);
     res.status(201).json({
@@ -642,8 +642,8 @@ app.post('/api/public/shared-projects/:token/files', validateApiKey, async (req,
     });
   } catch (error) {
     console.error('Hiba a fájl feltöltése során:', error);
-    res.status(500).json({ 
-      message: 'Szerver hiba történt', 
+    res.status(500).json({
+      message: 'Szerver hiba történt',
       error: error.message
     });
   }
@@ -655,9 +655,14 @@ app.post('/api/public/shared-projects/:token/files', validateApiKey, async (req,
 
 // Public Document PDF endpoint
 app.get('/api/documents/:id/pdf', async (req, res) => {
-  try {
-    console.log(`Public PDF generation request for document ID: ${req.params.id}`);
+  // Nyelvi paraméter kezelése (alapértelmezett: hu)
+  const language = req.query.language || 'hu';
+  // Csak támogatott nyelvek engedélyezése
+  const validLanguage = ['hu', 'en', 'de'].includes(language) ? language : 'hu';
 
+  console.log(`PDF generálás kérés: documentId=${req.params.id}, language=${validLanguage}`);
+
+  try {
     // Import necessary models if not available
     const GeneratedDocument = mongoose.model('GeneratedDocument');
 
@@ -673,102 +678,162 @@ app.get('/api/documents/:id/pdf', async (req, res) => {
 
     console.log(`Found document: ${document.name} (${document._id})`);
 
-    // Generate safe filename for download with .pdf extension
-    let fileName = `${document.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_${Date.now()}`;
-    // Ellenőrizzük, hogy van-e .pdf kiterjesztés
+    // Generáljunk egy biztonságos fájlnevet a letöltéshez
+    let fileName = validLanguage === 'hu' ? `dokumentum-${document.name}` :
+                  (validLanguage === 'de' ? `dokument-${document.name}` : `document-${document.name}`);
     if (!fileName.toLowerCase().endsWith('.pdf')) {
       fileName += '.pdf';
     }
 
-    // Set response headers
+    // Set response headers immediately
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
 
-    // Create PDF document and pipe to response
+    // Define colors for PDF
+    const colors = {
+      primary: '#4F46E5', // indigo-600
+      secondary: '#6B7280', // gray-500
+      light: '#E5E7EB', // gray-200
+      success: '#10B981', // green-500
+      warning: '#F59E0B', // amber-500
+      danger: '#EF4444', // red-500
+      text: '#1F2937', // gray-800
+      textLight: '#6B7280' // gray-500
+    };
+
+    // Create PDF document and pipe directly to response
     const doc = new PDFDocument({
-      size: 'A4',
-      margin: 50,
-      info: {
-        Title: document.name,
-        Author: 'NB Studio',
-        Subject: document.templateId?.name || 'Document',
-        Keywords: document.templateId?.tags?.join(', ') || 'document'
-      },
-      autoFirstPage: true,
-      bufferPages: true
-    });
+        size: 'A4',
+        margin: 50,
+        info: {
+          Title: document.name,
+          Author: 'Norbert Bartus',
+          Subject: document.templateId?.name || 'Document',
+          Keywords: document.templateId?.tags?.join(', ') || 'document'
+        },
+        font: 'Helvetica', // Ez a betűtípus általában támogatja a magyar karaktereket
+        autoFirstPage: true,
+        bufferPages: true
+      });
 
     // Pipe directly to response
     doc.pipe(res);
 
-    // Error handling
+    // Catch errors in PDF generation and response
     doc.on('error', (err) => {
       console.error(`PDF generation error: ${err}`);
+      // We can't send a proper error response here as headers are already sent
+      // Just make sure the response is ended
       if (!res.finished) {
         doc.end();
       }
     });
 
-    // Add header
-    doc.fontSize(18).text(document.name, { align: 'center' });
-    doc.moveDown();
-    doc.fontSize(12).text(`Generated: ${new Date().toLocaleDateString('hu-HU')}`, { align: 'center' });
+    // Register fonts
+    doc.registerFont('Helvetica', 'Helvetica');
+    doc.registerFont('Helvetica-Bold', 'Helvetica-Bold');
+
+    // Document title
+    doc.font('Helvetica-Bold')
+       .fontSize(28)
+       .fillColor(colors.primary)
+       .text('DOKUMENTUM', 50, 30)
+       .fontSize(14)
+       .fillColor(colors.secondary)
+       .text(document.name, 50, 65);
+
+    // Add date
+    const dateText = validLanguage === 'hu' ? 'Készült:' :
+                    (validLanguage === 'de' ? 'Erstellt am:' : 'Created on:');
+    doc.font('Helvetica')
+       .fontSize(10)
+       .fillColor(colors.textLight)
+       .text(`${dateText} ${new Date().toLocaleDateString(
+         validLanguage === 'hu' ? 'hu-HU' :
+         validLanguage === 'de' ? 'de-DE' : 'en-US'
+       )}`, 50, 90);
+
     doc.moveDown(2);
 
-    // Add document content
-    // Convert HTML to plain text
+    // Company info
+    doc.font('Helvetica-Bold')
+       .fontSize(12)
+       .fillColor(colors.text)
+       .text('Norbert Bartus', 50, 130);
+
+    doc.font('Helvetica')
+       .fontSize(10)
+       .fillColor(colors.textLight)
+       .text('Salinenstraße 25', 50, 145)
+       .text('76646 Bruchsal', 50, 160)
+       .text('Baden-Württemberg, Deutschland', 50, 175);
+
+    // Document content
+    doc.moveDown(3);
+    doc.font('Helvetica-Bold')
+       .fontSize(14)
+       .fillColor(colors.text)
+       .text(validLanguage === 'hu' ? 'Dokumentum tartalma' :
+             validLanguage === 'de' ? 'Dokumentinhalt' : 'Document content', 50, 220);
+
+    doc.moveDown();
+
+    // Dokumentum tartalom hozzáadása
+    // HTML-ből tiszta szöveg konvertálása
     const content = document.htmlVersion || document.content;
     const plainText = content.replace(/<[^>]*>/g, ' ')
                             .replace(/\s+/g, ' ')
                             .trim();
 
-    doc.fontSize(12).text(plainText, {
-      align: 'left',
-      columns: 1,
-      lineGap: 5
-    });
+    doc.font('Helvetica')
+       .fontSize(11)
+       .fillColor(colors.text)
+       .text(plainText, 50, 250, {
+         align: 'left',
+         width: doc.page.width - 100,
+         lineGap: 5
+       });
 
-    // Generate all pages
+    // Generate all pages first
     doc.flushPages();
 
-    // Add page numbers
+    // Add page numbers and footer to each page
     const pageCount = doc.bufferedPageRange().count;
     for (let i = 0; i < pageCount; i++) {
       doc.switchToPage(i);
 
-      // Footer position
-      const footerY = doc.page.height - 50;
+      // Lábléc pozíció (alul)
+      const footerTop = doc.page.height - 50;
 
-      doc.fontSize(8)
-         .text(
-           `${document.name} - ${i + 1}/${pageCount} page`,
-           50,
-           footerY,
-           { align: 'center', width: doc.page.width - 100 }
-         );
+      // Company financial info
+      doc.font('Helvetica')
+         .fontSize(8)
+         .fillColor(colors.textLight);
+
+      // Teljes lábléc szöveg egy sorban az oldalszámmal együtt
+      const footerText = `Norbert Bartus | St.-Nr.: 68194547329 | USt-IdNr.: DE346419031 | ${validLanguage === 'hu' ? `${i+1}. oldal` : (validLanguage === 'de' ? `Seite ${i+1}` : `Page ${i+1}`)} / ${pageCount}`;
+      doc.text(footerText, 50, footerTop, {
+        align: 'center',
+        width: doc.page.width - 100
+      });
     }
 
-    // Update document tracking info
-    try {
-      document.downloadCount = (document.downloadCount || 0) + 1;
-      document.lastDownloadedAt = new Date();
-      await document.save();
-    } catch (saveErr) {
-      console.error(`Error updating document tracking: ${saveErr.message}`);
-      // Continue with PDF generation even if tracking update fails
-    }
+    // Update document to increase download count
+    document.downloadCount = (document.downloadCount || 0) + 1;
+    document.lastDownloadedAt = new Date();
+    await document.save();
 
-    // Finalize PDF
+    // Finalize PDF and send response
     doc.end();
-    console.log(`PDF generation completed for: ${fileName}`);
+    console.log(`PDF generálás befejezve: ${fileName}`);
 
   } catch (error) {
-    console.error(`PDF generation error: ${error.message}`);
+    console.error(`PDF generálási hiba: ${error.message}`);
     console.error(error.stack);
 
     if (!res.headersSent) {
       res.status(500).json({
-        message: 'Error generating PDF',
+        message: 'Hiba történt a PDF generálása során',
         error: error.message
       });
     } else {
