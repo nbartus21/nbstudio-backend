@@ -646,25 +646,36 @@ const uploadToS3 = async (fileData) => {
     });
 
     // Egyedi fájlnév generálása a projektazonosítóval
-    const key = `${FILE_PREFIX}${fileData.projectId}/${Date.now()}_${fileData.name.replace(/\s+/g, '_')}`;
+    // Ékezetes karakterek eltávolítása és biztonságos fájlnév létrehozása
+    const safeFileName = fileData.name
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // Ékezetek eltávolítása
+      .replace(/[^\w.-]/g, '_'); // Nem biztonságos karakterek cseréje alulvonásra
+    
+    const key = `${FILE_PREFIX}${fileData.projectId}/${Date.now()}_${safeFileName}`;
     console.log('🔄 [SZERVER] Generált S3 kulcs:', key);
+
+    // Metaadatok előkészítése - csak ASCII karakterek használata
+    const metadata = {
+      'project-id': fileData.projectId,
+      'uploaded-by': (fileData.uploadedBy || 'unknown').normalize('NFD').replace(/[\u0300-\u036f]/g, ''),
+      'original-filename': encodeURIComponent(fileData.name) // URL kódolás a biztonság kedvéért
+    };
 
     const uploadParams = {
       Bucket: BUCKET_NAME,
       Key: key,
       Body: binaryData,
       ContentType: fileData.type,
-      Metadata: {
-        'project-id': fileData.projectId,
-        'uploaded-by': fileData.uploadedBy || 'unknown',
-        'original-name': fileData.name
-      }
+      Metadata: metadata,
+      // Publikus hozzáférés biztosítása a fájlhoz
+      ACL: 'public-read'
     };
     console.log('🔄 [SZERVER] Feltöltési paraméterek összeállítva:', {
       bucket: uploadParams.Bucket,
       kulcs: uploadParams.Key,
       contentType: uploadParams.ContentType,
-      metaadatMezők: Object.keys(uploadParams.Metadata)
+      metaadatMezők: Object.keys(uploadParams.Metadata),
+      hozzáférés: 'public-read'
     });
 
     // A feltöltés végrehajtása
