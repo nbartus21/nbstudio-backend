@@ -156,7 +156,7 @@ const DocumentViewModal = ({ document: docData, project, onClose, language = 'hu
         debugLog('DocumentViewModal-download', 'Downloading PDF from server API', { documentId: docData._id });
 
         // Használjuk a publikus PDF végpontot
-        const response = await fetch(`${API_URL}/documents/${docData._id}/pdf?language=${language}`, {
+        const response = await fetch(`${API_URL}/public/documents/${docData._id}/pdf?language=${language}`, {
           headers: {
             'X-API-Key': API_KEY
           }

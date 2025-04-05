@@ -407,7 +407,7 @@ const ProjectDocuments = ({
       }
 
       // Call API to generate PDF
-      const pdfUrl = `${API_URL}/documents/${doc._id}/pdf?language=${language}`;
+      const pdfUrl = `${API_URL}/public/documents/${doc._id}/pdf?language=${language}`;
       debugLog('handleGeneratePDF', 'Calling API', {
         documentId: doc._id,
         language: language,

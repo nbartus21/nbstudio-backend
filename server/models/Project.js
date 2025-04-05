@@ -184,7 +184,9 @@ const projectSchema = new mongoose.Schema({
     },
     link: String,
     expiresAt: Date,
-    createdAt: Date
+    createdAt: Date,
+    hideFiles: { type: Boolean, default: false },
+    hideDocuments: { type: Boolean, default: false }
   },
 
   // Changelog - fejlesztési napló
