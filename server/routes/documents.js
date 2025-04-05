@@ -24,9 +24,6 @@ const corsMiddleware = (req, res, next) => {
   next();
 };
 
-// Védett végpontok
-router.use(authMiddleware);
-
 // FONTOS: Engedélyezzük a hozzáférést a dokumentum létrehozásához API kulccsal IS,
 // hogy a publikus kliensek is tudják használni
 const apiKeyChecker = (req, res, next) => {
@@ -37,15 +34,214 @@ const apiKeyChecker = (req, res, next) => {
 
   // Ha nincs token, ellenőrizzük az API kulcsot
   const apiKey = req.headers['x-api-key'];
+  console.log('API Key ellenőrzés a dokumentum végponton:', req.originalUrl);
+  console.log('Kapott fejlécek:', JSON.stringify(req.headers, null, 2));
+  console.log('Kapott API kulcs:', apiKey ? 'Megkapva' : 'Nincs megadva');
+
   if (apiKey === 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0') {
     // Ha érvényes az API kulcs, állítsuk be egy alap userData objektumot
     req.userData = { email: 'api-client@example.com' };
+    console.log('API kulcs ellenőrzés sikeres');
     return next();
   }
 
   // Ha sem token, sem érvényes API kulcs nincs, akkor 401
+  console.error('API kulcs ellenőrzés sikertelen');
+  console.error('Várt:', 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0');
+  console.error('Kapott:', apiKey);
   return res.status(401).json({ message: 'Unauthorized access' });
 };
+
+// Regisztráljuk a PDF generálás végpontot az authMiddleware előtt
+// IMPROVED: Dokumentum PDF generálása és letöltése - közvetlen streamelés válaszba
+router.get('/documents/:id/pdf', corsMiddleware, apiKeyChecker, async (req, res) => {
+  // Nyelvi paraméter kezelése (alapértelmezett: hu)
+  const language = req.query.language || 'hu';
+  // Csak támogatott nyelvek engedélyezése
+  const validLanguage = ['hu', 'en', 'de'].includes(language) ? language : 'hu';
+
+  console.log(`PDF generálás kérés: documentId=${req.params.id}, language=${validLanguage}`);
+
+  try {
+    // Dokumentum lekérése adatbázisból
+    const document = await GeneratedDocument.findById(req.params.id)
+      .populate('templateId')
+      .populate('projectId');
+
+    if (!document) {
+      console.error(`Dokumentum nem található ezzel az ID-val: ${req.params.id}`);
+      return res.status(404).json({ message: 'Dokumentum nem található' });
+    }
+
+    console.log(`Megtalált dokumentum: ${document.name} (${document._id})`);
+
+    // Generáljunk egy biztonságos fájlnevet a letöltéshez
+    let fileName = validLanguage === 'hu' ? `dokumentum-${document.name}` :
+                  (validLanguage === 'de' ? `dokument-${document.name}` : `document-${document.name}`);
+    if (!fileName.toLowerCase().endsWith('.pdf')) {
+      fileName += '.pdf';
+    }
+
+    // Set response headers immediately
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+
+    // Define colors for PDF
+    const colors = {
+      primary: '#4F46E5', // indigo-600
+      secondary: '#6B7280', // gray-500
+      light: '#E5E7EB', // gray-200
+      success: '#10B981', // green-500
+      warning: '#F59E0B', // amber-500
+      danger: '#EF4444', // red-500
+      text: '#1F2937', // gray-800
+      textLight: '#6B7280' // gray-500
+    };
+
+    // Create PDF document and pipe directly to response
+    const doc = new PDFDocument({
+        size: 'A4',
+        margin: 50,
+        info: {
+          Title: document.name,
+          Author: 'Norbert Bartus',
+          Subject: document.templateId?.name || 'Document',
+          Keywords: document.templateId?.tags?.join(', ') || 'document'
+        },
+        font: 'Helvetica', // Ez a betűtípus általában támogatja a magyar karaktereket
+        autoFirstPage: true,
+        bufferPages: true
+      });
+
+    // Pipe directly to response
+    doc.pipe(res);
+
+    // Catch errors in PDF generation and response
+    doc.on('error', (err) => {
+      console.error(`PDF generation error: ${err}`);
+      // We can't send a proper error response here as headers are already sent
+      // Just make sure the response is ended
+      if (!res.finished) {
+        doc.end();
+      }
+    });
+
+    // Register fonts
+    doc.registerFont('Helvetica', 'Helvetica');
+    doc.registerFont('Helvetica-Bold', 'Helvetica-Bold');
+
+    // Document title
+    doc.font('Helvetica-Bold')
+       .fontSize(28)
+       .fillColor(colors.primary)
+       .text('DOKUMENTUM', 50, 30)
+       .fontSize(14)
+       .fillColor(colors.secondary)
+       .text(document.name, 50, 65);
+
+    // Add date
+    const dateText = validLanguage === 'hu' ? 'Készült:' :
+                    (validLanguage === 'de' ? 'Erstellt am:' : 'Created on:');
+    doc.font('Helvetica')
+       .fontSize(10)
+       .fillColor(colors.textLight)
+       .text(`${dateText} ${new Date().toLocaleDateString(
+         validLanguage === 'hu' ? 'hu-HU' :
+         validLanguage === 'de' ? 'de-DE' : 'en-US'
+       )}`, 50, 90);
+
+    doc.moveDown(2);
+
+    // Company info
+    doc.font('Helvetica-Bold')
+       .fontSize(12)
+       .fillColor(colors.text)
+       .text('Norbert Bartus', 50, 130);
+
+    doc.font('Helvetica')
+       .fontSize(10)
+       .fillColor(colors.textLight)
+       .text('Salinenstraße 25', 50, 145)
+       .text('76646 Bruchsal', 50, 160)
+       .text('Baden-Württemberg, Deutschland', 50, 175);
+
+    // Document content
+    doc.moveDown(3);
+    doc.font('Helvetica-Bold')
+       .fontSize(14)
+       .fillColor(colors.text)
+       .text(validLanguage === 'hu' ? 'Dokumentum tartalma' :
+             validLanguage === 'de' ? 'Dokumentinhalt' : 'Document content', 50, 220);
+
+    doc.moveDown();
+
+    // Dokumentum tartalom hozzáadása
+    // HTML-ből tiszta szöveg konvertálása
+    const content = document.htmlVersion || document.content;
+    const plainText = content.replace(/<[^>]*>/g, ' ')
+                            .replace(/\s+/g, ' ')
+                            .trim();
+
+    doc.font('Helvetica')
+       .fontSize(11)
+       .fillColor(colors.text)
+       .text(plainText, 50, 250, {
+         align: 'left',
+         width: doc.page.width - 100,
+         lineGap: 5
+       });
+
+    // Generate all pages first
+    doc.flushPages();
+
+    // Add page numbers and footer to each page
+    const pageCount = doc.bufferedPageRange().count;
+    for (let i = 0; i < pageCount; i++) {
+      doc.switchToPage(i);
+
+      // Lábléc pozíció (alul)
+      const footerTop = doc.page.height - 50;
+
+      // Company financial info
+      doc.font('Helvetica')
+         .fontSize(8)
+         .fillColor(colors.textLight);
+
+      // Teljes lábléc szöveg egy sorban az oldalszámmal együtt
+      const footerText = `Norbert Bartus | St.-Nr.: 68194547329 | USt-IdNr.: DE346419031 | ${validLanguage === 'hu' ? `${i+1}. oldal` : (validLanguage === 'de' ? `Seite ${i+1}` : `Page ${i+1}`)} / ${pageCount}`;
+      doc.text(footerText, 50, footerTop, {
+        align: 'center',
+        width: doc.page.width - 100
+      });
+    }
+
+    // Update document to increase download count
+    document.downloadCount = (document.downloadCount || 0) + 1;
+    document.lastDownloadedAt = new Date();
+    await document.save();
+
+    // Finalize PDF and send response
+    doc.end();
+    console.log(`PDF generálás befejezve: ${fileName}`);
+
+  } catch (error) {
+    console.error(`PDF generálási hiba: ${error.message}`);
+    console.error(error.stack);
+
+    if (!res.headersSent) {
+      res.status(500).json({
+        message: 'Hiba történt a PDF generálása során',
+        error: error.message
+      });
+    } else {
+      // If headers already sent, just end the response
+      res.end();
+    }
+  }
+});
+
+// Védett végpontok
+router.use(authMiddleware);
 
 // Fájl útvonalak beállítása
 const __filename = fileURLToPath(import.meta.url);
@@ -390,192 +586,7 @@ router.get('/documents/:id', apiKeyChecker, async (req, res) => {
   }
 });
 
-// IMPROVED: Dokumentum PDF generálása és letöltése - közvetlen streamelés válaszba
-router.get('/documents/:id/pdf', apiKeyChecker, async (req, res) => {
-  // Nyelvi paraméter kezelése (alapértelmezett: hu)
-  const language = req.query.language || 'hu';
-  // Csak támogatott nyelvek engedélyezése
-  const validLanguage = ['hu', 'en', 'de'].includes(language) ? language : 'hu';
 
-  console.log(`PDF generálás kérés: documentId=${req.params.id}, language=${validLanguage}`);
-
-  try {
-    // Dokumentum lekérése adatbázisból
-    const document = await GeneratedDocument.findById(req.params.id)
-      .populate('templateId')
-      .populate('projectId');
-
-    if (!document) {
-      console.error(`Dokumentum nem található ezzel az ID-val: ${req.params.id}`);
-      return res.status(404).json({ message: 'Dokumentum nem található' });
-    }
-
-    console.log(`Megtalált dokumentum: ${document.name} (${document._id})`);
-
-    // Generáljunk egy biztonságos fájlnevet a letöltéshez
-    let fileName = validLanguage === 'hu' ? `dokumentum-${document.name}` :
-                  (validLanguage === 'de' ? `dokument-${document.name}` : `document-${document.name}`);
-    if (!fileName.toLowerCase().endsWith('.pdf')) {
-      fileName += '.pdf';
-    }
-
-    // Set response headers immediately
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
-
-    // Define colors for PDF
-    const colors = {
-      primary: '#4F46E5', // indigo-600
-      secondary: '#6B7280', // gray-500
-      light: '#E5E7EB', // gray-200
-      success: '#10B981', // green-500
-      warning: '#F59E0B', // amber-500
-      danger: '#EF4444', // red-500
-      text: '#1F2937', // gray-800
-      textLight: '#6B7280' // gray-500
-    };
-
-    // Create PDF document and pipe directly to response
-    const doc = new PDFDocument({
-        size: 'A4',
-        margin: 50,
-        info: {
-          Title: document.name,
-          Author: 'Norbert Bartus',
-          Subject: document.templateId?.name || 'Document',
-          Keywords: document.templateId?.tags?.join(', ') || 'document'
-        },
-        font: 'Helvetica', // Ez a betűtípus általában támogatja a magyar karaktereket
-        autoFirstPage: true,
-        bufferPages: true
-      });
-
-    // Pipe directly to response
-    doc.pipe(res);
-
-    // Catch errors in PDF generation and response
-    doc.on('error', (err) => {
-      console.error(`PDF generation error: ${err}`);
-      // We can't send a proper error response here as headers are already sent
-      // Just make sure the response is ended
-      if (!res.finished) {
-        doc.end();
-      }
-    });
-
-    // Register fonts
-    doc.registerFont('Helvetica', 'Helvetica');
-    doc.registerFont('Helvetica-Bold', 'Helvetica-Bold');
-
-    // Document title
-    doc.font('Helvetica-Bold')
-       .fontSize(28)
-       .fillColor(colors.primary)
-       .text('DOKUMENTUM', 50, 30)
-       .fontSize(14)
-       .fillColor(colors.secondary)
-       .text(document.name, 50, 65);
-
-    // Add date
-    const dateText = validLanguage === 'hu' ? 'Készült:' :
-                    (validLanguage === 'de' ? 'Erstellt am:' : 'Created on:');
-    doc.font('Helvetica')
-       .fontSize(10)
-       .fillColor(colors.textLight)
-       .text(`${dateText} ${new Date().toLocaleDateString(
-         validLanguage === 'hu' ? 'hu-HU' :
-         validLanguage === 'de' ? 'de-DE' : 'en-US'
-       )}`, 50, 90);
-
-    doc.moveDown(2);
-
-    // Company info
-    doc.font('Helvetica-Bold')
-       .fontSize(12)
-       .fillColor(colors.text)
-       .text('Norbert Bartus', 50, 130);
-
-    doc.font('Helvetica')
-       .fontSize(10)
-       .fillColor(colors.textLight)
-       .text('Salinenstraße 25', 50, 145)
-       .text('76646 Bruchsal', 50, 160)
-       .text('Baden-Württemberg, Deutschland', 50, 175);
-
-    // Document content
-    doc.moveDown(3);
-    doc.font('Helvetica-Bold')
-       .fontSize(14)
-       .fillColor(colors.text)
-       .text(validLanguage === 'hu' ? 'Dokumentum tartalma' :
-             validLanguage === 'de' ? 'Dokumentinhalt' : 'Document content', 50, 220);
-
-    doc.moveDown();
-
-    // Dokumentum tartalom hozzáadása
-    // HTML-ből tiszta szöveg konvertálása
-    const content = document.htmlVersion || document.content;
-    const plainText = content.replace(/<[^>]*>/g, ' ')
-                            .replace(/\s+/g, ' ')
-                            .trim();
-
-    doc.font('Helvetica')
-       .fontSize(11)
-       .fillColor(colors.text)
-       .text(plainText, 50, 250, {
-         align: 'left',
-         width: doc.page.width - 100,
-         lineGap: 5
-       });
-
-    // Generate all pages first
-    doc.flushPages();
-
-    // Add page numbers and footer to each page
-    const pageCount = doc.bufferedPageRange().count;
-    for (let i = 0; i < pageCount; i++) {
-      doc.switchToPage(i);
-
-      // Lábléc pozíció (alul)
-      const footerTop = doc.page.height - 50;
-
-      // Company financial info
-      doc.font('Helvetica')
-         .fontSize(8)
-         .fillColor(colors.textLight);
-
-      // Teljes lábléc szöveg egy sorban az oldalszámmal együtt
-      const footerText = `Norbert Bartus | St.-Nr.: 68194547329 | USt-IdNr.: DE346419031 | ${validLanguage === 'hu' ? `${i+1}. oldal` : (validLanguage === 'de' ? `Seite ${i+1}` : `Page ${i+1}`)} / ${pageCount}`;
-      doc.text(footerText, 50, footerTop, {
-        align: 'center',
-        width: doc.page.width - 100
-      });
-    }
-
-    // Update document to increase download count
-    document.downloadCount = (document.downloadCount || 0) + 1;
-    document.lastDownloadedAt = new Date();
-    await document.save();
-
-    // Finalize PDF and send response
-    doc.end();
-    console.log(`PDF generálás befejezve: ${fileName}`);
-
-  } catch (error) {
-    console.error(`PDF generálási hiba: ${error.message}`);
-    console.error(error.stack);
-
-    if (!res.headersSent) {
-      res.status(500).json({
-        message: 'Hiba történt a PDF generálása során',
-        error: error.message
-      });
-    } else {
-      // If headers already sent, just end the response
-      res.end();
-    }
-  }
-});
 
 // Dokumentum állapotának frissítése (jóváhagyási folyamat)
 router.put('/documents/:id/status', async (req, res) => {
