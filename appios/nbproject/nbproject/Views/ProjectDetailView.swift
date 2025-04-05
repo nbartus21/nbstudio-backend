@@ -3,10 +3,10 @@ import SwiftUI
 struct ProjectDetailView: View {
     @EnvironmentObject var projectStore: ProjectStore
     let savedProject: SavedProject
-    
+
     @State private var selectedTab = 0
     @State private var isRefreshing = false
-    
+
     var body: some View {
         VStack {
             if projectStore.isLoading {
@@ -42,9 +42,9 @@ struct ProjectDetailView: View {
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
                         }
-                        
+
                         Spacer()
-                        
+
                         // Status badge
                         Text(project.status)
                             .font(.caption)
@@ -55,7 +55,7 @@ struct ProjectDetailView: View {
                             .clipShape(Capsule())
                     }
                     .padding(.horizontal)
-                    
+
                     // Tab view
                     TabView(selection: $selectedTab) {
                         // Overview tab
@@ -64,21 +64,21 @@ struct ProjectDetailView: View {
                                 Label("Overview", systemImage: "house")
                             }
                             .tag(0)
-                        
+
                         // Invoices tab
                         InvoicesView(project: project)
                             .tabItem {
                                 Label("Invoices", systemImage: "doc.text")
                             }
                             .tag(1)
-                        
+
                         // Files tab
                         FilesView(project: project)
                             .tabItem {
                                 Label("Files", systemImage: "folder")
                             }
                             .tag(2)
-                        
+
                         // Changelog tab
                         ChangelogView(project: project)
                             .tabItem {
@@ -126,7 +126,7 @@ struct ProjectDetailView: View {
             }
         }
     }
-    
+
     private func statusColor(for status: String) -> Color {
         switch status.lowercased() {
         case "aktív", "active":
@@ -146,7 +146,7 @@ struct ProjectDetailView: View {
 // Tab content views
 struct ProjectOverviewView: View {
     let project: Project
-    
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
@@ -155,7 +155,7 @@ struct ProjectOverviewView: View {
                     Text(project.description)
                         .padding(.top, 8)
                 }
-                
+
                 // Client information
                 GroupBox(label: Label("Client", systemImage: "person")) {
                     VStack(alignment: .leading, spacing: 8) {
@@ -163,20 +163,20 @@ struct ProjectOverviewView: View {
                         InfoRow(label: "Email", value: project.client.email)
                         InfoRow(label: "Phone", value: project.client.phone)
                         InfoRow(label: "Company", value: project.client.companyName)
-                        
+
                         Divider()
-                        
+
                         Text("Address")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
-                        
+
                         Text("\(project.client.address.street)")
                         Text("\(project.client.address.postalCode) \(project.client.address.city)")
                         Text("\(project.client.address.country)")
                     }
                     .padding(.top, 8)
                 }
-                
+
                 // Stats
                 GroupBox(label: Label("Statistics", systemImage: "chart.bar")) {
                     HStack {
@@ -184,7 +184,7 @@ struct ProjectOverviewView: View {
                         Divider()
                         StatView(title: "Files", value: "\(project.files.count)", icon: "folder")
                         Divider()
-                        StatView(title: "Updates", value: "\(project.changelog.count)", icon: "list.bullet")
+                        StatView(title: "Updates", value: "\(project.changelog?.count ?? 0)", icon: "list.bullet")
                     }
                     .padding(.top, 8)
                 }
@@ -196,7 +196,7 @@ struct ProjectOverviewView: View {
 
 struct InvoicesView: View {
     let project: Project
-    
+
     var body: some View {
         List {
             if project.invoices.isEmpty {
@@ -209,20 +209,20 @@ struct InvoicesView: View {
                             HStack {
                                 Text(invoice.number)
                                     .font(.headline)
-                                
+
                                 Spacer()
-                                
+
                                 Text("\(invoice.totalAmount, specifier: "%.2f") €")
                                     .font(.headline)
                             }
-                            
+
                             HStack {
                                 Text("Due: \(formatDate(invoice.dueDate))")
                                     .font(.caption)
                                     .foregroundColor(.secondary)
-                                
+
                                 Spacer()
-                                
+
                                 Text(invoice.status)
                                     .font(.caption)
                                     .padding(.horizontal, 6)
@@ -239,20 +239,20 @@ struct InvoicesView: View {
         }
         .listStyle(InsetGroupedListStyle())
     }
-    
+
     private func formatDate(_ dateString: String) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
-        
+
         if let date = formatter.date(from: dateString) {
             formatter.dateStyle = .medium
             formatter.timeStyle = .none
             return formatter.string(from: date)
         }
-        
+
         return dateString
     }
-    
+
     private func statusColor(for status: String) -> Color {
         switch status.lowercased() {
         case "fizetett", "paid", "bezahlt":
@@ -271,7 +271,7 @@ struct InvoicesView: View {
 
 struct FilesView: View {
     let project: Project
-    
+
     var body: some View {
         List {
             if project.files.isEmpty {
@@ -284,18 +284,18 @@ struct FilesView: View {
                             Image(systemName: iconForFileType(file.type))
                                 .font(.title2)
                                 .foregroundColor(.accentColor)
-                            
+
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(file.name)
                                     .font(.headline)
-                                
+
                                 Text("\(formatFileSize(file.size)) • \(formatDate(file.uploadedAt))")
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }
-                            
+
                             Spacer()
-                            
+
                             Image(systemName: "arrow.down.circle")
                                 .foregroundColor(.accentColor)
                         }
@@ -306,7 +306,7 @@ struct FilesView: View {
         }
         .listStyle(InsetGroupedListStyle())
     }
-    
+
     private func iconForFileType(_ type: String) -> String {
         if type.contains("image") {
             return "photo"
@@ -320,56 +320,56 @@ struct FilesView: View {
             return "doc.fill"
         }
     }
-    
+
     private func formatFileSize(_ size: Int) -> String {
         let formatter = ByteCountFormatter()
         formatter.allowedUnits = [.useKB, .useMB, .useGB]
         formatter.countStyle = .file
         return formatter.string(fromByteCount: Int64(size))
     }
-    
+
     private func formatDate(_ dateString: String) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
-        
+
         if let date = formatter.date(from: dateString) {
             formatter.dateStyle = .short
             formatter.timeStyle = .none
             return formatter.string(from: date)
         }
-        
+
         return dateString
     }
 }
 
 struct ChangelogView: View {
     let project: Project
-    
+
     var body: some View {
         List {
-            if project.changelog.isEmpty {
+            if project.changelog?.isEmpty ?? true {
                 Text("No changelog entries available")
                     .foregroundColor(.secondary)
             } else {
-                ForEach(project.changelog) { entry in
+                ForEach(project.changelog ?? []) { entry in
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
                             Image(systemName: iconForEntryType(entry.type))
                                 .foregroundColor(colorForEntryType(entry.type))
-                            
+
                             Text(entry.title)
                                 .font(.headline)
-                            
+
                             Spacer()
-                            
+
                             Text(formatDate(entry.date))
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
-                        
+
                         Text(entry.description)
                             .font(.body)
-                        
+
                         HStack {
                             Spacer()
                             Text("By \(entry.createdBy)")
@@ -383,7 +383,7 @@ struct ChangelogView: View {
         }
         .listStyle(InsetGroupedListStyle())
     }
-    
+
     private func iconForEntryType(_ type: String) -> String {
         switch type.lowercased() {
         case "feature":
@@ -396,7 +396,7 @@ struct ChangelogView: View {
             return "info.circle.fill"
         }
     }
-    
+
     private func colorForEntryType(_ type: String) -> Color {
         switch type.lowercased() {
         case "feature":
@@ -409,17 +409,17 @@ struct ChangelogView: View {
             return .gray
         }
     }
-    
+
     private func formatDate(_ dateString: String) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
-        
+
         if let date = formatter.date(from: dateString) {
             formatter.dateStyle = .medium
             formatter.timeStyle = .none
             return formatter.string(from: date)
         }
-        
+
         return dateString
     }
 }
@@ -428,14 +428,14 @@ struct ChangelogView: View {
 struct InfoRow: View {
     let label: String
     let value: String
-    
+
     var body: some View {
         HStack(alignment: .top) {
             Text(label)
                 .font(.subheadline)
                 .foregroundColor(.secondary)
                 .frame(width: 80, alignment: .leading)
-            
+
             Text(value)
                 .font(.subheadline)
         }
@@ -446,17 +446,17 @@ struct StatView: View {
     let title: String
     let value: String
     let icon: String
-    
+
     var body: some View {
         VStack {
             Image(systemName: icon)
                 .font(.title3)
                 .foregroundColor(.accentColor)
-            
+
             Text(value)
                 .font(.title2)
                 .fontWeight(.bold)
-            
+
             Text(title)
                 .font(.caption)
                 .foregroundColor(.secondary)
@@ -468,7 +468,7 @@ struct StatView: View {
 // Invoice detail view
 struct InvoiceDetailView: View {
     let invoice: Invoice
-    
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
@@ -477,18 +477,18 @@ struct InvoiceDetailView: View {
                     VStack(alignment: .leading) {
                         Text("Invoice #\(invoice.number)")
                             .font(.headline)
-                        
+
                         Text("Issued: \(formatDate(invoice.date))")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
-                        
+
                         Text("Due: \(formatDate(invoice.dueDate))")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                     }
-                    
+
                     Spacer()
-                    
+
                     // Status badge
                     Text(invoice.status)
                         .font(.caption)
@@ -498,13 +498,13 @@ struct InvoiceDetailView: View {
                         .foregroundColor(statusColor(for: invoice.status))
                         .clipShape(Capsule())
                 }
-                
+
                 Divider()
-                
+
                 // Invoice items
                 Text("Items")
                     .font(.headline)
-                
+
                 VStack(spacing: 0) {
                     // Header
                     HStack {
@@ -512,17 +512,17 @@ struct InvoiceDetailView: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
-                        
+
                         Text("Qty")
                             .font(.caption)
                             .foregroundColor(.secondary)
                             .frame(width: 40, alignment: .trailing)
-                        
+
                         Text("Price")
                             .font(.caption)
                             .foregroundColor(.secondary)
                             .frame(width: 60, alignment: .trailing)
-                        
+
                         Text("Total")
                             .font(.caption)
                             .foregroundColor(.secondary)
@@ -530,40 +530,40 @@ struct InvoiceDetailView: View {
                     }
                     .padding(.vertical, 8)
                     .background(Color(.systemBackground))
-                    
+
                     Divider()
-                    
+
                     // Items
                     ForEach(invoice.items) { item in
                         HStack {
                             Text(item.description)
                                 .font(.subheadline)
                                 .frame(maxWidth: .infinity, alignment: .leading)
-                            
+
                             Text("\(item.quantity)")
                                 .font(.subheadline)
                                 .frame(width: 40, alignment: .trailing)
-                            
+
                             Text("\(item.unitPrice, specifier: "%.2f") €")
                                 .font(.subheadline)
                                 .frame(width: 60, alignment: .trailing)
-                            
+
                             Text("\(item.total, specifier: "%.2f") €")
                                 .font(.subheadline)
                                 .frame(width: 70, alignment: .trailing)
                         }
                         .padding(.vertical, 8)
-                        
+
                         Divider()
                     }
-                    
+
                     // Total
                     HStack {
                         Spacer()
-                        
+
                         Text("Total:")
                             .font(.headline)
-                        
+
                         Text("\(invoice.totalAmount, specifier: "%.2f") €")
                             .font(.headline)
                             .frame(width: 70, alignment: .trailing)
@@ -578,20 +578,20 @@ struct InvoiceDetailView: View {
         .navigationTitle("Invoice Details")
         .navigationBarTitleDisplayMode(.inline)
     }
-    
+
     private func formatDate(_ dateString: String) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
-        
+
         if let date = formatter.date(from: dateString) {
             formatter.dateStyle = .medium
             formatter.timeStyle = .none
             return formatter.string(from: date)
         }
-        
+
         return dateString
     }
-    
+
     private func statusColor(for status: String) -> Color {
         switch status.lowercased() {
         case "fizetett", "paid", "bezahlt":

@@ -9,7 +9,7 @@ struct Project: Identifiable, Codable {
     var client: Client
     var invoices: [Invoice]
     var files: [ProjectFile]
-    var changelog: [ChangelogEntry]
+    var changelog: [ChangelogEntry]? // Opcionális, mert nem minden válaszban van jelen
     var sharing: Sharing
 
     enum CodingKeys: String, CodingKey {
