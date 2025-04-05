@@ -280,7 +280,13 @@ const ProjectManager = () => {
       }
 
       // Távolítsuk el a ciklikus hivatkozásokat vagy érvénytelen mezőket
+      // Biztonságos másolat készítése, hogy elkerüljük az azonosító levágását
       const cleanedData = JSON.parse(JSON.stringify(projectData));
+
+      // Ellenőrizzük, hogy az _id mező megfelelően van-e kezelve
+      if (selectedProject._id) {
+        console.log('Projekt azonosító ellenőrzése:', selectedProject._id);
+      }
 
       let response;
       const apiEndpoint = selectedProject._id ?
