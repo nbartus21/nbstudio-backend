@@ -30,7 +30,7 @@ class ProjectStore: ObservableObject {
     }
 
     // Add a new project
-    func addProject(url: String, token: String, pin: String, name: String) {
+    func addProject(url: String, token: String, pin: String?, name: String) {
         let newProject = SavedProject(url: url, token: token, pin: pin, name: name, lastAccessed: Date())
         savedProjects.append(newProject)
         saveSavedProjects()

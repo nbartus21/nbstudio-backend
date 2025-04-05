@@ -52,9 +52,29 @@ struct Project: Identifiable, Codable {
 
     struct Sharing: Codable {
         var token: String
-        var pin: String
+        var pin: String?
         var expiresAt: String
         var createdAt: String
+        var hideFiles: Bool?
+        var hideDocuments: Bool?
+
+        // Egyedi dekodóló implementáció az opcionális mezők kezeléséhez
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+
+            token = try container.decode(String.self, forKey: .token)
+            expiresAt = try container.decode(String.self, forKey: .expiresAt)
+            createdAt = try container.decode(String.self, forKey: .createdAt)
+
+            // Opcionális mezők dekodólása
+            pin = try container.decodeIfPresent(String.self, forKey: .pin)
+            hideFiles = try container.decodeIfPresent(Bool.self, forKey: .hideFiles)
+            hideDocuments = try container.decodeIfPresent(Bool.self, forKey: .hideDocuments)
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case token, pin, expiresAt, createdAt, hideFiles, hideDocuments
+        }
     }
 
     struct Financial: Codable {

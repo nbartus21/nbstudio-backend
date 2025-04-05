@@ -9,7 +9,7 @@ class APIService {
     private init() {}
 
     // Verify PIN and get project data
-    func verifyPin(token: String, pin: String) async throws -> Project {
+    func verifyPin(token: String, pin: String?) async throws -> Project {
         do {
             let url = URL(string: "\(baseURL)/verify-pin")!
 
@@ -18,10 +18,14 @@ class APIService {
             request.addValue("application/json", forHTTPHeaderField: "Content-Type")
             request.addValue(apiKey, forHTTPHeaderField: "X-API-Key")
 
-            let body: [String: String] = [
-                "token": token,
-                "pin": pin
+            var body: [String: String] = [
+                "token": token
             ]
+
+            // Add PIN if available
+            if let pin = pin {
+                body["pin"] = pin
+            }
 
             request.httpBody = try JSONEncoder().encode(body)
 
