@@ -8,10 +8,10 @@ const debugLog = (message, data) => {
   }
 };
 
-// Konfig - az AWS hitelesítési adatok a környezeti változókból vagy a Netlifyből jönnek
+// Konfig - Vite-kompatibilis környezeti változók használata (import.meta.env)
 const S3_CONFIG = {
-  bucketName: process.env.REACT_APP_AWS_S3_BUCKET_NAME || 'nb-studio-client-files',
-  region: process.env.REACT_APP_AWS_S3_REGION || 'eu-central-1',
+  bucketName: import.meta.env?.VITE_AWS_S3_BUCKET_NAME || 'nb-studio-client-files',
+  region: import.meta.env?.VITE_AWS_S3_REGION || 'eu-central-1',
 };
 
 // Ellenőrizzük, hogy a böngészőben vagy szerveren futunk
