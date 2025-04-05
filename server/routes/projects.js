@@ -345,7 +345,7 @@ router.post('/projects/:id/share', async (req, res) => {
 });
 
 // Külön definiáljuk a PIN ellenőrző függvényt, hogy közvetlenül hívható legyen
-export const verifyPin = async (req, res) => {
+const verifyPin = async (req, res) => {
   // CORS fejlécek beállítása - az origin-t a kérés alapján határozzuk meg
   const origin = req.headers.origin;
   if (origin) {
