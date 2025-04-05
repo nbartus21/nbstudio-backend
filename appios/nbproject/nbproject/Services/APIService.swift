@@ -11,7 +11,7 @@ class APIService {
     // Verify PIN and get project data
     func verifyPin(token: String, pin: String) async throws -> Project {
         do {
-            let url = URL(string: "\(baseURL)/public/verify-pin")!
+            let url = URL(string: "\(baseURL)/verify-pin")!
 
             var request = URLRequest(url: url)
             request.httpMethod = "POST"
@@ -51,7 +51,13 @@ class APIService {
             decoder.keyDecodingStrategy = .convertFromSnakeCase
 
             do {
-                return try decoder.decode(Project.self, from: data)
+                // A szerver a projektet egy 'project' mezőben adja vissza
+                struct ProjectResponse: Codable {
+                    let project: Project
+                }
+
+                let response = try decoder.decode(ProjectResponse.self, from: data)
+                return response.project
             } catch {
                 print("Decoding error: \(error)")
                 throw APIError.decodingError(error: error)
