@@ -48,7 +48,8 @@ class APIService {
             print("Response data: \(String(data: data, encoding: .utf8) ?? "<invalid data>")")
 
             let decoder = JSONDecoder()
-            decoder.keyDecodingStrategy = .convertFromSnakeCase
+            // Ne használjunk automatikus konverziót, mert az _id mezővel problémát okoz
+            // decoder.keyDecodingStrategy = .convertFromSnakeCase
 
             do {
                 // A szerver a projektet egy 'project' mezőben adja vissza
@@ -90,7 +91,8 @@ class APIService {
             }
 
             let decoder = JSONDecoder()
-            decoder.keyDecodingStrategy = .convertFromSnakeCase
+            // Ne használjunk automatikus konverziót, mert az _id mezővel problémát okoz
+            // decoder.keyDecodingStrategy = .convertFromSnakeCase
 
             return try decoder.decode([Invoice].self, from: data)
         } catch {
@@ -121,7 +123,8 @@ class APIService {
             }
 
             let decoder = JSONDecoder()
-            decoder.keyDecodingStrategy = .convertFromSnakeCase
+            // Ne használjunk automatikus konverziót, mert az _id mezővel problémát okoz
+            // decoder.keyDecodingStrategy = .convertFromSnakeCase
 
             return try decoder.decode([ProjectFile].self, from: data)
         } catch {
@@ -152,7 +155,8 @@ class APIService {
             }
 
             let decoder = JSONDecoder()
-            decoder.keyDecodingStrategy = .convertFromSnakeCase
+            // Ne használjunk automatikus konverziót, mert az _id mezővel problémát okoz
+            // decoder.keyDecodingStrategy = .convertFromSnakeCase
 
             return try decoder.decode([ChangelogEntry].self, from: data)
         } catch {
@@ -207,7 +211,8 @@ class APIService {
             }
 
             let decoder = JSONDecoder()
-            decoder.keyDecodingStrategy = .convertFromSnakeCase
+            // Ne használjunk automatikus konverziót, mert az _id mezővel problémát okoz
+            // decoder.keyDecodingStrategy = .convertFromSnakeCase
 
             return try decoder.decode(ProjectFile.self, from: fileData)
         } catch {
