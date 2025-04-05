@@ -54,7 +54,8 @@ const apiKeyChecker = (req, res, next) => {
 
 // Regisztráljuk a PDF generálás végpontot az authMiddleware előtt
 // IMPROVED: Dokumentum PDF generálása és letöltése - közvetlen streamelés válaszba
-router.get('/documents/:id/pdf', corsMiddleware, apiKeyChecker, async (req, res) => {
+const generatePDF = async (req, res) => {
+  // Közös PDF generáló függvény, amit mindkét végpont használ
   // Nyelvi paraméter kezelése (alapértelmezett: hu)
   const language = req.query.language || 'hu';
   // Csak támogatott nyelvek engedélyezése
@@ -238,7 +239,13 @@ router.get('/documents/:id/pdf', corsMiddleware, apiKeyChecker, async (req, res)
       res.end();
     }
   }
-});
+};
+
+// Eredeti végpont a PDF generáláshoz
+router.get('/documents/:id/pdf', corsMiddleware, apiKeyChecker, generatePDF);
+
+// Publikus végpont a PDF generáláshoz - ugyanazt a funkcionalitást biztosítja
+router.get('/public/documents/:id/pdf', corsMiddleware, apiKeyChecker, generatePDF);
 
 // Védett végpontok
 router.use(authMiddleware);
