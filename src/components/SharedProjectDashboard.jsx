@@ -41,6 +41,8 @@ const translations = {
     changeLanguage: "Change Language",
     languageChanged: "Language changed successfully",
     downloadPdf: "Download PDF",
+    refreshInvoices: "Refresh Invoices",
+    refreshing: "Refreshing...",
     status: {
       active: "Active",
       completed: "Completed",
@@ -70,6 +72,8 @@ const translations = {
     changeLanguage: "Sprache ändern",
     languageChanged: "Sprache erfolgreich geändert",
     downloadPdf: "PDF herunterladen",
+    refreshInvoices: "Rechnungen aktualisieren",
+    refreshing: "Aktualisierung...",
     status: {
       active: "Aktiv",
       completed: "Abgeschlossen",
@@ -99,6 +103,8 @@ const translations = {
     changeLanguage: "Nyelv váltása",
     languageChanged: "Nyelv sikeresen megváltoztatva",
     downloadPdf: "PDF letöltése",
+    refreshInvoices: "Számlák frissítése",
+    refreshing: "Frissítés...",
     status: {
       active: "Aktív",
       completed: "Befejezett",
@@ -1108,7 +1114,7 @@ const SharedProjectDashboard = ({
                   ? 'bg-gray-200 text-gray-500'
                   : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'}`}
               >
-                {isRefreshing ? 'Frissítés...' : 'Számlák frissítése'}
+                {isRefreshing ? t.refreshing || 'Frissítés...' : t.refreshInvoices}
               </button>
             </div>
             <ProjectInvoices

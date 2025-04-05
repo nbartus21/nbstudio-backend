@@ -22,7 +22,13 @@ const translations = {
     noInvoices: "No invoices for this project yet",
     noInvoicesDesc: "Invoices for this project will be issued by the administrator.",
     downloadInProgress: "Download feature is under development.",
-    recurring: "Recurring"
+    recurring: "Recurring",
+    status: {
+      paid: "Paid",
+      issued: "Issued",
+      overdue: "Overdue",
+      canceled: "Canceled"
+    }
   },
   de: {
     invoices: "Rechnungen",
@@ -41,7 +47,13 @@ const translations = {
     noInvoices: "Noch keine Rechnungen für dieses Projekt",
     noInvoicesDesc: "Rechnungen für dieses Projekt werden vom Administrator ausgestellt.",
     downloadInProgress: "Download-Funktion ist in Entwicklung.",
-    recurring: "Wiederkehrend"
+    recurring: "Wiederkehrend",
+    status: {
+      paid: "Bezahlt",
+      issued: "Ausgestellt",
+      overdue: "Überfällig",
+      canceled: "Storniert"
+    }
   },
   hu: {
     invoices: "Számlák",
@@ -60,7 +72,13 @@ const translations = {
     noInvoices: "Nincsenek még számlák a projekthez",
     noInvoicesDesc: "A számlákat a projekthez kapcsolódóan a rendszergazda állítja ki.",
     downloadInProgress: "A letöltés funkció fejlesztés alatt áll.",
-    recurring: "Ismétlődő"
+    recurring: "Ismétlődő",
+    status: {
+      paid: "Fizetett",
+      issued: "Kiállított",
+      overdue: "Késedelmes",
+      canceled: "Törölt"
+    }
   }
 };
 
@@ -81,6 +99,36 @@ const statusClasses = {
   "törölt": "bg-gray-100 text-gray-800",
   "canceled": "bg-gray-100 text-gray-800",
   "storniert": "bg-gray-100 text-gray-800"
+};
+
+// Helper function to get translated status
+const getTranslatedStatus = (status, language) => {
+  const t = translations[language] || translations.hu;
+
+  // Status mapping from backend values to translation keys
+  const statusMapping = {
+    'fizetett': 'paid',
+    'paid': 'paid',
+    'bezahlt': 'paid',
+
+    'kiállított': 'issued',
+    'issued': 'issued',
+    'ausgestellt': 'issued',
+
+    'késedelmes': 'overdue',
+    'overdue': 'overdue',
+    'überfällig': 'overdue',
+
+    'törölt': 'canceled',
+    'canceled': 'canceled',
+    'storniert': 'canceled'
+  };
+
+  // Get the status key or use the original status if not found
+  const statusKey = statusMapping[status.toLowerCase()] || status;
+
+  // Return the translated status or the original if no translation is found
+  return t.status && t.status[statusKey] ? t.status[statusKey] : status;
 };
 
 const ProjectInvoices = ({ project, onViewInvoice, onGeneratePDF, language = 'hu' }) => {
@@ -118,7 +166,7 @@ const ProjectInvoices = ({ project, onViewInvoice, onGeneratePDF, language = 'hu
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                       statusClasses[invoice.status] || "bg-gray-100 text-gray-800"
                     }`}>
-                      {invoice.status}
+                      {getTranslatedStatus(invoice.status, language)}
                     </span>
                     {invoice.recurring?.isRecurring && (
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 border border-purple-200">
