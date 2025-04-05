@@ -117,6 +117,18 @@ const ProjectCard = ({
               </span>
             </button>
           ) : null}
+          
+          <button
+            onClick={() => {
+              if (window.confirm('Biztosan törölni szeretné ezt a projektet?')) {
+                onDeleteProject && onDeleteProject(projectId);
+              }
+            }}
+            className="p-1 rounded-full text-gray-400 hover:text-red-600 hover:bg-gray-100"
+            title="Projekt törlése"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
         </div>
       </div>
       
@@ -262,27 +274,12 @@ const ProjectCard = ({
           </button>
         </div>
         
-        <div className="flex space-x-2">
-          <button 
-            onClick={() => onViewDetails(project)}
-            className="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
-          >
-            Részletek
-          </button>
-          
-          <button 
-            onClick={() => {
-              if (window.confirm('Biztosan törölni szeretné ezt a projektet?')) {
-                onDeleteProject && onDeleteProject(projectId);
-              }
-            }}
-            className="px-3 py-1 text-xs bg-red-50 text-red-600 rounded-md hover:bg-red-100 flex items-center"
-            title="Projekt törlése"
-          >
-            <Trash2 className="h-3 w-3 mr-1" />
-            Törlés
-          </button>
-        </div>
+        <button 
+          onClick={() => onViewDetails(project)}
+          className="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
+        >
+          Részletek
+        </button>
       </div>
       
       {/* Megosztási információk */}
