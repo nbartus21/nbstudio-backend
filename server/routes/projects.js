@@ -662,18 +662,39 @@ const uploadToS3 = async (fileData) => {
       base64Méret: base64Data.length
     });
 
-    // Egyedi fájlnév generálása a projektazonosítóval
+    // Egyedi fájlnév generálása a projektazonosítóval és projektnévvel
     // Ékezetes karakterek eltávolítása és biztonságos fájlnév létrehozása
     const safeFileName = fileData.name
       .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // Ékezetek eltávolítása
       .replace(/[^\w.-]/g, '_'); // Nem biztonságos karakterek cseréje alulvonásra
 
-    const key = `${FILE_PREFIX}${fileData.projectId}/${Date.now()}_${safeFileName}`;
+    // Projekt nevének lekérése és biztonságos formázása
+    let projectName = '';
+    try {
+      // Projekt lekérése az adatbázisból
+      const project = await Project.findById(fileData.projectId);
+      if (project && project.name) {
+        // Projekt nevének biztonságos formázása
+        projectName = project.name
+          .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // Ékezetek eltávolítása
+          .replace(/[^\w.-]/g, '_') // Nem biztonságos karakterek cseréje alulvonásra
+          .replace(/\s+/g, '_'); // Szóközök cseréje alulvonásra
+      }
+    } catch (error) {
+      console.error('❌ [SZERVER] Hiba a projekt nevének lekérésekor:', error);
+      // Hiba esetén folytatjuk projekt név nélkül
+    }
+
+    // S3 kulcs generálása projekt azonosítóval és névvel
+    const key = projectName
+      ? `${FILE_PREFIX}${fileData.projectId}_${projectName}/${Date.now()}_${safeFileName}`
+      : `${FILE_PREFIX}${fileData.projectId}/${Date.now()}_${safeFileName}`;
     console.log('🔄 [SZERVER] Generált S3 kulcs:', key);
 
     // Metaadatok előkészítése - csak ASCII karakterek használata
     const metadata = {
       'project-id': fileData.projectId,
+      'project-name': projectName || 'unknown',
       'uploaded-by': (fileData.uploadedBy || 'unknown').normalize('NFD').replace(/[\u0300-\u036f]/g, ''),
       'original-filename': encodeURIComponent(fileData.name) // URL kódolás a biztonság kedvéért
     };
