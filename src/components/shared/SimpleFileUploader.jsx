@@ -15,7 +15,12 @@ const translations = {
     dropFilesText: "Drop files here",
     dropFilesSubtext: "or click to select files",
     uploadingFile: "Uploading file",
-    of: "of"
+    of: "of",
+    tipTitle: "Tips for file upload",
+    tipProjectName: "Uploaded files will automatically start with the project name",
+    tipMultiple: "You can upload multiple files at once",
+    tipSecure: "Uploaded files are stored securely",
+    tipTypes: "Supported file types: documents, images, PDFs, etc."
   },
   de: {
     uploadTitle: "Dateien hochladen",
@@ -28,7 +33,12 @@ const translations = {
     dropFilesText: "Dateien hier ablegen",
     dropFilesSubtext: "oder klicken, um Dateien auszuwählen",
     uploadingFile: "Datei wird hochgeladen",
-    of: "von"
+    of: "von",
+    tipTitle: "Tipps zum Hochladen von Dateien",
+    tipProjectName: "Hochgeladene Dateien beginnen automatisch mit dem Projektnamen",
+    tipMultiple: "Sie können mehrere Dateien gleichzeitig hochladen",
+    tipSecure: "Hochgeladene Dateien werden sicher gespeichert",
+    tipTypes: "Unterstützte Dateitypen: Dokumente, Bilder, PDFs, usw."
   },
   hu: {
     uploadTitle: "Fájlok feltöltése",
@@ -41,7 +51,12 @@ const translations = {
     dropFilesText: "Húzza ide a fájlokat",
     dropFilesSubtext: "vagy kattintson a kiválasztáshoz",
     uploadingFile: "Fájl feltöltése",
-    of: "/"
+    of: "/",
+    tipTitle: "Tippek a fájlfeltöltéshez",
+    tipProjectName: "A feltöltött fájlok automatikusan a projekt nevével kezdődnek",
+    tipMultiple: "Egyszerre több fájlt is feltölthet",
+    tipSecure: "A feltöltött fájlok biztonságosan tárolódnak",
+    tipTypes: "Támogatott fájltípusok: dokumentumok, képek, PDF-ek, stb."
   }
 };
 
@@ -258,13 +273,13 @@ const SimpleFileUploader = ({
             <Check className="h-5 w-5 text-blue-500" />
           </div>
           <div className="ml-3">
-            <h3 className="text-sm font-medium text-blue-800">Tippek a fájlfeltöltéshez</h3>
+            <h3 className="text-sm font-medium text-blue-800">{t.tipTitle}</h3>
             <div className="mt-2 text-sm text-blue-700">
               <ul className="list-disc pl-5 space-y-1">
-                <li>A feltöltött fájlok automatikusan a projekt nevével kezdődnek</li>
-                <li>Egyszerre több fájlt is feltölthet</li>
-                <li>A feltöltött fájlok biztonságosan tárolódnak</li>
-                <li>Támogatott fájltípusok: dokumentumok, képek, PDF-ek, stb.</li>
+                <li>{t.tipProjectName}</li>
+                <li>{t.tipMultiple}</li>
+                <li>{t.tipSecure}</li>
+                <li>{t.tipTypes}</li>
               </ul>
             </div>
           </div>
