@@ -72,19 +72,7 @@ struct ProjectDetailView: View {
                             }
                             .tag(1)
 
-                        // Files tab
-                        FilesView(project: project)
-                            .tabItem {
-                                Label("Files", systemImage: "folder")
-                            }
-                            .tag(2)
-
-                        // Changelog tab
-                        ChangelogView(project: project)
-                            .tabItem {
-                                Label("Changelog", systemImage: "list.bullet")
-                            }
-                            .tag(3)
+                        // Csak az Overview és Invoices tab marad
                     }
                 }
                 .refreshable {
@@ -179,12 +167,9 @@ struct ProjectOverviewView: View {
 
                 // Stats
                 GroupBox(label: Label("Statistics", systemImage: "chart.bar")) {
+                    // Csak a számlák statisztikáját mutatjuk
                     HStack {
                         StatView(title: "Invoices", value: "\(project.invoices.count)", icon: "doc.text")
-                        Divider()
-                        StatView(title: "Files", value: "\(project.files.count)", icon: "folder")
-                        Divider()
-                        StatView(title: "Updates", value: "\(project.changelog?.count ?? 0)", icon: "list.bullet")
                     }
                     .padding(.top, 8)
                 }
@@ -196,15 +181,17 @@ struct ProjectOverviewView: View {
 
 struct InvoicesView: View {
     let project: Project
+    @State private var showingPDFPreview = false
+    @State private var selectedInvoice: Invoice? = nil
 
     var body: some View {
-        List {
-            if project.invoices.isEmpty {
-                Text("No invoices available")
-                    .foregroundColor(.secondary)
-            } else {
-                ForEach(project.invoices) { invoice in
-                    NavigationLink(destination: InvoiceDetailView(invoice: invoice)) {
+        VStack {
+            List {
+                if project.invoices.isEmpty {
+                    Text("No invoices available")
+                        .foregroundColor(.secondary)
+                } else {
+                    ForEach(project.invoices) { invoice in
                         VStack(alignment: .leading, spacing: 4) {
                             HStack {
                                 Text(invoice.number)
@@ -231,13 +218,39 @@ struct InvoicesView: View {
                                     .foregroundColor(statusColor(for: invoice.status))
                                     .clipShape(Capsule())
                             }
+
+                            // Letöltés gomb
+                            HStack {
+                                Spacer()
+
+                                Button(action: {
+                                    selectedInvoice = invoice
+                                    showingPDFPreview = true
+                                }) {
+                                    HStack {
+                                        Image(systemName: "arrow.down.doc.fill")
+                                        Text("Download PDF")
+                                    }
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 6)
+                                    .background(Color.blue)
+                                    .foregroundColor(.white)
+                                    .cornerRadius(8)
+                                }
+                            }
+                            .padding(.top, 4)
                         }
                         .padding(.vertical, 4)
                     }
                 }
             }
+            .listStyle(InsetGroupedListStyle())
         }
-        .listStyle(InsetGroupedListStyle())
+        .sheet(isPresented: $showingPDFPreview) {
+            if let invoice = selectedInvoice {
+                InvoicePDFPreview(invoice: invoice)
+            }
+        }
     }
 
     private func formatDate(_ dateString: String) -> String {
@@ -269,195 +282,7 @@ struct InvoicesView: View {
     }
 }
 
-struct FilesView: View {
-    let project: Project
-    @State private var isShowingFilePicker = false
-    @State private var selectedFiles: [UIImage] = []
-    @State private var isUploading = false
-    @State private var uploadMessage: String? = nil
-
-    var body: some View {
-        VStack {
-            // File upload section
-            VStack(spacing: 20) {
-                Image(systemName: "arrow.up.doc.fill")
-                    .font(.system(size: 60))
-                    .foregroundColor(.blue)
-
-                Text("Upload Files to Project")
-                    .font(.title2)
-                    .fontWeight(.bold)
-
-                Text("Add files to your project by tapping the button below.")
-                    .multilineTextAlignment(.center)
-                    .foregroundColor(.secondary)
-                    .padding(.horizontal)
-
-                Button(action: {
-                    isShowingFilePicker = true
-                }) {
-                    HStack {
-                        Image(systemName: "plus")
-                        Text("Select Files")
-                    }
-                    .padding()
-                    .background(Color.blue)
-                    .foregroundColor(.white)
-                    .cornerRadius(8)
-                }
-                .disabled(isUploading)
-
-                if isUploading {
-                    ProgressView("Uploading...")
-                        .progressViewStyle(CircularProgressViewStyle())
-                }
-
-                if let message = uploadMessage {
-                    Text(message)
-                        .foregroundColor(message.contains("Error") ? .red : .green)
-                        .padding()
-                }
-
-                Spacer()
-            }
-            .padding()
-        }
-        .sheet(isPresented: $isShowingFilePicker) {
-            // This would be a file picker in a real app
-            // For now, we'll just show a placeholder
-            VStack {
-                Text("File Picker Placeholder")
-                    .font(.title)
-                    .padding()
-
-                Text("In a real app, this would be a document picker or image picker.")
-                    .multilineTextAlignment(.center)
-                    .padding()
-
-                Button("Cancel") {
-                    isShowingFilePicker = false
-                }
-                .padding()
-            }
-        }
-    }
-
-    private func iconForFileType(_ type: String) -> String {
-        if type.contains("image") {
-            return "photo"
-        } else if type.contains("pdf") {
-            return "doc.text"
-        } else if type.contains("word") || type.contains("document") {
-            return "doc"
-        } else if type.contains("excel") || type.contains("spreadsheet") {
-            return "chart.bar.xaxis"
-        } else {
-            return "doc.fill"
-        }
-    }
-
-    private func formatFileSize(_ size: Int) -> String {
-        let formatter = ByteCountFormatter()
-        formatter.allowedUnits = [.useKB, .useMB, .useGB]
-        formatter.countStyle = .file
-        return formatter.string(fromByteCount: Int64(size))
-    }
-
-    private func formatDate(_ dateString: String) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
-
-        if let date = formatter.date(from: dateString) {
-            formatter.dateStyle = .short
-            formatter.timeStyle = .none
-            return formatter.string(from: date)
-        }
-
-        return dateString
-    }
-}
-
-struct ChangelogView: View {
-    let project: Project
-
-    var body: some View {
-        List {
-            if project.changelog?.isEmpty ?? true {
-                Text("No changelog entries available")
-                    .foregroundColor(.secondary)
-            } else {
-                ForEach(project.changelog ?? []) { entry in
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            Image(systemName: iconForEntryType(entry.type))
-                                .foregroundColor(colorForEntryType(entry.type))
-
-                            Text(entry.title)
-                                .font(.headline)
-
-                            Spacer()
-
-                            Text(formatDate(entry.date))
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-
-                        Text(entry.description)
-                            .font(.body)
-
-                        HStack {
-                            Spacer()
-                            Text("By \(entry.createdBy)")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                    .padding(.vertical, 4)
-                }
-            }
-        }
-        .listStyle(InsetGroupedListStyle())
-    }
-
-    private func iconForEntryType(_ type: String) -> String {
-        switch type.lowercased() {
-        case "feature":
-            return "star.fill"
-        case "fix", "bugfix":
-            return "wrench.fill"
-        case "improvement":
-            return "arrow.up.circle.fill"
-        default:
-            return "info.circle.fill"
-        }
-    }
-
-    private func colorForEntryType(_ type: String) -> Color {
-        switch type.lowercased() {
-        case "feature":
-            return .blue
-        case "fix", "bugfix":
-            return .orange
-        case "improvement":
-            return .green
-        default:
-            return .gray
-        }
-    }
-
-    private func formatDate(_ dateString: String) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
-
-        if let date = formatter.date(from: dateString) {
-            formatter.dateStyle = .medium
-            formatter.timeStyle = .none
-            return formatter.string(from: date)
-        }
-
-        return dateString
-    }
-}
+// Eltávolítottuk a FilesView és ChangelogView komponenseket
 
 // Helper views
 struct InfoRow: View {
@@ -497,6 +322,103 @@ struct StatView: View {
                 .foregroundColor(.secondary)
         }
         .frame(maxWidth: .infinity)
+    }
+}
+
+// Invoice PDF Preview
+struct InvoicePDFPreview: View {
+    let invoice: Invoice
+    @Environment(\.presentationMode) var presentationMode
+    @State private var isLoading = false
+    @State private var pdfURL: URL? = nil
+
+    var body: some View {
+        NavigationView {
+            VStack {
+                if isLoading {
+                    ProgressView("Generating PDF...")
+                        .progressViewStyle(CircularProgressViewStyle())
+                } else if let url = pdfURL {
+                    // PDF megjelenítése (valós alkalmazásban PDFKit vagy WebKit nézet lenne)
+                    VStack {
+                        Image(systemName: "doc.text.fill")
+                            .font(.system(size: 80))
+                            .foregroundColor(.blue)
+                            .padding()
+
+                        Text("PDF Generated")
+                            .font(.title)
+                            .padding()
+
+                        Text("Invoice #\(invoice.number)")
+                            .font(.headline)
+
+                        Text("Total: \(invoice.totalAmount, specifier: "%.2f") €")
+                            .padding()
+
+                        Button(action: {
+                            // Itt valójában a PDF-et menthetnénk vagy megnyithatnánk
+                            // Ebben a példában csak bezárjuk a nézetet
+                            presentationMode.wrappedValue.dismiss()
+                        }) {
+                            HStack {
+                                Image(systemName: "square.and.arrow.down")
+                                Text("Save PDF")
+                            }
+                            .padding()
+                            .background(Color.blue)
+                            .foregroundColor(.white)
+                            .cornerRadius(8)
+                        }
+                    }
+                } else {
+                    VStack(spacing: 20) {
+                        Image(systemName: "exclamationmark.triangle")
+                            .font(.system(size: 60))
+                            .foregroundColor(.orange)
+
+                        Text("Could not generate PDF")
+                            .font(.title)
+
+                        Text("Please try again later.")
+                            .foregroundColor(.secondary)
+
+                        Button(action: {
+                            generatePDF()
+                        }) {
+                            Text("Try Again")
+                                .padding()
+                                .background(Color.blue)
+                                .foregroundColor(.white)
+                                .cornerRadius(8)
+                        }
+                    }
+                }
+            }
+            .padding()
+            .navigationTitle("Invoice PDF")
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarItems(trailing: Button("Close") {
+                presentationMode.wrappedValue.dismiss()
+            })
+            .onAppear {
+                generatePDF()
+            }
+        }
+    }
+
+    private func generatePDF() {
+        isLoading = true
+
+        // Szimuláljuk a PDF generálást
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            // Valós alkalmazásban itt hívnánk egy API-t a PDF generálásához
+            // Például: let url = try await APIService.shared.generateInvoicePDF(invoiceId: invoice._id)
+
+            // Szimulált URL
+            pdfURL = URL(string: "https://example.com/invoice_\(invoice.number).pdf")
+            isLoading = false
+        }
     }
 }
 
