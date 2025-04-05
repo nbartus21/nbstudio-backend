@@ -140,7 +140,8 @@ class APIService {
     // Get project changelog
     func getChangelog(token: String) async throws -> [ChangelogEntry] {
         do {
-            let url = URL(string: "\(baseURL)/public/projects/\(token)/changelog")!
+            // Javított végpont a changelog lekéréséhez
+            let url = URL(string: "\(baseURL)/public/shared-projects/\(token)/changelog")!
 
             var request = URLRequest(url: url)
             request.httpMethod = "GET"

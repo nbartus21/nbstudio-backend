@@ -271,40 +271,75 @@ struct InvoicesView: View {
 
 struct FilesView: View {
     let project: Project
+    @State private var isShowingFilePicker = false
+    @State private var selectedFiles: [UIImage] = []
+    @State private var isUploading = false
+    @State private var uploadMessage: String? = nil
 
     var body: some View {
-        List {
-            if project.files.isEmpty {
-                Text("No files available")
+        VStack {
+            // File upload section
+            VStack(spacing: 20) {
+                Image(systemName: "arrow.up.doc.fill")
+                    .font(.system(size: 60))
+                    .foregroundColor(.blue)
+
+                Text("Upload Files to Project")
+                    .font(.title2)
+                    .fontWeight(.bold)
+
+                Text("Add files to your project by tapping the button below.")
+                    .multilineTextAlignment(.center)
                     .foregroundColor(.secondary)
-            } else {
-                ForEach(project.files) { file in
-                    Link(destination: URL(string: file.s3url) ?? URL(string: "https://project.nb-studio.net")!) {
-                        HStack {
-                            Image(systemName: iconForFileType(file.type))
-                                .font(.title2)
-                                .foregroundColor(.accentColor)
+                    .padding(.horizontal)
 
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(file.name)
-                                    .font(.headline)
-
-                                Text("\(formatFileSize(file.size)) • \(formatDate(file.uploadedAt))")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-
-                            Spacer()
-
-                            Image(systemName: "arrow.down.circle")
-                                .foregroundColor(.accentColor)
-                        }
-                        .padding(.vertical, 4)
+                Button(action: {
+                    isShowingFilePicker = true
+                }) {
+                    HStack {
+                        Image(systemName: "plus")
+                        Text("Select Files")
                     }
+                    .padding()
+                    .background(Color.blue)
+                    .foregroundColor(.white)
+                    .cornerRadius(8)
                 }
+                .disabled(isUploading)
+
+                if isUploading {
+                    ProgressView("Uploading...")
+                        .progressViewStyle(CircularProgressViewStyle())
+                }
+
+                if let message = uploadMessage {
+                    Text(message)
+                        .foregroundColor(message.contains("Error") ? .red : .green)
+                        .padding()
+                }
+
+                Spacer()
+            }
+            .padding()
+        }
+        .sheet(isPresented: $isShowingFilePicker) {
+            // This would be a file picker in a real app
+            // For now, we'll just show a placeholder
+            VStack {
+                Text("File Picker Placeholder")
+                    .font(.title)
+                    .padding()
+
+                Text("In a real app, this would be a document picker or image picker.")
+                    .multilineTextAlignment(.center)
+                    .padding()
+
+                Button("Cancel") {
+                    isShowingFilePicker = false
+                }
+                .padding()
             }
         }
-        .listStyle(InsetGroupedListStyle())
     }
 
     private func iconForFileType(_ type: String) -> String {

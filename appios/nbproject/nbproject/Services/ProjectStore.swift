@@ -50,17 +50,41 @@ class ProjectStore: ObservableObject {
         }
 
         do {
+            // Lekérjük a projekt adatokat
             let project = try await APIService.shared.verifyPin(token: savedProject.token, pin: savedProject.pin)
 
-            // Update last accessed date
-            await MainActor.run {
-                if let index = savedProjects.firstIndex(where: { $0.id == savedProject.id }) {
-                    savedProjects[index].lastAccessed = Date()
-                    saveSavedProjects()
-                }
+            // Külön lekérjük a changelog adatokat
+            do {
+                let changelog = try await APIService.shared.getChangelog(token: savedProject.token)
+                print("Changelog entries loaded: \(changelog.count)")
 
-                self.currentProject = project
-                self.isLoading = false
+                // Hozzáadjuk a changelog adatokat a projekthez
+                var updatedProject = project
+                updatedProject.changelog = changelog
+
+                // Update last accessed date
+                await MainActor.run {
+                    if let index = savedProjects.firstIndex(where: { $0.id == savedProject.id }) {
+                        savedProjects[index].lastAccessed = Date()
+                        saveSavedProjects()
+                    }
+
+                    self.currentProject = updatedProject
+                    self.isLoading = false
+                }
+            } catch {
+                print("Error loading changelog: \(error)")
+
+                // Ha a changelog lekérése nem sikerül, akkor is megjelenítjük a projektet
+                await MainActor.run {
+                    if let index = savedProjects.firstIndex(where: { $0.id == savedProject.id }) {
+                        savedProjects[index].lastAccessed = Date()
+                        saveSavedProjects()
+                    }
+
+                    self.currentProject = project
+                    self.isLoading = false
+                }
             }
         } catch {
             await MainActor.run {
