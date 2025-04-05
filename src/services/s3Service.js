@@ -1,65 +1,28 @@
-import AWS from 'aws-sdk';
+import { api } from './auth';
 
 // Hasznos debugolási információ
 const debugEnabled = true;
 const debugLog = (message, data) => {
   if (debugEnabled) {
-    console.log(`🔹 S3 Service: ${message}`, data || '');
+    console.log(`🔹 S3 Service (Kliens): ${message}`, data || '');
   }
 };
 
 // Konfig - az AWS hitelesítési adatok a környezeti változókból vagy a Netlifyből jönnek
 const S3_CONFIG = {
-  accessKeyId: process.env.REACT_APP_AWS_S3_ACCESS_KEY_ID,
-  secretAccessKey: process.env.REACT_APP_AWS_S3_SECRET_ACCESS_KEY,
+  bucketName: process.env.REACT_APP_AWS_S3_BUCKET_NAME || 'nb-studio-client-files',
   region: process.env.REACT_APP_AWS_S3_REGION || 'eu-central-1',
-  bucket: process.env.REACT_APP_AWS_S3_BUCKET_NAME || 'nb-studio-client-files',
 };
 
 // Ellenőrizzük, hogy a böngészőben vagy szerveren futunk
 const isClient = typeof window !== 'undefined';
 
-// S3 kliens inicializálása
-let s3;
-
-// S3 kliens inicializálása
-const initS3Client = () => {
-  if (!s3) {
-    debugLog('Initializing S3 client', {
-      region: S3_CONFIG.region,
-      bucket: S3_CONFIG.bucket,
-      environmentType: isClient ? 'browser' : 'server',
-      hasCredentials: !!(S3_CONFIG.accessKeyId && S3_CONFIG.secretAccessKey)
-    });
-    
-    const config = {
-      accessKeyId: S3_CONFIG.accessKeyId,
-      secretAccessKey: S3_CONFIG.secretAccessKey,
-      region: S3_CONFIG.region
-    };
-    
-    // Kliensoldalon beállítunk néhány extra paramétert
-    if (isClient) {
-      // Növeljük a timeout-ot, mert a nagy fájlok feltöltése időigényes lehet
-      config.httpOptions = {
-        timeout: 300000 // 5 perc timeout
-      };
-    }
-    
-    s3 = new AWS.S3(config);
-  }
-  return s3;
-};
-
 /**
- * Fájl feltöltése S3-ba
+ * Fájl feltöltése S3-ba - Kliens oldali implementáció
  * @param {Object} fileData - A fájl adatai (name, content, stb.)
  * @returns {Promise<Object>} - A feltöltött fájl adatai (key, s3url)
  */
 export const uploadFileToS3 = async (fileData) => {
-  // Inicializáljuk az S3 klienst, ha még nem történt meg
-  const s3Client = initS3Client();
-  
   try {
     debugLog('Fájl feltöltés előkészítése', {
       fájlnév: fileData.name,
@@ -67,84 +30,78 @@ export const uploadFileToS3 = async (fileData) => {
       típus: fileData.type
     });
     
-    // A böngészőben a Base64 string tartalmazza a MIME típust is, ezt el kell távolítani
-    let fileContent = fileData.content;
-    if (fileContent.includes('base64')) {
-      fileContent = fileContent.split('base64,')[1];
+    // Készítünk egy helyi másolatot a fileData-ról, hogy ne módosítsuk az eredetit
+    const fileInfo = { ...fileData };
+    
+    // A fájl tartalma és neve előkészítése
+    if (!fileInfo.content) {
+      throw new Error('Hiányzó fájl tartalom');
     }
     
-    // Biztosítjuk, hogy a Buffer kompatibilis módon kezeljük a tartalmat
-    let binaryContent;
-    if (isClient) {
-      // Böngészőben az atob függvényt használjuk a base64 dekódoláshoz
-      try {
-        const binary = atob(fileContent);
-        const bytes = new Uint8Array(binary.length);
-        for (let i = 0; i < binary.length; i++) {
-          bytes[i] = binary.charCodeAt(i);
-        }
-        binaryContent = bytes.buffer;
-      } catch (error) {
-        console.error('Hiba a Base64 dekódolás során:', error);
-        // Fallback: egyszerűen átadjuk a nyers Base64 stringet
-        binaryContent = fileContent;
-      }
-    } else {
-      // Szerveren a Buffer objektumot használjuk
-      binaryContent = Buffer.from(fileContent, 'base64');
-    }
-    
-    // Normalizáljuk a fájlnevet - ékezeteket és speciális karaktereket kezeljük
-    const normalizedFileName = fileData.name
+    // Normalizáljuk a fájlnevet a biztonság kedvéért - ékezetek és speciális karakterek kezelése
+    const normalizedFileName = fileInfo.name
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '') // Ékezetek eltávolítása
       .replace(/[^\w.\-]/g, '_'); // Speciális karakterek cseréje underscore-ra
     
-    // Egyedi kulcs generálása a fájlnak - ez biztosítja, hogy ne írjuk felül a létező fájlokat
-    const uniquePrefix = Date.now().toString();
-    const folder = fileData.projectId ? `projects/${fileData.projectId}/` : 'uploads/';
-    const key = `${folder}${uniquePrefix}_${normalizedFileName}`;
+    debugLog('Normalizált fájlnév:', normalizedFileName);
     
-    // S3 feltöltési paraméterek
-    const params = {
-      Bucket: S3_CONFIG.bucket,
-      Key: key,
-      Body: binaryContent,
-      ContentType: fileData.type || 'application/octet-stream',
-      ContentDisposition: `inline; filename="${normalizedFileName}"`,
-      ACL: 'public-read', // Fontos: nyilvános olvasási jog, hogy bárki (más böngészők is) elérhessék
-      Metadata: {
-        'original-filename': normalizedFileName,
-        'upload-date': new Date().toISOString(),
-        'project-id': fileData.projectId || 'none',
-        'uploaded-by': fileData.uploadedBy || 'unknown'
-      }
-    };
+    // Egyedi azonosító generálása a fájlhoz
+    const uniqueId = `${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+    fileInfo.id = fileInfo.id || uniqueId;
     
-    debugLog('S3 feltöltés indítása', {
-      bucket: S3_CONFIG.bucket,
-      key: key,
-      contentTypus: params.ContentType,
-      metaadatok: params.Metadata
-    });
+    // Ha van projektID, felkészítjük a projekt specifikus tárolásra
+    if (fileInfo.projectId) {
+      debugLog('Fájl projekthez kapcsolása:', fileInfo.projectId);
+    }
     
-    // Fájl feltöltése az S3-ba
+    // Közvetlen REST API hívás helyett az api segédfüggvényt használjuk
+    // Ami kezeli az authentikációt és a hibakezelést
     const startTime = Date.now();
-    const uploadResult = await s3Client.upload(params).promise();
+    
+    // A feltöltést két lépésben végezzük:
+    // 1. A fájl adatainak elküldése a backend API-nak
+    // 2. A backend kezeli az S3 feltöltést és visszaadja a megfelelő URL-t
+    
+    debugLog('Fájl adatok küldése a backend API-nak');
+    const projectEndpoint = fileInfo.projectId 
+      ? `/api/projects/${fileInfo.projectId}/files`
+      : '/api/files/upload';
+      
+    const response = await api.post(projectEndpoint, fileInfo);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      debugLog('Hiba a fájl feltöltésekor a szerverre:', errorText);
+      throw new Error(`Szerver hiba: ${response.status} ${response.statusText}`);
+    }
+    
+    // Feldolgozzuk a választ
+    const responseData = await response.json();
+    
     const uploadDuration = Date.now() - startTime;
-    
-    // Generáljuk az S3 URL-t
-    const s3url = uploadResult.Location;
-    
-    debugLog('S3 feltöltés befejezve', {
-      s3url: s3url,
-      key: key,
-      feltöltési_idő: `${uploadDuration}ms`
+    debugLog('Fájl feltöltése sikeres', {
+      időtartam: `${uploadDuration}ms`,
+      válasz: responseData
     });
+    
+    // Kinyerjük a fájl S3 adatait a válaszból
+    const s3url = extractS3UrlFromResponse(responseData, fileInfo);
+    const s3key = extractS3KeyFromResponse(responseData, fileInfo);
+    
+    // Ha nem találunk S3 URL-t, akkor használjuk a content mezőt (fallback)
+    if (!s3url && fileInfo.content) {
+      debugLog('S3 URL nem található a válaszban, content mező használata');
+      return {
+        key: fileInfo.id,
+        s3url: fileInfo.content,
+        uploadTime: uploadDuration
+      };
+    }
     
     return {
-      key,
-      s3url,
+      key: s3key || fileInfo.id,
+      s3url: s3url,
       uploadTime: uploadDuration
     };
   } catch (error) {
@@ -166,7 +123,7 @@ export const getS3Url = (file) => {
   
   // Ha van S3 kulcs, generáljunk belőle URL-t
   if (file.s3key) {
-    const bucket = S3_CONFIG.bucket;
+    const bucket = S3_CONFIG.bucketName;
     const region = S3_CONFIG.region;
     return `https://${bucket}.s3.${region}.amazonaws.com/${file.s3key}`;
   }
@@ -182,30 +139,95 @@ export const getS3Url = (file) => {
 };
 
 /**
- * Fájl törlése az S3-ból (ritkán használjuk, általában csak logikai törlés van)
- * @param {string} key - A fájl S3 kulcsa
+ * Fájl törlése az S3-ból (logikai törlés)
+ * @param {string} projectId - A projekt azonosítója
+ * @param {string} fileId - A fájl azonosítója
  * @returns {Promise<Object>} - A törlés eredménye
  */
-export const deleteFileFromS3 = async (key) => {
-  const s3Client = initS3Client();
-  
+export const deleteFileFromS3 = async (projectId, fileId) => {
   try {
-    debugLog('S3 fájl törlés kérése', { key });
+    debugLog('Fájl törlés kezdeményezése', { projectId, fileId });
     
-    const params = {
-      Bucket: S3_CONFIG.bucket,
-      Key: key
-    };
+    const response = await api.delete(`/api/projects/${projectId}/files/${fileId}`);
     
-    const result = await s3Client.deleteObject(params).promise();
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Fájl törlési hiba: ${response.status} ${errorText}`);
+    }
     
-    debugLog('S3 fájl sikeresen törölve', { key, result });
+    const result = await response.json();
+    debugLog('Fájl sikeresen törölve', result);
+    
     return result;
   } catch (error) {
-    console.error('❌ Hiba az S3 fájl törlése során:', error);
+    console.error('❌ Hiba a fájl törlése során:', error);
     throw error;
   }
 };
+
+// Segédfüggvények
+
+// S3 URL kinyerése a szerver válaszból
+function extractS3UrlFromResponse(response, fileInfo) {
+  // Ha a válasz közvetlenül tartalmazza az s3url mezőt
+  if (response.s3url) {
+    return response.s3url;
+  }
+  
+  // Ha a válasz a files tömbben tartalmazza a fájlt
+  if (response.files && Array.isArray(response.files)) {
+    const file = response.files.find(f => f.id === fileInfo.id);
+    if (file && file.s3url) {
+      return file.s3url;
+    }
+  }
+  
+  // Ha a projekt objektumban a files tömbben van
+  if (response.files && Array.isArray(response.files)) {
+    const file = response.files.find(f => f.id === fileInfo.id || f.name === fileInfo.name);
+    if (file && file.s3url) {
+      return file.s3url;
+    }
+  }
+  
+  // Próbáljuk megtalálni az adott nevű fájlt a projektben
+  if (response.files && Array.isArray(response.files)) {
+    // Legújabb fájl
+    const latestFile = response.files.sort((a, b) => 
+      new Date(b.uploadedAt) - new Date(a.uploadedAt)
+    )[0];
+    
+    if (latestFile && latestFile.s3url) {
+      return latestFile.s3url;
+    }
+  }
+  
+  // Nem találtunk S3 URL-t
+  return null;
+}
+
+// S3 kulcs kinyerése a szerver válaszból
+function extractS3KeyFromResponse(response, fileInfo) {
+  // Logika hasonló az URL kinyeréséhez
+  if (response.s3key) {
+    return response.s3key;
+  }
+  
+  if (response.key) {
+    return response.key;
+  }
+  
+  // Próbáljuk megkeresni a files tömbben
+  if (response.files && Array.isArray(response.files)) {
+    const file = response.files.find(f => f.id === fileInfo.id);
+    if (file && file.s3key) {
+      return file.s3key;
+    }
+  }
+  
+  // Alapértelmezett kulcs generálása
+  return `${fileInfo.projectId || 'uploads'}/${fileInfo.id}`;
+}
 
 export default {
   uploadFileToS3,
