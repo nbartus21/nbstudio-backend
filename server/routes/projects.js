@@ -1116,9 +1116,10 @@ router.post('/:id/files', auth, async (req, res) => {
   try {
     const { id } = req.params;
     const fileData = req.body;
-    console.log(`POST /api/projects/${id}/files kérés`, {
+    console.log(`POST /api/projects/${id}/files kérés érkezett`, {
       fájlnév: fileData.name,
-      méret: fileData.size
+      méret: fileData.size,
+      típus: fileData.type
     });
     
     const project = await Project.findById(id);
@@ -1127,16 +1128,74 @@ router.post('/:id/files', auth, async (req, res) => {
       return res.status(404).json({ message: 'Projekt nem található' });
     }
     
-    // Az új fájl adatok hozzáadása
-    project.files.push(fileData);
+    // Validáljuk a fájl adatokat
+    if (!fileData.id || !fileData.name || !fileData.size || !fileData.type) {
+      console.log('Hiányzó kötelező adatok:', { 
+        van_id: !!fileData.id, 
+        van_név: !!fileData.name, 
+        van_méret: !!fileData.size, 
+        van_típus: !!fileData.type 
+      });
+      return res.status(400).json({ message: 'Hiányzó fájl adatok' });
+    }
+    
+    // Előkészítjük a fájl objektumot a MongoDB számára
+    const fileToSave = {
+      id: fileData.id,
+      name: fileData.name,
+      size: fileData.size,
+      type: fileData.type,
+      uploadedAt: fileData.uploadedAt || new Date(),
+      uploadedBy: fileData.uploadedBy || 'Ismeretlen',
+      s3url: fileData.s3url || null,
+      s3key: fileData.s3key || null,
+      isDeleted: false
+    };
+    
+    // Ha van content, akkor azt is mentjük (base64 kép)
+    if (fileData.content) {
+      fileToSave.content = fileData.content;
+    }
+    
+    console.log('Fájl mentése a MongoDB-be:', { 
+      id: fileToSave.id, 
+      név: fileToSave.name, 
+      s3_url_létezik: !!fileToSave.s3url 
+    });
+    
+    // Az új fájl objektum hozzáadása a tömbhöz a push helyett egy megbízhatóbb módon
+    if (!project.files) {
+      project.files = [];
+    }
+    
+    // Ellenőrizzük, hogy ez a fájl nem létezik-e már (id alapján)
+    const existingFileIndex = project.files.findIndex(f => f.id === fileToSave.id);
+    if (existingFileIndex !== -1) {
+      console.log(`Már létező fájl frissítése az ID alapján: ${fileToSave.id}`);
+      // Ha már létezik, frissítjük (kivéve az id-t és feltöltés dátumát)
+      Object.assign(project.files[existingFileIndex], {
+        ...fileToSave,
+        uploadedAt: project.files[existingFileIndex].uploadedAt // Megtartjuk az eredeti feltöltési dátumot
+      });
+    } else {
+      // Új fájl hozzáadása
+      project.files.push(fileToSave);
+    }
     
     await project.save();
-    console.log(`Fájl sikeresen hozzáadva: ${fileData.name}`);
+    console.log(`Fájl sikeresen mentve a projekthez: ${fileToSave.name}`);
     
-    res.json(project);
+    res.json({
+      message: 'Fájl sikeresen hozzáadva',
+      files: project.files.filter(f => !f.isDeleted)
+    });
   } catch (error) {
     console.error('Hiba a fájl projekthez adása során:', error);
-    res.status(500).json({ message: 'Szerver hiba történt' });
+    res.status(500).json({ 
+      message: 'Szerver hiba történt', 
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 });
 

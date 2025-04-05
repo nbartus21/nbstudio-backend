@@ -126,24 +126,32 @@ const projectSchema = new mongoose.Schema({
       default: 'általános'
     }
   }],
-// Fájlok feltöltése
-files: [{
-  name: String,
-  size: Number,
-  type: String,
-  uploadedAt: { type: Date, default: Date.now },
-  content: String, // Base64 vagy URL
-  uploadedBy: String
-}],
+  // Fájlok feltöltése
+  files: [{
+    id: { 
+      type: String, 
+      required: true
+    },
+    name: { type: String, required: true },
+    size: { type: Number, required: true },
+    type: { type: String, required: true },
+    uploadedAt: { type: Date, default: Date.now },
+    s3url: { type: String },
+    s3key: { type: String },
+    uploadedBy: { type: String, required: true },
+    content: String,
+    isDeleted: { type: Boolean, default: false },
+    deletedAt: Date
+  }],
 
-// Hozzászólások
-comments: [{
-  text: String,
-  author: String,
-  timestamp: { type: Date, default: Date.now },
-  isAdminComment: { type: Boolean, default: false },
-  replyTo: { type: String } // Válasz esetén a másik komment azonosítója
-}],
+  // Hozzászólások
+  comments: [{
+    text: String,
+    author: String,
+    timestamp: { type: Date, default: Date.now },
+    isAdminComment: { type: Boolean, default: false },
+    replyTo: { type: String } // Válasz esetén a másik komment azonosítója
+  }],
 
   // Aktivitás számlálók
   activityCounters: {
