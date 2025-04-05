@@ -519,6 +519,136 @@ app.get('/api/public/projects/:projectId/documents', validateApiKey, async (req,
   }
 });
 
+// Közvetlen végpont a megosztott projektek fájljainak lekéréséhez
+app.get('/api/public/shared-projects/:token/files', validateApiKey, async (req, res) => {
+  try {
+    const { token } = req.params;
+    console.log(`Megosztott projekt fájlok lekérése (Token: ${token})`);
+
+    // Keresés a sharing.token mezőben
+    let project = await mongoose.model('Project').findOne({ 'sharing.token': token });
+    
+    // Ha nem találja, próbáljuk a régebbi shareToken mezővel is
+    if (!project) {
+      project = await mongoose.model('Project').findOne({ shareToken: token });
+    }
+    
+    if (!project) {
+      console.log(`Megosztott projekt nem található a tokennel: ${token}`);
+      return res.status(404).json({ message: 'Megosztott projekt nem található' });
+    }
+    
+    console.log(`Megosztott projekt megtalálva: ${project.name}, fájlok száma: ${project.files?.length || 0}`);
+    
+    // Szűrjük a fájlokat, hogy csak a nem törölteket küldjük vissza
+    const activeFiles = (project.files || []).filter(file => !file.isDeleted);
+    
+    console.log(`Aktív fájlok száma: ${activeFiles.length}`);
+    
+    res.json(activeFiles);
+  } catch (error) {
+    console.error('Hiba a megosztott projekt fájlok lekérdezése során:', error);
+    res.status(500).json({ message: 'Szerver hiba történt' });
+  }
+});
+
+// Közvetlen végpont a megosztott projektekhez tartozó fájlok feltöltéséhez
+app.post('/api/public/shared-projects/:token/files', validateApiKey, async (req, res) => {
+  try {
+    const { token } = req.params;
+    const fileData = req.body;
+    console.log(`Megosztott projekthez fájl feltöltés (Token: ${token})`);
+    
+    // Keresés a sharing.token mezőben
+    let project = await mongoose.model('Project').findOne({ 'sharing.token': token });
+    
+    // Ha nem találja, próbáljuk a régebbi shareToken mezővel is
+    if (!project) {
+      project = await mongoose.model('Project').findOne({ shareToken: token });
+    }
+    
+    if (!project) {
+      console.log(`Megosztott projekt nem található a tokennel: ${token}`);
+      return res.status(404).json({ message: 'Megosztott projekt nem található' });
+    }
+    
+    console.log(`Megosztott projekt megtalálva: ${project.name}`);
+    
+    // Validáljuk a fájl adatokat
+    if (!fileData.id || !fileData.name || !fileData.size || !fileData.type) {
+      console.log('Hiányzó kötelező adatok a fájlnál');
+      return res.status(400).json({ message: 'Hiányzó fájl adatok' });
+    }
+    
+    // Előkészítjük a fájl objektumot a MongoDB számára
+    const fileToSave = {
+      id: fileData.id,
+      name: fileData.name,
+      size: fileData.size,
+      type: fileData.type,
+      uploadedAt: new Date(),
+      uploadedBy: fileData.uploadedBy || 'Ügyfél',
+      s3url: fileData.s3url || null,
+      s3key: fileData.s3key || null,
+      isDeleted: false
+    };
+    
+    // Ha van fájltartalom, feltöltjük az S3-ba
+    if (fileData.content) {
+      try {
+        const s3Result = await uploadToS3({
+          ...fileData,
+          projectId: project._id.toString()
+        });
+        
+        // S3 adatok hozzáadása
+        fileToSave.s3url = s3Result.s3url;
+        fileToSave.s3key = s3Result.key;
+        
+        // Content eltávolítása, mert már feltöltöttük S3-ba
+        delete fileData.content;
+      } catch (s3Error) {
+        console.error('Hiba az S3 feltöltés során:', s3Error);
+        return res.status(500).json({ 
+          message: 'Hiba a fájl feltöltése során', 
+          error: s3Error.message 
+        });
+      }
+    }
+    
+    // Az új fájl objektum hozzáadása a tömbhöz
+    if (!project.files) {
+      project.files = [];
+    }
+    
+    // Ellenőrizzük, hogy ez a fájl nem létezik-e már (id alapján)
+    const existingFileIndex = project.files.findIndex(f => f.id === fileToSave.id);
+    if (existingFileIndex !== -1) {
+      console.log(`Már létező fájl frissítése az ID alapján: ${fileToSave.id}`);
+      Object.assign(project.files[existingFileIndex], fileToSave);
+    } else {
+      // Új fájl hozzáadása
+      project.files.push(fileToSave);
+    }
+    
+    await project.save();
+    console.log(`Fájl sikeresen mentve a megosztott projekthez: ${fileToSave.name}`);
+    
+    // Csak a nem törölt fájlokat küldjük vissza
+    const activeFiles = project.files.filter(f => !f.isDeleted);
+    res.status(201).json({
+      message: 'Fájl sikeresen hozzáadva',
+      files: activeFiles
+    });
+  } catch (error) {
+    console.error('Hiba a fájl feltöltése során:', error);
+    res.status(500).json({ 
+      message: 'Szerver hiba történt', 
+      error: error.message
+    });
+  }
+});
+
 // ==============================================
 // PUBLIC PDF ENDPOINTS (No authentication required)
 // ==============================================
