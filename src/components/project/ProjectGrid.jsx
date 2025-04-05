@@ -12,6 +12,7 @@ const ProjectGrid = ({
   onNewInvoice, 
   onViewDetails, 
   onDelete,
+  onDeleteProject,
   onReplyToComment,
   onViewFile,
   onMarkAsRead,
@@ -81,13 +82,14 @@ const ProjectGrid = ({
                 isExpired: activeShares[project._id].isExpired
               } : null
             }}
-            comments={comments}
-            files={files.filter(f => f.projectId === project._id)}
+            comments={comments?.filter(c => c.projectId === project._id) || []}
+            files={files?.filter(f => f.projectId === project._id) || []}
             isAdmin={true}
             onShare={onShare}
             onNewInvoice={onNewInvoice}
             onViewDetails={onViewDetails}
             onDeleteFile={handleDeleteFile}
+            onDeleteProject={onDeleteProject}
             onReplyToComment={handleReplyToComment}
             onViewFile={onViewFile || (() => {})}
             onMarkAsRead={onMarkAsRead}

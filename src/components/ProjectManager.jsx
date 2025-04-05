@@ -654,6 +654,25 @@ const ProjectManager = () => {
     setFilteredProjects(projects);
   }, [projects]);
 
+  // Delete project
+  const handleDeleteProject = async (projectId) => {
+    try {
+      // API hívás a projekt törléséhez
+      const response = await api.delete(`${API_URL}/projects/${projectId}`);
+      
+      if (response.ok) {
+        // Projekt törlése a helyi állapotból
+        setProjects(projects.filter(project => project._id !== projectId));
+        showSuccessMessage('Projekt sikeresen törölve');
+      } else {
+        throw new Error('Hiba a projekt törlésekor');
+      }
+    } catch (error) {
+      console.error('Hiba a projekt törlésekor:', error);
+      showErrorMessage('Nem sikerült törölni a projektet');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -817,19 +836,20 @@ const ProjectManager = () => {
       {/* Project views based on selected view type */}
       {viewType === 'grid' ? (
         <ProjectGrid 
-  projects={filteredProjects}
-  activeShares={activeShares}
-  comments={projectComments}
-  files={projectFiles}
-  onShare={setShowShareModal}
-  onNewInvoice={handleNewInvoice}
-  onViewDetails={setSelectedProject}
-  onDelete={handleDeleteFile}
-  onReplyToComment={handleSendComment}
-  onViewFile={handleShowFilePreview}
-  onMarkAsRead={handleMarkAsRead}
-  onUploadFile={handleFileUpload}
-/>
+          projects={filteredProjects}
+          activeShares={activeShares}
+          comments={projectComments}
+          files={projectFiles}
+          onShare={setShowShareModal}
+          onNewInvoice={handleNewInvoice}
+          onViewDetails={setSelectedProject}
+          onDelete={handleDeleteFile}
+          onDeleteProject={handleDeleteProject}
+          onReplyToComment={handleSendComment}
+          onViewFile={handleShowFilePreview}
+          onMarkAsRead={handleMarkAsRead}
+          onUploadFile={handleFileUpload}
+        />
       ) : viewType === 'list' ? (
         <ProjectList 
           projects={filteredProjects}
@@ -838,6 +858,7 @@ const ProjectManager = () => {
           onNewInvoice={handleNewInvoice}
           onViewDetails={setSelectedProject}
           onDelete={handleDeleteFile}
+          onDeleteProject={handleDeleteProject}
           onMarkAsRead={handleMarkAsRead}
         />
       ) : (
@@ -850,6 +871,7 @@ const ProjectManager = () => {
           onNewInvoice={handleNewInvoice}
           onViewDetails={setSelectedProject}
           onDelete={handleDeleteFile}
+          onDeleteProject={handleDeleteProject}
           onMarkAsRead={handleMarkAsRead}
         />
       )}
