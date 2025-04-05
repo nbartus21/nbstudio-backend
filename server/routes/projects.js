@@ -1089,4 +1089,85 @@ router.get('/public/projects/:token/changelog', async (req, res) => {
   }
 });
 
+// GET project files
+router.get('/:id/files', auth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log(`GET /api/projects/${id}/files kérés`);
+    
+    const project = await Project.findById(id);
+    if (!project) {
+      console.log(`Projekt nem található: ${id}`);
+      return res.status(404).json({ message: 'Projekt nem található' });
+    }
+    
+    console.log(`Fájlok visszaadása a projekthez: ${id}, talált fájlok: ${project.files.length}`);
+    res.json(project.files || []);
+  } catch (error) {
+    console.error('Hiba a projekt fájlok lekérdezése során:', error);
+    res.status(500).json({ message: 'Szerver hiba történt' });
+  }
+});
+
+// Add file to project
+router.post('/:id/files', auth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const fileData = req.body;
+    console.log(`POST /api/projects/${id}/files kérés`, {
+      fájlnév: fileData.name,
+      méret: fileData.size
+    });
+    
+    const project = await Project.findById(id);
+    if (!project) {
+      console.log(`Projekt nem található: ${id}`);
+      return res.status(404).json({ message: 'Projekt nem található' });
+    }
+    
+    // Az új fájl adatok hozzáadása
+    project.files.push(fileData);
+    
+    await project.save();
+    console.log(`Fájl sikeresen hozzáadva: ${fileData.name}`);
+    
+    res.json(project);
+  } catch (error) {
+    console.error('Hiba a fájl projekthez adása során:', error);
+    res.status(500).json({ message: 'Szerver hiba történt' });
+  }
+});
+
+// Delete file from project (logical delete)
+router.delete('/:projectId/files/:fileId', auth, async (req, res) => {
+  try {
+    const { projectId, fileId } = req.params;
+    console.log(`DELETE /api/projects/${projectId}/files/${fileId} kérés`);
+    
+    const project = await Project.findById(projectId);
+    if (!project) {
+      console.log(`Projekt nem található: ${projectId}`);
+      return res.status(404).json({ message: 'Projekt nem található' });
+    }
+    
+    const fileIndex = project.files.findIndex(file => file.id === fileId);
+    if (fileIndex === -1) {
+      console.log(`Fájl nem található: ${fileId}`);
+      return res.status(404).json({ message: 'Fájl nem található' });
+    }
+    
+    // Csak logikai törlés - megjelöljük a fájlt töröltként
+    project.files[fileIndex].isDeleted = true;
+    project.files[fileIndex].deletedAt = new Date();
+    
+    await project.save();
+    console.log(`Fájl sikeresen törölve: ${fileId}`);
+    
+    res.json({ message: 'Fájl sikeresen törölve' });
+  } catch (error) {
+    console.error('Hiba a fájl törlése során:', error);
+    res.status(500).json({ message: 'Szerver hiba történt' });
+  }
+});
+
 export default router;
