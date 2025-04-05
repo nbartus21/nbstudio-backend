@@ -9,7 +9,7 @@ import { formatShortDate, debugLog, loadFromLocalStorage, getProjectId } from '.
 // Import modular components
 import ProjectOverview from './shared/ProjectOverview';
 import ProjectInvoices from './shared/ProjectInvoices';
-import ProjectFiles from './shared/ProjectFiles';
+import SimpleFileUploader from './shared/SimpleFileUploader';
 import ProjectDocuments from './shared/ProjectDocuments'; // New component for documents
 import ProjectChangelog from './shared/ProjectChangelog'; // New component for changelog
 import FilePreviewModal from './shared/FilePreviewModal';
@@ -1069,26 +1069,19 @@ const SharedProjectDashboard = ({
           </div>
         </div>
 
-        {/* Upload File Button (Always Visible in file and overview tabs) */}
-        {(activeTab === 'files' || activeTab === 'overview') && (
+        {/* Upload File Button (Only Visible in overview tab) */}
+        {activeTab === 'overview' && (
           <div className="mb-6 flex justify-end">
             <button
               onClick={() => {
                 debugLog('uploadButtonClick', 'Upload button clicked');
-                fileInputRef.current?.click();
+                setActiveTabSafe('files'); // Váltás a fájlok tabra
               }}
               className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex items-center shadow"
             >
               <Upload className="h-4 w-4 mr-2" />
               {t.uploadFile}
             </button>
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleFileInputChange}
-              className="hidden"
-              multiple
-            />
           </div>
         )}
 
@@ -1128,16 +1121,17 @@ const SharedProjectDashboard = ({
         )}
 
         {activeTab === 'files' && (
-          <ProjectFiles
-            id="ProjectFiles-component"
-            project={normalizedProject}
-            files={files}
-            setFiles={setFiles}
-            onShowFilePreview={handleShowFilePreview}
-            showSuccessMessage={showSuccessMessage}
-            showErrorMessage={showErrorMessage}
-            language={language}
-          />
+          <div>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">{t.files}</h2>
+            </div>
+            <SimpleFileUploader
+              project={normalizedProject}
+              showSuccessMessage={showSuccessMessage}
+              showErrorMessage={showErrorMessage}
+              language={language}
+            />
+          </div>
         )}
 
         {/* Dokumentumok komponens eltávolítva */}
