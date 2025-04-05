@@ -533,6 +533,41 @@ app.get('/api/public/projects/:projectId/documents', validateApiKey, async (req,
   }
 });
 
+// Végpont a megosztott projektek changelog bejegyzéseinek lekéréséhez
+app.get('/api/public/projects/:token/changelog', validateApiKey, async (req, res) => {
+  try {
+    const { token } = req.params;
+    console.log(`Megosztott projekt changelog lekérése (Token: ${token})`);
+
+    // Keresés a sharing.token mezőben
+    let project = await mongoose.model('Project').findOne({ 'sharing.token': token });
+
+    // Ha nem találja, próbáljuk a régebbi shareToken mezővel is
+    if (!project) {
+      project = await mongoose.model('Project').findOne({ shareToken: token });
+    }
+
+    if (!project) {
+      console.log(`Megosztott projekt nem található a tokennel: ${token}`);
+      return res.status(404).json({ message: 'Megosztott projekt nem található' });
+    }
+
+    console.log(`Megosztott projekt megtalálva: ${project.name}, changelog bejegyzések száma: ${project.changelog?.length || 0}`);
+
+    // Ellenőrizzük, hogy a changelog el van-e rejtve
+    if (project.sharing && project.sharing.hideChangelog) {
+      console.log(`Changelog el van rejtve ennél a megosztott projektnél: ${project.name}`);
+      return res.json([]);
+    }
+
+    // Visszaadjuk a changelog bejegyzéseket
+    res.json(project.changelog || []);
+  } catch (error) {
+    console.error('Hiba a megosztott projekt changelog lekérdezése során:', error);
+    res.status(500).json({ message: 'Szerver hiba történt', error: error.message });
+  }
+});
+
 // Közvetlen végpont a megosztott projektek fájljainak lekéréséhez
 app.get('/api/public/shared-projects/:token/files', validateApiKey, async (req, res) => {
   try {
