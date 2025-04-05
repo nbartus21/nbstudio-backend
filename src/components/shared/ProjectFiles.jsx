@@ -118,13 +118,13 @@ const translations = {
   }
 };
 
-const ProjectFiles = ({ 
-  project, 
-  files: initialFiles, 
-  setFiles, 
-  onShowFilePreview, 
-  showSuccessMessage, 
-  showErrorMessage, 
+const ProjectFiles = ({
+  project,
+  files: initialFiles,
+  setFiles,
+  onShowFilePreview,
+  showSuccessMessage,
+  showErrorMessage,
   isAdmin = false,
   language = 'hu'
 }) => {
@@ -143,7 +143,7 @@ const ProjectFiles = ({
 
   // Debug info at mount and get safe project ID
   const projectId = getProjectId(project);
-  
+
   // Fájlok betöltése szerverről
   useEffect(() => {
     if (!projectId) {
@@ -156,19 +156,19 @@ const ProjectFiles = ({
       try {
         setIsLoading(true);
         console.log('📂 Fájlok lekérése a szerverről', { projectId });
-        
+
         // API hívás a projekt fájlok lekérésére
         const response = await api.get(`/api/projects/${projectId}/files`);
-        
+
         if (response.ok) {
           const data = await response.json();
           console.log(`✅ Sikeresen lekérve ${data.length} fájl a szerverről`);
-          
+
           // A törölt fájlokat kiszűrjük
           const activeFiles = data.filter(file => !file.isDeleted);
-          
+
           setLocalFiles(activeFiles);
-          
+
           // Frissítjük a szülő komponenst is
           if (setFiles) {
             setFiles(activeFiles);
@@ -197,17 +197,17 @@ const ProjectFiles = ({
       adminMode: isAdmin
     });
     debugLog('handleFileUpload', 'Upload started');
-    
+
     if (!projectId) {
       console.error('❌ HIBA: Hiányzó projekt azonosító');
       debugLog('handleFileUpload', 'ERROR: No project ID');
       showErrorMessage(t.projectIdError);
       return;
     }
-    
+
     setIsUploading(true);
     let uploadedFiles = [];
-    
+
     try {
       uploadedFiles = Array.from(event.target.files);
       console.log('📄 Feldolgozandó fájlok:', {
@@ -217,31 +217,31 @@ const ProjectFiles = ({
         összMéret: formatFileSize(uploadedFiles.reduce((sum, f) => sum + f.size, 0))
       });
       debugLog('handleFileUpload', `Processing ${uploadedFiles.length} files`);
-      
+
       if (uploadedFiles.length === 0) {
         console.warn('⚠️ Nincsenek feltöltendő fájlok');
         debugLog('handleFileUpload', 'No files to upload');
         setIsUploading(false);
         return;
       }
-      
+
       let processedFiles = 0;
       const totalFiles = uploadedFiles.length;
-      
+
       const newFiles = await Promise.all(uploadedFiles.map(async (file) => {
         return new Promise((resolve) => {
           console.log(`📄 Fájl olvasás kezdete: ${file.name} (${formatFileSize(file.size)})`);
           debugLog('handleFileUpload', `Reading file ${file.name} (${formatFileSize(file.size)})`);
-          
+
           const reader = new FileReader();
-          
+
           reader.onload = async (e) => {
             try {
               processedFiles++;
               setUploadProgress(Math.round((processedFiles / totalFiles) * 100));
               console.log(`📊 Feldolgozási folyamat: ${processedFiles}/${totalFiles} (${Math.round((processedFiles / totalFiles) * 100)}%)`);
               debugLog('handleFileUpload', `File ${file.name} processed (${processedFiles}/${totalFiles})`);
-              
+
               const fileData = {
                 id: `${Date.now()}_${Math.random().toString(36).substring(2, 15)}`,
                 name: file.name,
@@ -268,21 +268,21 @@ const ProjectFiles = ({
                 const startTime = Date.now();
                 const s3Result = await uploadFileToS3(fileData);
                 const uploadDuration = Date.now() - startTime;
-                
+
                 // S3 információk hozzáadása a fájl objektumhoz
                 fileData.s3url = s3Result.s3url;
                 fileData.s3key = s3Result.key;
-                
+
                 console.log(`✅ S3 feltöltés sikeres (${uploadDuration}ms):`, {
                   fájlnév: file.name,
                   s3kulcs: s3Result.key,
                   s3url: s3Result.s3url,
                   feltöltési_idő: uploadDuration + 'ms'
                 });
-                
+
                 // Már nincs szükség a content mezőre, eltávolítjuk, hogy ne terhelje az adatbázist
                 delete fileData.content;
-                
+
                 // Fájl mentése az API-n keresztül
                 try {
                   const serverResponse = await api.post(`/api/projects/${projectId}/files`, fileData);
@@ -291,7 +291,7 @@ const ProjectFiles = ({
                     // A szerver válaszát használjuk a frissített projekt adatokkal
                     const projectData = await serverResponse.json();
                     debugLog('handleFileUpload', `File ${file.name} saved to server successfully`);
-                    
+
                     // Csak a sikeres szervermentés után adjuk hozzá a helyi állapothoz
                     resolve(fileData);
                   } else {
@@ -316,7 +316,7 @@ const ProjectFiles = ({
               resolve(null);
             }
           };
-          
+
           reader.onerror = (error) => {
             console.error(`❌ FÁJL OLVASÁSI HIBA (${file.name}):`, error);
             debugLog('handleFileUpload', `Error reading file ${file.name}`, error);
@@ -324,7 +324,7 @@ const ProjectFiles = ({
             setUploadProgress(Math.round((processedFiles / totalFiles) * 100));
             resolve(null);
           };
-          
+
           reader.readAsDataURL(file);
         });
       }));
@@ -336,20 +336,20 @@ const ProjectFiles = ({
 
       // A fájlokat frissítjük a szerverről inkább
       setRefreshKey(prev => prev + 1);
-      
+
       // Ha admin töltötte fel, akkor speciális üzenet a lokalizációval
       if (isAdmin) {
         showSuccessMessage(`${t.adminUploadSuccess.replace('files', validFiles.length)}`);
       } else {
         showSuccessMessage(`${validFiles.length} ${t.uploadSuccess}`);
       }
-      
+
       console.log('✅ FÁJLFELTÖLTÉS BEFEJEZVE', {
         időpont: new Date().toISOString(),
         sikeresFájlok: validFiles.length,
         összesFájl: newFiles.length
       });
-      
+
       // Simulate a slight delay to show 100% before hiding the progress bar
       setTimeout(() => {
         setIsUploading(false);
@@ -370,67 +370,7 @@ const ProjectFiles = ({
     }
   };
 
-  // Fájl törlés kezelése a szerveren is
-  const handleDeleteFile = async (fileId) => {
-    debugLog('handleDeleteFile', `Deleting file ID: ${fileId}`);
-    
-    if (!window.confirm(t.confirmDelete)) {
-      debugLog('handleDeleteFile', 'Deletion cancelled by user');
-      return;
-    }
-    
-    try {
-      // Keresünk a törlendő fájlt az azonosító alapján
-      const fileToDelete = files.find(file => file.id === fileId);
-      debugLog('handleDeleteFile', 'File to delete:', fileToDelete?.name);
-      
-      if (!fileToDelete) {
-        console.error('❌ Nem található a törlendő fájl:', fileId);
-        showErrorMessage('A fájl nem található');
-        return;
-      }
-      
-      console.log('🗑️ Fájl törlési kérés indítása:', {
-        fájlnév: fileToDelete.name,
-        fájlID: fileId,
-        projektID: projectId
-      });
-      
-      // API hívás a fájl törléséhez - valójában csak logikai törlés
-      const response = await api.delete(`/api/projects/${projectId}/files/${fileId}`);
-      
-      if (response.ok) {
-        console.log('✅ Fájl sikeresen törölve a szerverről:', fileToDelete.name);
-        
-        // Frissítjük a helyi fájllistát a törölt fájl nélkül
-        const updatedFiles = files.filter(file => file.id !== fileId);
-        setLocalFiles(updatedFiles);
-        
-        // Frissítjük a szülő komponenst is
-        if (setFiles) {
-          setFiles(updatedFiles);
-        }
-        
-        showSuccessMessage(t.deleteSuccess);
-      } else {
-        console.error('❌ Hiba a fájl törlésekor:', response.status, response.statusText);
-        let errorMsg = t.deleteError;
-        
-        try {
-          const errorData = await response.json();
-          errorMsg = errorData.message || errorMsg;
-        } catch (e) {
-          // Nem JSON válasz esetén maradunk az alapértelmezett hibaüzenetnél
-        }
-        
-        showErrorMessage(errorMsg);
-      }
-    } catch (error) {
-      console.error('❌ Általános hiba a fájl törlése közben:', error);
-      debugLog('handleDeleteFile', 'Error deleting file', error);
-      showErrorMessage(t.deleteError);
-    }
-  };
+  // Fájl törlés funkció eltávolítva
 
   // Kézi frissítés gomb kezelése
   const handleRefresh = () => {
@@ -443,26 +383,26 @@ const ProjectFiles = ({
     .filter(file => {
       // Search term filter
       const fileNameMatches = file.name.toLowerCase().includes(searchTerm.toLowerCase());
-      
+
       // File type filter
       if (fileFilter === 'all') return fileNameMatches;
       if (fileFilter === 'images' && file.type.startsWith('image/')) return fileNameMatches;
       if (fileFilter === 'documents' && (
-        file.type.includes('pdf') || 
-        file.type.includes('doc') || 
+        file.type.includes('pdf') ||
+        file.type.includes('doc') ||
         file.type.includes('xls') ||
         file.type.includes('ppt') ||
         file.type.includes('txt')
       )) return fileNameMatches;
       if (fileFilter === 'other' && !(
-        file.type.startsWith('image/') || 
-        file.type.includes('pdf') || 
-        file.type.includes('doc') || 
+        file.type.startsWith('image/') ||
+        file.type.includes('pdf') ||
+        file.type.includes('doc') ||
         file.type.includes('xls') ||
         file.type.includes('ppt') ||
         file.type.includes('txt')
       )) return fileNameMatches;
-      
+
       return false;
     })
     .sort((a, b) => {
@@ -484,8 +424,8 @@ const ProjectFiles = ({
           <span className="text-lg font-medium text-gray-700">{t.dropFilesText}</span>
         </div>
         <p className="text-sm text-gray-500 mb-2">{t.dropFilesSubtext}</p>
-        <button 
-          onClick={() => fileInputRef.current.click()} 
+        <button
+          onClick={() => fileInputRef.current.click()}
           className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
           disabled={isUploading}
         >
@@ -520,7 +460,7 @@ const ProjectFiles = ({
           />
           <Search className="absolute left-2 top-2.5 text-gray-400" size={16} />
         </div>
-        
+
         <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
           <div className="relative">
             <select
@@ -535,7 +475,7 @@ const ProjectFiles = ({
             </select>
             <Filter className="absolute left-2.5 top-2.5 text-gray-400" size={15} />
           </div>
-          
+
           <div className="relative">
             <select
               value={sortBy}
@@ -551,8 +491,8 @@ const ProjectFiles = ({
             </select>
             <ArrowDown className="absolute left-2.5 top-2.5 text-gray-400" size={15} />
           </div>
-          
-          <button 
+
+          <button
             onClick={handleRefresh}
             className="px-3 py-2 border border-gray-300 rounded-md hover:bg-gray-100 transition-colors"
             title={t.refreshFiles}
@@ -623,29 +563,18 @@ const ProjectFiles = ({
                         <div className="text-sm text-gray-900">{file.uploadedBy}</div>
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium space-x-1">
-                        <button
-                          onClick={() => onShowFilePreview(file)}
-                          className="inline-flex items-center px-2 py-1 text-blue-700 hover:text-blue-900"
-                          title={t.viewFile}
-                        >
-                          <Eye size={16} />
-                        </button>
+                        {/* Előnézet gomb eltávolítva */}
                         <a
                           href={file.s3url || getS3Url(file)}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center px-2 py-1 text-green-700 hover:text-green-900"
+                          className="inline-flex items-center px-3 py-1.5 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
                           title={t.downloadFile}
                         >
-                          <Download size={16} />
+                          <Download size={16} className="mr-1" />
+                          <span>{t.downloadFile}</span>
                         </a>
-                        <button
-                          onClick={() => handleDeleteFile(file.id)}
-                          className="inline-flex items-center px-2 py-1 text-red-600 hover:text-red-900"
-                          title={t.deleteFile}
-                        >
-                          <Trash2 size={16} />
-                        </button>
+                        {/* Törlés gomb eltávolítva */}
                       </td>
                     </tr>
                   ))}

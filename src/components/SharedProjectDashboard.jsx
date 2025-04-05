@@ -373,6 +373,15 @@ const SharedProjectDashboard = ({
     }
   }, [normalizedProject?.sharing?.token]); // Csak akkor futtatjuk újra, ha a token változik
   const [activeTab, setActiveTab] = useState('overview');
+
+  // Biztonsági ellenőrzés - ha valaki mégis a 'documents' tabra próbálna váltani
+  const setActiveTabSafe = (tab) => {
+    if (tab === 'documents') {
+      setActiveTab('overview');
+    } else {
+      setActiveTab(tab);
+    }
+  };
   const fileInputRef = useRef(null);
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
@@ -665,32 +674,32 @@ const SharedProjectDashboard = ({
   // Handle file input change
   const handleFileInputChange = (event) => {
     debugLog('handleFileInputChange', `File input changed, files: ${event.target.files?.length || 0}`);
-    
+
     if (!event.target.files || event.target.files.length === 0) {
       debugLog('handleFileInputChange', 'No files selected');
       return;
     }
-    
+
     // Ha nem a "files" fülön vagyunk, váltsunk oda
     if (activeTab !== 'files') {
       debugLog('handleFileInputChange', 'Switching to files tab');
       setActiveTab('files');
-      
+
       // Késleltetés, hogy a fül váltás megtörténjen
       setTimeout(() => {
         // Újra ellenőrizzük, hogy van-e fájl kiválasztva
         if (!event.target.files || event.target.files.length === 0) {
           return;
         }
-        
+
         // Fájl feltöltés a files fülön
         const fileInput = fileInputRef.current;
-        
+
         // Másoljuk az aktuális fájl feltöltés gomb értékét a fülön lévő input mezőbe
         const filesTab = document.querySelector('.file-input-in-files-tab');
         if (filesTab) {
           debugLog('handleFileInputChange', 'Found file input in files tab, triggering upload');
-          
+
           // Törölni kell a files tab fileInputját, majd rákattintani, hogy a saját kezelője fusson le
           // A setTimeout biztosítja, hogy a DOM frissítési ciklus megtörténjen
           setTimeout(() => {
@@ -704,7 +713,7 @@ const SharedProjectDashboard = ({
     } else {
       // Ha már a files fülön vagyunk
       debugLog('handleFileInputChange', 'Already on files tab');
-      
+
       // Keressük meg a ProjectFiles komponensben lévő fájl input mezőt
       const fileInputInFilesTab = document.querySelector('.file-input-in-files-tab');
       if (fileInputInFilesTab) {
@@ -715,7 +724,7 @@ const SharedProjectDashboard = ({
         showErrorMessage('Hiba a fájlfeltöltés során. Használja inkább a Fájlok fül saját feltöltés gombját.');
       }
     }
-    
+
     // Töröljük a felső fájl input értékét
     event.target.value = '';
   };
@@ -984,7 +993,7 @@ const SharedProjectDashboard = ({
           <div className="border-b border-gray-200">
             <nav className="-mb-px flex space-x-8 px-6">
               <button
-                onClick={() => setActiveTab('overview')}
+                onClick={() => setActiveTabSafe('overview')}
                 className={`${
                   activeTab === 'overview'
                     ? 'border-indigo-500 text-indigo-600'
@@ -995,7 +1004,7 @@ const SharedProjectDashboard = ({
                 {t.overview}
               </button>
               <button
-                onClick={() => setActiveTab('invoices')}
+                onClick={() => setActiveTabSafe('invoices')}
                 className={`${
                   activeTab === 'invoices'
                     ? 'border-indigo-500 text-indigo-600'
@@ -1011,7 +1020,7 @@ const SharedProjectDashboard = ({
                 )}
               </button>
               <button
-                onClick={() => setActiveTab('files')}
+                onClick={() => setActiveTabSafe('files')}
                 className={`${
                   activeTab === 'files'
                     ? 'border-indigo-500 text-indigo-600'
@@ -1026,24 +1035,9 @@ const SharedProjectDashboard = ({
                   </span>
                 )}
               </button>
+              {/* Dokumentumok menüpont eltávolítva */}
               <button
-                onClick={() => setActiveTab('documents')}
-                className={`${
-                  activeTab === 'documents'
-                    ? 'border-indigo-500 text-indigo-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm relative flex items-center`}
-              >
-                <Archive className="h-4 w-4 mr-1" />
-                {t.documents}
-                {documents.filter(doc => doc.projectId === projectId).length > 0 && (
-                  <span className="absolute -top-1 -right-1 h-5 w-5 text-xs flex items-center justify-center rounded-full bg-indigo-100 text-indigo-600">
-                    {documents.filter(doc => doc.projectId === projectId).length}
-                  </span>
-                )}
-              </button>
-              <button
-                onClick={() => setActiveTab('changelog')}
+                onClick={() => setActiveTabSafe('changelog')}
                 className={`${
                   activeTab === 'changelog'
                     ? 'border-indigo-500 text-indigo-600'
@@ -1060,7 +1054,7 @@ const SharedProjectDashboard = ({
               </button>
               {normalizedProject.milestones && normalizedProject.milestones.length > 0 && (
                 <button
-                  onClick={() => setActiveTab('milestones')}
+                  onClick={() => setActiveTabSafe('milestones')}
                   className={`${
                     activeTab === 'milestones'
                       ? 'border-indigo-500 text-indigo-600'
@@ -1146,18 +1140,7 @@ const SharedProjectDashboard = ({
           />
         )}
 
-        {activeTab === 'documents' && (
-          <ProjectDocuments
-            project={normalizedProject}
-            documents={documents}
-            setDocuments={setDocuments}
-            onShowDocumentPreview={handleShowDocumentPreview}
-            showSuccessMessage={showSuccessMessage}
-            showErrorMessage={showErrorMessage}
-            isAdmin={adminMode}
-            language={language}
-          />
-        )}
+        {/* Dokumentumok komponens eltávolítva */}
 
         {activeTab === 'changelog' && (
           <ProjectChangelog
