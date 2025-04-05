@@ -68,16 +68,17 @@ struct Invoice: Identifiable, Codable {
 }
 
 struct ProjectFile: Identifiable, Codable {
-    var id: String { _id }
-    var _id: String
+    var id: String
     var name: String
     var size: Int
     var type: String
     var uploadedAt: String
+    var uploadedBy: String?
     var s3url: String
+    var s3key: String?
 
     enum CodingKeys: String, CodingKey {
-        case _id, name, size, type, uploadedAt, s3url
+        case id, name, size, type, uploadedAt, uploadedBy, s3url, s3key
     }
 }
 
