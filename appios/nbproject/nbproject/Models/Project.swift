@@ -28,7 +28,26 @@ struct Project: Identifiable, Codable {
         client = try container.decode(Client.self, forKey: .client)
         invoices = try container.decode([Invoice].self, forKey: .invoices)
         files = try container.decode([ProjectFile].self, forKey: .files)
-        sharing = try container.decode(Sharing.self, forKey: .sharing)
+
+        // Sharing objektum dekodálása
+        do {
+            sharing = try container.decode(Sharing.self, forKey: .sharing)
+        } catch {
+            print("Error decoding sharing: \(error)")
+            // Ha hiba történik a Sharing dekodálása során, akkor egy alapértelmezett értéket adunk
+            if let sharingContainer = try? container.nestedContainer(keyedBy: Sharing.CodingKeys.self, forKey: .sharing) {
+                let token = try sharingContainer.decode(String.self, forKey: .token)
+                let expiresAt = try sharingContainer.decode(String.self, forKey: .expiresAt)
+                let createdAt = try sharingContainer.decode(String.self, forKey: .createdAt)
+                let hideFiles = try sharingContainer.decodeIfPresent(Bool.self, forKey: .hideFiles) ?? false
+                let hideDocuments = try sharingContainer.decodeIfPresent(Bool.self, forKey: .hideDocuments) ?? false
+
+                sharing = Sharing(token: token, pin: nil, expiresAt: expiresAt, createdAt: createdAt, hideFiles: hideFiles, hideDocuments: hideDocuments)
+            } else {
+                // Ha nem sikerül a Sharing dekodálása, akkor egy üres objektumot hozunk létre
+                sharing = Sharing(token: "", pin: nil, expiresAt: "", createdAt: "", hideFiles: false, hideDocuments: false)
+            }
+        }
 
         // Opcionális mezők dekodólása
         changelog = try container.decodeIfPresent([ChangelogEntry].self, forKey: .changelog)
@@ -57,6 +76,16 @@ struct Project: Identifiable, Codable {
         var createdAt: String
         var hideFiles: Bool?
         var hideDocuments: Bool?
+
+        // Inicializáló a kézi példányosításhoz
+        init(token: String, pin: String?, expiresAt: String, createdAt: String, hideFiles: Bool?, hideDocuments: Bool?) {
+            self.token = token
+            self.pin = pin
+            self.expiresAt = expiresAt
+            self.createdAt = createdAt
+            self.hideFiles = hideFiles
+            self.hideDocuments = hideDocuments
+        }
 
         // Egyedi dekodóló implementáció az opcionális mezők kezeléséhez
         init(from decoder: Decoder) throws {
