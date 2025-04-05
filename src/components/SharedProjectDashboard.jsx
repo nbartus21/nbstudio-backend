@@ -663,27 +663,61 @@ const SharedProjectDashboard = ({
   };
 
   // Handle file input change
-  const handleFileInputChange = (e) => {
-    debugLog('fileInputChange', `File input changed, files: ${e.target.files.length}`);
+  const handleFileInputChange = (event) => {
+    debugLog('handleFileInputChange', `File input changed, files: ${event.target.files?.length || 0}`);
+    
+    if (!event.target.files || event.target.files.length === 0) {
+      debugLog('handleFileInputChange', 'No files selected');
+      return;
+    }
+    
+    // Ha nem a "files" fülön vagyunk, váltsunk oda
     if (activeTab !== 'files') {
+      debugLog('handleFileInputChange', 'Switching to files tab');
       setActiveTab('files');
-      // Delay the file upload to allow tab to change first
+      
+      // Késleltetés, hogy a fül váltás megtörténjen
       setTimeout(() => {
-        const filesComponent = document.getElementById('ProjectFiles-component');
-        if (filesComponent && filesComponent.handleFileUpload) {
-          filesComponent.handleFileUpload(e);
-        } else {
-          debugLog('fileInputChange', 'ERROR: ProjectFiles component or handler not found');
+        // Újra ellenőrizzük, hogy van-e fájl kiválasztva
+        if (!event.target.files || event.target.files.length === 0) {
+          return;
         }
-      }, 100);
+        
+        // Fájl feltöltés a files fülön
+        const fileInput = fileInputRef.current;
+        
+        // Másoljuk az aktuális fájl feltöltés gomb értékét a fülön lévő input mezőbe
+        const filesTab = document.querySelector('.file-input-in-files-tab');
+        if (filesTab) {
+          debugLog('handleFileInputChange', 'Found file input in files tab, triggering upload');
+          
+          // Törölni kell a files tab fileInputját, majd rákattintani, hogy a saját kezelője fusson le
+          // A setTimeout biztosítja, hogy a DOM frissítési ciklus megtörténjen
+          setTimeout(() => {
+            filesTab.click();
+          }, 50);
+        } else {
+          debugLog('handleFileInputChange', 'ERROR: File input not found in files tab');
+          showErrorMessage('Hiba a fájlfeltöltés során. Kérjük váltson a Fájlok fülre és próbálja újra.');
+        }
+      }, 200);
     } else {
-      const filesComponent = document.getElementById('ProjectFiles-component');
-      if (filesComponent && filesComponent.handleFileUpload) {
-        filesComponent.handleFileUpload(e);
+      // Ha már a files fülön vagyunk
+      debugLog('handleFileInputChange', 'Already on files tab');
+      
+      // Keressük meg a ProjectFiles komponensben lévő fájl input mezőt
+      const fileInputInFilesTab = document.querySelector('.file-input-in-files-tab');
+      if (fileInputInFilesTab) {
+        debugLog('handleFileInputChange', 'Triggering file input in files tab');
+        fileInputInFilesTab.click();
       } else {
-        debugLog('fileInputChange', 'ERROR: ProjectFiles component or handler not found');
+        debugLog('handleFileInputChange', 'ERROR: File input not found in files tab');
+        showErrorMessage('Hiba a fájlfeltöltés során. Használja inkább a Fájlok fül saját feltöltés gombját.');
       }
     }
+    
+    // Töröljük a felső fájl input értékét
+    event.target.value = '';
   };
 
   // Toggle admin mode

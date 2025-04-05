@@ -701,7 +701,7 @@ const ProjectFiles = ({
         type="file"
         ref={fileInputRef}
         onChange={handleFileUpload}
-        className="hidden"
+        className="hidden file-input-in-files-tab"
         multiple
       />
     </div>
