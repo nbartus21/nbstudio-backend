@@ -5,8 +5,10 @@ import Notification from '../models/Notification.js';
 import { S3Client } from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
 import { Readable } from 'stream';
+import authMiddleware from '../middleware/auth.js';
 
 const router = express.Router();
+const auth = authMiddleware; // Alias a meglévő kód kompatibilitásának megőrzéséhez
 
 // Összes projekt lekérése
 router.get('/projects', async (req, res) => {
