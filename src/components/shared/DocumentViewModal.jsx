@@ -69,12 +69,12 @@ const categoryTranslations = {
 
 const DocumentViewModal = ({ document: docData, project, onClose, language = 'hu' }) => {
   // Átnevezzük a 'document' paramétert 'docData'-ra, hogy ne ütközzön a globális document objektummal
-  debugLog('DocumentViewModal', 'Rendering document view', { 
-    documentName: docData?.name, 
+  debugLog('DocumentViewModal', 'Rendering document view', {
+    documentName: docData?.name,
     documentType: docData?.type,
     documentCategory: docData?.category
   });
-  
+
   // Get translations for current language
   const t = translations[language] || translations.en;
   const categoryT = categoryTranslations[language] || categoryTranslations.en;
@@ -88,27 +88,27 @@ const DocumentViewModal = ({ document: docData, project, onClose, language = 'hu
   const getDocumentCategoryStyle = (category) => {
     switch (category) {
       case 'contract':
-        return { 
+        return {
           color: 'text-blue-600',
-          bgColor: 'bg-blue-100', 
+          bgColor: 'bg-blue-100',
           borderColor: 'border-blue-200'
         };
       case 'invoice':
-        return { 
+        return {
           color: 'text-green-600',
-          bgColor: 'bg-green-100', 
+          bgColor: 'bg-green-100',
           borderColor: 'border-green-200'
         };
       case 'presentation':
-        return { 
+        return {
           color: 'text-orange-600',
-          bgColor: 'bg-orange-100', 
+          bgColor: 'bg-orange-100',
           borderColor: 'border-orange-200'
         };
       default:
-        return { 
+        return {
           color: 'text-gray-600',
-          bgColor: 'bg-gray-100', 
+          bgColor: 'bg-gray-100',
           borderColor: 'border-gray-200'
         };
     }
@@ -129,12 +129,12 @@ const DocumentViewModal = ({ document: docData, project, onClose, language = 'hu
 
   // Handle document download
   const handleDownload = async () => {
-    debugLog('DocumentViewModal-download', 'Downloading document', { 
+    debugLog('DocumentViewModal-download', 'Downloading document', {
       fileName: docData.name,
       hasContent: !!docData.content,
-      hasDocumentId: !!docData._id 
+      hasDocumentId: !!docData._id
     });
-    
+
     // Ha van content (például helyi tárolás esetén), azt használjuk egyszerű letöltéshez
     if (docData.content && docData.content.startsWith('data:')) {
       debugLog('DocumentViewModal-download', 'Using local content for download');
@@ -146,46 +146,44 @@ const DocumentViewModal = ({ document: docData, project, onClose, language = 'hu
       window.document.body.removeChild(a);
       return;
     }
-    
+
     // Ha van dokumentum azonosító, akkor próbáljuk a szerver API-t
     if (docData._id) {
       try {
         const API_URL = 'https://admin.nb-studio.net:5001/api';
         const API_KEY = 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0';
-        
+
         debugLog('DocumentViewModal-download', 'Downloading PDF from server API', { documentId: docData._id });
-        
+
         // Használjuk a publikus PDF végpontot
-        const response = await fetch(`${API_URL}/documents/${docData._id}/pdf`, {
+        const response = await fetch(`${API_URL}/documents/${docData._id}/pdf?language=${language}`, {
           headers: {
             'X-API-Key': API_KEY
           }
         });
-        
+
         if (response.ok) {
           // Get blob from response
           const blob = await response.blob();
-          
+
           // Create download link for blob
           const url = window.URL.createObjectURL(blob);
-          // Biztosítsuk, hogy a fájlnév végén legyen .pdf kiterjesztés
-          let fileName = docData.name || `document-${docData._id}`;
-          if (!fileName.toLowerCase().endsWith('.pdf')) {
-            fileName += '.pdf';
-          }
-          
+          // Set filename based on language
+          const fileName = language === 'hu' ? `dokumentum-${docData.name}.pdf` :
+                          (language === 'de' ? `dokument-${docData.name}.pdf` : `document-${docData.name}.pdf`);
+
           const a = window.document.createElement('a');
           a.href = url;
           a.download = fileName;
           window.document.body.appendChild(a);
           a.click();
-          
+
           // Cleanup
           setTimeout(() => {
             window.document.body.removeChild(a);
             window.URL.revokeObjectURL(url);
           }, 100);
-          
+
           debugLog('DocumentViewModal-download', 'PDF download successful');
         } else {
           console.error('Error downloading PDF:', response.status, response.statusText);
@@ -201,24 +199,7 @@ const DocumentViewModal = ({ document: docData, project, onClose, language = 'hu
     }
   };
 
-  // Check if document preview is supported
-  const isPreviewSupported = () => {
-    // Ha van beágyazott tartalom, akkor ellenőrizzük a típust
-    if (docData.content) {
-      return (
-        docData.type?.startsWith('image/') || 
-        docData.type === 'application/pdf' ||
-        docData.type?.includes('text/plain')
-      );
-    } 
-    
-    // Ha nincs content, de van _id, akkor PDF letöltés lehet elérhető
-    if (docData._id) {
-      return true; // PDF letöltés mutatása
-    }
-    
-    return false;
-  };
+
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4">
@@ -235,61 +216,26 @@ const DocumentViewModal = ({ document: docData, project, onClose, language = 'hu
             <X className="h-6 w-6" />
           </button>
         </div>
-        
+
         <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
-          {/* Document preview area */}
+          {/* Document info area */}
           <div className="flex-1 p-6 flex items-center justify-center bg-gray-100 overflow-auto">
-            {isPreviewSupported() ? (
-              docData.content && docData.type?.startsWith('image/') ? (
-                <img 
-                  src={docData.content} 
-                  alt={docData.name}
-                  className="max-w-full max-h-[600px] object-contain"
-                />
-              ) : docData.content && docData.type === 'application/pdf' ? (
-                <iframe
-                  src={docData.content}
-                  title={docData.name}
-                  className="w-full h-full min-h-[600px] border-0"
-                />
-              ) : docData._id ? (
-                <div className="text-center p-10">
-                  <FileText className="h-16 w-16 mx-auto text-blue-600 mb-3" />
-                  <p className="text-gray-600 font-medium">A dokumentum tartalmát a szerverről töltheti le</p>
-                  <button
-                    onClick={handleDownload}
-                    className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 flex items-center mx-auto"
-                  >
-                    <Download className="h-4 w-4 mr-2" />
-                    PDF letöltése
-                  </button>
-                </div>
-              ) : (
-                <div className="bg-white p-6 rounded shadow w-full overflow-auto">
-                  <pre className="whitespace-pre-wrap text-sm">
-                    {/* For text files, we would need to decode the content */}
-                    {docData.textContent || "Preview not available for this document type"}
-                  </pre>
-                </div>
-              )
-            ) : (
-              <div className="text-center p-10">
-                <FileText className={`h-16 w-16 mx-auto ${categoryStyle.color} mb-3`} />
-                <p className="text-gray-600 font-medium">{t.previewNotSupported}</p>
-                <p className="text-sm text-gray-500 mt-2">
-                  {docData.name} ({formatFileSize(docData.size)})
-                </p>
-                <button
-                  onClick={handleDownload}
-                  className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 flex items-center mx-auto"
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  {t.download}
-                </button>
-              </div>
-            )}
+            <div className="text-center p-10">
+              <FileText className={`h-16 w-16 mx-auto ${categoryStyle.color} mb-3`} />
+              <p className="text-gray-600 font-medium">{docData.name}</p>
+              <p className="text-sm text-gray-500 mt-2">
+                {formatFileSize(docData.size)}
+              </p>
+              <button
+                onClick={handleDownload}
+                className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 flex items-center mx-auto"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                PDF letöltése
+              </button>
+            </div>
           </div>
-          
+
           {/* Document info sidebar */}
           <div className="md:w-64 bg-gray-50 p-4 border-l border-gray-200 overflow-y-auto">
             <h4 className="font-medium text-gray-700 mb-3">{t.documentInfo}</h4>
@@ -300,30 +246,30 @@ const DocumentViewModal = ({ document: docData, project, onClose, language = 'hu
                   {categoryT[docData.category] || docData.category}
                 </div>
               </div>
-              
+
               {docData.type && (
                 <div>
                   <span className="text-sm text-gray-500">Type</span>
                   <p className="font-medium">{getDocumentTypeLabel(docData.type)}</p>
                 </div>
               )}
-              
+
               <div>
                 <span className="text-sm text-gray-500">{t.size}</span>
                 <p className="font-medium">{formatFileSize(docData.size)}</p>
               </div>
-              
+
               <div>
                 <span className="text-sm text-gray-500">{t.uploadedBy}</span>
                 <p className="font-medium">{docData.uploadedBy || "Unknown"}</p>
               </div>
-              
+
               <div>
                 <span className="text-sm text-gray-500">{t.uploadedOn}</span>
                 <p className="font-medium">{formatDate(docData.uploadedAt)}</p>
               </div>
             </div>
-            
+
             <div className="mt-6">
               <h4 className="font-medium text-gray-700 mb-3">{t.actions}</h4>
               <div className="space-y-2">
@@ -334,19 +280,11 @@ const DocumentViewModal = ({ document: docData, project, onClose, language = 'hu
                   <Download className="h-4 w-4 mr-2" />
                   {t.download}
                 </button>
-                
-                <button
-                  onClick={() => window.print()}
-                  className="w-full px-3 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 flex items-center justify-center text-sm"
-                >
-                  <Printer className="h-4 w-4 mr-2" />
-                  {t.print}
-                </button>
               </div>
             </div>
           </div>
         </div>
-        
+
         <div className="flex justify-end items-center p-4 border-t bg-gray-50">
           <button
             onClick={onClose}
