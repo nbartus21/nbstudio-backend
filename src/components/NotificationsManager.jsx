@@ -47,12 +47,12 @@ const NotificationsManager = () => {
   const fetchAllNotifications = async () => {
     try {
       setLoading(true);
-      const [contacts, calculators, domains, projects, files, comments] = await Promise.all([
+      // Csak a szükséges API végpontokat hívjuk meg
+      const [contacts, calculators, domains, projects, comments] = await Promise.all([
         api.get(`${API_URL}/contacts`).then(res => res.json()),
         api.get(`${API_URL}/calculators`).then(res => res.json()),
         api.get(`${API_URL}/domains`).then(res => res.json()),
         api.get(`${API_URL}/projects`).then(res => res.json()),
-        api.get(`${API_URL}/files`).then(res => res.json()).catch(() => []),
         api.get(`${API_URL}/comments`).then(res => res.json()).catch(() => [])
       ]);
 
@@ -157,29 +157,7 @@ const NotificationsManager = () => {
         });
       }
 
-      // Fájl értesítések
-      if (Array.isArray(files)) {
-        // Csak az utolsó 24 órában feltöltött fájlokat nézzük
-        const oneDayAgo = new Date();
-        oneDayAgo.setDate(oneDayAgo.getDate() - 1);
-
-        files
-          .filter(file => new Date(file.uploadedAt) > oneDayAgo)
-          .forEach(file => {
-            const notificationId = `file_${file._id}`;
-            if (!readNotifications.includes(notificationId)) {
-              newNotifications.push({
-                _id: notificationId,
-                title: 'Új fájl feltöltve',
-                message: `"${file.name}" fájl feltöltve a ${file.projectName || 'rendszerbe'}`,
-                severity: 'info',
-                createdAt: file.uploadedAt,
-                type: 'file',
-                link: '/files'
-              });
-            }
-          });
-      }
+      // Fájl értesítések eltávolítva
 
       // Hozzászólás értesítések
       if (Array.isArray(comments)) {
@@ -290,8 +268,7 @@ const NotificationsManager = () => {
         return <Info className={`w-5 h-5 ${getColorByLevel(severity)}`} />;
       case 'calculator':
         return <Database className={`w-5 h-5 ${getColorByLevel(severity)}`} />;
-      case 'file':
-        return <FileText className={`w-5 h-5 ${getColorByLevel(severity)}`} />; // Fájl értesítés ikon
+      // Fájl értesítés ikon eltávolítva
       case 'comment':
         return <MessageCircle className={`w-5 h-5 ${getColorByLevel(severity)}`} />; // Hozzászólás értesítés ikon
       case 'ticket':
@@ -441,14 +418,7 @@ const NotificationsManager = () => {
             >
               Kapcsolat
             </button>
-            <button
-              onClick={() => setFilterType('file')}
-              className={`px-2 py-1 text-xs rounded-full ${filterType === 'file'
-                ? 'bg-blue-100 text-blue-800'
-                : 'bg-gray-100 text-gray-800 hover:bg-gray-200'}`}
-            >
-              Fájlok
-            </button>
+            {/* Fájl szűrő eltávolítva */}
             <button
               onClick={() => setFilterType('comment')}
               className={`px-2 py-1 text-xs rounded-full ${filterType === 'comment'

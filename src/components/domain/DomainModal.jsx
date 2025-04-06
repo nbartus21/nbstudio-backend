@@ -76,10 +76,18 @@ const DomainModal = ({ isOpen, onClose, onSave, domain = null }) => {
       return;
     }
 
-    onSave({
+    // Feldolgozzuk az adatokat a mentés előtt
+    const dataToSave = {
       ...formData,
       cost: parseFloat(formData.cost) || 0
-    });
+    };
+
+    // Ha a projectId üres string, akkor null értékre állítjuk, hogy elkerüljük a MongoDB ObjectId konverziós hibát
+    if (dataToSave.projectId === '') {
+      dataToSave.projectId = null;
+    }
+
+    onSave(dataToSave);
   };
 
   return (
