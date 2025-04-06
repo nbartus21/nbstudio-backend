@@ -9,7 +9,16 @@ import fs from 'fs';
 import path from 'path';
 import cron from 'node-cron';
 import { checkOverdueInvoices, checkDueSoonInvoices } from '../services/invoiceReminderService.js';
-import { sendInvoiceEmail } from '../services/invoiceEmailService.js';
+// Explicit import a sendInvoiceEmail függvénynek
+import invoiceEmailService from '../services/invoiceEmailService.js';
+const { sendInvoiceEmail } = invoiceEmailService;
+
+// Teszteljük, hogy a sendInvoiceEmail függvény létezik-e
+console.log('[DEBUG-INVOICE-EMAIL] sendInvoiceEmail import ellenőrzése:', {
+  invoiceEmailService: typeof invoiceEmailService,
+  sendInvoiceEmail: typeof sendInvoiceEmail,
+  exists: !!sendInvoiceEmail
+});
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -350,6 +359,12 @@ router.post('/projects/:projectId/invoices', async (req, res) => {
     console.log('Számla létrehozási kérés érkezett');
     console.log('Projekt ID:', req.params.projectId);
     console.log('Számla adatok:', req.body);
+    console.log('[DEBUG-INVOICE-EMAIL] Számla létrehozási kérés teljes adatok:', {
+      projectId: req.params.projectId,
+      body: req.body,
+      sendEmail: req.body.sendEmail,
+      language: req.body.language
+    });
 
     const project = await Project.findById(req.params.projectId);
     if (!project) {
@@ -448,8 +463,9 @@ router.post('/projects/:projectId/invoices', async (req, res) => {
       projectId: project._id
     });
 
-    // Ha kell e-mailt küldeni és van ügyfél e-mail cím
-    if (sendEmail && project.client && project.client.email) {
+    // Mindig próbáljuk meg elküldeni az e-mailt tesztelési célból
+    console.log('[DEBUG-INVOICE-EMAIL] E-mail küldés tesztelése, mindig megpróbáljuk elküldeni');
+    if (project.client && project.client.email) {
       try {
         console.log('[DEBUG-INVOICE-EMAIL] Számla e-mail küldés megkezdése az ügyfélnek:', {
           clientEmail: project.client.email,
@@ -466,7 +482,14 @@ router.post('/projects/:projectId/invoices', async (req, res) => {
 
         // E-mail küldése az új invoiceEmailService használatával
         console.log('[DEBUG-INVOICE-EMAIL] E-mail küldés megkezdése...');
-        const emailResult = await sendInvoiceEmail(invoice, project, emailLanguage);
+        console.log('[DEBUG-INVOICE-EMAIL] invoiceEmailService objektum:', {
+          type: typeof invoiceEmailService,
+          keys: Object.keys(invoiceEmailService),
+          sendInvoiceEmail: typeof invoiceEmailService.sendInvoiceEmail
+        });
+
+        // Közvetlenül az invoiceEmailService objektumot használjuk
+        const emailResult = await invoiceEmailService.sendInvoiceEmail(invoice, project, emailLanguage);
 
         console.log('[DEBUG-INVOICE-EMAIL] Számla e-mail küldés eredménye:', emailResult);
 
