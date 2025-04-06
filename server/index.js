@@ -1042,12 +1042,12 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
       const tableStartY = infoStartY + 180;
 
       // Táblázat fejléc
-      doc.rect(50, tableStartY, doc.page.width - 100, 30)
+      doc.rect(50, tableStartY, doc.page.width - 90, 30)
          .fill(colors.primary);
 
       const tableHeaders = [t.item, t.quantity, t.unitPrice, t.total];
-      // Csökkentjük az első oszlop szélességét és növeljük a többit, hogy kitöltsék a teljes szélességet
-      const tableColumnWidths = [260, 70, 100, 90]; // Módosított oszlopszélességek
+      // Növeljük az első oszlop szélességét, hogy kitöltse a megnövelt táblázat szélességet
+      const tableColumnWidths = [270, 70, 100, 90]; // Módosított oszlopszélességek a szélesebb táblázathoz
       const columnPositions = [50];
 
       // Kiszámoljuk a pozíciókat
@@ -1096,7 +1096,7 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
             currentY = 50;
 
             // Új oldal fejléce
-            doc.rect(50, currentY, doc.page.width - 100, 30)
+            doc.rect(50, currentY, doc.page.width - 90, 30)
                .fill(colors.primary);
 
             doc.font('Helvetica-Bold')
@@ -1121,12 +1121,12 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
 
           // Zebra csíkos táblázat
           if (rowBackground) {
-            doc.rect(50, currentY, doc.page.width - 100, 25)
+            doc.rect(50, currentY, doc.page.width - 90, 25)
                .fill('#F9FAFB');
           }
 
           // Vékony elválasztó vonal minden sor után
-          doc.rect(50, currentY + 25, doc.page.width - 100, 0.5)
+          doc.rect(50, currentY + 25, doc.page.width - 90, 0.5)
              .fill(colors.border);
 
           doc.font('Helvetica')
