@@ -9,14 +9,8 @@ import fs from 'fs';
 import path from 'path';
 import cron from 'node-cron';
 import { checkOverdueInvoices, checkDueSoonInvoices } from '../services/invoiceReminderService.js';
-// Használjuk a projectShareEmailService-t, mert az bizonyítottan működik
+// Importáljuk a projectShareEmailService-t a számla e-mail küldéshez
 import { sendProjectShareEmail } from '../services/projectShareEmailService.js';
-
-// Teszteljük, hogy a sendProjectShareEmail függvény létezik-e
-console.log('[DEBUG-INVOICE-EMAIL] sendProjectShareEmail import ellenőrzése:', {
-  sendProjectShareEmail: typeof sendProjectShareEmail,
-  exists: !!sendProjectShareEmail
-});
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -438,122 +432,55 @@ router.post('/projects/:projectId/invoices', async (req, res) => {
     await project.save();
     console.log('Projekt sikeresen mentve');
 
-    // Közvetlen e-mail küldési teszt
-    console.log('TESZT_KOZVETLEN_EMAIL: E-mail küldési teszt megkezdése');
-    try {
-      // Létrehozunk egy speciális számla tárgyat
-      const testSubject = `TESZT - Számla: ${invoice.number} - ${project.name}`;
-      const testDetails = `Számla száma: ${invoice.number}\nKiállítás dátuma: ${new Date(invoice.date).toLocaleDateString()}\nÖsszeg: ${invoice.totalAmount} ${project.financial?.currency || 'EUR'}`;
-
-      console.log('TESZT_KOZVETLEN_EMAIL: Paraméterek:', {
-        project: project._id,
-        projectName: project.name,
-        clientEmail: project.client?.email,
-        subject: testSubject,
-        details: testDetails
-      });
-
-      // Közvetlenül hívjuk meg a sendProjectShareEmail függvényt
-      const testResult = await sendProjectShareEmail(
-        project,
-        'https://project.nb-studio.net',
-        testDetails,
-        'hu',
-        testSubject
-      );
-
-      console.log('TESZT_KOZVETLEN_EMAIL: Eredmény:', testResult);
-    } catch (testError) {
-      console.error('TESZT_KOZVETLEN_EMAIL: Hiba:', testError);
-    }
-
     // Új számla értesítés küldése, ha van email cím a projekthez
-    console.log('[DEBUG] Email küldés ellenőrzése:', {
-      hasClient: !!project.client,
-      hasEmail: project.client ? !!project.client.email : false,
-      clientEmail: project.client ? project.client.email : 'nincs kliens',
-      projectId: project._id,
-      invoiceId: invoice._id
-    });
-
     // E-mail küldési opciók ellenőrzése
     const sendEmail = req.body.sendEmail !== false; // Alapértelmezetten küldünk e-mailt, hacsak explicit nem tiltják
     const emailLanguage = req.body.language || 'hu'; // Alapértelmezett nyelv: magyar
 
-    console.log('[DEBUG-INVOICE-EMAIL] E-mail küldési beállítások:', {
-      sendEmail,
-      emailLanguage,
-      hasClientEmail: Boolean(project.client?.email),
-      clientEmail: project.client?.email,
-      requestBody: req.body,
-      invoiceId: invoice._id,
-      projectId: project._id
-    });
-
-    // Mindig próbáljuk meg elküldeni az e-mailt tesztelési célból
-    console.log('[DEBUG-INVOICE-EMAIL] E-mail küldés tesztelése, mindig megpróbáljuk elküldeni');
-    if (project.client && project.client.email) {
+    // Ha van ügyfél e-mail cím és az e-mail küldés nincs letiltva
+    if (sendEmail && project.client && project.client.email) {
       try {
-        console.log('[DEBUG-INVOICE-EMAIL] Számla e-mail küldés megkezdése az ügyfélnek:', {
-          clientEmail: project.client.email,
-          invoiceNumber: invoice.number,
-          invoiceId: invoice._id,
-          projectName: project.name,
-          projectId: project._id,
-          language: emailLanguage
-        });
+        // Létrehozzuk a számla e-mail tárgyát és részleteit
+        const invoiceSubject = `Számla: ${invoice.number} - ${project.name}`;
 
-        // Ellenőrizzük, hogy a sendInvoiceEmail függvény létezik-e
-        console.log('[DEBUG-INVOICE-EMAIL] sendInvoiceEmail függvény típusa:', typeof sendInvoiceEmail);
-        console.log('[DEBUG-INVOICE-EMAIL] sendInvoiceEmail függvény:', sendInvoiceEmail ? 'Létezik' : 'Nem létezik');
+        // Számla részletek összeállítása
+        let invoiceDetails = `Számla száma: ${invoice.number}\n`;
+        invoiceDetails += `Kiállítás dátuma: ${new Date(invoice.date).toLocaleDateString()}\n`;
+        invoiceDetails += `Fizetési határidő: ${new Date(invoice.dueDate).toLocaleDateString()}\n`;
+        invoiceDetails += `Összeg: ${invoice.totalAmount} ${project.financial?.currency || 'EUR'}\n`;
+
+        if (invoice.items && invoice.items.length > 0) {
+          invoiceDetails += '\nTételek:\n';
+          invoice.items.forEach((item, index) => {
+            invoiceDetails += `${index + 1}. ${item.description}: ${item.quantity} x ${item.unitPrice} = ${item.total} ${project.financial?.currency || 'EUR'}\n`;
+          });
+        }
+
+        if (invoice.notes) {
+          invoiceDetails += `\nMegjegyzés: ${invoice.notes}\n`;
+        }
 
         // E-mail küldése a projectShareEmailService használatával
-        console.log('[DEBUG-INVOICE-EMAIL] E-mail küldés megkezdése a projectShareEmailService-szel...');
-
-        // Létrehozunk egy speciális számla tárgyat a projectShareEmailService számára
-        // A projectShareEmailService a project.name, project.client.email és a shareLink, pin paramétereket használja
-        const invoiceSubject = `Számla: ${invoice.number} - ${project.name}`;
-        const invoiceDetails = `Számla száma: ${invoice.number}\nKiállítás dátuma: ${new Date(invoice.date).toLocaleDateString()}\nÖsszeg: ${invoice.totalAmount} ${project.financial?.currency || 'EUR'}`;
-
-        // A projectShareEmailService-t használjuk, de a számla adatokkal
         const emailResult = await sendProjectShareEmail(
-          project,                // projekt adatok
-          project.sharing?.link || 'https://project.nb-studio.net', // link a projekthez
-          invoiceDetails,         // PIN helyett a számla részletei
-          emailLanguage,          // nyelv
-          invoiceSubject          // opcionális tárgy felülírása
+          project,
+          project.sharing?.link || 'https://project.nb-studio.net',
+          invoiceDetails,
+          emailLanguage,
+          invoiceSubject
         );
 
-        console.log('[DEBUG-INVOICE-EMAIL] Számla e-mail küldés eredménye:', emailResult);
-
-        // Hozzáadjuk az e-mail küldés eredményét a válaszhoz
+        // Hozzáadjuk az e-mail küldés eredményét a számlához
         invoice.emailSent = emailResult.success;
         invoice.emailSentAt = new Date();
         await invoice.save();
 
-        console.log('[DEBUG-INVOICE-EMAIL] Számla frissítve az e-mail küldés eredményével:', {
-          emailSent: invoice.emailSent,
-          emailSentAt: invoice.emailSentAt
-        });
+        console.log(`Számla e-mail sikeresen elküldve: ${invoice.number} - ${project.client.email}`);
       } catch (emailError) {
-        console.error('[DEBUG-INVOICE-EMAIL] Hiba a számla e-mail küldésekor, de folytatjuk:', {
-          error: emailError.message,
-          stack: emailError.stack,
-          code: emailError.code,
-          name: emailError.name,
-          invoiceId: invoice._id,
-          projectId: project._id
-        });
+        console.error(`Hiba a számla e-mail küldésekor: ${emailError.message}`);
         // Folytatjuk a kódot hiba esetén is, hogy a számla létrehozás működjön akkor is, ha az e-mail küldés nem sikerül
       }
     } else {
-      console.log('[DEBUG-INVOICE-EMAIL] E-mail küldés kihagyása:', {
-        sendEmail,
-        hasClient: Boolean(project.client),
-        clientEmail: project.client?.email,
-        invoiceId: invoice._id,
-        projectId: project._id
-      });
+      console.log(`Számla e-mail küldés kihagyása: ${invoice.number} - ${sendEmail ? 'Nincs ügyfél e-mail cím' : 'E-mail küldés letiltva'}`);
     }
 
     // Fájl írása a lemezre a számla létrehozásának ellenőrzésére
