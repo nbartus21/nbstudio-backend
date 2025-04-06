@@ -91,6 +91,60 @@ const InvoiceManager = () => {
     fetchInvoices();
   }, []);
 
+  // Számla fizetettre állítása egyszerűen
+  const handleMarkAsPaid = async (invoice) => {
+    try {
+      const projectId = invoice.projectId;
+      const invoiceId = invoice._id;
+
+      // Automatikusan létrehozzuk az updateData objektumot
+      const updateData = {
+        status: 'fizetett',
+        paidAmount: invoice.totalAmount,
+        paidDate: new Date().toISOString().split('T')[0]
+      };
+
+      console.log('Számla fizetettre állítása:', {
+        projectId,
+        invoiceId,
+        updateData
+      });
+
+      // Azonnali UI frissítés a felhasználói élmény javításához
+      setInvoices(prevInvoices =>
+        prevInvoices.map(inv =>
+          inv._id === invoiceId ? { ...inv, ...updateData, status: 'fizetett' } : inv
+        )
+      );
+
+      setFilteredInvoices(prevInvoices =>
+        prevInvoices.map(inv =>
+          inv._id === invoiceId ? { ...inv, ...updateData, status: 'fizetett' } : inv
+        )
+      );
+
+      // Küldés a szervernek
+      const response = await api.patch(
+        `/api/projects/${projectId}/invoices/${invoiceId}`,
+        updateData
+      );
+
+      if (!response.ok) {
+        throw new Error('Számla frissítése sikertelen');
+      }
+
+      console.log('Számla sikeresen fizetettre állítva');
+      showMessage('success', 'A számla sikeresen fizetettre állítva');
+
+    } catch (err) {
+      console.error('Hiba a számla fizetettre állításakor:', err);
+      setError(`Nem sikerült fizetettre állítani a számlát: ${err.message}`);
+
+      // Hiba esetén újratöltjük a számlákat
+      fetchInvoices();
+    }
+  };
+
   // Státusz frissítése
   const handleUpdateStatus = async (invoice, newStatus, updateData) => {
     try {
@@ -1096,6 +1150,17 @@ const handleCreateInvoice = async (selectedProjectForInvoice, invoiceData) => {
                           >
                             <Eye className="h-5 w-5" />
                           </button>
+                          {/* Fizetett gomb - csak akkor jelenik meg, ha a számla nincs még fizetve */}
+                          {invoice.status !== 'fizetett' && (
+                            <button
+                              onClick={() => handleMarkAsPaid(invoice)}
+                              className="text-green-600 hover:text-green-900 p-1 rounded hover:bg-green-50"
+                              title="Fizetettre állítás"
+                            >
+                              <DollarSign className="h-5 w-5" />
+                            </button>
+                          )}
+
                           <button
                             onClick={() => {
                               setSelectedInvoice(invoice);
