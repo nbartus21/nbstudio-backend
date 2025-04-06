@@ -217,19 +217,13 @@ const UpdateInvoiceStatusModal = ({ invoice, onClose, onUpdateStatus, language =
       updateData.notes = notes;
     }
 
-    // Mentés előtt naplózzuk az adatokat
-    console.log('Számla frissítési adatok:', {
-      invoiceId: invoice._id,
-      newStatus: backendStatus,
-      updateData: updateData
-    });
-
     try {
       // Meghívjuk a frissítési függvényt
+      // A frissítés most gyorsabb lesz az optimalizált API végpontnak köszönhetően
       await onUpdateStatus(invoice, backendStatus, updateData);
 
       // Sikeres mentés esetén bezárjuk a modalt
-      // A betöltési állapotot nem állítjuk vissza, mert a modal bezáródik
+      onClose();
     } catch (error) {
       console.error('Hiba a számla státuszának frissítésekor:', error);
       // Hiba esetén visszaállítjuk a betöltési állapotot
