@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/auth';
-import { 
-  Settings, 
-  Save, 
-  RefreshCw, 
-  AlertTriangle, 
+import {
+  Settings,
+  Save,
+  RefreshCw,
+  AlertTriangle,
   CheckCircle,
   Edit,
   Trash2,
@@ -46,14 +46,14 @@ const SettingsManager = () => {
   const fetchSettings = async () => {
     setLoading(true);
     setError(null);
-    
+
     try {
       const response = await api.get(`${API_URL}/settings`);
       if (!response.ok) throw new Error('Nem sikerült lekérni a beállításokat');
-      
+
       const data = await response.json();
       setSettings(data);
-      
+
       // Statisztikák számítása
       const categories = {};
       data.forEach(setting => {
@@ -62,12 +62,12 @@ const SettingsManager = () => {
         }
         categories[setting.category]++;
       });
-      
+
       setStats({
         total: data.length,
         categories
       });
-      
+
     } catch (err) {
       console.error('Hiba a beállítások lekérésekor:', err);
       setError('Nem sikerült lekérni a beállításokat. Kérjük, próbálja újra később.');
@@ -79,23 +79,23 @@ const SettingsManager = () => {
   // Beállítások szűrése
   useEffect(() => {
     if (!settings.length) return;
-    
+
     let filtered = [...settings];
-    
+
     // Keresés
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
-      filtered = filtered.filter(setting => 
-        setting.key.toLowerCase().includes(term) || 
+      filtered = filtered.filter(setting =>
+        setting.key.toLowerCase().includes(term) ||
         (setting.description && setting.description.toLowerCase().includes(term))
       );
     }
-    
+
     // Kategória szűrés
     if (categoryFilter !== 'all') {
       filtered = filtered.filter(setting => setting.category === categoryFilter);
     }
-    
+
     setFilteredSettings(filtered);
   }, [settings, searchTerm, categoryFilter]);
 
@@ -113,11 +113,11 @@ const SettingsManager = () => {
   // Beállítás törlése
   const handleDeleteSetting = async (key) => {
     if (!window.confirm('Biztosan törölni szeretné ezt a beállítást?')) return;
-    
+
     try {
       const response = await api.delete(`${API_URL}/settings/${key}`);
       if (!response.ok) throw new Error('Nem sikerült törölni a beállítást');
-      
+
       await fetchSettings();
       showMessage(setSuccessMessage, 'Beállítás sikeresen törölve');
     } catch (err) {
@@ -129,30 +129,30 @@ const SettingsManager = () => {
   // Beállítás mentése
   const handleSaveSetting = async (e) => {
     e.preventDefault();
-    
+
     try {
       // Érték konvertálása a megfelelő típusra
       let parsedValue = selectedSetting.value;
-      
+
       // Ha boolean érték, akkor konvertáljuk
       if (parsedValue === 'true') parsedValue = true;
       if (parsedValue === 'false') parsedValue = false;
-      
+
       // Ha szám, akkor konvertáljuk
       if (!isNaN(parsedValue) && parsedValue !== '') {
         parsedValue = Number(parsedValue);
       }
-      
+
       const settingData = {
         key: selectedSetting.key,
         value: parsedValue,
         description: selectedSetting.description,
         category: selectedSetting.category
       };
-      
+
       const response = await api.post(`${API_URL}/settings`, settingData);
       if (!response.ok) throw new Error('Nem sikerült menteni a beállítást');
-      
+
       await fetchSettings();
       setShowModal(false);
       setSelectedSetting(null);
@@ -176,13 +176,13 @@ const SettingsManager = () => {
   // Beállítás értékének megjelenítése
   const renderSettingValue = (setting) => {
     const type = getSettingType(setting.value);
-    
+
     switch (type) {
       case 'boolean':
         return (
           <span className="flex items-center">
-            {setting.value ? 
-              <ToggleRight className="h-5 w-5 text-green-500 mr-1" /> : 
+            {setting.value ?
+              <ToggleRight className="h-5 w-5 text-green-500 mr-1" /> :
               <ToggleLeft className="h-5 w-5 text-gray-400 mr-1" />
             }
             {setting.value ? 'Bekapcsolva' : 'Kikapcsolva'}
@@ -204,9 +204,9 @@ const SettingsManager = () => {
   // Beállítás értékének szerkesztése
   const renderSettingValueEditor = () => {
     if (!selectedSetting) return null;
-    
+
     const type = getSettingType(selectedSetting.value);
-    
+
     switch (type) {
       case 'boolean':
         return (
@@ -288,21 +288,22 @@ const SettingsManager = () => {
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <h1 className="text-2xl font-bold mb-6 text-gray-800">Gyorselérési gombok</h1>
         {/* Fejléc */}
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Beállítások</h1>
+            <h2 className="text-xl font-medium text-gray-700">Rendszer beállítások</h2>
             <p className="text-gray-500 mt-1">Rendszerbeállítások kezelése</p>
           </div>
           <div className="flex space-x-3">
-            <button 
+            <button
               onClick={fetchSettings}
               className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
             >
               <RefreshCw className="w-5 h-5 mr-2" />
               Frissítés
             </button>
-            
+
             <button
               onClick={() => {
                 setSelectedSetting({
@@ -354,7 +355,7 @@ const SettingsManager = () => {
               </div>
             </div>
           </Card>
-          
+
           <Card className="p-4">
             <div className="flex justify-between items-center">
               <div>
@@ -428,7 +429,7 @@ const SettingsManager = () => {
                   </div>
                   <h3 className="text-lg font-medium text-gray-900 mb-1">Nincs találat</h3>
                   <p className="text-gray-500">
-                    {searchTerm || categoryFilter !== 'all' 
+                    {searchTerm || categoryFilter !== 'all'
                       ? 'Próbálja meg módosítani a szűrőket'
                       : 'Hozzon létre egy új beállítást'
                     }
@@ -541,7 +542,7 @@ const SettingsManager = () => {
             <h2 className="text-xl font-bold mb-4">
               {selectedSetting.key ? 'Beállítás szerkesztése' : 'Új beállítás létrehozása'}
             </h2>
-            
+
             <form onSubmit={handleSaveSetting}>
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Kulcs</label>
@@ -553,9 +554,9 @@ const SettingsManager = () => {
                   required
                 />
               </div>
-              
+
               {renderSettingValueEditor()}
-              
+
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Leírás</label>
                 <textarea
@@ -565,7 +566,7 @@ const SettingsManager = () => {
                   rows={3}
                 />
               </div>
-              
+
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Kategória</label>
                 <select
@@ -580,7 +581,7 @@ const SettingsManager = () => {
                   <option value="security">Biztonság</option>
                 </select>
               </div>
-              
+
               <div className="flex justify-end space-x-3 mt-6">
                 <button
                   type="button"
