@@ -691,8 +691,7 @@ const ProjectManager = () => {
           onShare={setShowShareModal}
           onNewInvoice={handleNewInvoice}
           onViewDetails={setSelectedProject}
-          onDelete={handleDeleteFile}
-          onDeleteProject={handleDeleteProject}
+          onDelete={handleDeleteProject}
           onMarkAsRead={handleMarkAsRead}
         />
       ) : (
@@ -704,8 +703,7 @@ const ProjectManager = () => {
           onShare={setShowShareModal}
           onNewInvoice={handleNewInvoice}
           onViewDetails={setSelectedProject}
-          onDelete={handleDeleteFile}
-          onDeleteProject={handleDeleteProject}
+          onDelete={handleDeleteProject}
           onMarkAsRead={handleMarkAsRead}
         />
       )}
