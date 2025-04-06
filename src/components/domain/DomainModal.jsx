@@ -169,7 +169,11 @@ const DomainModal = ({ isOpen, onClose, onSave, domain = null }) => {
           </div>
 
           {/* Projekt kiválasztása */}
-          <div className="mb-4">
+          <div className="mb-6 p-4 bg-indigo-50 border border-indigo-100 rounded-lg">
+            <h3 className="text-lg font-medium text-indigo-800 mb-3">Projekt hozzárendelés</h3>
+            <p className="text-sm text-indigo-600 mb-3">
+              Válaszd ki, melyik projekthez tartozik ez a domain. Ez segít a könnyebb azonosításban.
+            </p>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Kapcsolódó projekt
             </label>
@@ -183,7 +187,7 @@ const DomainModal = ({ isOpen, onClose, onSave, domain = null }) => {
                   projectName: selectedProject ? selectedProject.name : ''
                 });
               }}
-              className="w-full px-3 py-2 border rounded-md"
+              className="w-full px-3 py-2 border rounded-md bg-white"
             >
               <option value="">Nincs kapcsolódó projekt</option>
               {projects.map(project => (
@@ -192,6 +196,11 @@ const DomainModal = ({ isOpen, onClose, onSave, domain = null }) => {
                 </option>
               ))}
             </select>
+            {formData.projectId && (
+              <div className="mt-2 text-sm text-indigo-600">
+                A domain a következő projekthez lesz rendelve: <strong>{formData.projectName}</strong>
+              </div>
+            )}
           </div>
 
           {/* Új fizetési státusz mező */}
