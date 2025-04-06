@@ -37,25 +37,38 @@ console.log('Számla e-mail szolgáltatás - SMTP Konfiguráció (jelszó nélk�
 // Nodemailer transporter létrehozása
 let transporter;
 try {
-  console.log('[DEBUG] Nodemailer transporter létrehozása a számla e-mail szolgáltatáshoz');
+  console.log('[DEBUG-INVOICE-EMAIL] Nodemailer transporter létrehozása a számla e-mail szolgáltatáshoz');
+  console.log('[DEBUG-INVOICE-EMAIL] SMTP konfiguráció:', {
+    host: transporterConfig.host,
+    port: transporterConfig.port,
+    secure: transporterConfig.secure,
+    auth: { user: transporterConfig.auth.user, pass: '******' }
+  });
+
   transporter = nodemailer.createTransport(transporterConfig);
 
   // Teszteljük a kapcsolatot (aszinkron, nincs await, csak logolunk)
+  console.log('[DEBUG-INVOICE-EMAIL] SMTP kapcsolat tesztelése...');
   transporter.verify((error) => {
     if (error) {
-      console.error('[DEBUG] SMTP kapcsolat HIBA a számla e-mail szolgáltatásban:', {
+      console.error('[DEBUG-INVOICE-EMAIL] SMTP kapcsolat HIBA a számla e-mail szolgáltatásban:', {
         error: error.message,
         code: error.code,
         command: error.command,
         responseCode: error.responseCode,
-        response: error.response
+        response: error.response,
+        stack: error.stack
       });
     } else {
-      console.log('[DEBUG] SMTP szerver kapcsolat OK a számla e-mail szolgáltatásban, kész az emailek küldésére');
+      console.log('[DEBUG-INVOICE-EMAIL] SMTP szerver kapcsolat OK a számla e-mail szolgáltatásban, kész az emailek küldésére');
     }
   });
 } catch (error) {
-  console.error('Hiba a nodemailer transporter létrehozásakor a számla e-mail szolgáltatásban:', error);
+  console.error('[DEBUG-INVOICE-EMAIL] Hiba a nodemailer transporter létrehozásakor a számla e-mail szolgáltatásban:', {
+    error: error.message,
+    stack: error.stack,
+    code: error.code
+  });
 }
 
 // Számla státusz fordítása különböző nyelvekre
@@ -89,7 +102,7 @@ const translateInvoiceStatus = (status, language) => {
 // Dátum formázása különböző nyelvekre
 const formatDate = (dateString, language) => {
   const date = new Date(dateString);
-  
+
   switch (language) {
     case 'en':
       return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
@@ -108,7 +121,7 @@ const formatCurrency = (amount, currency) => {
     currency: currency || 'EUR',
     minimumFractionDigits: 2
   });
-  
+
   return formatter.format(amount);
 };
 
@@ -143,7 +156,7 @@ const generateEmailTemplate = (invoice, project, language = 'hu') => {
     helpText = 'If you have any questions about this invoice, please contact us.';
     signature = 'Best regards,<br>Norbert Bartus<br>NB Studio';
   }
-  
+
   // Német sablon
   else if (language === 'de') {
     subject = `Neue Rechnung: ${invoice.number} - ${project.name}`;
@@ -172,11 +185,11 @@ const generateEmailTemplate = (invoice, project, language = 'hu') => {
           <p style="margin: 5px 0 0; font-size: 14px;">Digital Solutions</p>
         </div>
       </div>
-      
+
       <h2 style="color: #4F46E5; margin-top: 0;">${greeting}</h2>
-      
+
       <p>${intro}</p>
-      
+
       <div style="background-color: #f9fafb; border-left: 4px solid #4F46E5; padding: 15px; margin: 20px 0;">
         <p style="margin: 5px 0; font-weight: bold;">${invoiceInfo}</p>
         <p style="margin: 5px 0;">${dateInfo}</p>
@@ -184,17 +197,17 @@ const generateEmailTemplate = (invoice, project, language = 'hu') => {
         <p style="margin: 5px 0; font-weight: bold;">${amountInfo}</p>
         <p style="margin: 5px 0;">${statusInfo}</p>
       </div>
-      
+
       <p>${viewInfo}</p>
-      
+
       <div style="text-align: center; margin: 25px 0;">
         <a href="${projectLink}" style="background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold; display: inline-block;">${linkText}</a>
       </div>
-      
+
       <hr style="border: 0; border-top: 1px solid #e5e7eb; margin: 25px 0;">
-      
+
       <p>${helpText}</p>
-      
+
       <div style="margin-top: 25px;">
         ${signature}
       </div>
@@ -207,8 +220,8 @@ const generateEmailTemplate = (invoice, project, language = 'hu') => {
 // E-mail küldése a számláról
 export const sendInvoiceEmail = async (invoice, project, language = 'hu') => {
   try {
-    console.log(`[DEBUG] Számla e-mail küldése: ${invoice.number} - ${project.name} - ${project.client.email} (${language})`);
-    console.log('[DEBUG] Számla és projekt adatok:', {
+    console.log(`[DEBUG-INVOICE-EMAIL] Számla e-mail küldése: ${invoice.number} - ${project.name} - ${project.client.email} (${language})`);
+    console.log('[DEBUG-INVOICE-EMAIL] Számla és projekt adatok:', {
       invoiceId: invoice._id,
       invoiceNumber: invoice.number,
       projectId: project._id,
@@ -220,14 +233,14 @@ export const sendInvoiceEmail = async (invoice, project, language = 'hu') => {
 
     // Ellenőrizzük, hogy a transporter létezik-e
     if (!transporter) {
-      console.error('[DEBUG] A nodemailer transporter nincs konfigurálva a számla e-mail szolgáltatásban');
+      console.error('[DEBUG-INVOICE-EMAIL] A nodemailer transporter nincs konfigurálva a számla e-mail szolgáltatásban');
       throw new Error('Email küldési szolgáltatás nincs megfelelően beállítva');
     }
 
     // E-mail sablon generálása
-    console.log('[DEBUG] E-mail sablon generálása a számlához...');
+    console.log('[DEBUG-INVOICE-EMAIL] E-mail sablon generálása a számlához...');
     const { subject, html } = generateEmailTemplate(invoice, project, language);
-    console.log('[DEBUG] E-mail sablon generálása kész. Tárgy:', subject);
+    console.log('[DEBUG-INVOICE-EMAIL] E-mail sablon generálása kész. Tárgy:', subject);
 
     // E-mail küldése
     const mailOptions = {
@@ -237,34 +250,57 @@ export const sendInvoiceEmail = async (invoice, project, language = 'hu') => {
       html: html
     };
 
-    console.log('[DEBUG] Számla e-mail küldése megkísérlése...', {
+    console.log('[DEBUG-INVOICE-EMAIL] Számla e-mail küldése megkísérlése...', {
       to: project.client.email,
       subject: subject,
-      from: `"Norbert Bartus" <${CONTACT_SMTP_USER}>`
+      from: `"Norbert Bartus" <${CONTACT_SMTP_USER}>`,
+      smtpHost: CONTACT_SMTP_HOST,
+      smtpPort: CONTACT_SMTP_PORT,
+      smtpSecure: CONTACT_SMTP_SECURE,
+      smtpUser: CONTACT_SMTP_USER
     });
 
     try {
       // E-mail küldése
-      console.log('[DEBUG] E-mail küldése megkezdődik...');
+      console.log('[DEBUG-INVOICE-EMAIL] E-mail küldése megkezdődik...');
+      console.log('[DEBUG-INVOICE-EMAIL] Transporter állapota:', transporter ? 'Létezik' : 'Nem létezik');
+      console.log('[DEBUG-INVOICE-EMAIL] Mail opciók:', {
+        to: mailOptions.to,
+        from: mailOptions.from,
+        subject: mailOptions.subject,
+        htmlLength: mailOptions.html ? mailOptions.html.length : 0
+      });
+
       const info = await transporter.sendMail(mailOptions);
-      console.log('[DEBUG] Számla e-mail sikeresen elküldve:', {
+
+      console.log('[DEBUG-INVOICE-EMAIL] Számla e-mail sikeresen elküldve:', {
         messageId: info.messageId,
         response: info.response,
         accepted: info.accepted,
-        rejected: info.rejected
+        rejected: info.rejected,
+        envelope: info.envelope,
+        messageSize: info.messageSize
       });
       return { success: true, messageId: info.messageId, info };
     } catch (emailError) {
-      console.error('[DEBUG] Hiba a számla e-mail küldésekor:', {
+      console.error('[DEBUG-INVOICE-EMAIL] Hiba a számla e-mail küldésekor:', {
         error: emailError.message,
         stack: emailError.stack,
         code: emailError.code,
-        command: emailError.command
+        command: emailError.command,
+        responseCode: emailError.responseCode,
+        response: emailError.response,
+        name: emailError.name
       });
       throw emailError;
     }
   } catch (error) {
-    console.error('Hiba a számla e-mail küldésekor:', error);
+    console.error('[DEBUG-INVOICE-EMAIL] Hiba a számla e-mail küldésekor:', {
+      error: error.message,
+      stack: error.stack,
+      code: error.code,
+      name: error.name
+    });
     return { success: false, error: error.message };
   }
 };

@@ -438,39 +438,65 @@ router.post('/projects/:projectId/invoices', async (req, res) => {
     const sendEmail = req.body.sendEmail !== false; // Alapértelmezetten küldünk e-mailt, hacsak explicit nem tiltják
     const emailLanguage = req.body.language || 'hu'; // Alapértelmezett nyelv: magyar
 
-    console.log('[DEBUG] E-mail küldési beállítások:', {
+    console.log('[DEBUG-INVOICE-EMAIL] E-mail küldési beállítások:', {
       sendEmail,
       emailLanguage,
-      hasClientEmail: Boolean(project.client?.email)
+      hasClientEmail: Boolean(project.client?.email),
+      clientEmail: project.client?.email,
+      requestBody: req.body,
+      invoiceId: invoice._id,
+      projectId: project._id
     });
 
     // Ha kell e-mailt küldeni és van ügyfél e-mail cím
     if (sendEmail && project.client && project.client.email) {
       try {
-        console.log('[DEBUG] Számla e-mail küldés megkezdése az ügyfélnek:', project.client.email);
+        console.log('[DEBUG-INVOICE-EMAIL] Számla e-mail küldés megkezdése az ügyfélnek:', {
+          clientEmail: project.client.email,
+          invoiceNumber: invoice.number,
+          invoiceId: invoice._id,
+          projectName: project.name,
+          projectId: project._id,
+          language: emailLanguage
+        });
+
+        // Ellenőrizzük, hogy a sendInvoiceEmail függvény létezik-e
+        console.log('[DEBUG-INVOICE-EMAIL] sendInvoiceEmail függvény típusa:', typeof sendInvoiceEmail);
+        console.log('[DEBUG-INVOICE-EMAIL] sendInvoiceEmail függvény:', sendInvoiceEmail ? 'Létezik' : 'Nem létezik');
 
         // E-mail küldése az új invoiceEmailService használatával
+        console.log('[DEBUG-INVOICE-EMAIL] E-mail küldés megkezdése...');
         const emailResult = await sendInvoiceEmail(invoice, project, emailLanguage);
 
-        console.log('[DEBUG] Számla e-mail küldés eredménye:', emailResult);
+        console.log('[DEBUG-INVOICE-EMAIL] Számla e-mail küldés eredménye:', emailResult);
 
         // Hozzáadjuk az e-mail küldés eredményét a válaszhoz
         invoice.emailSent = emailResult.success;
         invoice.emailSentAt = new Date();
         await invoice.save();
+
+        console.log('[DEBUG-INVOICE-EMAIL] Számla frissítve az e-mail küldés eredményével:', {
+          emailSent: invoice.emailSent,
+          emailSentAt: invoice.emailSentAt
+        });
       } catch (emailError) {
-        console.error('[DEBUG] Hiba a számla e-mail küldésekor, de folytatjuk:', {
+        console.error('[DEBUG-INVOICE-EMAIL] Hiba a számla e-mail küldésekor, de folytatjuk:', {
           error: emailError.message,
           stack: emailError.stack,
-          code: emailError.code
+          code: emailError.code,
+          name: emailError.name,
+          invoiceId: invoice._id,
+          projectId: project._id
         });
         // Folytatjuk a kódot hiba esetén is, hogy a számla létrehozás működjön akkor is, ha az e-mail küldés nem sikerül
       }
     } else {
-      console.log('[DEBUG] E-mail küldés kihagyása:', {
+      console.log('[DEBUG-INVOICE-EMAIL] E-mail küldés kihagyása:', {
         sendEmail,
         hasClient: Boolean(project.client),
-        clientEmail: project.client?.email
+        clientEmail: project.client?.email,
+        invoiceId: invoice._id,
+        projectId: project._id
       });
     }
 
