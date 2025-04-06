@@ -901,7 +901,8 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
 
       // Logo hozzáadása (ha létezik) - új pozícióban
       try {
-        const logoPath = join(__dirname, 'public', 'logo.png');
+        const path = require('path');
+        const logoPath = path.join(__dirname, 'public', 'logo.png');
         if (fs.existsSync(logoPath)) {
           doc.image(logoPath, 40, 30, { width: 80 });
         }
