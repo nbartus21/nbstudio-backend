@@ -1403,7 +1403,7 @@ function setupProjectDomain() {
       });
 
       // Időtúllépés és hibaellenőrzés
-      proxyReq.setTimeout(60000, () => {
+      proxyReq.setTimeout(30000, () => {
         console.error('API Proxy request timeout');
         proxyReq.abort();
         sendErrorResponse(res, 504, 'API Proxy timeout', 'A kérés időtúllépés miatt megszakadt');
@@ -1452,7 +1452,7 @@ function setupProjectDomain() {
       });
 
       // Időtúllépés és hibaellenőrzés
-      proxyReq.setTimeout(60000, () => {
+      proxyReq.setTimeout(30000, () => {
         console.error('API Proxy request timeout');
         proxyReq.abort();
         sendErrorResponse(res, 504, 'API Proxy timeout', 'A kérés időtúllépés miatt megszakadt');
@@ -1522,8 +1522,8 @@ function setupProjectDomain() {
         proxyRes.pipe(res);
       });
 
-      // Időtúllépés beállítása - növelve 60 másodpercre
-      proxyReq.setTimeout(60000, () => {
+      // Időtúllépés beállítása
+      proxyReq.setTimeout(30000, () => {
         console.error('Frontend Proxy request timeout');
         proxyReq.abort();
         sendErrorResponse(res, 504, 'Frontend Proxy timeout', 'A kérés időtúllépés miatt megszakadt');

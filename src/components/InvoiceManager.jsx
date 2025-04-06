@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  FileText, Download, Edit, Eye, Trash2, Filter, Search,
+  FileText, Download, Edit, Eye, Trash2, DollarSign, Filter, Search,
   Plus, ArrowUp, ArrowDown, CheckCircle, XCircle, AlertCircle, Calendar,
   UserPlus, RefreshCw, Printer, Repeat, List, Clock, Activity, Terminal,
-  CheckSquare, Square, MoreHorizontal, Trash, DollarSign
+  CheckSquare, Square, MoreHorizontal, Trash
 } from 'lucide-react';
 import { api } from '../services/auth';
 import { formatShortDate, showMessage } from './shared/utils';
@@ -91,16 +91,22 @@ const InvoiceManager = () => {
     fetchInvoices();
   }, []);
 
-  // Számla fizetettre állítása függvény eltávolítva
-
-  // Státusz frissítése - Optimalizált változat
+  // Státusz frissítése
   const handleUpdateStatus = async (invoice, newStatus, updateData) => {
     try {
       const projectId = invoice.projectId;
       const invoiceId = invoice._id;
 
+      console.log('Státusz frissítése:', {
+        projectId,
+        invoiceId,
+        newStatus,
+        updateData
+      });
+
       // Ellenőrizzük, hogy érvényes-e a projektId és invoiceId
       if (!projectId || !invoiceId) {
+        console.error('Hiányzó projektId vagy invoiceId:', { projectId, invoiceId });
         throw new Error('Hiányzó projektId vagy invoiceId');
       }
 
@@ -111,9 +117,12 @@ const InvoiceManager = () => {
         // Fizetett állapot esetén beállítjuk a fizetett összeget és dátumot
         if (newStatus === 'fizetett') {
           updateData.paidAmount = invoice.totalAmount;
-          updateData.paidDate = new Date().toISOString().split('T')[0];
+          updateData.paidDate = new Date().toISOString();
         }
       }
+
+      console.log('Küldés előtti updateData:', updateData);
+      console.log('API végpont:', `/api/projects/${projectId}/invoices/${invoiceId}`);
 
       // Azonnali UI frissítés a felhasználói élmény javításához
       // Optimista frissítés - feltételezzük, hogy sikeres lesz a kérés
@@ -135,27 +144,35 @@ const InvoiceManager = () => {
       // Próbáljuk meg a PATCH végpontot, amely a részleges frissítésre való
       let response;
       try {
+        console.log('PATCH kérés indítása...');
         response = await api.patch(
           `/api/projects/${projectId}/invoices/${invoiceId}`,
           updateData
         );
+        console.log('PATCH kérés sikeres');
       } catch (patchError) {
         // Ha a PATCH nem működik, próbáljuk meg a PUT végpontot
+        console.warn('PATCH kérés sikertelen, próbálkozás PUT kéréssel:', patchError.message);
+
+        // Létre kell hoznunk egy teljes számla objektumot a PUT kéréshez
         const fullInvoiceData = {
           ...invoice,
           ...updateData
         };
 
+        console.log('PUT kérés indítása teljes számla adatokkal:', fullInvoiceData);
         response = await api.put(
           `/api/projects/${projectId}/invoices/${invoiceId}`,
           fullInvoiceData
         );
+        console.log('PUT kérés sikeres');
       }
 
       // Mindenképpen próbáljuk meg kiolvasni a választ
       let responseData;
       try {
         responseData = await response.json();
+        console.log('Backend válasz:', responseData);
       } catch (jsonError) {
         console.error('Nem sikerült a válasz JSON feldolgozása:', jsonError);
       }
@@ -164,29 +181,15 @@ const InvoiceManager = () => {
         throw new Error(responseData?.message || 'Számla frissítése sikertelen');
       }
 
-      // Az új API válasz formátum kezelése
-      // Most már a válasz közvetlenül tartalmazza a frissített számlát, nem a teljes projektet
-      if (responseData && responseData.invoice) {
-        const updatedInvoice = responseData.invoice;
+      console.log('Státusz frissítés sikeres');
 
-        // UI frissítése a szervertől kapott adatokkal
-        setInvoices(prevInvoices =>
-          prevInvoices.map(inv =>
-            inv._id === invoiceId ? { ...inv, ...updatedInvoice } : inv
-          )
-        );
-
-        setFilteredInvoices(prevInvoices =>
-          prevInvoices.map(inv =>
-            inv._id === invoiceId ? { ...inv, ...updatedInvoice } : inv
-          )
-        );
-      }
-      // Visszafele kompatibilitás a régi API válasz formátummal
-      else if (responseData && responseData.project && responseData.project.invoices) {
+      // Keressük meg a frissített számlát a projekt objektumban
+      if (responseData && responseData.project && responseData.project.invoices) {
         const updatedInvoice = responseData.project.invoices.find(inv => inv._id === invoiceId);
 
         if (updatedInvoice) {
+          console.log('Frissített számla adatok a szervertől:', updatedInvoice);
+
           // UI frissítése a szervertől kapott adatokkal
           setInvoices(prevInvoices =>
             prevInvoices.map(inv =>
@@ -199,8 +202,41 @@ const InvoiceManager = () => {
               inv._id === invoiceId ? { ...inv, ...updatedInvoice } : inv
             )
           );
+        } else {
+          console.warn('Nem található a frissített számla a válaszban, fallback az updateData-ra');
+          // Fallback a régi megoldásra, ha nem találjuk a számlát
+          setInvoices(prevInvoices =>
+            prevInvoices.map(inv =>
+              inv._id === invoiceId ? { ...inv, ...updateData } : inv
+            )
+          );
+
+          setFilteredInvoices(prevInvoices =>
+            prevInvoices.map(inv =>
+              inv._id === invoiceId ? { ...inv, ...updateData } : inv
+            )
+          );
         }
+      } else {
+        console.warn('Hiányzó vagy érvénytelen válasz formátum, fallback az updateData-ra');
+        // Fallback a régi megoldásra, ha a válasz nem a várt formátumú
+        setInvoices(prevInvoices =>
+          prevInvoices.map(inv =>
+            inv._id === invoiceId ? { ...inv, ...updateData } : inv
+          )
+        );
+
+        setFilteredInvoices(prevInvoices =>
+          prevInvoices.map(inv =>
+            inv._id === invoiceId ? { ...inv, ...updateData } : inv
+          )
+        );
       }
+
+      // Frissítsük a számlák listáját, hogy biztos legyen a frissítés
+      setTimeout(() => {
+        fetchInvoices();
+      }, 1000);
 
       showMessage(setSuccessMessage, `Számla státusza frissítve: ${newStatus}`);
       setShowUpdateStatusModal(false);
@@ -208,7 +244,8 @@ const InvoiceManager = () => {
       console.error('Hiba a számla státuszának frissítésekor:', err);
       setError(`Nem sikerült frissíteni a számla státuszát: ${err.message}`);
 
-      // Hiba esetén újratöltjük a számlákat a szerverről
+      // Hiba esetén azonnal újratöltjük a számlákat a szerverről
+      // hogy biztos a helyes állapot jelenjen meg
       fetchInvoices();
     }
   };
@@ -1059,8 +1096,6 @@ const handleCreateInvoice = async (selectedProjectForInvoice, invoiceData) => {
                           >
                             <Eye className="h-5 w-5" />
                           </button>
-                          {/* Fizetett gomb eltávolítva */}
-
                           <button
                             onClick={() => {
                               setSelectedInvoice(invoice);

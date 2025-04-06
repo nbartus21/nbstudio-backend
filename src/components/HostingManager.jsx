@@ -62,14 +62,14 @@ const OrderDetailsModal = ({ order, onClose, onStatusUpdate, onReject }) => {
 
       // Meghatározzuk a megfelelő csomag ID-t a csomagtípus és név alapján
       const packageType = order.plan.type === 'reseller' ? 'reseller' : 'normal';
-      const packageLevel = order.plan.name.toLowerCase().includes('kezdő') ? 'starter' :
+      const packageLevel = order.plan.name.toLowerCase().includes('kezdő') ? 'starter' : 
                          order.plan.name.toLowerCase().includes('üzleti') ? 'business' : 'professional';
-
+      
       const whmcsPackageId = WHMCS_CONFIG.PACKAGE_IDS[packageType][packageLevel];
-      const whmcsBillingCycle = order.plan.billing === 'monthly' ?
-                              WHMCS_CONFIG.BILLING_CYCLES.monthly :
+      const whmcsBillingCycle = order.plan.billing === 'monthly' ? 
+                              WHMCS_CONFIG.BILLING_CYCLES.monthly : 
                               WHMCS_CONFIG.BILLING_CYCLES.annually;
-
+      
       // API hívás a WHMCS rendelés létrehozásához
       const response = await api.post(`${API_URL}/hosting/whmcs/create-order`, {
         orderId: order._id,
@@ -95,7 +95,7 @@ const OrderDetailsModal = ({ order, onClose, onStatusUpdate, onReject }) => {
       if (response.ok) {
         const result = await response.json();
         setWHMCSResult(result);
-
+        
         // Ha sikeres, frissítjük a rendelés státuszát
         if (result.success) {
           await onStatusUpdate(order._id, 'active');
@@ -117,7 +117,7 @@ const OrderDetailsModal = ({ order, onClose, onStatusUpdate, onReject }) => {
     const type = plan.type === 'reseller' ? 'Viszonteladói' : 'Normál';
     const billing = plan.billing === 'monthly' ? 'Havi' : 'Éves';
     const price = new Intl.NumberFormat('hu-HU', { style: 'currency', currency: 'EUR' }).format(plan.price);
-
+    
     return `${type} - ${plan.name} (${billing}) - ${price}`;
   };
 
@@ -202,8 +202,8 @@ const OrderDetailsModal = ({ order, onClose, onStatusUpdate, onReject }) => {
                     order.status === 'suspended' ? 'text-red-600' :
                     'text-yellow-600'
                   }`}>
-                    {order.status === 'new' ? 'Új' :
-                     order.status === 'processing' ? 'Feldolgozás alatt' :
+                    {order.status === 'new' ? 'Új' : 
+                     order.status === 'processing' ? 'Feldolgozás alatt' : 
                      order.status === 'active' ? 'Aktív' :
                      order.status === 'suspended' ? 'Felfüggesztve' : 'Törölve'}
                   </p>
@@ -229,8 +229,8 @@ const OrderDetailsModal = ({ order, onClose, onStatusUpdate, onReject }) => {
                     order.payment.status === 'cancelled' ? 'text-red-600' :
                     'text-yellow-600'
                   }`}>
-                    {order.payment.status === 'paid' ? 'Fizetve' :
-                     order.payment.status === 'pending' ? 'Függőben' :
+                    {order.payment.status === 'paid' ? 'Fizetve' : 
+                     order.payment.status === 'pending' ? 'Függőben' : 
                      order.payment.status === 'cancelled' ? 'Visszavonva' : 'Visszatérítve'}
                   </p>
                 </div>
@@ -441,15 +441,15 @@ const HostingManager = () => {
     try {
       setLoading(true);
       const response = await api.get(`${API_URL}/hosting/orders`);
-
+    
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-
+      
       const data = await response.json();
-
+      
       // Új rendelések ellenőrzése
-      const newOrders = data.filter(order =>
+      const newOrders = data.filter(order => 
         new Date(order.createdAt).getTime() > lastCheckedTimestamp
       );
 
@@ -513,7 +513,7 @@ const HostingManager = () => {
         } else if (daysUntilExpiry <= 0 && order.payment.status !== 'paid') {
           // Automatikus felfüggesztés
           handleStatusUpdate(order._id, 'suspended');
-
+          
           createSystemNotification({
             title: 'Szolgáltatás felfüggesztve',
             message: `${order.client.name} szolgáltatása lejárt és felfüggesztésre került`,
@@ -544,7 +544,7 @@ const HostingManager = () => {
       }
 
       const updatedOrder = await response.json();
-
+      
       // Státusz változás értesítés
       const statusMessages = {
         processing: 'feldolgozás alatt',
@@ -661,7 +661,7 @@ Az NB-Studio csapata`
     fetchOrders();
 
     // Polling időzítő beállítása
-    const interval = setInterval(fetchOrders, 300000); // 5 percenként ellenőriz (300000 ms)
+    const interval = setInterval(fetchOrders, 30000); // 30 másodpercenként ellenőriz
 
     return () => clearInterval(interval);
   }, []);
@@ -718,7 +718,7 @@ Az NB-Studio csapata`
           </div>
         ) : (
           notifications.map((notification, index) => (
-            <div
+            <div 
               key={index}
               className="p-4 border-b hover:bg-gray-50 cursor-pointer"
               onClick={() => {
@@ -797,7 +797,7 @@ Az NB-Studio csapata`
             </svg>
             Frissítés
           </button>
-
+          
           <div className="relative">
             <button
               onClick={() => setShowNotifications(!showNotifications)}
@@ -930,16 +930,16 @@ Az NB-Studio csapata`
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(order.status)}`}>
-                      {order.status === 'new' ? 'Új' :
-                       order.status === 'processing' ? 'Feldolgozás alatt' :
+                      {order.status === 'new' ? 'Új' : 
+                       order.status === 'processing' ? 'Feldolgozás alatt' : 
                        order.status === 'active' ? 'Aktív' :
                        order.status === 'suspended' ? 'Felfüggesztve' : 'Törölve'}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getPaymentStatusColor(order.payment.status)}`}>
-                      {order.payment.status === 'paid' ? 'Fizetve' :
-                       order.payment.status === 'pending' ? 'Függőben' :
+                      {order.payment.status === 'paid' ? 'Fizetve' : 
+                       order.payment.status === 'pending' ? 'Függőben' : 
                        order.payment.status === 'cancelled' ? 'Törölve' :
                        'Visszatérítve'}
                     </span>
@@ -958,7 +958,7 @@ Az NB-Studio csapata`
                     >
                       <Info className="h-5 w-5" />
                     </button>
-
+                    
                     {(order.status === 'new' || order.status === 'processing') && (
                       <button
                         onClick={() => handleStatusUpdate(order._id, 'processing')}
@@ -968,7 +968,7 @@ Az NB-Studio csapata`
                         <Edit className="h-5 w-5" />
                       </button>
                     )}
-
+                    
                     {order.status === 'processing' && (
                       <button
                         onClick={() => handleStatusUpdate(order._id, 'active')}
@@ -978,7 +978,7 @@ Az NB-Studio csapata`
                         <Check className="h-5 w-5" />
                       </button>
                     )}
-
+                    
                     {order.status === 'active' && (
                       <button
                         onClick={() => handleStatusUpdate(order._id, 'suspended')}
@@ -988,7 +988,7 @@ Az NB-Studio csapata`
                         <X className="h-5 w-5" />
                       </button>
                     )}
-
+                    
                     {order.status === 'suspended' && (
                       <button
                         onClick={() => handleStatusUpdate(order._id, 'active')}
@@ -1015,7 +1015,7 @@ Az NB-Studio csapata`
           <p className="mb-4">
             A rendszer a következő WHMCS csomag azonosítókat használja az automatikus rendelések létrehozásához:
           </p>
-
+          
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <h3 className="font-medium text-lg mb-2">Normál csomagok:</h3>
@@ -1025,7 +1025,7 @@ Az NB-Studio csapata`
                 <li><strong>Professzionális csomag:</strong> ID = 3</li>
               </ul>
             </div>
-
+            
             <div>
               <h3 className="font-medium text-lg mb-2">Viszonteladói csomagok:</h3>
               <ul className="list-disc pl-5 space-y-1">
@@ -1035,7 +1035,7 @@ Az NB-Studio csapata`
               </ul>
             </div>
           </div>
-
+          
           <div className="mt-4 bg-blue-100 p-4 rounded-md">
             <p className="font-medium">A WHMCS csomag ID-kat a kódban a következő helyen lehet beállítani:</p>
             <p className="mt-2 font-mono text-sm bg-white p-2 rounded">

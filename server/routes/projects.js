@@ -7,32 +7,18 @@ import { Upload } from '@aws-sdk/lib-storage';
 import { Readable } from 'stream';
 import authMiddleware from '../middleware/auth.js';
 
-// PIN ellenőrzés gyorsítótár (cache)
-// A gyorsítótár kulcsa a token, értéke egy objektum, amely tartalmazza a projekt adatait és a lejárati időt
-const pinVerificationCache = new Map();
-
-// Gyorsítótár érvényességi ideje (ms) - 5 perc
-const CACHE_TTL = 5 * 60 * 1000;
-
-// Gyorsítótár tisztítása - eltávolítja a lejárt bejegyzéseket
-setInterval(() => {
-  const now = Date.now();
-  for (const [token, cacheEntry] of pinVerificationCache.entries()) {
-    if (now > cacheEntry.expiresAt) {
-      pinVerificationCache.delete(token);
-    }
-  }
-}, 60000); // 1 percenként tisztítjuk a gyorsítótárat
-
 const router = express.Router();
 const auth = authMiddleware; // Alias a meglévő kód kompatibilitásának megőrzéséhez
 
-// Összes projekt lekérése - optimalizált változat
+// Összes projekt lekérése
 router.get('/projects', async (req, res) => {
     try {
+      console.log('Fetching projects...');
       const projects = await Project.find().sort({ createdAt: -1 });
+      console.log('Projects found:', projects.length);
       res.json(projects);
     } catch (error) {
+      console.error('Error in GET /projects:', error);
       res.status(500).json({
         message: 'Error fetching projects',
         error: error.message
@@ -221,49 +207,64 @@ router.post('/projects/:id/invoices', async (req, res) => {
 // Számla státusz frissítése
 router.put('/projects/:projectId/invoices/:invoiceId', async (req, res) => {
   try {
-    const { projectId, invoiceId } = req.params;
-    const updateData = req.body;
+    console.log('PUT kérés érkezett a számla frissítésére:', {
+      projectId: req.params.projectId,
+      invoiceId: req.params.invoiceId,
+      body: req.body
+    });
 
-    // Csak a szükséges mezőket kérjük le a projektből
-    const project = await Project.findById(projectId, 'invoices');
+    const project = await Project.findById(req.params.projectId);
     if (!project) {
+      console.log('Projekt nem található:', req.params.projectId);
       return res.status(404).json({ message: 'Project not found' });
     }
 
-    // Keressük meg a számlát
-    const invoice = project.invoices.id(invoiceId);
+    console.log('Projekt megtalálva, számlák száma:', project.invoices?.length || 0);
+
+    const invoice = project.invoices.id(req.params.invoiceId);
     if (!invoice) {
+      console.log('Számla nem található ezzel az ID-val:', req.params.invoiceId);
+      console.log('Elérhető számla ID-k:', project.invoices.map(inv => inv._id.toString()));
       return res.status(404).json({ message: 'Invoice not found' });
     }
 
-    // Frissítjük a számla mezőit
+    console.log('Számla megtalálva, jelenlegi státusz:', invoice.status);
+    console.log('Frissítendő mezők:', req.body);
+
+    // Update invoice fields
     Object.assign(invoice, {
-      ...updateData,
+      ...req.body,
       updatedAt: new Date()
     });
 
-    // Ha fizetettre állítjuk, biztosítsuk a megfelelő összeget és dátumot
-    if (updateData.status === 'fizetett') {
+    // If marking as paid, ensure proper paid amount and date
+    if (req.body.status === 'fizetett') {
       invoice.paidAmount = invoice.totalAmount;
       invoice.paidDate = new Date();
+      console.log('Fizetési dátum és összeg automatikusan beállítva:', {
+        paidAmount: invoice.paidAmount,
+        paidDate: invoice.paidDate
+      });
     }
 
-    // Optimalizált mentés: Csak a számla mezőt frissítjük az adatbázisban
-    // Ez sokkal gyorsabb, mint a teljes projekt mentése
-    await Project.updateOne(
-      { _id: projectId, 'invoices._id': invoiceId },
-      { $set: { 'invoices.$': invoice } }
-    );
+    console.log('Számla frissítve, mentés előtt:', {
+      status: invoice.status,
+      paidAmount: invoice.paidAmount,
+      paidDate: invoice.paidDate
+    });
 
-    // Csak a frissített számlát adjuk vissza, nem a teljes projektet
-    // Ez jelentősen csökkenti a válasz méretét és a feldolgozási időt
+    await project.save();
+    console.log('Projekt sikeresen mentve a frissített számlával');
+
+    // Visszaadjuk a frissített projektet
     res.json({
       success: true,
       message: 'Számla sikeresen frissítve',
-      invoice: invoice.toObject()
+      project: project
     });
   } catch (error) {
-    console.error('Invoice update error:', error.message);
+    console.error('Invoice update error:', error);
+    console.error('Hiba stack:', error.stack);
     res.status(500).json({
       success: false,
       message: 'Server error while updating invoice',
@@ -398,10 +399,23 @@ const verifyPin = async (req, res) => {
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key');
 
-  // Optimalizált naplózás - csak a lényeges információkat naplózzuk
-  console.log(`PIN verify kérés érkezett: ${req.originalUrl}, token: ${req.body.token?.substring(0, 8)}...`);
+  // Részletes hibakeresési napló
+  console.log(`PIN verify kérés érkezett: ${req.originalUrl}`);
+  console.log(`Kérés fejlécek:`, JSON.stringify(req.headers, null, 2));
+  console.log(`Kérés test (body):`, JSON.stringify(req.body, null, 2));
 
-  // API kulcs ellenőrzés már megtörtént a router szintjén, itt nem szükséges újra ellenőrizni
+  console.log('PIN ellenőrzés kérés érkezett:', req.body);
+
+  // API kulcs ellenőrzése - ha nincs vagy érvénytelen, 403 Forbidden hibát dobunk
+  // Módosítás: API kulcs ellenőrzést ideiglenesen kikapcsoljuk a hibakereséshez
+  const API_KEY = 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0';
+
+  // A kérés API kulcsának ellenőrzése - de most csak naplózzuk, nem vágjuk el a folyamatot
+  if (!req.headers['x-api-key']) {
+    console.warn('API kulcs hiányzik a kérésből, de folytatjuk a végrehajtást');
+  } else if (req.headers['x-api-key'] !== API_KEY) {
+    console.warn('Érvénytelen API kulcs, de folytatjuk a végrehajtást');
+  }
 
   try {
     const { token, pin, updateProject } = req.body;
@@ -412,84 +426,53 @@ const verifyPin = async (req, res) => {
       return res.status(400).json({ message: 'Hiányzó token a kérésből' });
     }
 
-    // Ellenőrizzük, hogy van-e a gyorsítótárban a token
-    const cacheKey = `${token}:${pin || ''}`;
-    const now = Date.now();
-    const cachedResult = pinVerificationCache.get(cacheKey);
-
-    // Ha van érvényes gyorsítótár bejegyzés, használjuk azt
-    if (cachedResult && now < cachedResult.expiresAt) {
-      // Ha a gyorsítótárban lévő eredmény hiba, adjuk vissza azt
-      if (cachedResult.error) {
-        return res.status(cachedResult.statusCode).json({ message: cachedResult.error });
-      }
-
-      // Ha a gyorsítótárban lévő eredmény sikeres, folytassuk a projekt adataival
-      const project = cachedResult.project;
-
-      // Ha updateProject objektumot küldtek, ne használjuk a gyorsítótárat
-      if (updateProject) {
-        // Folytatjuk a normál folyamatot
-      } else {
-        // Továbblépünk a projekt feldolgozásához
-        const sanitizedProject = { ...project.toObject() };
-        const response = { project: sanitizedProject };
-        return res.json(response);
-      }
-    }
-
-    // Ha nincs gyorsítótár találat, vagy frissíteni kell a projektet, lekérjük az adatbázisból
+    console.log('Token a verify-pin-ben:', token);
+    // Részletes keresési folyamat a token alapján
     let project = null;
 
-    // Optimalizált keresés - egy lekérdezéssel keressük az összes lehetséges mezőben
-    project = await Project.findOne({
-      $or: [
-        { 'sharing.token': token },
-        ...(token.match(/^[0-9a-fA-F]{24}$/) ? [{ '_id': token }] : []),
-        { 'shareToken': token },
-        { 'token': token }
-      ]
-    });
+    // Első próbálkozás: a sharing.token mezőben keressük
+    project = await Project.findOne({ 'sharing.token': token });
+
+    // Ha nem találtuk meg, próbáljunk más mezőkkel is
+    if (!project) {
+      console.log('Projekt nem található a sharing.token mezőben, próbálkozás más mezőkkel');
+
+      // Második próbálkozás: esetleg a token közvetlenül a _id mezőben van
+      if (token && token.match(/^[0-9a-fA-F]{24}$/)) {
+        console.log('A token érvényes ObjectId formátumú, próbálkozás _id-vel');
+        project = await Project.findById(token);
+      }
+
+      // Harmadik próbálkozás: más token mezők
+      if (!project) {
+        console.log('Projekt nem található _id-vel sem, próbálkozás más token mezőkkel');
+        project = await Project.findOne({
+          $or: [
+            { 'shareToken': token },
+            { 'token': token }
+          ]
+        });
+      }
+    }
 
     // Ha még mindig nincs projekt, akkor hiba
     if (!project) {
-      // Mentsük a hibát a gyorsítótárba
-      pinVerificationCache.set(cacheKey, {
-        error: 'Projekt nem található',
-        statusCode: 404,
-        expiresAt: now + CACHE_TTL
-      });
-
+      console.log('Projekt nem található a megadott tokennel:', token);
       return res.status(404).json({ message: 'Projekt nem található' });
     }
 
-    // PIN ellenőrzése - optimalizált változat
-    const projectPin = project.sharing?.pin?.trim() || '';
-    const requestPin = pin?.trim() || '';
+    console.log('Projekt megtalálva:', project.name, 'ID:', project._id);
 
-    // Ha a projekthez tartozik PIN, de a kérésben nincs megadva vagy nem egyezik
-    if (projectPin !== '' && (requestPin === '' || projectPin !== requestPin)) {
-      const errorMessage = requestPin === '' ?
-        'PIN kód szükséges a projekthez való hozzáféréshez' :
-        'Érvénytelen PIN kód';
-
-      // Mentsük a hibát a gyorsítótárba
-      pinVerificationCache.set(cacheKey, {
-        error: errorMessage,
-        statusCode: 403,
-        expiresAt: now + CACHE_TTL
-      });
-
-      return res.status(403).json({ message: errorMessage });
-    }
-
-    // Ha sikeres a PIN ellenőrzés, mentsük a projektet a gyorsítótárba
-    // De csak ha nincs updateProject kérés
-    if (!updateProject) {
-      pinVerificationCache.set(cacheKey, {
-        project,
-        expiresAt: now + CACHE_TTL
-      });
+    // PIN ellenőrzése
+    if (!pin || pin.trim() === '') {
+      // Ha nincs PIN a projekthez, vagy üres, akkor engedjük be
+      if (project.sharing && project.sharing.pin && project.sharing.pin.trim() !== '') {
+        // Ha a projekthez tartozik PIN, de a kérésben nincs megadva, akkor hiba
+        return res.status(403).json({ message: 'PIN kód szükséges a projekthez való hozzáféréshez' });
+      }
+    } else if (project.sharing && project.sharing.pin && project.sharing.pin !== pin) {
+      // Ha a megadott PIN nem egyezik a projekt PIN-jével, akkor hiba
+      return res.status(403).json({ message: 'Érvénytelen PIN kód' });
     }
 
     // Ha updateProject objektumot küldtek, frissítsük a projektet
@@ -560,16 +543,24 @@ const verifyPin = async (req, res) => {
       }
     }
 
-    // Számlák feldolgozása - optimalizált változat
+    // Számlák feldolgozása - egyszerű JSON objektummá alakítás
     const processedInvoices = (project.invoices || []).map(invoice => {
-      // Konvertáljuk a számlát egyszerű JSON objektummá - optimalizált módon
-      const plainInvoice = { ...invoice.toObject() };
+      console.log('Számla feldolgozása a verify-pin-ben:', invoice.number, '_id:', invoice._id);
 
-      // Biztosítjuk, hogy az _id string formátumban legyen
+      // Konvertáljuk a számlát egyszerű JSON objektummá
+      const plainInvoice = JSON.parse(JSON.stringify(invoice));
+
+      // Ellenőrizzük, hogy van-e _id a számlán
       if (plainInvoice._id) {
-        plainInvoice._id = plainInvoice._id.toString();
+        // A mongoose az _id-t ObjectId típusként tárolja,
+        // a JSON.stringify-nál ez elveszhet, ezért itt biztosítjuk, hogy stringként legyen
+        if (typeof plainInvoice._id === 'object' && plainInvoice._id.$oid) {
+          console.log('Átalakítás: ObjectId-ből string-é:', plainInvoice._id.$oid);
+          plainInvoice._id = plainInvoice._id.$oid;
+        }
       }
 
+      console.log('Feldolgozott számla:', plainInvoice.number, 'ID:', plainInvoice._id);
       return plainInvoice;
     });
 
@@ -615,9 +606,15 @@ const verifyPin = async (req, res) => {
     };
 
     const response = { project: sanitizedProject };
+    console.log('Sikeres PIN ellenőrzés, visszaküldött projekt adatok:', {
+      projektNév: response.project.name,
+      számlákSzáma: response.project.invoices.length,
+      clientData: response.project.client
+    });
     res.json(response);
   } catch (error) {
-    console.error('Szerver hiba a PIN ellenőrzés során:', error.message);
+    console.error('Szerver hiba a PIN ellenőrzés során:', error);
+    console.error('Hibastack:', error.stack);
     res.status(500).json({ message: 'Szerver hiba történt', error: error.message });
   }
 };

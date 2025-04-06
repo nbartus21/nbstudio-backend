@@ -1089,55 +1089,71 @@ router.get('/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => {
 // Számla állapot frissítése
 router.patch('/projects/:projectId/invoices/:invoiceId', async (req, res) => {
   try {
-    const { projectId, invoiceId } = req.params;
-    const updateData = req.body;
+    console.log('Számla frissítési kérés érkezett:', {
+      projectId: req.params.projectId,
+      invoiceId: req.params.invoiceId,
+      body: req.body
+    });
 
-    // Csak a szükséges mezőket kérjük le a projektből
-    const project = await Project.findById(projectId, 'invoices');
+    const project = await Project.findById(req.params.projectId);
     if (!project) {
+      console.log('Projekt nem található:', req.params.projectId);
       return res.status(404).json({ message: 'Projekt nem található' });
     }
 
+    console.log('Projekt megtalálva, számlák száma:', project.invoices?.length || 0);
+
     // Ellenőrizzük, hogy a számlák tömb létezik-e
     if (!project.invoices || !Array.isArray(project.invoices)) {
+      console.log('A projekt nem tartalmaz számlákat vagy a számlák nem tömb formátumban vannak tárolva');
       return res.status(404).json({ message: 'A projekt nem tartalmaz számlákat' });
     }
 
     // Keressük meg a számlát ID alapján
-    const invoice = project.invoices.id(invoiceId);
+    const invoice = project.invoices.id(req.params.invoiceId);
     if (!invoice) {
+      console.log('Számla nem található ezzel az ID-val:', req.params.invoiceId);
+      console.log('Elérhető számla ID-k:', project.invoices.map(inv => inv._id.toString()));
       return res.status(404).json({ message: 'Számla nem található' });
     }
 
+    console.log('Számla megtalálva, jelenlegi státusz:', invoice.status);
+    console.log('Frissítendő mezők:', req.body);
+
     // Frissítjük a számla mezőit
-    Object.assign(invoice, updateData);
+    Object.assign(invoice, req.body);
 
     // Ha a státusz fizetett, és nincs megadva fizetési dátum, akkor beállítjuk a mai dátumot
-    if (updateData.status === 'fizetett' && !updateData.paidDate) {
+    if (req.body.status === 'fizetett' && !req.body.paidDate) {
       invoice.paidDate = new Date();
+      console.log('Fizetési dátum automatikusan beállítva:', invoice.paidDate);
     }
 
     // Ha a státusz fizetett, és nincs megadva fizetett összeg, akkor beállítjuk a teljes összeget
-    if (updateData.status === 'fizetett' && !updateData.paidAmount) {
+    if (req.body.status === 'fizetett' && !req.body.paidAmount) {
       invoice.paidAmount = invoice.totalAmount;
+      console.log('Fizetett összeg automatikusan beállítva:', invoice.paidAmount);
     }
 
-    // Optimalizált mentés: Csak a számla mezőt frissítjük az adatbázisban
-    // Ez sokkal gyorsabb, mint a teljes projekt mentése
-    await Project.updateOne(
-      { _id: projectId, 'invoices._id': invoiceId },
-      { $set: { 'invoices.$': invoice } }
-    );
+    console.log('Számla frissítve, mentés előtt:', {
+      status: invoice.status,
+      paidAmount: invoice.paidAmount,
+      paidDate: invoice.paidDate
+    });
 
-    // Csak a frissített számlát adjuk vissza, nem a teljes projektet
-    // Ez jelentősen csökkenti a válasz méretét és a feldolgozási időt
+    // Mentjük a projektet a frissített számlával
+    await project.save();
+    console.log('Projekt sikeresen mentve a frissített számlával');
+
+    // Visszaadjuk a frissített projektet
     res.json({
       success: true,
       message: 'Számla sikeresen frissítve',
-      invoice: invoice.toObject()
+      project: project
     });
   } catch (error) {
-    console.error('Hiba a számla frissítésénél:', error.message);
+    console.error('Hiba a számla frissítésénél:', error);
+    console.error('Hiba stack:', error.stack);
     res.status(500).json({
       success: false,
       message: 'Hiba történt a számla frissítése során',

@@ -235,11 +235,10 @@ const NotificationsManager = () => {
     // Support ticket értesítések lekérése
     fetchSupportTicketNotifications();
 
-    // Csökkentett gyakoriságú lekérdezés - 5 percenként (300000 ms) a korábbi 30 másodperc helyett
     const interval = setInterval(() => {
       fetchAllNotifications();
       fetchSupportTicketNotifications();
-    }, 300000);
+    }, 30000);
     return () => clearInterval(interval);
   }, []);
 
