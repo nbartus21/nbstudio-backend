@@ -7,6 +7,23 @@ import { Upload } from '@aws-sdk/lib-storage';
 import { Readable } from 'stream';
 import authMiddleware from '../middleware/auth.js';
 
+// PIN ellenőrzés gyorsítótár (cache)
+// A gyorsítótár kulcsa a token, értéke egy objektum, amely tartalmazza a projekt adatait és a lejárati időt
+const pinVerificationCache = new Map();
+
+// Gyorsítótár érvényességi ideje (ms) - 5 perc
+const CACHE_TTL = 5 * 60 * 1000;
+
+// Gyorsítótár tisztítása - eltávolítja a lejárt bejegyzéseket
+setInterval(() => {
+  const now = Date.now();
+  for (const [token, cacheEntry] of pinVerificationCache.entries()) {
+    if (now > cacheEntry.expiresAt) {
+      pinVerificationCache.delete(token);
+    }
+  }
+}, 60000); // 1 percenként tisztítjuk a gyorsítótárat
+
 const router = express.Router();
 const auth = authMiddleware; // Alias a meglévő kód kompatibilitásának megőrzéséhez
 
@@ -427,7 +444,41 @@ const verifyPin = async (req, res) => {
     }
 
     console.log('Token a verify-pin-ben:', token);
-    // Részletes keresési folyamat a token alapján
+
+    // Ellenőrizzük, hogy van-e a gyorsítótárban a token
+    const cacheKey = `${token}:${pin || ''}`;
+    const now = Date.now();
+    const cachedResult = pinVerificationCache.get(cacheKey);
+
+    // Ha van érvényes gyorsítótár bejegyzés, használjuk azt
+    if (cachedResult && now < cachedResult.expiresAt) {
+      console.log('Gyorsítótár találat a PIN ellenőrzéshez:', token);
+
+      // Ha a gyorsítótárban lévő eredmény hiba, adjuk vissza azt
+      if (cachedResult.error) {
+        console.log('Gyorsítótárból visszaadott hiba:', cachedResult.error);
+        return res.status(cachedResult.statusCode).json({ message: cachedResult.error });
+      }
+
+      // Ha a gyorsítótárban lévő eredmény sikeres, folytassuk a projekt adataival
+      const project = cachedResult.project;
+      console.log('Projekt betöltve a gyorsítótárból:', project.name, 'ID:', project._id);
+
+      // Ha updateProject objektumot küldtek, ne használjuk a gyorsítótárat
+      if (updateProject) {
+        console.log('Projekt frissítési kérés érkezett, gyorsítótár kihagyása');
+      } else {
+        // Továbblépünk a projekt feldolgozásához
+        // A PIN ellenőrzés már megtörtént a gyorsítótár létrehozásakor
+        // Ugrás a projekt feldolgozásához
+        const sanitizedProject = { ...project.toObject() };
+        const response = { project: sanitizedProject };
+        return res.json(response);
+      }
+    }
+
+    // Ha nincs gyorsítótár találat, vagy frissíteni kell a projektet, lekérjük az adatbázisból
+    console.log('Nincs gyorsítótár találat vagy frissítés szükséges, lekérés adatbázisból');
     let project = null;
 
     // Első próbálkozás: a sharing.token mezőben keressük
@@ -458,6 +509,14 @@ const verifyPin = async (req, res) => {
     // Ha még mindig nincs projekt, akkor hiba
     if (!project) {
       console.log('Projekt nem található a megadott tokennel:', token);
+
+      // Mentsük a hibát a gyorsítótárba
+      pinVerificationCache.set(cacheKey, {
+        error: 'Projekt nem található',
+        statusCode: 404,
+        expiresAt: now + CACHE_TTL
+      });
+
       return res.status(404).json({ message: 'Projekt nem található' });
     }
 
@@ -468,11 +527,37 @@ const verifyPin = async (req, res) => {
       // Ha nincs PIN a projekthez, vagy üres, akkor engedjük be
       if (project.sharing && project.sharing.pin && project.sharing.pin.trim() !== '') {
         // Ha a projekthez tartozik PIN, de a kérésben nincs megadva, akkor hiba
+
+        // Mentsük a hibát a gyorsítótárba
+        pinVerificationCache.set(cacheKey, {
+          error: 'PIN kód szükséges a projekthez való hozzáféréshez',
+          statusCode: 403,
+          expiresAt: now + CACHE_TTL
+        });
+
         return res.status(403).json({ message: 'PIN kód szükséges a projekthez való hozzáféréshez' });
       }
     } else if (project.sharing && project.sharing.pin && project.sharing.pin !== pin) {
       // Ha a megadott PIN nem egyezik a projekt PIN-jével, akkor hiba
+
+      // Mentsük a hibát a gyorsítótárba
+      pinVerificationCache.set(cacheKey, {
+        error: 'Érvénytelen PIN kód',
+        statusCode: 403,
+        expiresAt: now + CACHE_TTL
+      });
+
       return res.status(403).json({ message: 'Érvénytelen PIN kód' });
+    }
+
+    // Ha sikeres a PIN ellenőrzés, mentsük a projektet a gyorsítótárba
+    // De csak ha nincs updateProject kérés
+    if (!updateProject) {
+      pinVerificationCache.set(cacheKey, {
+        project,
+        expiresAt: now + CACHE_TTL
+      });
+      console.log('Projekt mentve a gyorsítótárba:', token);
     }
 
     // Ha updateProject objektumot küldtek, frissítsük a projektet
