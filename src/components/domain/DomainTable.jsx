@@ -1,35 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { Edit, Trash2, Link, Link2Off } from 'lucide-react';
-import { api } from '../../services/auth';
+import React, { useState } from 'react';
+import { Edit, Trash2 } from 'lucide-react';
 
-const API_URL = 'https://admin.nb-studio.net:5001';
-
-const DomainTable = ({ domains, onEdit, onDelete, formatCurrency, onDomainUpdated }) => {
-  const [projects, setProjects] = useState([]);
-  const [showProjectSelector, setShowProjectSelector] = useState(null);
-  const [selectedProjectId, setSelectedProjectId] = useState('');
-  const [isUpdating, setIsUpdating] = useState(false);
+const DomainTable = ({ domains, onEdit, onDelete, formatCurrency }) => {
   const [sortBy, setSortBy] = useState('expiryDate');
   const [sortDirection, setSortDirection] = useState('asc');
   const [filter, setFilter] = useState('');
-  const [projectFilter, setProjectFilter] = useState('');
-
-  // Projektek lekérése
-  useEffect(() => {
-    const fetchProjects = async () => {
-      try {
-        const response = await api.get(`${API_URL}/api/projects`);
-        if (response.ok) {
-          const data = await response.json();
-          setProjects(data);
-        }
-      } catch (error) {
-        console.error('Hiba a projektek lekérésekor:', error);
-      }
-    };
-
-    fetchProjects();
-  }, []);
 
   const calculateDaysUntilExpiry = (expiryDate) => {
     const now = new Date();
@@ -47,9 +22,8 @@ const DomainTable = ({ domains, onEdit, onDelete, formatCurrency, onDomainUpdate
 
   const sortedDomains = [...domains]
     .filter(domain =>
-      (domain.name.toLowerCase().includes(filter.toLowerCase()) ||
-       domain.registrar.toLowerCase().includes(filter.toLowerCase())) &&
-      (projectFilter === '' || (domain.projectName && domain.projectName.toLowerCase().includes(projectFilter.toLowerCase())))
+      domain.name.toLowerCase().includes(filter.toLowerCase()) ||
+      domain.registrar.toLowerCase().includes(filter.toLowerCase())
     )
     .sort((a, b) => {
       if (sortBy === 'expiryDate') {
@@ -87,91 +61,9 @@ const DomainTable = ({ domains, onEdit, onDelete, formatCurrency, onDomainUpdate
     }
   };
 
-  // Domain gyors hozzárendelése projekthez
-  const handleQuickAssign = async (domainId) => {
-    if (!selectedProjectId) {
-      setShowProjectSelector(null);
-      return;
-    }
-
-    setIsUpdating(true);
-
-    try {
-      // Megkeressük a domaint és a projektet
-      const domain = domains.find(d => d._id === domainId);
-      const project = projects.find(p => p._id === selectedProjectId);
-
-      if (!domain || !project) {
-        console.error('Nem található a domain vagy a projekt');
-        return;
-      }
-
-      // Frissítjük a domaint
-      const updatedDomain = {
-        ...domain,
-        projectId: selectedProjectId,
-        projectName: project.name
-      };
-
-      const response = await api.put(`${API_URL}/api/domains/${domainId}`, updatedDomain);
-
-      if (response.ok) {
-        // Értesítjük a szülő komponenst a frissítésről
-        if (onDomainUpdated) {
-          onDomainUpdated();
-        }
-      } else {
-        console.error('Hiba a domain frissítésekor');
-      }
-    } catch (error) {
-      console.error('Hiba a domain projekt hozzárendelésekor:', error);
-    } finally {
-      setIsUpdating(false);
-      setShowProjectSelector(null);
-      setSelectedProjectId('');
-    }
-  };
-
-  // Domain eltávolítása projektből
-  const handleRemoveFromProject = async (domainId) => {
-    setIsUpdating(true);
-
-    try {
-      // Megkeressük a domaint
-      const domain = domains.find(d => d._id === domainId);
-
-      if (!domain) {
-        console.error('Nem található a domain');
-        return;
-      }
-
-      // Frissítjük a domaint
-      const updatedDomain = {
-        ...domain,
-        projectId: null,
-        projectName: ''
-      };
-
-      const response = await api.put(`${API_URL}/api/domains/${domainId}`, updatedDomain);
-
-      if (response.ok) {
-        // Értesítjük a szülő komponenst a frissítésről
-        if (onDomainUpdated) {
-          onDomainUpdated();
-        }
-      } else {
-        console.error('Hiba a domain frissítésekor');
-      }
-    } catch (error) {
-      console.error('Hiba a domain projekt eltávolításakor:', error);
-    } finally {
-      setIsUpdating(false);
-    }
-  };
-
   return (
     <div className="bg-white rounded-lg shadow overflow-hidden">
-      <div className="p-4 space-y-3">
+      <div className="p-4">
         <input
           type="text"
           placeholder="Keresés domain név vagy regisztrátor szerint..."
@@ -179,29 +71,6 @@ const DomainTable = ({ domains, onEdit, onDelete, formatCurrency, onDomainUpdate
           onChange={(e) => setFilter(e.target.value)}
           className="w-full px-4 py-2 border rounded-lg"
         />
-
-        <div className="flex items-center">
-          <label className="mr-2 text-sm font-medium text-gray-700">Projekt szűrés:</label>
-          <input
-            type="text"
-            placeholder="Szűrés projekt név szerint..."
-            value={projectFilter}
-            onChange={(e) => setProjectFilter(e.target.value)}
-            className="flex-1 px-4 py-2 border rounded-lg"
-          />
-        </div>
-
-        {/* Projekt szűrés törlése gomb */}
-        {projectFilter && (
-          <div className="flex justify-end">
-            <button
-              onClick={() => setProjectFilter('')}
-              className="text-sm text-indigo-600 hover:text-indigo-800"
-            >
-              Projekt szűrés törlése
-            </button>
-          </div>
-        )}
       </div>
 
       <div className="overflow-x-auto">
@@ -259,71 +128,14 @@ const DomainTable = ({ domains, onEdit, onDelete, formatCurrency, onDomainUpdate
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {domain.registrar}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    <div className="flex items-center space-x-2">
-                      {domain.projectName ? (
-                        <>
-                          <span className="px-3 py-1.5 bg-indigo-100 text-indigo-800 rounded-full text-sm font-medium border border-indigo-200 shadow-sm hover:bg-indigo-200 transition-colors">
-                            {domain.projectName}
-                          </span>
-                          <button
-                            onClick={() => handleRemoveFromProject(domain._id)}
-                            disabled={isUpdating}
-                            className="text-red-500 hover:text-red-700 transition-colors"
-                            title="Eltávolítás a projektből"
-                          >
-                            <Link2Off className="h-4 w-4" />
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          {showProjectSelector === domain._id ? (
-                            <div className="flex items-center space-x-2">
-                              <select
-                                value={selectedProjectId}
-                                onChange={(e) => setSelectedProjectId(e.target.value)}
-                                className="px-2 py-1 border rounded text-sm"
-                                disabled={isUpdating}
-                              >
-                                <option value="">Válassz projektet...</option>
-                                {projects.map(project => (
-                                  <option key={project._id} value={project._id}>
-                                    {project.name}
-                                  </option>
-                                ))}
-                              </select>
-                              <button
-                                onClick={() => handleQuickAssign(domain._id)}
-                                disabled={isUpdating || !selectedProjectId}
-                                className="px-2 py-1 bg-green-500 text-white rounded text-xs hover:bg-green-600 disabled:bg-gray-300"
-                              >
-                                Hozzáadás
-                              </button>
-                              <button
-                                onClick={() => {
-                                  setShowProjectSelector(null);
-                                  setSelectedProjectId('');
-                                }}
-                                className="text-gray-500 hover:text-gray-700"
-                              >
-                                Mégsem
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="flex items-center space-x-2">
-                              <span className="text-gray-400 italic">Nincs projekt</span>
-                              <button
-                                onClick={() => setShowProjectSelector(domain._id)}
-                                className="text-indigo-500 hover:text-indigo-700 transition-colors"
-                                title="Projekt hozzárendelés"
-                              >
-                                <Link className="h-4 w-4" />
-                              </button>
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </div>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {domain.projectName ? (
+                      <span className="px-2 py-1 bg-indigo-100 text-indigo-800 rounded-full text-xs">
+                        {domain.projectName}
+                      </span>
+                    ) : (
+                      <span className="text-gray-400">-</span>
+                    )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {domain.registrationDate ? new Date(domain.registrationDate).toLocaleDateString() : 'Nincs megadva'}
