@@ -93,19 +93,19 @@ const S3FilesModal = ({ isOpen, onClose, language = 'hu' }) => {
       console.log('S3 fájlok lekérése...');
 
       const response = await api.get('/api/s3-files');
-      
+
       if (!response.ok) {
         throw new Error(`Hiba a fájlok lekérésekor: ${response.status} ${response.statusText}`);
       }
-      
+
       const data = await response.json();
       console.log(`${data.length} S3 fájl betöltve`);
-      
+
       // Sort files by last modified date (newest first)
-      const sortedFiles = data.sort((a, b) => 
+      const sortedFiles = data.sort((a, b) =>
         new Date(b.lastModified) - new Date(a.lastModified)
       );
-      
+
       setFiles(sortedFiles);
     } catch (error) {
       console.error('Hiba az S3 fájlok lekérésekor:', error);
@@ -119,21 +119,21 @@ const S3FilesModal = ({ isOpen, onClose, language = 'hu' }) => {
   const handleDeleteFile = async (key) => {
     try {
       console.log('Fájl törlése:', key);
-      
+
       const encodedKey = encodeURIComponent(key);
       const response = await api.delete(`/api/s3-files/${encodedKey}`);
-      
+
       if (!response.ok) {
         throw new Error(`Hiba a fájl törlésekor: ${response.status} ${response.statusText}`);
       }
-      
+
       // Remove file from state
       setFiles(files.filter(file => file.key !== key));
-      
+
       // Show success message
       setSuccessMessage(t.deleteSuccess);
       setTimeout(() => setSuccessMessage(''), 3000);
-      
+
       console.log('Fájl sikeresen törölve');
     } catch (error) {
       console.error('Hiba a fájl törlésekor:', error);
@@ -145,7 +145,7 @@ const S3FilesModal = ({ isOpen, onClose, language = 'hu' }) => {
   };
 
   // Filter files based on search term
-  const filteredFiles = files.filter(file => 
+  const filteredFiles = files.filter(file =>
     file.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (file.projectId && file.projectId.toLowerCase().includes(searchTerm.toLowerCase()))
   );
@@ -153,7 +153,7 @@ const S3FilesModal = ({ isOpen, onClose, language = 'hu' }) => {
   // Get file icon based on file type
   const getFileIcon = (fileName) => {
     const extension = fileName.split('.').pop().toLowerCase();
-    
+
     if (['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp'].includes(extension)) {
       return <Image className="text-blue-500" size={20} />;
     } else if (['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt'].includes(extension)) {
@@ -178,14 +178,14 @@ const S3FilesModal = ({ isOpen, onClose, language = 'hu' }) => {
         {/* Header */}
         <div className="p-4 border-b flex justify-between items-center">
           <h2 className="text-xl font-medium">{t.title}</h2>
-          <button 
+          <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-500 focus:outline-none"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
-        
+
         {/* Toolbar */}
         <div className="p-4 border-b flex flex-wrap justify-between items-center gap-2">
           <div className="relative flex-1 min-w-[200px]">
@@ -208,21 +208,21 @@ const S3FilesModal = ({ isOpen, onClose, language = 'hu' }) => {
             {t.refresh}
           </button>
         </div>
-        
+
         {/* Success message */}
         {successMessage && (
           <div className="mx-4 mt-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded">
             {successMessage}
           </div>
         )}
-        
+
         {/* Error message */}
         {error && (
           <div className="mx-4 mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
             {error}
           </div>
         )}
-        
+
         {/* File list */}
         <div className="flex-1 overflow-auto p-4">
           {isLoading ? (
@@ -269,9 +269,6 @@ const S3FilesModal = ({ isOpen, onClose, language = 'hu' }) => {
                             <div className="text-sm font-medium text-gray-900 max-w-xs truncate" title={file.name}>
                               {file.name}
                             </div>
-                            <div className="text-xs text-gray-500 truncate" title={file.key}>
-                              {file.key}
-                            </div>
                           </div>
                         </div>
                       </td>
@@ -316,7 +313,7 @@ const S3FilesModal = ({ isOpen, onClose, language = 'hu' }) => {
           )}
         </div>
       </div>
-      
+
       {/* Delete confirmation modal */}
       {showDeleteConfirm && fileToDelete && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-50 flex items-center justify-center">
