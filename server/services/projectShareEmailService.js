@@ -67,9 +67,9 @@ try {
 }
 
 // E-mail sablon generálása különböző nyelveken
-const generateEmailTemplate = (project, shareLink, pin, language = 'hu') => {
+const generateEmailTemplate = (project, shareLink, pin, language = 'hu', customSubject = null) => {
   // Alapértelmezett magyar sablon
-  let subject = `Megosztott projekt hozzáférés: ${project.name}`;
+  let subject = customSubject || `Megosztott projekt hozzáférés: ${project.name}`;
   let greeting = `Kedves ${project.client.name}!`;
   let intro = `Norbert Bartus megosztott Önnel egy projektet az NB Studio rendszerében.`;
   let projectInfo = `Projekt neve: ${project.name}`;
@@ -158,7 +158,7 @@ const generateEmailTemplate = (project, shareLink, pin, language = 'hu') => {
 };
 
 // E-mail küldése a projekt megosztásáról
-export const sendProjectShareEmail = async (project, shareLink, pin, language = 'hu') => {
+export const sendProjectShareEmail = async (project, shareLink, pin, language = 'hu', customSubject = null) => {
   try {
     console.log(`[DEBUG] Projekt megosztás e-mail küldése: ${project.name} - ${project.client.email} (${language})`);
     console.log('[DEBUG] Projekt adatok:', {
@@ -179,8 +179,9 @@ export const sendProjectShareEmail = async (project, shareLink, pin, language = 
 
     // E-mail sablon generálása
     console.log('[DEBUG] E-mail sablon generálása...');
-    const { subject, html } = generateEmailTemplate(project, shareLink, pin, language);
+    const { subject, html } = generateEmailTemplate(project, shareLink, pin, language, customSubject);
     console.log('[DEBUG] E-mail sablon generálása kész. Tárgy:', subject);
+    console.log('[DEBUG] Egyedi tárgy:', customSubject ? 'Igen' : 'Nem');
 
     // E-mail küldése
     const mailOptions = {

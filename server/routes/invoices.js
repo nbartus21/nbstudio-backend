@@ -9,15 +9,13 @@ import fs from 'fs';
 import path from 'path';
 import cron from 'node-cron';
 import { checkOverdueInvoices, checkDueSoonInvoices } from '../services/invoiceReminderService.js';
-// Explicit import a sendInvoiceEmail függvénynek
-import invoiceEmailService from '../services/invoiceEmailService.js';
-const { sendInvoiceEmail } = invoiceEmailService;
+// Használjuk a projectShareEmailService-t, mert az bizonyítottan működik
+import { sendProjectShareEmail } from '../services/projectShareEmailService.js';
 
-// Teszteljük, hogy a sendInvoiceEmail függvény létezik-e
-console.log('[DEBUG-INVOICE-EMAIL] sendInvoiceEmail import ellenőrzése:', {
-  invoiceEmailService: typeof invoiceEmailService,
-  sendInvoiceEmail: typeof sendInvoiceEmail,
-  exists: !!sendInvoiceEmail
+// Teszteljük, hogy a sendProjectShareEmail függvény létezik-e
+console.log('[DEBUG-INVOICE-EMAIL] sendProjectShareEmail import ellenőrzése:', {
+  sendProjectShareEmail: typeof sendProjectShareEmail,
+  exists: !!sendProjectShareEmail
 });
 
 const __filename = fileURLToPath(import.meta.url);
@@ -480,16 +478,22 @@ router.post('/projects/:projectId/invoices', async (req, res) => {
         console.log('[DEBUG-INVOICE-EMAIL] sendInvoiceEmail függvény típusa:', typeof sendInvoiceEmail);
         console.log('[DEBUG-INVOICE-EMAIL] sendInvoiceEmail függvény:', sendInvoiceEmail ? 'Létezik' : 'Nem létezik');
 
-        // E-mail küldése az új invoiceEmailService használatával
-        console.log('[DEBUG-INVOICE-EMAIL] E-mail küldés megkezdése...');
-        console.log('[DEBUG-INVOICE-EMAIL] invoiceEmailService objektum:', {
-          type: typeof invoiceEmailService,
-          keys: Object.keys(invoiceEmailService),
-          sendInvoiceEmail: typeof invoiceEmailService.sendInvoiceEmail
-        });
+        // E-mail küldése a projectShareEmailService használatával
+        console.log('[DEBUG-INVOICE-EMAIL] E-mail küldés megkezdése a projectShareEmailService-szel...');
 
-        // Közvetlenül az invoiceEmailService objektumot használjuk
-        const emailResult = await invoiceEmailService.sendInvoiceEmail(invoice, project, emailLanguage);
+        // Létrehozunk egy speciális számla tárgyat a projectShareEmailService számára
+        // A projectShareEmailService a project.name, project.client.email és a shareLink, pin paramétereket használja
+        const invoiceSubject = `Számla: ${invoice.number} - ${project.name}`;
+        const invoiceDetails = `Számla száma: ${invoice.number}\nKiállítás dátuma: ${new Date(invoice.date).toLocaleDateString()}\nÖsszeg: ${invoice.totalAmount} ${project.financial?.currency || 'EUR'}`;
+
+        // A projectShareEmailService-t használjuk, de a számla adatokkal
+        const emailResult = await sendProjectShareEmail(
+          project,                // projekt adatok
+          project.sharing?.link || 'https://project.nb-studio.net', // link a projekthez
+          invoiceDetails,         // PIN helyett a számla részletei
+          emailLanguage,          // nyelv
+          invoiceSubject          // opcionális tárgy felülírása
+        );
 
         console.log('[DEBUG-INVOICE-EMAIL] Számla e-mail küldés eredménye:', emailResult);
 
