@@ -97,13 +97,7 @@ const Navigation = () => {
         { path: "/support", label: "Support Ticketek", icon: <MessageCircle size={16} /> }
       ]
     },
-    {
-      category: "Rendszer",
-      icon: <Settings size={18} />,
-      items: [
-        { path: "/settings", label: "Beállítások", icon: <Settings size={16} /> }
-      ]
-    }
+    // Rendszer menüpont eltávolítva
   ];
 
   // Ellenőrzi, hogy az adott útvonal aktív-e
@@ -240,11 +234,11 @@ const Navigation = () => {
                 <HelpCircle size={20} />
               </Link>
 
-              {/* Beállítások */}
+              {/* Gyorselérési gombok */}
               <Link
                 to="/settings"
                 className="p-2 text-gray-300 hover:text-white hover:bg-gray-700 rounded-md transition-colors"
-                title="Beállítások"
+                title="Gyorselérési gombok"
               >
                 <Settings size={20} />
               </Link>
