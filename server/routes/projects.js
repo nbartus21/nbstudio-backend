@@ -1,6 +1,7 @@
 import express from 'express';
 import Project from '../models/Project.js';
 import { v4 as uuidv4 } from 'uuid';
+import { sendProjectShareEmail } from '../services/projectShareEmailService.js';
 import Notification from '../models/Notification.js';
 import { S3Client } from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
@@ -336,24 +337,42 @@ router.delete('/projects/:id', async (req, res) => {
 // Megosztási link generálása PIN kóddal
 router.post('/projects/:id/share', async (req, res) => {
   try {
+    console.log('[DEBUG] Projekt megosztási kérés érkezett:', {
+      projektId: req.params.id,
+      body: req.body
+    });
+
     const project = await Project.findById(req.params.id);
     if (!project) {
+      console.log('[DEBUG] Projekt nem található:', req.params.id);
       return res.status(404).json({ message: 'Projekt nem található' });
     }
+
+    console.log('[DEBUG] Projekt megtalálva:', {
+      projektId: project._id,
+      projektNév: project.name,
+      ügyfélNév: project.client?.name,
+      ügyfélEmail: project.client?.email
+    });
 
     // Lejárati dátum feldolgozása
     const expiresAt = req.body.expiresAt
       ? new Date(req.body.expiresAt)
       : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 nap alapértelmezetten
 
+    console.log('[DEBUG] Lejárati dátum:', expiresAt);
+
     // 6 jegyű PIN kód generálása
     const pin = Math.floor(100000 + Math.random() * 900000).toString();
+    console.log('[DEBUG] Generált PIN kód:', pin);
 
     // Token generálása
     const shareToken = uuidv4();
+    console.log('[DEBUG] Generált token:', shareToken);
 
     // Megosztási link generálása - MÓDOSÍTVA, új domain-t használ
     const shareLink = `https://project.nb-studio.net/shared-project/${shareToken}`;
+    console.log('[DEBUG] Megosztási link:', shareLink);
 
     // Megosztási adatok mentése
     project.sharing = {
@@ -364,15 +383,55 @@ router.post('/projects/:id/share', async (req, res) => {
       createdAt: new Date()
     };
 
+    console.log('[DEBUG] Projekt mentése a megosztási adatokkal...');
     await project.save();
+    console.log('[DEBUG] Projekt sikeresen mentve a megosztási adatokkal');
 
-    res.status(200).json({
+    // Ellenőrizzük, hogy kell-e e-mailt küldeni
+    const sendEmail = req.body.sendEmail !== false; // Alapértelmezetten küldünk e-mailt, hacsak explicit nem tiltják
+    const emailLanguage = req.body.language || 'hu'; // Alapértelmezett nyelv: magyar
+
+    console.log('[DEBUG] E-mail küldési beállítások:', {
+      sendEmail,
+      emailLanguage,
+      hasClientEmail: Boolean(project.client?.email)
+    });
+
+    // Ha kell e-mailt küldeni és van ügyfél e-mail cím
+    if (sendEmail && project.client && project.client.email) {
+      console.log('[DEBUG] E-mail küldés megkezdése az ügyfélnek:', project.client.email);
+      try {
+        // E-mail küldése az ügyfélnek
+        const emailResult = await sendProjectShareEmail(project, shareLink, pin, emailLanguage);
+        console.log('[DEBUG] Projekt megosztás e-mail küldés eredménye:', emailResult);
+      } catch (emailError) {
+        console.error('[DEBUG] Hiba a projekt megosztás e-mail küldésekor, de folytatjuk:', {
+          error: emailError.message,
+          stack: emailError.stack,
+          code: emailError.code
+        });
+        // Folytatjuk a kódot hiba esetén is, hogy a megosztás működjön akkor is, ha az e-mail küldés nem sikerül
+      }
+    } else {
+      console.log('[DEBUG] E-mail küldés kihagyása:', {
+        sendEmail,
+        hasClient: Boolean(project.client),
+        clientEmail: project.client?.email
+      });
+    }
+
+    console.log('[DEBUG] Válasz küldése a kliensnek...');
+    const response = {
       shareLink,
       pin,
       expiresAt,
-      createdAt: project.sharing.createdAt
-    });
+      createdAt: project.sharing.createdAt,
+      emailSent: sendEmail && project.client && project.client.email
+    };
+    console.log('[DEBUG] Válasz adatok:', response);
+    res.status(200).json(response);
   } catch (error) {
+    console.error('Hiba a projekt megosztása során:', error);
     res.status(500).json({ message: 'Szerver hiba történt', error: error.message });
   }
 });
