@@ -90,14 +90,6 @@ router.delete('/s3-files/:key', async (req, res) => {
   }
 });
 
-// Fájlok lekérése (régi végpont, megtartjuk a kompatibilitás miatt)
-router.get('/files', async (req, res) => {
-  try {
-    // Mivel nincs még fájl adatbázis, visszaadunk egy üres tömböt
-    res.json([]);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
+// Fájlok lekérése végpont eltávolítva
 
 export default router;
