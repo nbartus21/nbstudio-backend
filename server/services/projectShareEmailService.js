@@ -76,7 +76,7 @@ const generateEmailTemplate = (project, shareLink, pin, language = 'hu', customS
   let accessInfo = 'Az alábbi linken és PIN kóddal férhet hozzá a projekthez:';
   let linkText = 'Projekt megtekintése';
   let pinInfo = `PIN kód: ${pin}`;
-  let validUntil = project.sharing.expiresAt
+  let validUntil = project.sharing && project.sharing.expiresAt
     ? `A hozzáférés érvényes: ${new Date(project.sharing.expiresAt).toLocaleDateString('hu-HU')}-ig`
     : 'A hozzáférés korlátlan ideig érvényes.';
   let helpText = 'Ha kérdése van, kérjük, vegye fel a kapcsolatot velünk.';
@@ -91,7 +91,7 @@ const generateEmailTemplate = (project, shareLink, pin, language = 'hu', customS
     accessInfo = 'You can access the project using the following link and PIN code:';
     linkText = 'View Project';
     pinInfo = `PIN code: ${pin}`;
-    validUntil = project.sharing.expiresAt
+    validUntil = project.sharing && project.sharing.expiresAt
       ? `Access valid until: ${new Date(project.sharing.expiresAt).toLocaleDateString('en-US')}`
       : 'Access is valid indefinitely.';
     helpText = 'If you have any questions, please contact us.';
@@ -107,7 +107,7 @@ const generateEmailTemplate = (project, shareLink, pin, language = 'hu', customS
     accessInfo = 'Sie können mit dem folgenden Link und PIN-Code auf das Projekt zugreifen:';
     linkText = 'Projekt ansehen';
     pinInfo = `PIN-Code: ${pin}`;
-    validUntil = project.sharing.expiresAt
+    validUntil = project.sharing && project.sharing.expiresAt
       ? `Zugang gültig bis: ${new Date(project.sharing.expiresAt).toLocaleDateString('de-DE')}`
       : 'Der Zugang ist unbegrenzt gültig.';
     helpText = 'Bei Fragen kontaktieren Sie uns bitte.';
