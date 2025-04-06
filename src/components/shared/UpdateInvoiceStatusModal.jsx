@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { 
-  CheckCircle, XCircle, AlertCircle, Calendar, FileText, 
-  DollarSign, X 
+import {
+  CheckCircle, XCircle, AlertCircle, Calendar, FileText,
+  DollarSign, X, Loader
 } from 'lucide-react';
 import { formatShortDate, debugLog } from './utils';
 
@@ -23,6 +23,7 @@ const translations = {
     warning: "Warning! The paid amount is less than the total invoice amount.",
     cancel: "Cancel",
     save: "Save",
+    saving: "Saving...",
     statusDescriptions: {
       issued: "The invoice has been issued but not paid yet",
       paid: "The invoice has been fully paid",
@@ -52,6 +53,7 @@ const translations = {
     warning: "Achtung! Der bezahlte Betrag ist geringer als der Gesamtrechnungsbetrag.",
     cancel: "Abbrechen",
     save: "Speichern",
+    saving: "Speichern...",
     statusDescriptions: {
       issued: "Die Rechnung wurde ausgestellt, aber noch nicht bezahlt",
       paid: "Die Rechnung wurde vollständig bezahlt",
@@ -81,6 +83,7 @@ const translations = {
     warning: "Figyelem! A fizetett összeg kevesebb, mint a számla teljes összege.",
     cancel: "Mégse",
     save: "Mentés",
+    saving: "Mentés...",
     statusDescriptions: {
       issued: "A számla ki lett állítva, de még nem fizették ki",
       paid: "A számla teljes összege ki lett fizetve",
@@ -119,8 +122,8 @@ const statusMapping = {
 };
 
 const UpdateInvoiceStatusModal = ({ invoice, onClose, onUpdateStatus, language = 'hu' }) => {
-  debugLog('UpdateInvoiceStatusModal', 'Rendering invoice status update modal', { 
-    invoiceNumber: invoice?.number, 
+  debugLog('UpdateInvoiceStatusModal', 'Rendering invoice status update modal', {
+    invoiceNumber: invoice?.number,
     invoiceStatus: invoice?.status,
     language: language
   });
@@ -138,7 +141,7 @@ const UpdateInvoiceStatusModal = ({ invoice, onClose, onUpdateStatus, language =
   // Get the current status key (needed for setting initial selected status)
   const getCurrentStatusKey = () => {
     if (!invoice || !invoice.status) return 'issued';
-    
+
     // Find the key for the current status value
     for (const [key, value] of Object.entries(statusMap)) {
       if (value === invoice.status) {
@@ -151,39 +154,40 @@ const UpdateInvoiceStatusModal = ({ invoice, onClose, onUpdateStatus, language =
   const [selectedStatusKey, setSelectedStatusKey] = useState(getCurrentStatusKey());
   const [paidAmount, setPaidAmount] = useState(invoice?.totalAmount || 0);
   const [paidDate, setPaidDate] = useState(
-    invoice?.paidDate 
+    invoice?.paidDate
       ? new Date(invoice.paidDate).toISOString().split('T')[0]
       : new Date().toISOString().split('T')[0]
   );
   const [notes, setNotes] = useState(invoice?.notes || '');
+  const [isSaving, setIsSaving] = useState(false);
 
   // Státuszok és azok tulajdonságai
   const statuses = [
-    { 
-      id: 'issued', 
-      name: t.statusNames.issued, 
-      icon: FileText, 
+    {
+      id: 'issued',
+      name: t.statusNames.issued,
+      icon: FileText,
       color: 'blue',
       description: t.statusDescriptions.issued
     },
-    { 
-      id: 'paid', 
-      name: t.statusNames.paid, 
-      icon: CheckCircle, 
+    {
+      id: 'paid',
+      name: t.statusNames.paid,
+      icon: CheckCircle,
       color: 'green',
       description: t.statusDescriptions.paid
     },
-    { 
-      id: 'overdue', 
-      name: t.statusNames.overdue, 
-      icon: AlertCircle, 
+    {
+      id: 'overdue',
+      name: t.statusNames.overdue,
+      icon: AlertCircle,
       color: 'red',
       description: t.statusDescriptions.overdue
     },
-    { 
-      id: 'canceled', 
-      name: t.statusNames.canceled, 
-      icon: XCircle, 
+    {
+      id: 'canceled',
+      name: t.statusNames.canceled,
+      icon: XCircle,
       color: 'gray',
       description: t.statusDescriptions.canceled
     }
@@ -193,31 +197,44 @@ const UpdateInvoiceStatusModal = ({ invoice, onClose, onUpdateStatus, language =
   const selectedStatusInfo = statuses.find(s => s.id === selectedStatusKey);
 
   // Mentés kezelése
-  const handleSave = () => {
+  const handleSave = async () => {
+    // Betöltési állapot beállítása
+    setIsSaving(true);
+
     // Convert from UI status key to backend status value
     const backendStatus = statusMap[selectedStatusKey];
-    
+
     const updateData = { status: backendStatus };
-    
+
     // Ha fizetett státuszra állítjuk, akkor beállítjuk a fizetett összeget és dátumot
     if (selectedStatusKey === 'paid') {
       updateData.paidAmount = parseFloat(paidAmount);
       updateData.paidDate = paidDate;
     }
-    
+
     // Ha van megjegyzés, azt is hozzáadjuk
     if (notes) {
       updateData.notes = notes;
     }
-    
+
     // Mentés előtt naplózzuk az adatokat
     console.log('Számla frissítési adatok:', {
       invoiceId: invoice._id,
       newStatus: backendStatus,
       updateData: updateData
     });
-    
-    onUpdateStatus(invoice, backendStatus, updateData);
+
+    try {
+      // Meghívjuk a frissítési függvényt
+      await onUpdateStatus(invoice, backendStatus, updateData);
+
+      // Sikeres mentés esetén bezárjuk a modalt
+      // A betöltési állapotot nem állítjuk vissza, mert a modal bezáródik
+    } catch (error) {
+      console.error('Hiba a számla státuszának frissítésekor:', error);
+      // Hiba esetén visszaállítjuk a betöltési állapotot
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -232,7 +249,7 @@ const UpdateInvoiceStatusModal = ({ invoice, onClose, onUpdateStatus, language =
             <X className="h-5 w-5" />
           </button>
         </div>
-        
+
         <div className="space-y-4">
           {/* Számla alapadatok */}
           <div className="bg-gray-50 p-3 rounded-lg">
@@ -255,7 +272,7 @@ const UpdateInvoiceStatusModal = ({ invoice, onClose, onUpdateStatus, language =
               </div>
             </div>
           </div>
-          
+
           {/* Jelenlegi státusz */}
           <div>
             <p className="text-sm text-gray-500 mb-1">{t.currentStatus}</p>
@@ -267,7 +284,7 @@ const UpdateInvoiceStatusModal = ({ invoice, onClose, onUpdateStatus, language =
               <span className="font-medium">{invoice.status}</span>
             </div>
           </div>
-          
+
           {/* Új státusz kiválasztása */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -293,7 +310,7 @@ const UpdateInvoiceStatusModal = ({ invoice, onClose, onUpdateStatus, language =
                 );
               })}
             </div>
-            
+
             {/* Kiválasztott státusz leírása */}
             {selectedStatusInfo && (
               <p className="mt-2 text-sm text-gray-500">
@@ -301,12 +318,12 @@ const UpdateInvoiceStatusModal = ({ invoice, onClose, onUpdateStatus, language =
               </p>
             )}
           </div>
-          
+
           {/* Kiegészítő mezők a fizetett státuszhoz */}
           {selectedStatusKey === 'paid' && (
             <div className="border-t border-gray-200 pt-4 mt-4">
               <h4 className="text-sm font-medium text-gray-700 mb-3">{t.paymentDetails}</h4>
-              
+
               <div className="space-y-3">
                 <div>
                   <label htmlFor="paidAmount" className="block text-sm text-gray-700 mb-1">
@@ -335,7 +352,7 @@ const UpdateInvoiceStatusModal = ({ invoice, onClose, onUpdateStatus, language =
                     </p>
                   )}
                 </div>
-                
+
                 <div>
                   <label htmlFor="paidDate" className="block text-sm text-gray-700 mb-1">
                     {t.paymentDate}
@@ -356,7 +373,7 @@ const UpdateInvoiceStatusModal = ({ invoice, onClose, onUpdateStatus, language =
               </div>
             </div>
           )}
-          
+
           {/* Megjegyzések */}
           <div>
             <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-1">
@@ -372,7 +389,7 @@ const UpdateInvoiceStatusModal = ({ invoice, onClose, onUpdateStatus, language =
             ></textarea>
           </div>
         </div>
-        
+
         <div className="flex justify-end gap-2 mt-6">
           <button
             type="button"
@@ -384,9 +401,11 @@ const UpdateInvoiceStatusModal = ({ invoice, onClose, onUpdateStatus, language =
           <button
             type="button"
             onClick={handleSave}
-            className="px-4 py-2 rounded-md shadow-sm text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 bg-indigo-600 hover:bg-indigo-700"
+            disabled={isSaving}
+            className={`flex items-center justify-center gap-2 px-4 py-2 rounded-md shadow-sm text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${isSaving ? 'bg-indigo-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'}`}
           >
-            {t.save}
+            {isSaving && <Loader className="animate-spin h-4 w-4" />}
+            {isSaving ? t.saving : t.save}
           </button>
         </div>
       </div>

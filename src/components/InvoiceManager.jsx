@@ -124,6 +124,23 @@ const InvoiceManager = () => {
       console.log('Küldés előtti updateData:', updateData);
       console.log('API végpont:', `/api/projects/${projectId}/invoices/${invoiceId}`);
 
+      // Azonnali UI frissítés a felhasználói élmény javításához
+      // Optimista frissítés - feltételezzük, hogy sikeres lesz a kérés
+      setInvoices(prevInvoices =>
+        prevInvoices.map(inv =>
+          inv._id === invoiceId ? { ...inv, ...updateData, status: newStatus } : inv
+        )
+      );
+
+      setFilteredInvoices(prevInvoices =>
+        prevInvoices.map(inv =>
+          inv._id === invoiceId ? { ...inv, ...updateData, status: newStatus } : inv
+        )
+      );
+
+      // Modal bezárása az azonnali visszajelzés érdekében
+      setSelectedInvoice(null);
+
       // Próbáljuk meg a PATCH végpontot, amely a részleges frissítésre való
       let response;
       try {
@@ -226,6 +243,10 @@ const InvoiceManager = () => {
     } catch (err) {
       console.error('Hiba a számla státuszának frissítésekor:', err);
       setError(`Nem sikerült frissíteni a számla státuszát: ${err.message}`);
+
+      // Hiba esetén azonnal újratöltjük a számlákat a szerverről
+      // hogy biztos a helyes állapot jelenjen meg
+      fetchInvoices();
     }
   };
 
