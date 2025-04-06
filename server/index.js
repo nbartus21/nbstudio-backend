@@ -196,8 +196,9 @@ app.use((req, res, next) => {
 });
 
 app.use(cors(corsOptions));
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+// Növeljük a maximális kérés méretet 100MB-ra, hogy nagyobb fájlokat is lehessen feltölteni
+app.use(express.json({ limit: '100mb' }));
+app.use(express.urlencoded({ extended: true, limit: '100mb' }));
 
 // API Key validation middleware
 const validateApiKey = (req, res, next) => {
@@ -608,7 +609,20 @@ app.get('/api/public/shared-projects/:token/files', validateApiKey, async (req, 
 });
 
 // Közvetlen végpont a megosztott projektekhez tartozó fájlok feltöltéséhez
+// Növelt méretkorláttal a nagy fájlok kezeléséhez
 app.post('/api/public/shared-projects/:token/files', validateApiKey, async (req, res) => {
+  // Hibaüzenetek ellenőrzése a kérés méretével kapcsolatban
+  if (req.headers['content-length'] && parseInt(req.headers['content-length']) > 100 * 1024 * 1024) {
+    console.error('Túl nagy fájl feltöltési kísérlet:', {
+      contentLength: req.headers['content-length'],
+      maxAllowed: '100MB'
+    });
+    return res.status(413).json({
+      message: 'Something went wrong!',
+      error: 'request entity too large',
+      maxSize: '100MB'
+    });
+  }
   try {
     const { token } = req.params;
     const fileData = req.body;
@@ -1319,9 +1333,9 @@ function setupProjectDomain() {
   // Create a separate Express app for project.nb-studio.net
   const projectApp = express();
 
-  // Alkalmazzuk a body parser-t a projekt alkalmazáshoz is
-  projectApp.use(express.json({ limit: '50mb' }));
-  projectApp.use(express.urlencoded({ extended: true, limit: '50mb' }));
+  // Alkalmazzuk a body parser-t a projekt alkalmazáshoz is, növelt méretkorláttal
+  projectApp.use(express.json({ limit: '100mb' }));
+  projectApp.use(express.urlencoded({ extended: true, limit: '100mb' }));
 
   // Apply CORS settings for project app
   projectApp.use(cors({

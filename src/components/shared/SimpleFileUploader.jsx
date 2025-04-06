@@ -20,7 +20,8 @@ const translations = {
     tipProjectName: "Uploaded files will automatically start with the project name",
     tipMultiple: "You can upload multiple files at once",
     tipSecure: "Uploaded files are stored securely",
-    tipTypes: "Supported file types: documents, images, PDFs, etc."
+    tipTypes: "Supported file types: documents, images, PDFs, etc.",
+    tipSize: "Maximum file size: 100MB"
   },
   de: {
     uploadTitle: "Dateien hochladen",
@@ -38,6 +39,7 @@ const translations = {
     tipProjectName: "Hochgeladene Dateien beginnen automatisch mit dem Projektnamen",
     tipMultiple: "Sie können mehrere Dateien gleichzeitig hochladen",
     tipSecure: "Hochgeladene Dateien werden sicher gespeichert",
+    tipSize: "Maximale Dateigröße: 100MB",
     tipTypes: "Unterstützte Dateitypen: Dokumente, Bilder, PDFs, usw."
   },
   hu: {
@@ -56,7 +58,8 @@ const translations = {
     tipProjectName: "A feltöltött fájlok automatikusan a projekt nevével kezdődnek",
     tipMultiple: "Egyszerre több fájlt is feltölthet",
     tipSecure: "A feltöltött fájlok biztonságosan tárolódnak",
-    tipTypes: "Támogatott fájltípusok: dokumentumok, képek, PDF-ek, stb."
+    tipTypes: "Támogatott fájltípusok: dokumentumok, képek, PDF-ek, stb.",
+    tipSize: "Maximális fájlméret: 100MB"
   }
 };
 
@@ -127,10 +130,22 @@ const SimpleFileUploader = ({
       return;
     }
 
+    // Fájl méret ellenőrzése - maximum 100MB
+    const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB bytes-ban
+    const files = Array.from(event.target.files);
+
+    // Ellenőrizzük, hogy van-e túl nagy fájl
+    const oversizedFiles = files.filter(file => file.size > MAX_FILE_SIZE);
+    if (oversizedFiles.length > 0) {
+      const fileNames = oversizedFiles.map(f => f.name).join(', ');
+      debugLog('handleFileUpload', `Files too large: ${fileNames}`);
+      showErrorMessage(`A következő fájlok túl nagyok (max. 100MB): ${fileNames}`);
+      return;
+    }
+
     const projectToken = project.sharing.token;
 
     setIsUploading(true);
-    const files = Array.from(event.target.files);
     setTotalFiles(files.length);
     setCurrentFileIndex(0);
 
@@ -280,6 +295,7 @@ const SimpleFileUploader = ({
                 <li>{t.tipMultiple}</li>
                 <li>{t.tipSecure}</li>
                 <li>{t.tipTypes}</li>
+                <li>{t.tipSize}</li>
               </ul>
             </div>
           </div>
