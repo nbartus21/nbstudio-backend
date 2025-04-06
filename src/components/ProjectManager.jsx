@@ -169,10 +169,15 @@ const ProjectManager = () => {
   };
 
   // Generate share link
-  const generateShareLink = async (projectId) => {
+  const generateShareLink = async (projectId, options = {}) => {
     try {
+      // Opciók kinyerése
+      const { sendEmail = true, language = 'hu' } = options;
+
       const response = await api.post(`${API_URL}/projects/${projectId}/share`, {
-        expiresAt: expiryDate
+        expiresAt: expiryDate,
+        sendEmail,
+        language
       });
 
       if (!response.ok) {
@@ -196,7 +201,15 @@ const ProjectManager = () => {
       }));
 
       setError(null);
-      showSuccessMessage('Megosztási link sikeresen létrehozva');
+
+      // Sikereségi üzenet az e-mail küldés állapotával
+      if (data.emailSent) {
+        showSuccessMessage('Megosztási link sikeresen létrehozva és e-mail küldve az ügyfélnek');
+      } else if (sendEmail) {
+        showSuccessMessage('Megosztási link sikeresen létrehozva, de az e-mail küldés nem sikerült');
+      } else {
+        showSuccessMessage('Megosztási link sikeresen létrehozva');
+      }
     } catch (error) {
       console.error('Hiba a megosztási link generálásakor:', error);
       setError('Nem sikerült létrehozni a megosztási linket');
@@ -738,10 +751,11 @@ const ProjectManager = () => {
             setShowShareModal(null);
             setExpiryDate('');
           }}
-          onGenerate={() => {
-            generateShareLink(showShareModal);
+          onGenerate={(options) => {
+            generateShareLink(showShareModal, options);
             setShowShareModal(null);
           }}
+          project={projects.find(p => p._id === showShareModal)}
         />
       )}
 
