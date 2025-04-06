@@ -27,8 +27,7 @@ import contactRoutes from './routes/contacts.js';
 import calculatorRoutes from './routes/calculators.js';
 import projectRoutes from './routes/projects.js';
 import domainRoutes from './routes/domains.js';
-import serverRoutes from './routes/servers.js';
-import licenseRoutes from './routes/licenses.js';
+// Eltávolítva: serverRoutes, licenseRoutes
 import authRoutes from './routes/auth.js';
 import notificationRoutes from './routes/notifications.js';
 import accountingRoutes from './routes/accounting.js';
@@ -1269,8 +1268,7 @@ app.use('/api', contactRoutes);
 app.use('/api', calculatorRoutes);
 app.use('/api', projectRoutes);
 app.use('/api', domainRoutes);
-app.use('/api', serverRoutes);
-app.use('/api', licenseRoutes);
+// Eltávolítva: serverRoutes, licenseRoutes
 app.use('/api', notificationRoutes);
 app.use('/api/accounting', accountingRoutes);
 app.use('/api', hostingRoutes);

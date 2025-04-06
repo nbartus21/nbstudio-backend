@@ -1,8 +1,7 @@
 import express from 'express';
 import Accounting from '../models/Accounting.js';
 import Project from '../models/Project.js';
-import Server from '../models/Server.js';
-import License from '../models/License.js';
+// Eltávolítva: Server, License modellek
 import authMiddleware from '../middleware/auth.js';
 
 const router = express.Router();
@@ -29,9 +28,8 @@ router.get('/transactions', async (req, res) => {
 
     const transactions = await Accounting.find(query)
       .sort({ date: -1 })
-      .populate('projectId', 'name')
-      .populate('serverId', 'name')
-      .populate('licenseId', 'name');
+      .populate('projectId', 'name');
+      // Eltávolítva: serverId és licenseId populálása
 
     res.json(transactions);
   } catch (error) {
@@ -147,63 +145,7 @@ router.get('/statistics', async (req, res) => {
 // Automatikus költségek szinkronizálása
 router.post('/sync', async (req, res) => {
   try {
-    // Szerverek költségeinek szinkronizálása
-    const servers = await Server.find();
-    for (const server of servers) {
-      const existingCost = await Accounting.findOne({
-        serverId: server._id,
-        type: 'expense',
-        category: 'server_cost',
-        date: { $gte: new Date().setDate(1) } // Aktuális hónap kezdete
-      });
-
-      if (!existingCost && server.costs?.monthly) {
-        await Accounting.create({
-          type: 'expense',
-          category: 'server_cost',
-          amount: server.costs.monthly,
-          currency: server.costs.currency || 'EUR',
-          date: new Date(),
-          description: `${server.name} szerver havi költség`,
-          serverId: server._id,
-          isRecurring: true,
-          recurringInterval: 'monthly',
-          nextRecurringDate: new Date().setMonth(new Date().getMonth() + 1),
-          taxDeductible: true,
-          taxCategory: 'infrastructure'
-        });
-      }
-    }
-
-    // Licenszek költségeinek szinkronizálása
-    const licenses = await License.find();
-    for (const license of licenses) {
-      if (!license.renewal?.cost) continue;
-
-      const existingCost = await Accounting.findOne({
-        licenseId: license._id,
-        type: 'expense',
-        category: 'license_cost',
-        date: { $gte: new Date(license.renewal.nextRenewalDate).setDate(1) }
-      });
-
-      if (!existingCost) {
-        await Accounting.create({
-          type: 'expense',
-          category: 'license_cost',
-          amount: license.renewal.cost,
-          currency: 'EUR',
-          date: new Date(license.renewal.nextRenewalDate),
-          description: `${license.name} licensz megújítás`,
-          licenseId: license._id,
-          isRecurring: true,
-          recurringInterval: license.renewal.type === 'subscription' ? 'monthly' : 'yearly',
-          nextRecurringDate: new Date(license.renewal.nextRenewalDate),
-          taxDeductible: true,
-          taxCategory: 'software'
-        });
-      }
-    }
+    // Szerverek és licenszek költségeinek szinkronizálása - eltávolítva
 
     // Projekt számlák szinkronizálása
     const projects = await Project.find({ 'invoices.0': { $exists: true } });
