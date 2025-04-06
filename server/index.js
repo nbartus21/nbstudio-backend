@@ -47,6 +47,9 @@ import partnersRouter from './routes/partners.js';
 import webPagesRouter from './routes/webpages.js';
 import settingsRouter from './routes/settings.js';
 
+// Import test email send function
+import testEmailSend from './testEmailSend.js';
+
 // Import middleware
 import authMiddleware from './middleware/auth.js';
 
@@ -1611,6 +1614,22 @@ mongoose.connect(process.env.MONGO_URI)
       const serverStartedFilePath = path.join(process.cwd(), 'api-server-started.txt');
       fs.writeFileSync(serverStartedFilePath, `API szerver indítása sikeres: ${new Date().toISOString()}\n`, { flag: 'a' });
       console.log('Fájl sikeresen írva a szerver indítása után:', serverStartedFilePath);
+
+      // Teszt e-mail küldése a szerver indításakor
+      console.log('Teszt e-mail küldés indítása...');
+      testEmailSend()
+        .then(result => {
+          console.log('Teszt e-mail küldés eredménye:', result);
+          fs.writeFileSync(path.join(process.cwd(), 'test-email-result.txt'),
+            `Teszt e-mail küldés eredménye: ${JSON.stringify(result)}\n${new Date().toISOString()}\n`,
+            { flag: 'a' });
+        })
+        .catch(error => {
+          console.error('Teszt e-mail küldés hiba:', error);
+          fs.writeFileSync(path.join(process.cwd(), 'test-email-error.txt'),
+            `Teszt e-mail küldés hiba: ${error.message}\n${new Date().toISOString()}\n`,
+            { flag: 'a' });
+        });
     });
 
     // Start HTTP server for Socket.IO
