@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Bell, X, AlertTriangle, Info, Server, Calendar, FileText, Clock, Database, Globe, MessageCircle, Mail } from 'lucide-react';
+import { Bell, X, AlertTriangle, Info, Calendar, FileText, Clock, Database, Globe, MessageCircle, Mail } from 'lucide-react';
+// Eltávolítva: Server
 import { api } from '../services/auth';
 import { useNavigate } from 'react-router-dom';
 
@@ -13,10 +14,10 @@ const NotificationsManager = () => {
   const dropdownRef = useRef(null);
 
   const API_URL = 'https://admin.nb-studio.net:5001/api';
-  
+
   // Használjuk a localStorage-t az elolvasott értesítések tárolására
   const readNotificationsKey = 'readNotifications';
-  
+
   useEffect(() => {
     // Click-en-kívül kezelő
     const handleClickOutside = (event) => {
@@ -46,16 +47,16 @@ const NotificationsManager = () => {
   const fetchAllNotifications = async () => {
     try {
       setLoading(true);
-      const [contacts, calculators, domains, servers, licenses, projects, files, comments] = await Promise.all([
+      const [contacts, calculators, domains, projects, files, comments] = await Promise.all([
         api.get(`${API_URL}/contacts`).then(res => res.json()),
         api.get(`${API_URL}/calculators`).then(res => res.json()),
         api.get(`${API_URL}/domains`).then(res => res.json()),
-        api.get(`${API_URL}/servers`).then(res => res.json()),
-        api.get(`${API_URL}/licenses`).then(res => res.json()),
         api.get(`${API_URL}/projects`).then(res => res.json()),
         api.get(`${API_URL}/files`).then(res => res.json()).catch(() => []),
         api.get(`${API_URL}/comments`).then(res => res.json()).catch(() => [])
       ]);
+
+      // Eltávolítva: servers, licenses
 
       const readNotifications = getReadNotifications();
       const newNotifications = [];
@@ -106,7 +107,7 @@ const NotificationsManager = () => {
           const daysUntilExpiry = Math.ceil(
             (new Date(domain.expiryDate) - new Date()) / (1000 * 60 * 60 * 24)
           );
-          
+
           if (daysUntilExpiry <= 30 && daysUntilExpiry > 0) {
             const notificationId = `domain_${domain._id}_${daysUntilExpiry}`;
             if (!readNotifications.includes(notificationId)) {
@@ -124,51 +125,9 @@ const NotificationsManager = () => {
         });
       }
 
-      // Szerver státusz értesítések
-      if (Array.isArray(servers)) {
-        servers.forEach(server => {
-          if (server.status === 'maintenance' || server.status === 'offline') {
-            const notificationId = `server_${server._id}_${server.status}`;
-            if (!readNotifications.includes(notificationId)) {
-              newNotifications.push({
-                _id: notificationId,
-                title: 'Szerver probléma',
-                message: `A ${server.name} szerver ${server.status === 'maintenance' ? 'karbantartás alatt' : 'offline'}`,
-                severity: 'error',
-                createdAt: server.updatedAt,
-                type: 'server',
-                link: '/infrastructure'
-              });
-            }
-          }
-        });
-      }
+      // Szerver státusz értesítések - eltávolítva
 
-      // Licensz értesítések
-      if (Array.isArray(licenses)) {
-        licenses.forEach(license => {
-          if (license.renewal?.nextRenewalDate) {
-            const daysUntilRenewal = Math.ceil(
-              (new Date(license.renewal.nextRenewalDate) - new Date()) / (1000 * 60 * 60 * 24)
-            );
-            
-            if (daysUntilRenewal <= 30 && daysUntilRenewal > 0) {
-              const notificationId = `license_${license._id}_${daysUntilRenewal}`;
-              if (!readNotifications.includes(notificationId)) {
-                newNotifications.push({
-                  _id: notificationId,
-                  title: 'Licensz megújítás',
-                  message: `A ${license.name} licensz ${daysUntilRenewal} nap múlva lejár`,
-                  severity: daysUntilRenewal <= 7 ? 'warning' : 'info',
-                  createdAt: new Date().toISOString(),
-                  type: 'license',
-                  link: '/infrastructure'
-                });
-              }
-            }
-          }
-        });
-      }
+      // Licensz értesítések - eltávolítva
 
       // Projekt értesítések
       if (Array.isArray(projects)) {
@@ -176,16 +135,16 @@ const NotificationsManager = () => {
           const hasDelayedMilestones = (project.milestones || []).some(
             milestone => milestone.status === 'késedelmes'
           );
-          
+
           if (project.priority === 'magas' || hasDelayedMilestones) {
             const notificationType = hasDelayedMilestones ? 'delayed' : 'priority';
             const notificationId = `project_${project._id}_${notificationType}`;
-            
+
             if (!readNotifications.includes(notificationId)) {
               newNotifications.push({
                 _id: notificationId,
                 title: 'Sürgős projekt',
-                message: hasDelayedMilestones 
+                message: hasDelayedMilestones
                   ? `A "${project.name}" projektben késésben lévő milestone-ok vannak`
                   : `A "${project.name}" projekt magas prioritású`,
                 severity: 'warning',
@@ -203,7 +162,7 @@ const NotificationsManager = () => {
         // Csak az utolsó 24 órában feltöltött fájlokat nézzük
         const oneDayAgo = new Date();
         oneDayAgo.setDate(oneDayAgo.getDate() - 1);
-        
+
         files
           .filter(file => new Date(file.uploadedAt) > oneDayAgo)
           .forEach(file => {
@@ -227,7 +186,7 @@ const NotificationsManager = () => {
         // Csak az utolsó 24 órában írt hozzászólásokat nézzük
         const oneDayAgo = new Date();
         oneDayAgo.setDate(oneDayAgo.getDate() - 1);
-        
+
         comments
           .filter(comment => new Date(comment.timestamp) > oneDayAgo)
           .forEach(comment => {
@@ -248,11 +207,11 @@ const NotificationsManager = () => {
 
       // Rendezés dátum szerint
       newNotifications.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-      
+
       // Értesítések mentése és számolása
       setNotifications(newNotifications);
       setUnreadCount(newNotifications.length);
-      
+
       // Értesítés küldése böngészőben, ha új értesítés érkezett
       if (newNotifications.length > 0 && 'Notification' in window && Notification.permission === 'granted') {
         const latestNotification = newNotifications[0];
@@ -275,7 +234,7 @@ const NotificationsManager = () => {
     fetchAllNotifications();
     // Support ticket értesítések lekérése
     fetchSupportTicketNotifications();
-    
+
     const interval = setInterval(() => {
       fetchAllNotifications();
       fetchSupportTicketNotifications();
@@ -300,7 +259,7 @@ const NotificationsManager = () => {
       }
     });
     localStorage.setItem(readNotificationsKey, JSON.stringify(readNotifications));
-    
+
     // Értesítések törlése a megjelenítésből
     setNotifications([]);
     setUnreadCount(0);
@@ -314,20 +273,17 @@ const NotificationsManager = () => {
   }, []);
 
   // Értesítések szűrése típus szerint
-  const filteredNotifications = filterType === 'all' 
-    ? notifications 
+  const filteredNotifications = filterType === 'all'
+    ? notifications
     : notifications.filter(notification => notification.type === filterType);
 
   // Ikon kiválasztása az értesítés típusa és súlyossága alapján
   const getIcon = (severity, type) => {
     // Típus szerinti ikonok
     switch (type) {
-      case 'server':
-        return <Server className={`w-5 h-5 ${getColorByLevel(severity)}`} />;
       case 'domain':
         return <Globe className={`w-5 h-5 ${getColorByLevel(severity)}`} />;
-      case 'license':
-        return <FileText className={`w-5 h-5 ${getColorByLevel(severity)}`} />;
+      // Szerver és licensz ikonok eltávolítva
       case 'project':
         return <Calendar className={`w-5 h-5 ${getColorByLevel(severity)}`} />;
       case 'contact':
@@ -352,7 +308,7 @@ const NotificationsManager = () => {
         }
     }
   };
-  
+
   // Szín kiválasztása súlyosság alapján
   const getColorByLevel = (severity) => {
     switch (severity) {
@@ -370,12 +326,12 @@ const NotificationsManager = () => {
     try {
       const response = await api.get('/api/notifications');
       const data = await response.json();
-      
+
       // Elolvastott értesítések kiszűrése
       const readNotifications = getReadNotifications();
-      
+
       // Új tömb létrehozása a ticket értesítésekből
-      const ticketNotifications = data.filter(notification => 
+      const ticketNotifications = data.filter(notification =>
         !readNotifications.includes(`ticket_${notification._id}`)
       ).map(notification => ({
         _id: `ticket_${notification._id}`,
@@ -386,7 +342,7 @@ const NotificationsManager = () => {
         type: 'ticket',
         link: notification.link || '/support/tickets'
       }));
-      
+
       // Értesítések frissítése
       setNotifications(prev => {
         // Meglévő ticket értesítések eltávolítása
@@ -395,14 +351,14 @@ const NotificationsManager = () => {
         return [...filteredNotifications, ...ticketNotifications]
           .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
       });
-      
+
       // Olvasatlan számláló frissítése
       setUnreadCount(prev => {
         const ticketCount = ticketNotifications.length;
         const otherCount = notifications.filter(n => n.type !== 'ticket').length;
         return otherCount + ticketCount;
       });
-      
+
     } catch (error) {
       console.error('Hiba a support ticket értesítések lekérésekor:', error);
     }
@@ -449,77 +405,62 @@ const NotificationsManager = () => {
               </button>
             </div>
           </div>
-          
+
           {/* Szűrők */}
           <div className="p-2 bg-gray-50 border-b flex justify-start items-center gap-1 overflow-x-auto">
             <button
               onClick={() => setFilterType('all')}
-              className={`px-2 py-1 text-xs rounded-full ${filterType === 'all' 
-                ? 'bg-blue-100 text-blue-800' 
+              className={`px-2 py-1 text-xs rounded-full ${filterType === 'all'
+                ? 'bg-blue-100 text-blue-800'
                 : 'bg-gray-100 text-gray-800 hover:bg-gray-200'}`}
             >
               Összes
             </button>
             <button
               onClick={() => setFilterType('domain')}
-              className={`px-2 py-1 text-xs rounded-full ${filterType === 'domain' 
-                ? 'bg-blue-100 text-blue-800' 
+              className={`px-2 py-1 text-xs rounded-full ${filterType === 'domain'
+                ? 'bg-blue-100 text-blue-800'
                 : 'bg-gray-100 text-gray-800 hover:bg-gray-200'}`}
             >
               Domain
             </button>
-            <button
-              onClick={() => setFilterType('server')}
-              className={`px-2 py-1 text-xs rounded-full ${filterType === 'server' 
-                ? 'bg-blue-100 text-blue-800' 
-                : 'bg-gray-100 text-gray-800 hover:bg-gray-200'}`}
-            >
-              Szerver
-            </button>
-            <button
-              onClick={() => setFilterType('license')}
-              className={`px-2 py-1 text-xs rounded-full ${filterType === 'license' 
-                ? 'bg-blue-100 text-blue-800' 
-                : 'bg-gray-100 text-gray-800 hover:bg-gray-200'}`}
-            >
-              Licensz
-            </button>
+            {/* Szerver és licensz szűrők eltávolítva */}
             <button
               onClick={() => setFilterType('project')}
-              className={`px-2 py-1 text-xs rounded-full ${filterType === 'project' 
-                ? 'bg-blue-100 text-blue-800' 
+              className={`px-2 py-1 text-xs rounded-full ${filterType === 'project'
+                ? 'bg-blue-100 text-blue-800'
                 : 'bg-gray-100 text-gray-800 hover:bg-gray-200'}`}
             >
               Projekt
             </button>
             <button
               onClick={() => setFilterType('contact')}
-              className={`px-2 py-1 text-xs rounded-full ${filterType === 'contact' 
-                ? 'bg-blue-100 text-blue-800' 
+              className={`px-2 py-1 text-xs rounded-full ${filterType === 'contact'
+                ? 'bg-blue-100 text-blue-800'
                 : 'bg-gray-100 text-gray-800 hover:bg-gray-200'}`}
             >
               Kapcsolat
             </button>
             <button
               onClick={() => setFilterType('file')}
-              className={`px-2 py-1 text-xs rounded-full ${filterType === 'file' 
-                ? 'bg-blue-100 text-blue-800' 
+              className={`px-2 py-1 text-xs rounded-full ${filterType === 'file'
+                ? 'bg-blue-100 text-blue-800'
                 : 'bg-gray-100 text-gray-800 hover:bg-gray-200'}`}
             >
               Fájlok
             </button>
             <button
               onClick={() => setFilterType('comment')}
-              className={`px-2 py-1 text-xs rounded-full ${filterType === 'comment' 
-                ? 'bg-blue-100 text-blue-800' 
+              className={`px-2 py-1 text-xs rounded-full ${filterType === 'comment'
+                ? 'bg-blue-100 text-blue-800'
                 : 'bg-gray-100 text-gray-800 hover:bg-gray-200'}`}
             >
               Hozzászólások
             </button>
             <button
               onClick={() => setFilterType('ticket')}
-              className={`px-2 py-1 text-xs rounded-full ${filterType === 'ticket' 
-                ? 'bg-blue-100 text-blue-800' 
+              className={`px-2 py-1 text-xs rounded-full ${filterType === 'ticket'
+                ? 'bg-blue-100 text-blue-800'
                 : 'bg-gray-100 text-gray-800 hover:bg-gray-200'}`}
             >
               Supportok
@@ -573,11 +514,11 @@ const NotificationsManager = () => {
               ))
             )}
           </div>
-          
+
           {/* Panel lábléc */}
           {notifications.length > 10 && (
             <div className="p-2 border-t text-center bg-gray-50">
-              <button 
+              <button
                 onClick={() => {
                   navigate('/notifications');
                   setIsOpen(false);
