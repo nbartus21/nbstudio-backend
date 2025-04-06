@@ -8,8 +8,9 @@ import ProjectAccordion from './project/ProjectAccordion';
 import ProjectDetailsModal from './project/ProjectDetailsModal';
 import NewInvoiceModal from './project/NewInvoiceModal';
 import ShareProjectModal from './project/ShareProjectModal';
-// Fájlokkal kapcsolatos import-ok eltávolítva
+import S3FilesModal from './shared/S3FilesModal';
 import { saveToLocalStorage, formatFileSize } from './shared/utils';
+import { Database } from 'lucide-react';
 
 const API_URL = 'https://admin.nb-studio.net:5001/api';
 
@@ -27,6 +28,7 @@ const ProjectManager = () => {
   const [sharePin, setSharePin] = useState('');
   const [activeShares, setActiveShares] = useState({});
   const [showShareModal, setShowShareModal] = useState(null);
+  const [showS3FilesModal, setShowS3FilesModal] = useState(false);
   const [expiryDate, setExpiryDate] = useState('');
   const [newInvoice, setNewInvoice] = useState({
     items: [{ description: '', quantity: 1, unitPrice: 0 }]
@@ -576,29 +578,39 @@ const ProjectManager = () => {
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Projekt Kezelő</h1>
-        <button
-          onClick={() => setSelectedProject({
-            name: '',
-            status: 'aktív',
-            priority: 'közepes',
-            description: '',
-            client: {
+        <div className="flex space-x-2">
+          <button
+            onClick={() => setShowS3FilesModal(true)}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center"
+            title="S3 Fájlkezelő"
+          >
+            <Database className="mr-2 h-5 w-5" />
+            S3 Fájlok
+          </button>
+          <button
+            onClick={() => setSelectedProject({
               name: '',
-              email: '',
-              taxNumber: ''
-            },
-            financial: {
-              budget: {
-                min: 0,
-                max: 0
+              status: 'aktív',
+              priority: 'közepes',
+              description: '',
+              client: {
+                name: '',
+                email: '',
+                taxNumber: ''
               },
-              currency: 'EUR'
-            }
-          })}
-          className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700"
-        >
-          Új Projekt
-        </button>
+              financial: {
+                budget: {
+                  min: 0,
+                  max: 0
+                },
+                currency: 'EUR'
+              }
+            })}
+            className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700"
+          >
+            Új Projekt
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -733,8 +745,14 @@ const ProjectManager = () => {
         />
       )}
 
-      {/* Fájl feltöltés és előnézet komponensek eltávolítva */}
-
+      {/* S3 Fájlok modal */}
+      {showS3FilesModal && (
+        <S3FilesModal
+          isOpen={showS3FilesModal}
+          onClose={() => setShowS3FilesModal(false)}
+          language="hu"
+        />
+      )}
 
     </div>
   );
