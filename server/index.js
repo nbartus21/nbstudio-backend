@@ -1046,7 +1046,8 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
          .fill(colors.primary);
 
       const tableHeaders = [t.item, t.quantity, t.unitPrice, t.total];
-      const tableColumnWidths = [300, 60, 90, 70]; // Átméretezett oszlopok
+      // Csökkentjük az első oszlop szélességét és növeljük a többit, hogy kitöltsék a teljes szélességet
+      const tableColumnWidths = [260, 70, 100, 90]; // Módosított oszlopszélességek
       const columnPositions = [50];
 
       // Kiszámoljuk a pozíciókat
@@ -1062,8 +1063,9 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
          tableHeaders.forEach((header, i) => {
           const position = columnPositions[i];
           const align = i === 0 ? 'left' : 'right';
-          const padding = i === 0 ? 10 : 5;
-        
+          // Egységes padding a fejlécben is
+          const padding = i === 0 ? 10 : 10;
+
           doc.text(header, position + padding, tableStartY + 10, {
             width: tableColumnWidths[i] - (padding * 2),
             align: align
@@ -1104,7 +1106,8 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
             tableHeaders.forEach((header, i) => {
               const position = columnPositions[i];
               const align = i === 0 ? 'left' : 'right';
-              const padding = i === 0 ? 8 : 8;
+              // Egységes padding minden oszlopnál
+              const padding = i === 0 ? 10 : 10;
 
               doc.text(header, position + padding, currentY + 10, {
                 width: tableColumnWidths[i] - (padding * 2),
@@ -1141,8 +1144,9 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
           row.forEach((cell, i) => {
             const position = columnPositions[i];
             const align = i === 0 ? 'left' : 'right';
-            const padding = i === 0 ? 10 : 5;
-          
+            // Növeljük a padding-et a jobb oldali oszlopoknál, hogy a szöveg beljebb kerüljön
+            const padding = i === 0 ? 10 : 10;
+
             doc.text(cell, position + padding, currentY + 8, {
               width: tableColumnWidths[i] - (padding * 2),
               align: align
