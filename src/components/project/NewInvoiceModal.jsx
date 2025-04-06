@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { X, Plus, Trash2, Calculator, RefreshCw } from 'lucide-react';
 
-const NewInvoiceModal = ({ 
-  projects, 
-  onClose, 
-  onCreateInvoice, 
-  initialProjectId 
+const NewInvoiceModal = ({
+  projects,
+  onClose,
+  onCreateInvoice,
+  initialProjectId
 }) => {
   const [selectedProject, setSelectedProject] = useState(
     initialProjectId ? projects.find(p => p._id === initialProjectId) : null
@@ -19,7 +19,10 @@ const NewInvoiceModal = ({
       nextDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // Alapértelmezetten 30 nap múlva
       endDate: null,
       remainingOccurrences: null
-    }
+    },
+    // E-mail küldési beállítások
+    sendEmail: true, // Alapértelmezetten küldünk e-mailt
+    language: 'hu' // Alapértelmezett nyelv: magyar
   });
 
   // Új tétel hozzáadása
@@ -64,6 +67,15 @@ const NewInvoiceModal = ({
       return;
     }
 
+    // Ellenőrizzük, hogy van-e ügyfél e-mail cím, ha e-mailt akarunk küldeni
+    if (newInvoice.sendEmail && (!selectedProject.client || !selectedProject.client.email)) {
+      // Figyelmeztetés, de engedjük tovább
+      if (confirm('Az ügyfélnek nincs e-mail címe, ezért nem fog értesítést kapni. Folytatja?')) {
+        onCreateInvoice(selectedProject, newInvoice);
+      }
+      return;
+    }
+
     onCreateInvoice(selectedProject, newInvoice);
   };
 
@@ -77,14 +89,14 @@ const NewInvoiceModal = ({
       <div className="bg-white rounded-lg max-w-4xl w-full p-6 max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-semibold">Új Számla Létrehozása</h2>
-          <button 
+          <button
             onClick={onClose}
             className="text-gray-500 hover:text-gray-700"
           >
             <X className="h-6 w-6" />
           </button>
         </div>
-        
+
         {/* Projekt kiválasztása */}
         <div className="mb-6">
           <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -149,7 +161,7 @@ const NewInvoiceModal = ({
                   Új tétel
                 </button>
               </div>
-              
+
               {newInvoice.items.map((item, index) => (
                 <div key={index} className="mb-4 p-4 border rounded-lg">
                   <div className="flex justify-between mb-2">
@@ -348,11 +360,62 @@ const NewInvoiceModal = ({
                   </div>
                 </div>
               )}
-              
+
               {newInvoice.recurring.isRecurring && (
                 <div className="mt-4 p-3 bg-blue-50 rounded text-sm text-blue-800">
                   <p className="font-medium">Ismétlődő számla létrehozása</p>
                   <p>Az ismétlődő számlák automatikusan létrehozzák az új számlákat a megadott időközönként. A számlák állapota "kiállított" lesz, amíg manuálisan fizetettnek nem jelöli őket.</p>
+                </div>
+              )}
+            </div>
+
+            {/* E-mail küldési opciók */}
+            <div className="mb-6 border rounded-lg p-4">
+              <h3 className="text-lg font-medium mb-4">E-mail értesítés</h3>
+
+              <div className="flex items-center mb-4">
+                <input
+                  type="checkbox"
+                  id="sendEmail"
+                  checked={newInvoice.sendEmail}
+                  onChange={(e) => {
+                    handleUpdateInvoice({
+                      ...newInvoice,
+                      sendEmail: e.target.checked
+                    });
+                  }}
+                  className="h-5 w-5 text-indigo-600 rounded"
+                />
+                <label htmlFor="sendEmail" className="ml-2 text-gray-700">
+                  Értesítés küldése e-mailben az ügyfélnek
+                </label>
+              </div>
+
+              {selectedProject?.client?.email && (
+                <p className="text-sm text-gray-600 mb-4">
+                  Ügyfél e-mail címe: {selectedProject.client.email}
+                </p>
+              )}
+
+              {newInvoice.sendEmail && (
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    E-mail nyelve
+                  </label>
+                  <select
+                    value={newInvoice.language}
+                    onChange={(e) => {
+                      handleUpdateInvoice({
+                        ...newInvoice,
+                        language: e.target.value
+                      });
+                    }}
+                    className="w-full border rounded p-2"
+                  >
+                    <option value="hu">Magyar</option>
+                    <option value="en">Angol</option>
+                    <option value="de">Német</option>
+                  </select>
                 </div>
               )}
             </div>
