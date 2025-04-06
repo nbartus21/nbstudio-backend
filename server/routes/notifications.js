@@ -13,7 +13,7 @@ router.get('/notifications/debug', (req, res) => {
   console.log('Debug endpoint hit');
   console.log('Auth header:', req.headers.authorization);
   console.log('User data from token:', req.userData);
-  res.json({ 
+  res.json({
     message: 'Debug info logged',
     userData: req.userData
   });
@@ -22,12 +22,12 @@ router.get('/notifications/debug', (req, res) => {
 // Értesítések lekérése a bejelentkezett felhasználónak
 router.get('/notifications', async (req, res) => {
   try {
-    console.log('Fetching notifications for user:', req.userData);
-    const notifications = await Notification.find({ 
+    // Eltávolítva a részletes naplózás
+    const notifications = await Notification.find({
       userId: req.userData.email,
-      read: false 
+      read: false
     }).sort({ createdAt: -1 });
-    console.log('Found notifications:', notifications);
+    // Eltávolítva a részletes naplózás
     res.json(notifications);
   } catch (error) {
     console.error('Error fetching notifications:', error);
@@ -38,25 +38,23 @@ router.get('/notifications', async (req, res) => {
 // Értesítés olvasottnak jelölése
 router.put('/notifications/:id/read', async (req, res) => {
   try {
-    console.log('Marking notification as read:', req.params.id);
-    console.log('User:', req.userData.email);
-    
+    // Eltávolítva a részletes naplózás
+
     const notification = await Notification.findOneAndUpdate(
-      { 
+      {
         _id: req.params.id,
         userId: req.userData.email
       },
       { read: true },
       { new: true }
     );
-    
-    console.log('Updated notification:', notification);
-    
+
+    // Eltávolítva a részletes naplózás
+
     if (!notification) {
-      console.log('Notification not found');
       return res.status(404).json({ message: 'Notification not found' });
     }
-    
+
     res.json(notification);
   } catch (error) {
     console.error('Error marking notification as read:', error);
@@ -67,20 +65,20 @@ router.put('/notifications/:id/read', async (req, res) => {
 // Összes értesítés olvasottnak jelölése
 router.put('/notifications/read-all', async (req, res) => {
   try {
-    console.log('Marking all notifications as read for user:', req.userData.email);
-    
+    // Eltávolítva a részletes naplózás
+
     const result = await Notification.updateMany(
-      { 
+      {
         userId: req.userData.email,
-        read: false 
+        read: false
       },
       { read: true }
     );
-    
-    console.log('Update result:', result);
-    res.json({ 
-      message: 'All notifications marked as read', 
-      count: result.nModified 
+
+    // Eltávolítva a részletes naplózás
+    res.json({
+      message: 'All notifications marked as read',
+      count: result.nModified
     });
   } catch (error) {
     console.error('Error marking all notifications as read:', error);
@@ -91,7 +89,7 @@ router.put('/notifications/read-all', async (req, res) => {
 // Test értesítés létrehozása
 router.post('/notifications/test', async (req, res) => {
   try {
-    console.log('Creating test notification for user:', req.userData.email);
+    // Eltávolítva a részletes naplózás
     const notification = new Notification({
       userId: req.userData.email,
       type: 'test',
@@ -100,9 +98,9 @@ router.post('/notifications/test', async (req, res) => {
       severity: 'info',
       read: false
     });
-    
+
     await notification.save();
-    console.log('Test notification created:', notification);
+    // Eltávolítva a részletes naplózás
     res.status(201).json(notification);
   } catch (error) {
     console.error('Error creating test notification:', error);
@@ -113,11 +111,10 @@ router.post('/notifications/test', async (req, res) => {
 // Értesítések generálása
 router.post('/notifications/generate', async (req, res) => {
   try {
-    console.log('Generating notification:', req.body);
-    console.log('User:', req.userData.email);
-    
+    // Eltávolítva a részletes naplózás
+
     const { type, title, message, severity = 'info' } = req.body;
-    
+
     const notification = new Notification({
       userId: req.userData.email,
       type,
@@ -126,9 +123,9 @@ router.post('/notifications/generate', async (req, res) => {
       severity,
       read: false
     });
-    
+
     await notification.save();
-    console.log('Generated notification:', notification);
+    // Eltávolítva a részletes naplózás
     res.status(201).json(notification);
   } catch (error) {
     console.error('Error generating notification:', error);

@@ -242,12 +242,13 @@ const validateApiKey = (req, res, next) => {
 // Debug middleware (only in development)
 if (process.env.NODE_ENV !== 'production') {
   app.use((req, res, next) => {
-    // Kihagyjuk a monitoring végpontokat a naplózásból
+    // Kihagyjuk a monitoring végpontokat és az értesítéseket a naplózásból
     if (!req.url.includes('/monitoring/system') &&
         !req.url.includes('/monitoring/network') &&
-        !req.url.includes('/monitoring/security')) {
+        !req.url.includes('/monitoring/security') &&
+        !req.url.includes('/notifications')) {
       console.log(`${req.method} ${req.url}`);
-      console.log('EGYEDI_NAPLOBEJEGYZES_MIDDLEWARE: Kérés érkezett:', req.method, req.url);
+      // Eltávolítva a részletes naplózás
     }
     next();
   });
