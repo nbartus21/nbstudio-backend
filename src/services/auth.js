@@ -32,60 +32,97 @@ export const getAuthToken = () => {
     };
 
     try {
-      // Logging for PUT requests to help with debugging
-      if (options.method === 'PUT') {
-        console.log(`API PUT kérés: ${url}`);
-        console.log('Hitelesítési token:', token ? 'Jelen' : 'Hiányzik');
-      }
+      // Részletes naplózás minden kéréshez
+      console.log(`API kérés indítása: ${options.method || 'GET'} ${url}`);
+      console.log('Kérés adatok:', {
+        method: options.method || 'GET',
+        headers: config.headers,
+        body: options.body ? JSON.parse(options.body) : null,
+        token: token ? 'Jelen' : 'Hiányzik'
+      });
 
-      const response = await fetch(url, config);
+      // Időtúllépés kezelése
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 másodperc időtúllépés
 
-      // Ha 401-es hibát kapunk (unauthorized), akkor töröljük a tokent és átirányítunk a login oldalra
-      if (response.status === 401) {
-        removeAuthToken();
-        window.location.href = '/login';
-        throw new Error('Unauthorized - Please log in again');
-      }
+      try {
+        const response = await fetch(url, {
+          ...config,
+          signal: controller.signal
+        });
 
-      // Speciális kezelés az /expenses végpontra - csendes fallback
-      if (response.status === 404 && url.includes('/expenses')) {
-        return {
-          ok: false,
-          status: 404,
-          json: async () => ({ message: 'Endpoint not found' })
-        };
-      }
+        clearTimeout(timeoutId); // Töröljük az időzítőt, ha a kérés befejeződött
 
-      // Ha PUT kérés és 500-as hiba, ellenőrizzük részletesebben
-      if (options.method === 'PUT' && response.status === 500) {
-        console.error('500-as szerver hiba a PUT kérés során:', url);
-        try {
-          // Próbáljuk meg kinyerni a hiba részleteit
-          const errorDetails = await response.json().catch(() => ({}));
-          console.error('Szerver hiba részletek:', errorDetails);
-        } catch (e) {
-          console.error('Nem sikerült a hibaválaszt kiolvasni:', e);
+        console.log(`API válasz érkezett: ${response.status} ${response.statusText}`);
+
+        // Ha 401-es hibát kapunk (unauthorized), akkor töröljük a tokent és átirányítunk a login oldalra
+        if (response.status === 401) {
+          console.log('401 Unauthorized hiba, átirányítás a login oldalra');
+          removeAuthToken();
+          window.location.href = '/login';
+          throw new Error('Unauthorized - Please log in again');
         }
-      }
 
-      // Ha nem 2xx-es a válasz, dobunk egy hibát
-      if (!response.ok) {
-        let errorMessage = `HTTP error! status: ${response.status}`;
+        // Speciális kezelés az /expenses végpontra - csendes fallback
+        if (response.status === 404 && url.includes('/expenses')) {
+          console.log('404 Not Found hiba az /expenses végponton, csendes fallback');
+          return {
+            ok: false,
+            status: 404,
+            json: async () => ({ message: 'Endpoint not found' })
+          };
+        }
 
-        try {
-          const errorData = await response.json();
-          if (errorData && errorData.message) {
-            errorMessage = errorData.message;
+        // Szerver hibák részletes naplózása
+        if (response.status >= 500) {
+          console.error(`${response.status} szerver hiba a ${options.method || 'GET'} kérés során:`, url);
+          try {
+            // Próbáljuk meg kinyerni a hiba részleteit
+            const errorDetails = await response.json().catch(() => ({}));
+            console.error('Szerver hiba részletek:', errorDetails);
+          } catch (e) {
+            console.error('Nem sikerült a hibaválaszt kiolvasni:', e);
           }
-        } catch (jsonError) {
-          // Ha nem sikerül a JSON-t értelmezni, használjuk az eredeti hibaüzenetet
-          console.error('Nem sikerült a JSON hibaüzenetet értelmezni:', jsonError);
         }
 
-        throw new Error(errorMessage);
-      }
+        // Ha nem 2xx-es a válasz, dobunk egy hibát
+        if (!response.ok) {
+          let errorMessage = `HTTP error! status: ${response.status}`;
 
-      return response;
+          try {
+            const errorData = await response.json();
+            console.log('Hiba válasz adatok:', errorData);
+            if (errorData && errorData.message) {
+              errorMessage = errorData.message;
+            }
+          } catch (jsonError) {
+            // Ha nem sikerül a JSON-t értelmezni, használjuk az eredeti hibaüzenetet
+            console.error('Nem sikerült a JSON hibaüzenetet értelmezni:', jsonError);
+          }
+
+          console.error(`Hiba a kérés során: ${errorMessage}`);
+          throw new Error(errorMessage);
+        }
+
+        // Sikeres válasz esetén naplózzuk a válasz adatokat
+        console.log('Sikeres API válasz:', {
+          status: response.status,
+          statusText: response.statusText,
+          url: response.url
+        });
+
+        return response;
+      } catch (fetchError) {
+        // AbortError kezelése (időtúllépés)
+        if (fetchError.name === 'AbortError') {
+          console.error('API kérés időtúllépés:', url);
+          throw new Error('A kérés időtúllépés miatt megszakadt');
+        }
+
+        // Egyéb hibák kezelése
+        console.error('API kérés hiba:', fetchError);
+        throw fetchError;
+      }
     } catch (error) {
       // Csak akkor naplózzuk a hibát, ha nem az /expenses végponthoz kapcsolódik
       if (!url.includes('/expenses')) {

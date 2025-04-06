@@ -104,6 +104,12 @@ const InvoiceManager = () => {
         updateData
       });
 
+      // Ellenőrizzük, hogy érvényes-e a projektId és invoiceId
+      if (!projectId || !invoiceId) {
+        console.error('Hiányzó projektId vagy invoiceId:', { projectId, invoiceId });
+        throw new Error('Hiányzó projektId vagy invoiceId');
+      }
+
       // Ha nem kaptunk külön updateData objektumot, akkor készítünk egy alapértelmezetet
       if (!updateData) {
         updateData = { status: newStatus };
@@ -116,12 +122,34 @@ const InvoiceManager = () => {
       }
 
       console.log('Küldés előtti updateData:', updateData);
+      console.log('API végpont:', `/api/projects/${projectId}/invoices/${invoiceId}`);
 
-      // Használjuk a PATCH végpontot, amely a részleges frissítésre való
-      const response = await api.patch(
-        `/api/projects/${projectId}/invoices/${invoiceId}`,
-        updateData
-      );
+      // Próbáljuk meg a PATCH végpontot, amely a részleges frissítésre való
+      let response;
+      try {
+        console.log('PATCH kérés indítása...');
+        response = await api.patch(
+          `/api/projects/${projectId}/invoices/${invoiceId}`,
+          updateData
+        );
+        console.log('PATCH kérés sikeres');
+      } catch (patchError) {
+        // Ha a PATCH nem működik, próbáljuk meg a PUT végpontot
+        console.warn('PATCH kérés sikertelen, próbálkozás PUT kéréssel:', patchError.message);
+
+        // Létre kell hoznunk egy teljes számla objektumot a PUT kéréshez
+        const fullInvoiceData = {
+          ...invoice,
+          ...updateData
+        };
+
+        console.log('PUT kérés indítása teljes számla adatokkal:', fullInvoiceData);
+        response = await api.put(
+          `/api/projects/${projectId}/invoices/${invoiceId}`,
+          fullInvoiceData
+        );
+        console.log('PUT kérés sikeres');
+      }
 
       // Mindenképpen próbáljuk meg kiolvasni a választ
       let responseData;

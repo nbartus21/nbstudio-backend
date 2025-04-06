@@ -207,15 +207,29 @@ router.post('/projects/:id/invoices', async (req, res) => {
 // Számla státusz frissítése
 router.put('/projects/:projectId/invoices/:invoiceId', async (req, res) => {
   try {
+    console.log('PUT kérés érkezett a számla frissítésére:', {
+      projectId: req.params.projectId,
+      invoiceId: req.params.invoiceId,
+      body: req.body
+    });
+
     const project = await Project.findById(req.params.projectId);
     if (!project) {
+      console.log('Projekt nem található:', req.params.projectId);
       return res.status(404).json({ message: 'Project not found' });
     }
 
+    console.log('Projekt megtalálva, számlák száma:', project.invoices?.length || 0);
+
     const invoice = project.invoices.id(req.params.invoiceId);
     if (!invoice) {
+      console.log('Számla nem található ezzel az ID-val:', req.params.invoiceId);
+      console.log('Elérhető számla ID-k:', project.invoices.map(inv => inv._id.toString()));
       return res.status(404).json({ message: 'Invoice not found' });
     }
+
+    console.log('Számla megtalálva, jelenlegi státusz:', invoice.status);
+    console.log('Frissítendő mezők:', req.body);
 
     // Update invoice fields
     Object.assign(invoice, {
@@ -227,13 +241,32 @@ router.put('/projects/:projectId/invoices/:invoiceId', async (req, res) => {
     if (req.body.status === 'fizetett') {
       invoice.paidAmount = invoice.totalAmount;
       invoice.paidDate = new Date();
+      console.log('Fizetési dátum és összeg automatikusan beállítva:', {
+        paidAmount: invoice.paidAmount,
+        paidDate: invoice.paidDate
+      });
     }
 
+    console.log('Számla frissítve, mentés előtt:', {
+      status: invoice.status,
+      paidAmount: invoice.paidAmount,
+      paidDate: invoice.paidDate
+    });
+
     await project.save();
-    res.json(project);
+    console.log('Projekt sikeresen mentve a frissített számlával');
+
+    // Visszaadjuk a frissített projektet
+    res.json({
+      success: true,
+      message: 'Számla sikeresen frissítve',
+      project: project
+    });
   } catch (error) {
     console.error('Invoice update error:', error);
+    console.error('Hiba stack:', error.stack);
     res.status(500).json({
+      success: false,
       message: 'Server error while updating invoice',
       error: error.message
     });
