@@ -1046,7 +1046,7 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
          .fill(colors.primary);
 
       const tableHeaders = [t.item, t.quantity, t.unitPrice, t.total];
-      const tableColumnWidths = [280, 80, 90, 70]; // Átméretezett oszlopok
+      const tableColumnWidths = [300, 60, 90, 70]; // Átméretezett oszlopok
       const columnPositions = [50];
 
       // Kiszámoljuk a pozíciókat
@@ -1141,8 +1141,8 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
           row.forEach((cell, i) => {
             const position = columnPositions[i];
             const align = i === 0 ? 'left' : 'right';
-            const padding = i === 0 ? 8 : 8;
-
+            const padding = i === 0 ? 10 : 5;
+          
             doc.text(cell, position + padding, currentY + 8, {
               width: tableColumnWidths[i] - (padding * 2),
               align: align
