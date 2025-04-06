@@ -464,23 +464,15 @@ const verifyPin = async (req, res) => {
     console.log('Projekt megtalálva:', project.name, 'ID:', project._id);
 
     // PIN ellenőrzése
-    // Ha pin üres, akkor ne utasítsuk el azonnal, hanem csak figyelmeztetjük
     if (!pin || pin.trim() === '') {
-      console.log('Üres PIN érkezett, de nem utasítjuk el automatikusan');
+      // Ha nincs PIN a projekthez, vagy üres, akkor engedjük be
       if (project.sharing && project.sharing.pin && project.sharing.pin.trim() !== '') {
-        console.log('A projekthez tartozik PIN (kezdő karakterek):', project.sharing.pin.substring(0, 2) + '****');
-        // return res.status(403).json({ message: 'PIN kód szükséges a projekthez való hozzáféréshez' });
-        // Módosítás: Ne dobjon 403-as hibát PIN hiánya esetén sem, csak naplózza
-        console.warn('PIN kód szükséges lenne, de folytatjuk a műveletet a hibakereséshez');
-      } else {
-        console.log('A projekthez nem tartozik PIN, vagy üres PIN van beállítva, beengedjük a felhasználót');
-        // Ha nincs PIN a projekthez, vagy üres, akkor engedjük be
+        // Ha a projekthez tartozik PIN, de a kérésben nincs megadva, akkor hiba
+        return res.status(403).json({ message: 'PIN kód szükséges a projekthez való hozzáféréshez' });
       }
     } else if (project.sharing && project.sharing.pin && project.sharing.pin !== pin) {
-      console.log('Érvénytelen PIN kód (várt/kapott):', project.sharing.pin, '/', pin);
-      // Módosítás: PIN érvénytelenség esetén se dobjon hibát, csak naplózza
-      console.warn('Érvénytelen PIN kód, de folytatjuk a műveletet a hibakereséshez');
-      // return res.status(403).json({ message: 'Érvénytelen PIN kód' });
+      // Ha a megadott PIN nem egyezik a projekt PIN-jével, akkor hiba
+      return res.status(403).json({ message: 'Érvénytelen PIN kód' });
     }
 
     // Ha updateProject objektumot küldtek, frissítsük a projektet

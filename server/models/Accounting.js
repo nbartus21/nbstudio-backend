@@ -108,12 +108,6 @@ accountingSchema.index({ projectId: 1 }); // Projekt szerinti szűrés
 accountingSchema.index({ serverId: 1 }); // Szerver szerinti szűrés
 accountingSchema.index({ licenseId: 1 }); // Licensz szerinti szűrés
 accountingSchema.index({ isRecurring: 1, nextRecurringDate: 1 }); // Ismétlődő tranzakciók szűrése
-
-// Keresési indexek
-accountingSchema.index({ type: 1, date: -1 });
-accountingSchema.index({ category: 1 });
-accountingSchema.index({ paymentStatus: 1 });
-accountingSchema.index({ projectId: 1 });
-accountingSchema.index({ isRecurring: 1, nextRecurringDate: 1 });
+accountingSchema.index({ category: 1 }); // Kategória szerinti szűrés
 
 export default mongoose.model('Accounting', accountingSchema);
