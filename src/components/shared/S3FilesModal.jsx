@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, RefreshCw, Search, FileText, Image, File, ExternalLink } from 'lucide-react';
+import { X, Download, Trash2, RefreshCw, Search, FileText, Image, File } from 'lucide-react';
 import { api } from '../../services/auth';
 import { formatFileSize, formatDate } from './utils';
 
@@ -8,47 +8,68 @@ const translations = {
   en: {
     title: "S3 Files Manager",
     close: "Close",
-    openInMinio: "Open in Minio Console",
+    download: "Download",
+    delete: "Delete",
     refresh: "Refresh Files",
     search: "Search files...",
     loading: "Loading files...",
     noFiles: "No files found",
+    confirmDelete: "Are you sure you want to delete this file?",
+    deleteSuccess: "File deleted successfully",
+    deleteError: "Error deleting file",
     loadError: "Error loading files",
     name: "Name",
     size: "Size",
     lastModified: "Last Modified",
     actions: "Actions",
-    projectId: "Project ID"
+    projectId: "Project ID",
+    confirmDeleteTitle: "Confirm Delete",
+    cancel: "Cancel",
+    confirm: "Delete"
   },
   de: {
     title: "S3-Dateien-Manager",
     close: "Schließen",
-    openInMinio: "In Minio-Konsole öffnen",
+    download: "Herunterladen",
+    delete: "Löschen",
     refresh: "Dateien aktualisieren",
     search: "Dateien suchen...",
     loading: "Dateien werden geladen...",
     noFiles: "Keine Dateien gefunden",
+    confirmDelete: "Sind Sie sicher, dass Sie diese Datei löschen möchten?",
+    deleteSuccess: "Datei erfolgreich gelöscht",
+    deleteError: "Fehler beim Löschen der Datei",
     loadError: "Fehler beim Laden der Dateien",
     name: "Name",
     size: "Größe",
     lastModified: "Zuletzt geändert",
     actions: "Aktionen",
-    projectId: "Projekt-ID"
+    projectId: "Projekt-ID",
+    confirmDeleteTitle: "Löschen bestätigen",
+    cancel: "Abbrechen",
+    confirm: "Löschen"
   },
   hu: {
     title: "S3 Fájlkezelő",
     close: "Bezárás",
-    openInMinio: "Megnyitás a Minio konzolban",
+    download: "Letöltés",
+    delete: "Törlés",
     refresh: "Fájlok frissítése",
     search: "Fájlok keresése...",
     loading: "Fájlok betöltése...",
     noFiles: "Nem található fájl",
+    confirmDelete: "Biztosan törölni szeretné ezt a fájlt?",
+    deleteSuccess: "Fájl sikeresen törölve",
+    deleteError: "Hiba a fájl törlésekor",
     loadError: "Hiba a fájlok betöltésekor",
     name: "Név",
     size: "Méret",
     lastModified: "Módosítás ideje",
     actions: "Műveletek",
-    projectId: "Projekt azonosító"
+    projectId: "Projekt azonosító",
+    confirmDeleteTitle: "Törlés megerősítése",
+    cancel: "Mégsem",
+    confirm: "Törlés"
   }
 };
 
@@ -57,6 +78,9 @@ const S3FilesModal = ({ isOpen, onClose, language = 'hu' }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [fileToDelete, setFileToDelete] = useState(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
 
   // Get translations for current language
   const t = translations[language] || translations.hu;
@@ -91,19 +115,40 @@ const S3FilesModal = ({ isOpen, onClose, language = 'hu' }) => {
     }
   };
 
+  // Delete file
+  const handleDeleteFile = async (key) => {
+    try {
+      console.log('Fájl törlése:', key);
 
+      const encodedKey = encodeURIComponent(key);
+      const response = await api.delete(`/api/s3-files/${encodedKey}`);
+
+      if (!response.ok) {
+        throw new Error(`Hiba a fájl törlésekor: ${response.status} ${response.statusText}`);
+      }
+
+      // Remove file from state
+      setFiles(files.filter(file => file.key !== key));
+
+      // Show success message
+      setSuccessMessage(t.deleteSuccess);
+      setTimeout(() => setSuccessMessage(''), 3000);
+
+      console.log('Fájl sikeresen törölve');
+    } catch (error) {
+      console.error('Hiba a fájl törlésekor:', error);
+      setError(t.deleteError);
+    } finally {
+      setShowDeleteConfirm(false);
+      setFileToDelete(null);
+    }
+  };
 
   // Filter files based on search term
   const filteredFiles = files.filter(file =>
     file.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (file.projectId && file.projectId.toLowerCase().includes(searchTerm.toLowerCase()))
   );
-
-  // Truncate file name to show only the first 25 characters
-  const truncateFileName = (name) => {
-    if (name.length <= 25) return name;
-    return name.substring(0, 25) + '...';
-  };
 
   // Get file icon based on file type
   const getFileIcon = (fileName) => {
@@ -222,7 +267,7 @@ const S3FilesModal = ({ isOpen, onClose, language = 'hu' }) => {
                           </div>
                           <div className="ml-3">
                             <div className="text-sm font-medium text-gray-900 max-w-xs truncate" title={file.name}>
-                              {truncateFileName(file.name)}
+                              {file.name}
                             </div>
                           </div>
                         </div>
@@ -239,14 +284,25 @@ const S3FilesModal = ({ isOpen, onClose, language = 'hu' }) => {
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div className="flex justify-end space-x-2">
                           <a
-                            href="https://console-backup-minio.vddq6f.easypanel.host/"
+                            href={file.s3url}
+                            download={file.name}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-blue-600 hover:text-blue-900 p-1"
-                            title={t.openInMinio}
+                            className="text-indigo-600 hover:text-indigo-900 p-1"
+                            title={t.download}
                           >
-                            <ExternalLink className="h-5 w-5" />
+                            <Download className="h-5 w-5" />
                           </a>
+                          <button
+                            onClick={() => {
+                              setFileToDelete(file);
+                              setShowDeleteConfirm(true);
+                            }}
+                            className="text-red-600 hover:text-red-900 p-1"
+                            title={t.delete}
+                          >
+                            <Trash2 className="h-5 w-5" />
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -258,7 +314,33 @@ const S3FilesModal = ({ isOpen, onClose, language = 'hu' }) => {
         </div>
       </div>
 
-
+      {/* Delete confirmation modal */}
+      {showDeleteConfirm && fileToDelete && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-50 flex items-center justify-center">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">{t.confirmDeleteTitle}</h3>
+            <p className="text-sm text-gray-500 mb-4">{t.confirmDelete}</p>
+            <p className="text-sm font-medium mb-6 break-all">{fileToDelete.name}</p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => {
+                  setShowDeleteConfirm(false);
+                  setFileToDelete(null);
+                }}
+                className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                {t.cancel}
+              </button>
+              <button
+                onClick={() => handleDeleteFile(fileToDelete.key)}
+                className="px-4 py-2 bg-red-600 border border-transparent rounded-md text-sm font-medium text-white hover:bg-red-700"
+              >
+                {t.confirm}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
