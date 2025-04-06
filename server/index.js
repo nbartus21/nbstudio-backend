@@ -1059,16 +1059,16 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
          .fillColor('white')
          .fontSize(10);
 
-      tableHeaders.forEach((header, i) => {
-        const position = columnPositions[i];
-        const align = i === 0 ? 'left' : 'right';
-        const padding = i === 0 ? 8 : 8;
-
-        doc.text(header, position + padding, tableStartY + 10, {
-          width: tableColumnWidths[i] - (padding * 2),
-          align: align
+         tableHeaders.forEach((header, i) => {
+          const position = columnPositions[i];
+          const align = i === 0 ? 'left' : 'right';
+          const padding = i === 0 ? 10 : 5;
+        
+          doc.text(header, position + padding, tableStartY + 10, {
+            width: tableColumnWidths[i] - (padding * 2),
+            align: align
+          });
         });
-      });
 
       // Táblázat sorok
       let currentY = tableStartY + 30;
