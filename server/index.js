@@ -9,6 +9,9 @@ import fs from 'fs';
 // PDF generation dependencies
 import PDFDocument from 'pdfkit';
 import puppeteer from 'puppeteer';
+// Path és URL kezelés
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 
 // Import models
 import Contact from './models/Contact.js';
@@ -901,8 +904,11 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
 
       // Logo hozzáadása (ha létezik) - új pozícióban
       try {
-        const path = require('path');
-        const logoPath = path.join(__dirname, 'public', 'logo.png');
+        // A már importált modulokat használjuk
+        const __filename = fileURLToPath(import.meta.url);
+        const __dirname = dirname(__filename);
+
+        const logoPath = join(__dirname, 'public', 'logo.png');
         if (fs.existsSync(logoPath)) {
           doc.image(logoPath, 40, 30, { width: 80 });
         }
