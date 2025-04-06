@@ -138,18 +138,55 @@ const InvoiceManager = () => {
 
       console.log('Státusz frissítés sikeres');
 
-      // UI frissítése
-      setInvoices(prevInvoices =>
-        prevInvoices.map(inv =>
-          inv._id === invoiceId ? { ...inv, ...updateData } : inv
-        )
-      );
+      // Keressük meg a frissített számlát a projekt objektumban
+      if (responseData && responseData.project && responseData.project.invoices) {
+        const updatedInvoice = responseData.project.invoices.find(inv => inv._id === invoiceId);
 
-      setFilteredInvoices(prevInvoices =>
-        prevInvoices.map(inv =>
-          inv._id === invoiceId ? { ...inv, ...updateData } : inv
-        )
-      );
+        if (updatedInvoice) {
+          console.log('Frissített számla adatok a szervertől:', updatedInvoice);
+
+          // UI frissítése a szervertől kapott adatokkal
+          setInvoices(prevInvoices =>
+            prevInvoices.map(inv =>
+              inv._id === invoiceId ? { ...inv, ...updatedInvoice } : inv
+            )
+          );
+
+          setFilteredInvoices(prevInvoices =>
+            prevInvoices.map(inv =>
+              inv._id === invoiceId ? { ...inv, ...updatedInvoice } : inv
+            )
+          );
+        } else {
+          console.warn('Nem található a frissített számla a válaszban, fallback az updateData-ra');
+          // Fallback a régi megoldásra, ha nem találjuk a számlát
+          setInvoices(prevInvoices =>
+            prevInvoices.map(inv =>
+              inv._id === invoiceId ? { ...inv, ...updateData } : inv
+            )
+          );
+
+          setFilteredInvoices(prevInvoices =>
+            prevInvoices.map(inv =>
+              inv._id === invoiceId ? { ...inv, ...updateData } : inv
+            )
+          );
+        }
+      } else {
+        console.warn('Hiányzó vagy érvénytelen válasz formátum, fallback az updateData-ra');
+        // Fallback a régi megoldásra, ha a válasz nem a várt formátumú
+        setInvoices(prevInvoices =>
+          prevInvoices.map(inv =>
+            inv._id === invoiceId ? { ...inv, ...updateData } : inv
+          )
+        );
+
+        setFilteredInvoices(prevInvoices =>
+          prevInvoices.map(inv =>
+            inv._id === invoiceId ? { ...inv, ...updateData } : inv
+          )
+        );
+      }
 
       // Frissítsük a számlák listáját, hogy biztos legyen a frissítés
       setTimeout(() => {
