@@ -128,8 +128,8 @@ const projectSchema = new mongoose.Schema({
   }],
   // Fájlok feltöltése
   files: [{
-    id: { 
-      type: String, 
+    id: {
+      type: String,
       required: true
     },
     name: { type: String, required: true },
@@ -200,6 +200,14 @@ const projectSchema = new mongoose.Schema({
       default: 'feature'
     },
     createdBy: String
+  }],
+
+  // Kapcsolódó domainek
+  domains: [{
+    domainId: { type: mongoose.Schema.Types.ObjectId, ref: 'Domain' },
+    name: String,
+    expiryDate: Date,
+    addedAt: { type: Date, default: Date.now }
   }]
 }, {
   timestamps: true

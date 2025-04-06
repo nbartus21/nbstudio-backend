@@ -86,6 +86,9 @@ const DomainTable = ({ domains, onEdit, onDelete, formatCurrency }) => {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                 Regisztrátor
               </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                Projekt
+              </th>
               <th
                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer"
                 onClick={() => handleSort('registrationDate')}
@@ -124,6 +127,15 @@ const DomainTable = ({ domains, onEdit, onDelete, formatCurrency }) => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {domain.registrar}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {domain.projectName ? (
+                      <span className="px-2 py-1 bg-indigo-100 text-indigo-800 rounded-full text-xs">
+                        {domain.projectName}
+                      </span>
+                    ) : (
+                      <span className="text-gray-400">-</span>
+                    )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {domain.registrationDate ? new Date(domain.registrationDate).toLocaleDateString() : 'Nincs megadva'}

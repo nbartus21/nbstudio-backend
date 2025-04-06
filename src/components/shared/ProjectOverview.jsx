@@ -20,7 +20,8 @@ const translations = {
       totalInvoices: "Total invoices",
       paid: "Paid",
       pendingAmount: "Pending amount",
-      totalAmount: "Total amount"
+      totalAmount: "Total amount",
+      domains: "Domains"
     },
     chart: {
       invoiceStatus: "Invoice Status",
@@ -62,7 +63,8 @@ const translations = {
       totalInvoices: "Gesamtrechnungen",
       paid: "Bezahlt",
       pendingAmount: "Ausstehender Betrag",
-      totalAmount: "Gesamtbetrag"
+      totalAmount: "Gesamtbetrag",
+      domains: "Domains"
     },
     chart: {
       invoiceStatus: "Rechnungsstatus",
@@ -104,7 +106,8 @@ const translations = {
       totalInvoices: "Összes számla",
       paid: "Fizetve",
       pendingAmount: "Függő összeg",
-      totalAmount: "Teljes összeg"
+      totalAmount: "Teljes összeg",
+      domains: "Domainek"
     },
     chart: {
       invoiceStatus: "Számlák Állapota",
@@ -209,6 +212,22 @@ const ProjectOverview = ({ project, files = [], comments = [], setActiveTab, lan
       month: 'long',
       day: 'numeric'
     });
+  };
+
+  // Calculate days until expiry
+  const calculateDaysUntilExpiry = (expiryDate) => {
+    const now = new Date();
+    const expiry = new Date(expiryDate);
+    const diff = expiry - now;
+    return Math.ceil(diff / (1000 * 60 * 60 * 24));
+  };
+
+  // Get status color for domain expiry
+  const getDomainStatusColor = (daysUntil) => {
+    if (daysUntil < 0) return 'text-red-600';
+    if (daysUntil <= 30) return 'text-yellow-600';
+    if (daysUntil <= 90) return 'text-blue-600';
+    return 'text-green-600';
   };
 
   // Fetch changelog data
@@ -440,6 +459,35 @@ const ProjectOverview = ({ project, files = [], comments = [], setActiveTab, lan
       {/* Projekt információk */}
       <div className="bg-white p-6 rounded-lg shadow">
         <h3 className="text-lg font-medium mb-4">{t.projectInfo.projectInformation}</h3>
+
+        {/* Domainek megjelenítése, ha vannak */}
+        {project.domains && project.domains.length > 0 && (
+          <div className="mb-6">
+            <h4 className="font-medium text-gray-700 mb-2">{t.statistics.domains}</h4>
+            <div className="bg-gray-50 p-4 rounded-md">
+              <div className="space-y-2">
+                {project.domains.map((domain, index) => {
+                  const daysUntil = calculateDaysUntilExpiry(domain.expiryDate);
+                  const statusColor = getDomainStatusColor(daysUntil);
+                  return (
+                    <div key={index} className="flex justify-between items-center border-b border-gray-200 pb-2 last:border-b-0 last:pb-0">
+                      <div>
+                        <span className="font-medium">{domain.name}</span>
+                      </div>
+                      <div className="flex items-center">
+                        <span className={`text-sm ${statusColor}`}>
+                          {new Date(domain.expiryDate).toLocaleDateString()}
+                          ({daysUntil} {language === 'hu' ? 'nap' : language === 'de' ? 'Tage' : 'days'})
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <h4 className="font-medium text-gray-700 mb-2">{t.projectInfo.projectData}</h4>

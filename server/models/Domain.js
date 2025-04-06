@@ -50,6 +50,13 @@ const domainSchema = new mongoose.Schema({
     date: { type: Date, default: Date.now },
     details: String
   }],
+  // Kapcsolódó projekt
+  projectId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Project',
+    default: null
+  },
+  projectName: String,
   createdAt: {
     type: Date,
     default: Date.now

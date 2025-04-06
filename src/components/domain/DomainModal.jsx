@@ -1,4 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { api } from '../../services/auth';
+
+const API_URL = 'https://admin.nb-studio.net:5001';
 
 const DomainModal = ({ isOpen, onClose, onSave, domain = null }) => {
   const [formData, setFormData] = useState({
@@ -9,15 +12,44 @@ const DomainModal = ({ isOpen, onClose, onSave, domain = null }) => {
     cost: '',
     autoRenewal: false,
     paymentStatus: 'pending',  // Új mező
-    notes: ''
+    notes: '',
+    projectId: '',
+    projectName: ''
   });
+
+  const [projects, setProjects] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  // Projektek lekérése
+  useEffect(() => {
+    const fetchProjects = async () => {
+      setLoading(true);
+      try {
+        const response = await api.get(`${API_URL}/api/projects`);
+        if (response.ok) {
+          const data = await response.json();
+          setProjects(data);
+        }
+      } catch (error) {
+        console.error('Hiba a projektek lekérésekor:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (isOpen) {
+      fetchProjects();
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (domain) {
       setFormData({
         ...domain,
         registrationDate: domain.registrationDate ? new Date(domain.registrationDate).toISOString().split('T')[0] : '',
-        expiryDate: new Date(domain.expiryDate).toISOString().split('T')[0]
+        expiryDate: new Date(domain.expiryDate).toISOString().split('T')[0],
+        projectId: domain.projectId || '',
+        projectName: domain.projectName || ''
       });
     } else {
       setFormData({
@@ -28,7 +60,9 @@ const DomainModal = ({ isOpen, onClose, onSave, domain = null }) => {
         cost: '',
         autoRenewal: false,
         paymentStatus: 'pending',  // Alapértelmezett érték
-        notes: ''
+        notes: '',
+        projectId: '',
+        projectName: ''
       });
     }
   }, [domain]);
@@ -132,6 +166,32 @@ const DomainModal = ({ isOpen, onClose, onSave, domain = null }) => {
             <label htmlFor="autoRenewal" className="ml-2 block text-sm text-gray-700">
               Automatikus megújítás
             </label>
+          </div>
+
+          {/* Projekt kiválasztása */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Kapcsolódó projekt
+            </label>
+            <select
+              value={formData.projectId || ''}
+              onChange={(e) => {
+                const selectedProject = projects.find(p => p._id === e.target.value);
+                setFormData({
+                  ...formData,
+                  projectId: e.target.value,
+                  projectName: selectedProject ? selectedProject.name : ''
+                });
+              }}
+              className="w-full px-3 py-2 border rounded-md"
+            >
+              <option value="">Nincs kapcsolódó projekt</option>
+              {projects.map(project => (
+                <option key={project._id} value={project._id}>
+                  {project.name}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Új fizetési státusz mező */}

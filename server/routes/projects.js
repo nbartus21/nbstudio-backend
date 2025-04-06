@@ -496,6 +496,28 @@ const verifyPin = async (req, res) => {
       }
     }
 
+    // Ha vannak domainek a projekthez kapcsolva, frissítsük a lejárati dátumokat
+    if (project.domains && project.domains.length > 0) {
+      try {
+        const Domain = (await import('../models/Domain.js')).default;
+
+        // Minden domain-hez lekérjük a legfrissebb adatokat
+        for (let i = 0; i < project.domains.length; i++) {
+          const domainId = project.domains[i].domainId;
+          if (domainId) {
+            const domainData = await Domain.findById(domainId);
+            if (domainData) {
+              // Frissítsük a domain adatait a projektben
+              project.domains[i].expiryDate = domainData.expiryDate;
+              project.domains[i].name = domainData.name;
+            }
+          }
+        }
+      } catch (domainError) {
+        console.error('Hiba a domainek frissítésekor:', domainError);
+      }
+    }
+
     // Számlák feldolgozása - egyszerű JSON objektummá alakítás
     const processedInvoices = (project.invoices || []).map(invoice => {
       console.log('Számla feldolgozása a verify-pin-ben:', invoice.number, '_id:', invoice._id);
@@ -547,6 +569,8 @@ const verifyPin = async (req, res) => {
           s3url: file.s3url,
           s3key: file.s3key
         })),
+      // Hozzáadjuk a projekthez kapcsolódó domaineket
+      domains: project.domains || [],
       sharing: {
         token: project.sharing.token, // Hozzáadjuk a tokent is, hogy a kliens használhassa
         expiresAt: project.sharing.expiresAt,
