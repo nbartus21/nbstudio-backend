@@ -438,6 +438,35 @@ router.post('/projects/:projectId/invoices', async (req, res) => {
     await project.save();
     console.log('Projekt sikeresen mentve');
 
+    // Közvetlen e-mail küldési teszt
+    console.log('TESZT_KOZVETLEN_EMAIL: E-mail küldési teszt megkezdése');
+    try {
+      // Létrehozunk egy speciális számla tárgyat
+      const testSubject = `TESZT - Számla: ${invoice.number} - ${project.name}`;
+      const testDetails = `Számla száma: ${invoice.number}\nKiállítás dátuma: ${new Date(invoice.date).toLocaleDateString()}\nÖsszeg: ${invoice.totalAmount} ${project.financial?.currency || 'EUR'}`;
+
+      console.log('TESZT_KOZVETLEN_EMAIL: Paraméterek:', {
+        project: project._id,
+        projectName: project.name,
+        clientEmail: project.client?.email,
+        subject: testSubject,
+        details: testDetails
+      });
+
+      // Közvetlenül hívjuk meg a sendProjectShareEmail függvényt
+      const testResult = await sendProjectShareEmail(
+        project,
+        'https://project.nb-studio.net',
+        testDetails,
+        'hu',
+        testSubject
+      );
+
+      console.log('TESZT_KOZVETLEN_EMAIL: Eredmény:', testResult);
+    } catch (testError) {
+      console.error('TESZT_KOZVETLEN_EMAIL: Hiba:', testError);
+    }
+
     // Új számla értesítés küldése, ha van email cím a projekthez
     console.log('[DEBUG] Email küldés ellenőrzése:', {
       hasClient: !!project.client,

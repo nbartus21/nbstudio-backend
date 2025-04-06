@@ -191,7 +191,7 @@ export const sendProjectShareEmail = async (project, shareLink, pin, language = 
       html: html
     };
 
-    console.log('[DEBUG] Projekt megosztás e-mail küldése megkísérlése...', {
+    console.log('[TESZT_EMAIL_KULDES] E-mail küldés megkísérlése...', {
       to: project.client.email,
       subject: subject,
       from: `"Norbert Bartus" <${CONTACT_SMTP_USER}>`,
@@ -202,10 +202,37 @@ export const sendProjectShareEmail = async (project, shareLink, pin, language = 
     });
 
     try {
+      // Ellenőrizzük, hogy a transporter létezik-e
+      console.log('[TESZT_EMAIL_KULDES] Transporter állapota:', {
+        exists: !!transporter,
+        type: typeof transporter,
+        sendMail: transporter ? typeof transporter.sendMail : 'nincs'
+      });
+
+      // Teszteljük a kapcsolatot
+      console.log('[TESZT_EMAIL_KULDES] SMTP kapcsolat tesztelése...');
+      await new Promise((resolve, reject) => {
+        transporter.verify((error, success) => {
+          if (error) {
+            console.error('[TESZT_EMAIL_KULDES] SMTP kapcsolat hiba:', {
+              error: error.message,
+              code: error.code,
+              command: error.command,
+              responseCode: error.responseCode,
+              response: error.response
+            });
+            reject(error);
+          } else {
+            console.log('[TESZT_EMAIL_KULDES] SMTP kapcsolat OK');
+            resolve(success);
+          }
+        });
+      });
+
       // E-mail küldése
-      console.log('[DEBUG] E-mail küldése megkezdődik...');
+      console.log('[TESZT_EMAIL_KULDES] E-mail küldése megkezdődik...');
       const info = await transporter.sendMail(mailOptions);
-      console.log('[DEBUG] Projekt megosztás e-mail sikeresen elküldve:', {
+      console.log('[TESZT_EMAIL_KULDES] E-mail sikeresen elküldve:', {
         messageId: info.messageId,
         response: info.response,
         accepted: info.accepted,
@@ -215,7 +242,7 @@ export const sendProjectShareEmail = async (project, shareLink, pin, language = 
       });
       return { success: true, messageId: info.messageId, info };
     } catch (emailError) {
-      console.error('[DEBUG] Hiba a projekt megosztás e-mail küldésekor:', {
+      console.error('[TESZT_EMAIL_KULDES] Hiba az e-mail küldésekor:', {
         error: emailError.message,
         stack: emailError.stack,
         code: emailError.code,
