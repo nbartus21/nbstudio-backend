@@ -57,17 +57,15 @@ const NotificationsManager = () => {
       let calculators = [];
       let domains = [];
       let projects = [];
-      let comments = [];
 
       // Csak akkor kérünk le adatokat, ha szükséges
       if (shouldFetchAll) {
         // Parallel API kérések indítása
-        [contacts, calculators, domains, projects, comments] = await Promise.all([
+        [contacts, calculators, domains, projects] = await Promise.all([
           api.get(`${API_URL}/contacts`).then(res => res.json()).catch(() => []),
           api.get(`${API_URL}/calculators`).then(res => res.json()).catch(() => []),
           api.get(`${API_URL}/domains`).then(res => res.json()).catch(() => []),
-          api.get(`${API_URL}/projects`).then(res => res.json()).catch(() => []),
-          api.get(`${API_URL}/comments`).then(res => res.json()).catch(() => [])
+          api.get(`${API_URL}/projects`).then(res => res.json()).catch(() => [])
         ]);
       }
 
@@ -174,29 +172,7 @@ const NotificationsManager = () => {
 
       // Fájl értesítések eltávolítva
 
-      // Hozzászólás értesítések
-      if (Array.isArray(comments)) {
-        // Csak az utolsó 24 órában írt hozzászólásokat nézzük
-        const oneDayAgo = new Date();
-        oneDayAgo.setDate(oneDayAgo.getDate() - 1);
-
-        comments
-          .filter(comment => new Date(comment.timestamp) > oneDayAgo)
-          .forEach(comment => {
-            const notificationId = `comment_${comment.id}`;
-            if (!readNotifications.includes(notificationId)) {
-              newNotifications.push({
-                _id: notificationId,
-                title: 'Új hozzászólás',
-                message: `${comment.author} hozzászólt: "${comment.text.substring(0, 30)}${comment.text.length > 30 ? '...' : ''}"`,
-                severity: 'info',
-                createdAt: comment.timestamp,
-                type: 'comment',
-                link: '/comments'
-              });
-            }
-          });
-      }
+      // Hozzászólás értesítések eltávolítva
 
       // Rendezés dátum szerint
       newNotifications.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
@@ -286,9 +262,7 @@ const NotificationsManager = () => {
         return <Info className={`w-4 h-4 ${getColorByLevel(severity)}`} />;
       case 'calculator':
         return <Database className={`w-4 h-4 ${getColorByLevel(severity)}`} />;
-      // Fájl értesítés ikon eltávolítva
-      case 'comment':
-        return <MessageCircle className={`w-4 h-4 ${getColorByLevel(severity)}`} />; // Hozzászólás értesítés ikon
+      // Fájl és hozzászólás értesítés ikonok eltávolítva
       case 'ticket':
         return <Mail className={`w-4 h-4 ${getColorByLevel(severity)}`} />; // Support ticket értesítés ikon
       default:
@@ -444,15 +418,7 @@ const NotificationsManager = () => {
             >
               Kapcsolat
             </button>
-            {/* Fájl szűrő eltávolítva */}
-            <button
-              onClick={() => setFilterType('comment')}
-              className={`px-1.5 py-0.5 text-xs rounded-full ${filterType === 'comment'
-                ? 'bg-blue-100 text-blue-800'
-                : 'bg-gray-100 text-gray-800 hover:bg-gray-200'}`}
-            >
-              Hozzászólások
-            </button>
+            {/* Fájl és hozzászólás szűrők eltávolítva */}
             <button
               onClick={() => setFilterType('ticket')}
               className={`px-1.5 py-0.5 text-xs rounded-full ${filterType === 'ticket'
