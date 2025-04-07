@@ -25,7 +25,7 @@ const AccountingManager = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
-  
+
   // API URL constants
   const ACCOUNTING_API_URL = `${API_URL}/accounting`;
 
@@ -44,7 +44,7 @@ const AccountingManager = () => {
         api.get(`${ACCOUNTING_API_URL}/tax-report?year=${selectedYear}`),
         api.get(`${API_URL}/domains`)
       ]);
-  
+
       const [transactionsData, projectsData, statsData, taxData, domainsData] = await Promise.all([
         transactionsRes.json(),
         projectsRes.json(),
@@ -52,7 +52,7 @@ const AccountingManager = () => {
         taxRes.json(),
         domainsRes.json()
       ]);
-  
+
       // Domain tranzakciók konvertálása
       const domainTransactions = domainsData.map(domain => ({
         _id: `domain_${domain._id}`,
@@ -67,13 +67,13 @@ const AccountingManager = () => {
         recurring: true,
         recurringInterval: 'yearly'
       }));
-  
+
       // Számlák kinyerése és szűrése a duplikációk elkerülésére
       const invoiceTransactions = transactionsData.filter(t => t.invoiceNumber);
       const invoiceNumbers = new Set(invoiceTransactions.map(t => t.invoiceNumber));
-  
+
       // Projekt számlák konvertálása, csak azokat vesszük figyelembe, amik még nincsenek a tranzakciók között
-      const projectInvoices = projectsData.flatMap(project => 
+      const projectInvoices = projectsData.flatMap(project =>
         (project.invoices || [])
           .filter(invoice => !invoiceNumbers.has(invoice.number)) // Kiszűrjük a már meglévő számlákat
           .map(invoice => ({
@@ -90,22 +90,22 @@ const AccountingManager = () => {
             status: invoice.status
           }))
       );
-  
+
       // Egyesített tranzakciók lista
       const combinedTransactions = [
         ...transactionsData,
         ...projectInvoices,
         ...domainTransactions
       ];
-  
+
       setTransactions(combinedTransactions);
       setProjects(projectsData);
-      
+
       // Statisztikák számítása
       const updatedStats = calculateUpdatedStatistics(combinedTransactions, projectsData, domainsData);
       setStatistics(updatedStats);
       setTaxData(taxData);
-  
+
       setError(null);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -114,8 +114,8 @@ const AccountingManager = () => {
       setLoading(false);
     }
   };
-  
-  
+
+
   // Frissített calculateUpdatedStatistics függvény domain támogatással
   const calculateUpdatedStatistics = (transactions, invoices, domains) => {
     const stats = {
@@ -143,31 +143,31 @@ const AccountingManager = () => {
         }).length
       }
     };
-  
+
     // Tranzakciók feldolgozása
     transactions.forEach(transaction => {
       const amount = parseFloat(transaction.amount) || 0;
       const date = new Date(transaction.date);
       const month = date.getMonth();
-  
+
       if (transaction.type === 'income') {
         stats.totalIncome += amount;
         stats.monthlyIncomes[month] += amount;
       } else {
         stats.totalExpenses += amount;
         stats.monthlyExpenses[month] += amount;
-  
+
         if (!stats.expensesByCategory[transaction.category]) {
           stats.expensesByCategory[transaction.category] = 0;
         }
         stats.expensesByCategory[transaction.category] += amount;
       }
-  
+
       if (transaction.recurring) {
         const existingRecurring = stats.recurringExpenses.find(
           item => item.name === transaction.description
         );
-        
+
         if (!existingRecurring) {
           stats.recurringExpenses.push({
             name: transaction.description,
@@ -177,14 +177,14 @@ const AccountingManager = () => {
         }
       }
     });
-  
+
     // Számlák statisztikái
     const paidInvoices = invoices.filter(inv => inv.status === 'fizetett');
     stats.invoiceStats.totalPaid = paidInvoices.reduce((sum, inv) => sum + (inv.paidAmount || inv.totalAmount || 0), 0);
     stats.invoiceStats.totalPending = invoices
       .filter(inv => inv.status !== 'fizetett')
       .reduce((sum, inv) => sum + (inv.totalAmount || 0), 0);
-  
+
     if (paidInvoices.length > 0) {
       const totalDays = paidInvoices.reduce((sum, inv) => {
         if (inv.paidDate && inv.date) {
@@ -225,6 +225,12 @@ const AccountingManager = () => {
     } catch (error) {
       setError('Hiba történt a törlés során');
     }
+  };
+
+  // Sikeres művelet után megjelenő üzenet
+  const showSuccess = (message) => {
+    setSuccess(message);
+    setTimeout(() => setSuccess(null), 3000);
   };
 
   // CSV exportálás
@@ -410,7 +416,7 @@ const AccountingManager = () => {
 
           {activeTab === 'invoices' && (
             <InvoiceReportComponent
-              transactions={transactions.filter(t => 
+              transactions={transactions.filter(t =>
                 t.category === 'project_invoice' || t.invoiceNumber
               )}
               projects={projects}
@@ -425,12 +431,12 @@ const AccountingManager = () => {
                   const projectId = transaction.projectId;
                   const invoiceId = transaction._id;
                   const updateData = { status: newStatus };
-                  
+
                   if (newStatus === 'fizetett') {
                     updateData.paidAmount = transaction.amount;
                     updateData.paidDate = new Date();
                   }
-                  
+
                   api.patch(
                     `/api/projects/${projectId}/invoices/${invoiceId}`,
                     updateData
@@ -444,7 +450,7 @@ const AccountingManager = () => {
               }}
             />
           )}
-          
+
           {activeTab === 'tax' && (
             <TaxReport
               taxData={taxData}

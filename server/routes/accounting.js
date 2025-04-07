@@ -312,6 +312,79 @@ router.delete('/transactions/:id', async (req, res) => {
   }
 });
 
+// Tömeges tétel törlés
+router.post('/bulk-delete', async (req, res) => {
+  try {
+    const { transactions } = req.body;
+
+    if (!transactions || !Array.isArray(transactions) || transactions.length === 0) {
+      return res.status(400).json({ message: 'Nincs megadva törölni kívánt tétel' });
+    }
+
+    console.log(`Tömeges törlés: ${transactions.length} tétel törlése megkezdődik`);
+
+    // Törlési műveletek végrehajtása
+    const results = [];
+    const errors = [];
+
+    for (const transactionId of transactions) {
+      try {
+        // Ellenőrizzük, hogy a tétel létezik-e
+        // Kezelés attól függően, hogy domain ID vagy MongoDB ObjectId
+        let transaction;
+
+        if (typeof transactionId === 'string' && transactionId.startsWith('domain_')) {
+          // Domain ID esetén
+          transaction = await Accounting.findOne({ _id: transactionId });
+        } else {
+          // Normál MongoDB ObjectId esetén
+          try {
+            transaction = await Accounting.findById(transactionId);
+          } catch (idError) {
+            // Ha hiba van az ID formátumával, próbáljuk meg string-ként keresni
+            transaction = await Accounting.findOne({ _id: transactionId });
+          }
+        }
+
+        if (!transaction) {
+          errors.push({ transactionId, error: 'Tétel nem található' });
+          continue;
+        }
+
+        // Tétel törlése
+        // Kezelés attól függően, hogy domain ID vagy MongoDB ObjectId
+        if (typeof transactionId === 'string' && transactionId.startsWith('domain_')) {
+          await Accounting.deleteOne({ _id: transactionId });
+        } else {
+          try {
+            await Accounting.deleteOne({ _id: transactionId });
+          } catch (deleteError) {
+            // Ha hiba van az ID formátumával, próbáljuk meg string-ként törölni
+            await Accounting.deleteOne({ _id: transactionId });
+          }
+        }
+
+        results.push({ transactionId, success: true });
+        console.log(`Tétel sikeresen törölve: ${transactionId}`);
+      } catch (err) {
+        console.error(`Hiba a tétel törlésekor:`, err);
+        errors.push({ transactionId, error: err.message });
+      }
+    }
+
+    // Válasz küldése
+    res.status(200).json({
+      success: true,
+      message: `${results.length} tétel sikeresen törölve`,
+      results,
+      errors: errors.length > 0 ? errors : undefined
+    });
+  } catch (err) {
+    console.error('Hiba a tömeges törlés során:', err);
+    res.status(500).json({ message: 'Szerver hiba a tömeges törlés során', error: err.message });
+  }
+});
+
 // Ismétlődő tranzakciók automatikus létrehozása
 router.post('/process-recurring', async (req, res) => {
   try {

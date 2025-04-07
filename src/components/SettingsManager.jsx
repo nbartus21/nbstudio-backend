@@ -12,7 +12,9 @@ import {
   Search,
   Globe,
   ToggleLeft,
-  ToggleRight
+  ToggleRight,
+  Wrench,
+  AlertOctagon
 } from 'lucide-react';
 
 const API_URL = 'https://admin.nb-studio.net:5001/api';
@@ -282,6 +284,73 @@ const SettingsManager = () => {
     }
   };
 
+  // Karbantartási mód kezelése
+  const getMaintenanceMode = () => {
+    const maintenanceModeSetting = settings.find(s => s.key === 'maintenanceMode' && s.category === 'website');
+    return maintenanceModeSetting ? maintenanceModeSetting.value : false;
+  };
+
+  const getMaintenanceMessage = () => {
+    const maintenanceMessageSetting = settings.find(s => s.key === 'maintenanceMessage' && s.category === 'website');
+    return maintenanceMessageSetting ? maintenanceMessageSetting.value : 'A weboldal karbantartás alatt áll. Kérjük, látogasson vissza később!';
+  };
+
+  const toggleMaintenanceMode = async () => {
+    try {
+      setLoading(true);
+      const currentMode = getMaintenanceMode();
+
+      // Karbantartási mód beállításának frissítése
+      const response = await api.post(`${API_URL}/settings`, {
+        key: 'maintenanceMode',
+        value: !currentMode,
+        description: 'Karbantartási mód bekapcsolása/kikapcsolása',
+        category: 'website'
+      });
+
+      if (!response.ok) {
+        throw new Error('Nem sikerült frissíteni a karbantartási módot');
+      }
+
+      // Ha még nincs karbantartási üzenet beállítás, akkor létrehozzuk
+      if (!settings.find(s => s.key === 'maintenanceMessage')) {
+        await api.post(`${API_URL}/settings`, {
+          key: 'maintenanceMessage',
+          value: 'A weboldal karbantartás alatt áll. Kérjük, látogasson vissza később!',
+          description: 'Karbantartási mód üzenet',
+          category: 'website'
+        });
+      }
+
+      await fetchSettings();
+      showMessage(setSuccessMessage, `Karbantartási mód ${!currentMode ? 'bekapcsolva' : 'kikapcsolva'}`);
+    } catch (err) {
+      console.error('Hiba a karbantartási mód váltásakor:', err);
+      setError('Nem sikerült változtatni a karbantartási módot. Kérjük, próbálja újra később.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const openMaintenanceSettings = () => {
+    // Karbantartási mód beállítás
+    const maintenanceModeSetting = settings.find(s => s.key === 'maintenanceMode' && s.category === 'website');
+
+    // Ha nincs még ilyen beállítás, akkor létrehozzuk
+    if (!maintenanceModeSetting) {
+      setSelectedSetting({
+        key: 'maintenanceMode',
+        value: false,
+        description: 'Karbantartási mód bekapcsolása/kikapcsolása',
+        category: 'website'
+      });
+    } else {
+      setSelectedSetting(maintenanceModeSetting);
+    }
+
+    setShowModal(true);
+  };
+
   // Kategóriák listája
   const categories = ['all', ...Object.keys(stats.categories)].filter(c => c !== 'undefined');
 
@@ -319,6 +388,48 @@ const SettingsManager = () => {
               <Plus className="w-5 h-5 mr-2" />
               Új beállítás
             </button>
+          </div>
+        </div>
+
+        {/* Karbantartási mód gyors beállítása */}
+        <div className="mb-8 bg-white rounded-lg shadow p-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <AlertOctagon className="h-8 w-8 text-yellow-500 mr-3" />
+              <div>
+                <h3 className="text-lg font-medium text-gray-900">Karbantartási mód</h3>
+                <p className="text-gray-500">A weboldal karbantartási módjának beállítása</p>
+              </div>
+            </div>
+            <div className="flex items-center space-x-4">
+              {loading ? (
+                <div className="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-gray-900"></div>
+              ) : (
+                <button
+                  onClick={() => toggleMaintenanceMode()}
+                  className={`flex items-center px-4 py-2 rounded-lg ${getMaintenanceMode() ? 'bg-red-100 text-red-700 hover:bg-red-200' : 'bg-green-100 text-green-700 hover:bg-green-200'}`}
+                >
+                  {getMaintenanceMode() ? (
+                    <>
+                      <Wrench className="w-5 h-5 mr-2" />
+                      Karbantartási mód kikapcsolása
+                    </>
+                  ) : (
+                    <>
+                      <Wrench className="w-5 h-5 mr-2" />
+                      Karbantartási mód bekapcsolása
+                    </>
+                  )}
+                </button>
+              )}
+              <button
+                onClick={() => openMaintenanceSettings()}
+                className="flex items-center px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200"
+              >
+                <Settings className="w-5 h-5 mr-2" />
+                Részletes beállítások
+              </button>
+            </div>
           </div>
         </div>
 

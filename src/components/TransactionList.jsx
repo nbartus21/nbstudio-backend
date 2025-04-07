@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { format } from 'date-fns';
 import { hu } from 'date-fns/locale';
-import { Edit, Trash2, FileText, Check, X } from 'lucide-react';
+import { Edit, Trash2, FileText, Check, X, Trash } from 'lucide-react';
 import TransactionDetailModal from './TransactionDetailModal';
 import { api } from '../services/auth';
 
@@ -21,6 +21,9 @@ const TransactionList = ({
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
   const [error, setError] = useState(null);
+  const [selectedItems, setSelectedItems] = useState([]);
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Helper function for status colors
   const getStatusColor = (status) => {
@@ -140,6 +143,66 @@ const TransactionList = ({
     }
   };
 
+  // Tömeges törlés kezelése
+  const handleBulkDelete = async () => {
+    if (selectedItems.length === 0) {
+      setError('Nincs kiválasztva tétel a törléshez');
+      return;
+    }
+
+    if (!window.confirm(`Biztosan törölni szeretnéd a kiválasztott ${selectedItems.length} tételt?`)) {
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await api.post(`${ACCOUNTING_API_URL}/bulk-delete`, {
+        transactions: selectedItems
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Hiba történt a tömeges törlés során');
+      }
+
+      const result = await response.json();
+      console.log('Tömeges törlés eredménye:', result);
+
+      // Frissítjük a listát
+      if (fetchTransactions) {
+        await fetchTransactions();
+      }
+
+      // Visszaállítjuk a kijelölést
+      setSelectedItems([]);
+      setIsSelectionMode(false);
+      setError(null);
+    } catch (error) {
+      console.error('Hiba a tömeges törlés során:', error);
+      setError(`Hiba a tömeges törlés során: ${error.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Tétel kiválasztás kezelése
+  const toggleItemSelection = (id) => {
+    if (selectedItems.includes(id)) {
+      setSelectedItems(selectedItems.filter(item => item !== id));
+    } else {
+      setSelectedItems([...selectedItems, id]);
+    }
+  };
+
+  // Összes tétel kiválasztása/kijelölés törlése
+  const toggleSelectAll = () => {
+    if (selectedItems.length === transactions.length) {
+      setSelectedItems([]);
+    } else {
+      setSelectedItems(transactions.map(t => t._id));
+    }
+  };
+
   return (
     <div className="bg-white rounded-lg shadow overflow-hidden">
       {error && (
@@ -147,10 +210,52 @@ const TransactionList = ({
           {error}
         </div>
       )}
+
+      {/* Műveleti sáv */}
+      <div className="p-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
+        <div>
+          <button
+            onClick={() => setIsSelectionMode(!isSelectionMode)}
+            className={`px-4 py-2 rounded-md text-sm font-medium mr-2 ${isSelectionMode ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'} hover:bg-blue-200`}
+          >
+            {isSelectionMode ? 'Kijelölés befejezése' : 'Tételek kijelölése'}
+          </button>
+
+          {isSelectionMode && (
+            <>
+              <button
+                onClick={toggleSelectAll}
+                className="px-4 py-2 rounded-md text-sm font-medium mr-2 bg-gray-100 text-gray-700 hover:bg-gray-200"
+              >
+                {selectedItems.length === transactions.length ? 'Kijelölés törlése' : 'Összes kijelölése'}
+              </button>
+              <button
+                onClick={handleBulkDelete}
+                disabled={selectedItems.length === 0 || isLoading}
+                className={`px-4 py-2 rounded-md text-sm font-medium ${selectedItems.length === 0 || isLoading ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-red-100 text-red-700 hover:bg-red-200'}`}
+              >
+                <Trash className="h-4 w-4 inline-block mr-1" />
+                {isLoading ? 'Törlés folyamatban...' : `Kijelölt tételek törlése (${selectedItems.length})`}
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
+              {isSelectionMode && (
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <input
+                    type="checkbox"
+                    checked={selectedItems.length === transactions.length && transactions.length > 0}
+                    onChange={toggleSelectAll}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                </th>
+              )}
               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Dátum
               </th>
@@ -173,7 +278,17 @@ const TransactionList = ({
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {transactions.map((transaction) => (
-              <tr key={transaction._id} className="hover:bg-gray-50">
+              <tr key={transaction._id} className={`hover:bg-gray-50 ${selectedItems.includes(transaction._id) ? 'bg-blue-50' : ''}`}>
+                {isSelectionMode && (
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <input
+                      type="checkbox"
+                      checked={selectedItems.includes(transaction._id)}
+                      onChange={() => toggleItemSelection(transaction._id)}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                  </td>
+                )}
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                   {formatDate(transaction.date)}
                 </td>
