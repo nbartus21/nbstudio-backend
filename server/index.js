@@ -4,13 +4,11 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import https from 'https';
 import http from 'http';
+import { Server } from 'socket.io';
 import fs from 'fs';
 // PDF generation dependencies
 import PDFDocument from 'pdfkit';
 import puppeteer from 'puppeteer';
-
-// Import logger
-import logger from './utils/logger.js';
 
 // Import models
 import Contact from './models/Contact.js';
@@ -39,7 +37,7 @@ import commentsRoutes from './routes/comments.js';
 import translationRoutes from './routes/translation.js';
 import notesRoutes from './routes/notes.js';
 import tasksRoutes from './routes/tasks.js';
-import supportTicketRouter, { setupEmailEndpoint } from './routes/supportTickets.js';
+import supportTicketRouter, { setupEmailEndpoint, initializeSocketIO } from './routes/supportTickets.js';
 import emailApiRouter from './routes/emailApi.js';
 import documentsRouter from './routes/documents.js';
 import chatApiRouter from './routes/chatApi.js';
@@ -108,8 +106,48 @@ const app = express();
 const host = process.env.HOST || '0.0.0.0';
 const port = process.env.PORT || 5001;
 
-// Create HTTP server
+// Create HTTP server for Socket.IO
 const httpServer = http.createServer(app);
+
+// Configure Socket.IO
+const io = new Server(httpServer, {
+  cors: {
+    origin: [
+      'https://admin.nb-studio.net',
+      'https://nb-studio.net',
+      'https://www.nb-studio.net',
+      'https://project.nb-studio.net',
+      'http://38.242.208.190:5173',
+      'http://localhost:5173',
+      '*',
+      'http://localhost:3000'
+    ],
+    methods: ['GET', 'POST'],
+    credentials: true
+  }
+});
+
+// Initialize Socket.IO for support tickets
+initializeSocketIO(io);
+
+// Socket.IO connection handling
+io.on('connection', (socket) => {
+  console.log('Client connected to Socket.IO:', socket.id);
+
+  socket.on('joinTicket', (ticketId) => {
+    console.log(`${socket.id} joined ticket_${ticketId} room`);
+    socket.join(`ticket_${ticketId}`);
+  });
+
+  socket.on('leaveTicket', (ticketId) => {
+    console.log(`${socket.id} left ticket_${ticketId} room`);
+    socket.leave(`ticket_${ticketId}`);
+  });
+
+  socket.on('disconnect', () => {
+    console.log('Client disconnected:', socket.id);
+  });
+});
 
 // SSL configuration
 let sslOptions;
@@ -168,17 +206,18 @@ const validateApiKey = (req, res, next) => {
   const apiKey = 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0';
   const receivedApiKey = req.headers['x-api-key'];
 
-  // Log only the route, not the full headers
-  logger.debug('API Key validation for route:', req.originalUrl);
-  
+  console.log('API Key validation for route:', req.originalUrl);
+  console.log('Headers received:', JSON.stringify(req.headers, null, 2));
+  console.log('Received API key:', receivedApiKey ? 'Received' : 'Not provided');
+
   // Speciális kezelés a payments végpontokhoz
   if (req.originalUrl.includes('/payments/') && req.method === 'POST') {
-    logger.info('Payments endpoint detected - skip API key validation temporarily for debugging');
+    console.log('Payments endpoint detected - skip API key validation temporarily for debugging');
     return next();
   }
 
   if (!receivedApiKey) {
-    logger.error('No API key received in the request');
+    console.error('No API key received in the request');
     return res.status(401).json({
       message: 'API key is required',
       url: req.originalUrl,
@@ -187,10 +226,12 @@ const validateApiKey = (req, res, next) => {
   }
 
   if (receivedApiKey === apiKey) {
-    logger.debug('API key validation successful');
+    console.log('API key validation successful');
     next();
   } else {
-    logger.error('API key validation failed');
+    console.error('API key validation failed');
+    console.error('Expected:', apiKey);
+    console.error('Received:', receivedApiKey);
     res.status(401).json({
       message: 'Invalid API key',
       url: req.originalUrl,
@@ -202,13 +243,13 @@ const validateApiKey = (req, res, next) => {
 // Debug middleware (only in development)
 if (process.env.NODE_ENV !== 'production') {
   app.use((req, res, next) => {
-    // Kihagyjuk a monitoring végpontokat, statikus fájlokat és az értesítéseket a naplózásból
-    if (!req.url.includes('/monitoring/') &&
-        !req.url.includes('/notifications') &&
-        !req.url.includes('/favicon.ico') &&
-        !req.url.includes('/static/') &&
-        !req.url.includes('/__vite__')) {
-      logger.request(req);
+    // Kihagyjuk a monitoring végpontokat és az értesítéseket a naplózásból
+    if (!req.url.includes('/monitoring/system') &&
+        !req.url.includes('/monitoring/network') &&
+        !req.url.includes('/monitoring/security') &&
+        !req.url.includes('/notifications')) {
+      console.log(`${req.method} ${req.url}`);
+      // Eltávolítva a részletes naplózás
     }
     next();
   });
@@ -1570,6 +1611,12 @@ mongoose.connect(process.env.MONGO_URI)
       const serverStartedFilePath = path.join(process.cwd(), 'api-server-started.txt');
       fs.writeFileSync(serverStartedFilePath, `API szerver indítása sikeres: ${new Date().toISOString()}\n`, { flag: 'a' });
       console.log('Fájl sikeresen írva a szerver indítása után:', serverStartedFilePath);
+    });
+
+    // Start HTTP server for Socket.IO
+    const socketPort = parseInt(port) + 1;
+    httpServer.listen(socketPort, host, () => {
+      console.log(`Socket.IO server running on http://${host}:${socketPort}`);
     });
 
     // Setup project domain handling

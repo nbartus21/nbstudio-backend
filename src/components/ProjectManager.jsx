@@ -704,7 +704,9 @@ const ProjectManager = () => {
           onShare={setShowShareModal}
           onNewInvoice={handleNewInvoice}
           onViewDetails={setSelectedProject}
-          onDelete={handleDeleteProject}
+          onDelete={handleDeleteFile}
+          onDeleteProject={handleDeleteProject}
+          onMarkAsRead={handleMarkAsRead}
         />
       ) : (
         <ProjectAccordion
@@ -715,7 +717,9 @@ const ProjectManager = () => {
           onShare={setShowShareModal}
           onNewInvoice={handleNewInvoice}
           onViewDetails={setSelectedProject}
-          onDelete={handleDeleteProject}
+          onDelete={handleDeleteFile}
+          onDeleteProject={handleDeleteProject}
+          onMarkAsRead={handleMarkAsRead}
         />
       )}
 

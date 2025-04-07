@@ -438,31 +438,73 @@ router.post('/projects/:id/share', async (req, res) => {
 
 // Külön definiáljuk a PIN ellenőrző függvényt, hogy közvetlenül hívható legyen
 const verifyPin = async (req, res) => {
+  // CORS fejlécek beállítása - az origin-t a kérés alapján határozzuk meg
+  const origin = req.headers.origin;
+  if (origin) {
+    res.header('Access-Control-Allow-Origin', origin);
+  } else if (req.headers.referer) {
+    try {
+      const refererUrl = new URL(req.headers.referer);
+      res.header('Access-Control-Allow-Origin', `${refererUrl.protocol}//${refererUrl.host}`);
+    } catch (e) {
+      res.header('Access-Control-Allow-Origin', 'https://project.nb-studio.net');
+    }
+  } else {
+    res.header('Access-Control-Allow-Origin', 'https://project.nb-studio.net');
+  }
+
+  // Credentials engedélyezése
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key');
+
+  // Részletes hibakeresési napló
+  console.log(`PIN verify kérés érkezett: ${req.originalUrl}`);
+  console.log(`Kérés fejlécek:`, JSON.stringify(req.headers, null, 2));
+  console.log(`Kérés test (body):`, JSON.stringify(req.body, null, 2));
+
+  console.log('PIN ellenőrzés kérés érkezett:', req.body);
+
+  // API kulcs ellenőrzése - ha nincs vagy érvénytelen, 403 Forbidden hibát dobunk
+  // Módosítás: API kulcs ellenőrzést ideiglenesen kikapcsoljuk a hibakereséshez
+  const API_KEY = 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0';
+
+  // A kérés API kulcsának ellenőrzése - de most csak naplózzuk, nem vágjuk el a folyamatot
+  if (!req.headers['x-api-key']) {
+    console.warn('API kulcs hiányzik a kérésből, de folytatjuk a végrehajtást');
+  } else if (req.headers['x-api-key'] !== API_KEY) {
+    console.warn('Érvénytelen API kulcs, de folytatjuk a végrehajtást');
+  }
+
   try {
     const { token, pin, updateProject } = req.body;
-    console.log(`PIN ellenőrzés kérés érkezett: ${JSON.stringify({token, pin})}`);
-    
+
+    // Validáljuk a bejövő adatokat
     if (!token) {
-      return res.status(400).json({ message: 'Token szükséges' });
+      console.log('Hiányzó token a kérésből');
+      return res.status(400).json({ message: 'Hiányzó token a kérésből' });
     }
 
     console.log('Token a verify-pin-ben:', token);
+    // Részletes keresési folyamat a token alapján
+    let project = null;
 
-    // Token-hez tartozó projekt keresése
-    let project = await Project.findOne({ 'sharing.token': token });
+    // Első próbálkozás: a sharing.token mezőben keressük
+    project = await Project.findOne({ 'sharing.token': token });
 
-    // Ha nem találjuk a sharing.token mezőben, próbáljuk más helyeken is
+    // Ha nem találtuk meg, próbáljunk más mezőkkel is
     if (!project) {
       console.log('Projekt nem található a sharing.token mezőben, próbálkozás más mezőkkel');
-      
-      // Próbáljuk az _id-vel, ha a token érvényes ObjectId formátumú
+
+      // Második próbálkozás: esetleg a token közvetlenül a _id mezőben van
       if (token && token.match(/^[0-9a-fA-F]{24}$/)) {
+        console.log('A token érvényes ObjectId formátumú, próbálkozás _id-vel');
         project = await Project.findById(token);
       }
 
       // Harmadik próbálkozás: más token mezők
       if (!project) {
-        console.log('Projekt nem található a megadott tokennel:', token);
+        console.log('Projekt nem található _id-vel sem, próbálkozás más token mezőkkel');
         project = await Project.findOne({
           $or: [
             { 'shareToken': token },
@@ -474,6 +516,7 @@ const verifyPin = async (req, res) => {
 
     // Ha még mindig nincs projekt, akkor hiba
     if (!project) {
+      console.log('Projekt nem található a megadott tokennel:', token);
       return res.status(404).json({ message: 'Projekt nem található' });
     }
 
@@ -500,6 +543,10 @@ const verifyPin = async (req, res) => {
         if (updateProject.client) {
           console.log('Kliens adatok frissítése:', updateProject.client.name);
 
+          // Készítsünk biztonsági másolatot az eredeti értékekről hibakereséshez
+          const originalClientData = { ...project.client };
+          console.log('Eredeti kliens adatok:', originalClientData);
+
           // Frissítsük a kliens objektumot
           project.client = project.client || {};
           project.client.name = updateProject.client.name || project.client.name;
@@ -519,12 +566,17 @@ const verifyPin = async (req, res) => {
             project.client.address.street = updateProject.client.address.street || project.client.address.street;
           }
 
+          // Frissített adatok naplózása
+          console.log('Frissített kliens adatok:', project.client);
+
           // Mentés az adatbázisba
           await project.save();
           console.log('Projekt sikeresen frissítve a szerveren.');
         }
       } catch (updateError) {
-        console.error('Hiba a projekt frissítése közben:', updateError.message);
+        console.error('Hiba a projekt frissítése közben:', updateError);
+        // A hibát küldhetjük vissza, de nem szakítjuk meg a végrehajtást
+        console.log('Frissítési hiba, de folytatjuk a végrehajtást:', updateError.message);
       }
     }
 
@@ -546,7 +598,7 @@ const verifyPin = async (req, res) => {
           }
         }
       } catch (domainError) {
-        console.error('Hiba a domainek frissítésekor:', domainError.message);
+        console.error('Hiba a domainek frissítésekor:', domainError);
       }
     }
 
@@ -562,10 +614,12 @@ const verifyPin = async (req, res) => {
         // A mongoose az _id-t ObjectId típusként tárolja,
         // a JSON.stringify-nál ez elveszhet, ezért itt biztosítjuk, hogy stringként legyen
         if (typeof plainInvoice._id === 'object' && plainInvoice._id.$oid) {
+          console.log('Átalakítás: ObjectId-ből string-é:', plainInvoice._id.$oid);
           plainInvoice._id = plainInvoice._id.$oid;
         }
       }
 
+      console.log('Feldolgozott számla:', plainInvoice.number, 'ID:', plainInvoice._id);
       return plainInvoice;
     });
 
@@ -613,11 +667,13 @@ const verifyPin = async (req, res) => {
     const response = { project: sanitizedProject };
     console.log('Sikeres PIN ellenőrzés, visszaküldött projekt adatok:', {
       projektNév: response.project.name,
-      számlákSzáma: response.project.invoices.length
+      számlákSzáma: response.project.invoices.length,
+      clientData: response.project.client
     });
     res.json(response);
   } catch (error) {
-    console.error('Szerver hiba a PIN ellenőrzés során:', error.message);
+    console.error('Szerver hiba a PIN ellenőrzés során:', error);
+    console.error('Hibastack:', error.stack);
     res.status(500).json({ message: 'Szerver hiba történt', error: error.message });
   }
 };
@@ -698,15 +754,21 @@ const s3Client = new S3Client(S3_CONFIG);
 // Szerver oldali S3 feltöltési függvény
 const uploadToS3 = async (fileData) => {
   try {
-    console.log('S3 feltöltés indítása:', {
+    console.log('🔄 [SZERVER] S3 feltöltés indítása:', {
       fájlnév: fileData.name,
       méret: fileData.size,
-      típus: fileData.type
+      típus: fileData.type,
+      projektID: fileData.projectId,
+      feltöltő: fileData.uploadedBy
     });
 
     // Base64 adat konvertálása bináris adattá
     const base64Data = fileData.content.split(';base64,').pop();
     const binaryData = Buffer.from(base64Data, 'base64');
+    console.log('🔄 [SZERVER] Base64 adat konvertálása bináris adattá:', {
+      binárisMéret: binaryData.length,
+      base64Méret: base64Data.length
+    });
 
     // Egyedi fájlnév generálása a projektazonosítóval és projektnévvel
     // Ékezetes karakterek eltávolítása és biztonságos fájlnév létrehozása
@@ -727,13 +789,15 @@ const uploadToS3 = async (fileData) => {
           .replace(/\s+/g, '_'); // Szóközök cseréje alulvonásra
       }
     } catch (error) {
-      console.error('Hiba a projekt nevének lekérésekor:', error.message);
+      console.error('❌ [SZERVER] Hiba a projekt nevének lekérésekor:', error);
+      // Hiba esetén folytatjuk projekt név nélkül
     }
 
     // S3 kulcs generálása projekt azonosítóval és névvel
     const key = projectName
       ? `${FILE_PREFIX}${fileData.projectId}_${projectName}/${Date.now()}_${safeFileName}`
       : `${FILE_PREFIX}${fileData.projectId}/${Date.now()}_${safeFileName}`;
+    console.log('🔄 [SZERVER] Generált S3 kulcs:', key);
 
     // Metaadatok előkészítése - csak ASCII karakterek használata
     const metadata = {
@@ -752,17 +816,35 @@ const uploadToS3 = async (fileData) => {
       // Publikus hozzáférés biztosítása a fájlhoz
       ACL: 'public-read'
     };
+    console.log('🔄 [SZERVER] Feltöltési paraméterek összeállítva:', {
+      bucket: uploadParams.Bucket,
+      kulcs: uploadParams.Key,
+      contentType: uploadParams.ContentType,
+      metaadatMezők: Object.keys(uploadParams.Metadata),
+      hozzáférés: 'public-read'
+    });
 
     // A feltöltés végrehajtása
+    console.log('🔄 [SZERVER] S3 feltöltés végrehajtása...');
     const upload = new Upload({
       client: s3Client,
       params: uploadParams
     });
 
+    upload.on('httpUploadProgress', (progress) => {
+      console.log('🔄 [SZERVER] Feltöltési folyamat:', {
+        loaded: progress.loaded,
+        total: progress.total,
+        part: progress.part,
+        százalék: Math.round((progress.loaded / progress.total) * 100) + '%'
+      });
+    });
+
     const result = await upload.done();
-    console.log('S3 feltöltés befejezve:', {
-      fájlnév: fileData.name,
-      kulcs: result.Key
+    console.log('✅ [SZERVER] S3 feltöltés befejezve:', {
+      bucket: result.Bucket,
+      kulcs: result.Key,
+      location: result.Location || `https://${BUCKET_NAME}.backup-minio.vddq6f.easypanel.host/${key}`
     });
 
     // Visszaadjuk az S3 URL-t
@@ -771,8 +853,10 @@ const uploadToS3 = async (fileData) => {
       key: key
     };
   } catch (error) {
-    console.error('HIBA az S3 feltöltés során:', {
-      hibaÜzenet: error.message
+    console.error('❌ [SZERVER] HIBA az S3 feltöltés során:', {
+      hibaÜzenet: error.message,
+      hibakód: error.code,
+      stack: error.stack
     });
     throw error;
   }
@@ -1446,39 +1530,6 @@ router.post('/public/projects/:token/files', async (req, res) => {
       message: 'Szerver hiba történt',
       error: error.message
     });
-  }
-});
-
-// Projektek lekérése
-router.get('/', async (req, res) => {
-  try {
-    console.log('Fetching projects...');
-    
-    // Különböző szűrők kezelése
-    const filter = {};
-    if (req.query.status) {
-      filter.status = req.query.status;
-    }
-    if (req.query.search) {
-      const searchTerm = req.query.search;
-      filter.$or = [
-        { name: { $regex: searchTerm, $options: 'i' } },
-        { 'client.name': { $regex: searchTerm, $options: 'i' } },
-        { 'client.email': { $regex: searchTerm, $options: 'i' } },
-        { 'client.companyName': { $regex: searchTerm, $options: 'i' } }
-      ];
-    }
-
-    // Projektek lekérése adatbázisból
-    const projects = await Project.find(filter).sort({ updatedAt: -1 });
-
-    // Egyszerű statisztika naplózása
-    console.log(`Projects found: ${projects.length}`);
-
-    res.json(projects);
-  } catch (error) {
-    console.error('Error fetching projects:', error.message);
-    res.status(500).json({ message: error.message });
   }
 });
 

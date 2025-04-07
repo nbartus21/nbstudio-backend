@@ -53,7 +53,7 @@ const App = () => {
        path="/"
        element={
          <PrivateRoute>
-           <Dashboard />
+           <BlogAdmin />
          </PrivateRoute>
        }
      />

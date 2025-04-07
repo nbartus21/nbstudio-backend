@@ -9,6 +9,14 @@ import dotenv from 'dotenv';
 dotenv.config();
 const router = express.Router();
 
+// Globális változó a Socket.IO objektumnak
+let io;
+
+// Socket.IO inicializálása
+export const initializeSocketIO = (socketIO) => {
+  io = socketIO;
+};
+
 // Email transporter beállítása
 const transporter = nodemailer.createTransport({
   host: process.env.CONTACT_SMTP_HOST || process.env.SMTP_HOST,
@@ -184,6 +192,11 @@ router.put('/tickets/:id', async (req, res) => {
     
     const updatedTicket = await ticket.save();
     
+    // Socket.IO értesítés a frissítésről
+    if (io) {
+      io.to(`ticket_${ticket._id}`).emit('ticketStatusChanged', updatedTicket);
+    }
+    
     res.json(updatedTicket);
   } catch (error) {
     console.error('Error updating ticket:', error);
@@ -260,6 +273,11 @@ router.post('/tickets/:id/responses', async (req, res) => {
     }
     
     await ticket.save();
+    
+    // Socket.IO értesítés
+    if (io) {
+      io.to(`ticket_${ticket._id}`).emit('newResponse', ticket);
+    }
     
     res.status(201).json(ticket);
   } catch (error) {
@@ -392,6 +410,11 @@ export function setupEmailEndpoint(app) {
           console.error('Hiba az értesítés létrehozásakor:', notificationError.message);
         }
         
+        // Socket.IO értesítés ha van új üzenet
+        if (io) {
+          io.emit('newTicketResponse', ticket);
+        }
+        
         return res.status(200).json({ 
           success: true, 
           message: 'Válasz sikeresen hozzáadva a tickethez',
@@ -459,6 +482,11 @@ export function setupEmailEndpoint(app) {
         await notification.save();
       } catch (notificationError) {
         console.error('Hiba az értesítés létrehozásakor:', notificationError.message);
+      }
+      
+      // Socket.IO értesítés ha van új ticket
+      if (io) {
+        io.emit('newTicket', newTicket);
       }
       
       // Automatikus válasz küldése
