@@ -30,14 +30,38 @@ const transporterConfig = {
 };
 
 // Transporter létrehozása
+const transporterConfig2 = {
+  host: 'smtp.gmail.com',
+  port: 587,
+  secure: false,
+  auth: {
+    user: 'nbartus21@gmail.com',
+    pass: 'Atom.1993*'
+  }
+};
+
+// Elsődleges transporter létrehozása
 const transporter = nodemailer.createTransport(transporterConfig);
+
+// Másodlagos transporter létrehozása (Gmail)
+const transporterGmail = nodemailer.createTransport(transporterConfig2);
 
 // Transporter tesztelése indításkor
 transporter.verify((error, success) => {
   if (error) {
-    console.error('[DEBUG] SMTP kapcsolat hiba a szolgáltatás indításakor:', error);
+    console.error('[DEBUG] SMTP kapcsolat hiba a szolgáltatás indításakor (nb-hosting.hu):', error);
+    console.log('[DEBUG] Próbálkozás a másodlagos SMTP szerverrel (Gmail)...');
+
+    // Másodlagos transporter tesztelése
+    transporterGmail.verify((error2, success2) => {
+      if (error2) {
+        console.error('[DEBUG] Másodlagos SMTP kapcsolat hiba (Gmail):', error2);
+      } else {
+        console.log('[DEBUG] Másodlagos SMTP szerver kapcsolat OK (Gmail)');
+      }
+    });
   } else {
-    console.log('[DEBUG] SMTP szerver kapcsolat OK a szolgáltatás indításakor');
+    console.log('[DEBUG] SMTP szerver kapcsolat OK a szolgáltatás indításakor (nb-hosting.hu)');
   }
 });
 
@@ -233,17 +257,42 @@ export const sendInvoiceNotificationEmail = async (invoice, project, language = 
     console.log('[DEBUG] E-mail HTML tartalma (részlet):', html.substring(0, 100) + '...');
 
     try {
-      const info = await transporter.sendMail(mailOptions);
-      console.log('[DEBUG] Számla értesítő e-mail sikeresen elküldve:', {
-        messageId: info.messageId,
-        response: info.response,
-        envelope: info.envelope,
-        accepted: info.accepted,
-        rejected: info.rejected
-      });
-      return { success: true, messageId: info.messageId, info };
+      // Elsődleges SMTP szerverrel próbálkozás
+      try {
+        console.log('[DEBUG] E-mail küldés megkísérlése az elsődleges SMTP szerverrel (nb-hosting.hu)...');
+        const info = await transporter.sendMail(mailOptions);
+        console.log('[DEBUG] Számla értesítő e-mail sikeresen elküldve az elsődleges szerverrel:', {
+          messageId: info.messageId,
+          response: info.response,
+          envelope: info.envelope,
+          accepted: info.accepted,
+          rejected: info.rejected
+        });
+        return { success: true, messageId: info.messageId, info, server: 'primary' };
+      } catch (primaryError) {
+        // Elsődleges szerver hiba esetén próbáljuk a másodlagos szervert
+        console.error('[DEBUG] Hiba az e-mail küldése közben az elsődleges szerverrel:', primaryError);
+        console.log('[DEBUG] Próbálkozás a másodlagos SMTP szerverrel (Gmail)...');
+
+        try {
+          // Másodlagos SMTP szerverrel próbálkozás
+          const info2 = await transporterGmail.sendMail(mailOptions);
+          console.log('[DEBUG] Számla értesítő e-mail sikeresen elküldve a másodlagos szerverrel:', {
+            messageId: info2.messageId,
+            response: info2.response,
+            envelope: info2.envelope,
+            accepted: info2.accepted,
+            rejected: info2.rejected
+          });
+          return { success: true, messageId: info2.messageId, info: info2, server: 'secondary' };
+        } catch (secondaryError) {
+          // Másodlagos szerver hiba esetén dobják a hibát
+          console.error('[DEBUG] Hiba az e-mail küldése közben a másodlagos szerverrel is:', secondaryError);
+          throw secondaryError;
+        }
+      }
     } catch (sendError) {
-      console.error('[DEBUG] Hiba az e-mail küldése közben:', sendError);
+      console.error('[DEBUG] Hiba az e-mail küldése közben mindkét szerverrel:', sendError);
       console.error('[DEBUG] Hiba részletek:', JSON.stringify({
         code: sendError.code,
         command: sendError.command,
