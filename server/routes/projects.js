@@ -523,15 +523,21 @@ const verifyPin = async (req, res) => {
     console.log('Projekt megtalálva:', project.name, 'ID:', project._id);
 
     // PIN ellenőrzése
-    if (!pin || pin.trim() === '') {
-      // Ha nincs PIN a projekthez, vagy üres, akkor engedjük be
-      if (project.sharing && project.sharing.pin && project.sharing.pin.trim() !== '') {
-        // Ha a projekthez tartozik PIN, de a kérésben nincs megadva, akkor hiba
-        return res.status(403).json({ message: 'PIN kód szükséges a projekthez való hozzáféréshez' });
+    // Csak akkor ellenőrizzük a PIN-t, ha nincs updateProject objektum
+    // Ha van updateProject, akkor feltételezzük, hogy a felhasználó már korábban sikeresen belépett
+    if (!updateProject) {
+      if (!pin || pin.trim() === '') {
+        // Ha nincs PIN a projekthez, vagy üres, akkor engedjük be
+        if (project.sharing && project.sharing.pin && project.sharing.pin.trim() !== '') {
+          // Ha a projekthez tartozik PIN, de a kérésben nincs megadva, akkor hiba
+          return res.status(403).json({ message: 'PIN kód szükséges a projekthez való hozzáféréshez' });
+        }
+      } else if (project.sharing && project.sharing.pin && project.sharing.pin !== pin) {
+        // Ha a megadott PIN nem egyezik a projekt PIN-jével, akkor hiba
+        return res.status(403).json({ message: 'Érvénytelen PIN kód' });
       }
-    } else if (project.sharing && project.sharing.pin && project.sharing.pin !== pin) {
-      // Ha a megadott PIN nem egyezik a projekt PIN-jével, akkor hiba
-      return res.status(403).json({ message: 'Érvénytelen PIN kód' });
+    } else {
+      console.log('PIN ellenőrzés kihagyva, mert updateProject objektum érkezett');
     }
 
     // Ha updateProject objektumot küldtek, frissítsük a projektet

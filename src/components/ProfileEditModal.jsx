@@ -392,10 +392,22 @@ const ProfileEditModal = ({
             if (token) {
               debugLog('ProfileEditModal-submit', 'Token megtalálva a localStorage-ban:', token);
 
+              // Próbáljuk meg kinyerni a PIN kódot a localStorage-ból
+              let savedPin = '';
+              try {
+                const sessionData = JSON.parse(localStorage.getItem(`project_session_${token}`));
+                if (sessionData && sessionData.pin) {
+                  savedPin = sessionData.pin;
+                  debugLog('ProfileEditModal-submit', 'PIN kód megtalálva a localStorage-ban');
+                }
+              } catch (e) {
+                console.error('Session parse error:', e);
+              }
+
               // Készítsünk egy updateProject objektumot a verify-pin végponthoz
               const updateProjectData = {
                 token: token,
-                pin: pin || '',
+                pin: savedPin || pin || '',
                 updateProject: simplifiedProjectData
               };
 
