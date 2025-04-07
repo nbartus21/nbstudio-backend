@@ -10,13 +10,14 @@ dotenv.config();
 const router = express.Router();
 
 // Globális változó a Socket.IO objektumnak
-let io;
+let socketIO;
 
 // Socket.IO inicializálása
-export const initializeSocketIO = (io) => {
-  socketIO = io;
+export const initializeSocketIO = (ioInstance) => {
+  // Mentjük a Socket.IO példányt a globális változóba
+  socketIO = ioInstance;
   
-  io.on('connection', (socket) => {
+  ioInstance.on('connection', (socket) => {
     // Csak debug környezetben naplózzuk a kapcsolatokat
     if (process.env.NODE_ENV === 'development') {
       console.log('Support ticket client connected:', socket.id);
@@ -214,8 +215,8 @@ router.put('/tickets/:id', async (req, res) => {
     const updatedTicket = await ticket.save();
     
     // Socket.IO értesítés a frissítésről
-    if (io) {
-      io.to(`ticket_${ticket._id}`).emit('ticketStatusChanged', updatedTicket);
+    if (socketIO) {
+      socketIO.to(`ticket_${ticket._id}`).emit('ticketStatusChanged', updatedTicket);
     }
     
     res.json(updatedTicket);
@@ -296,8 +297,8 @@ router.post('/tickets/:id/responses', async (req, res) => {
     await ticket.save();
     
     // Socket.IO értesítés
-    if (io) {
-      io.to(`ticket_${ticket._id}`).emit('newResponse', ticket);
+    if (socketIO) {
+      socketIO.to(`ticket_${ticket._id}`).emit('newResponse', ticket);
     }
     
     res.status(201).json(ticket);
@@ -432,8 +433,8 @@ export function setupEmailEndpoint(app) {
         }
         
         // Socket.IO értesítés ha van új üzenet
-        if (io) {
-          io.emit('newTicketResponse', ticket);
+        if (socketIO) {
+          socketIO.emit('newTicketResponse', ticket);
         }
         
         return res.status(200).json({ 
@@ -506,8 +507,8 @@ export function setupEmailEndpoint(app) {
       }
       
       // Socket.IO értesítés ha van új ticket
-      if (io) {
-        io.emit('newTicket', newTicket);
+      if (socketIO) {
+        socketIO.emit('newTicket', newTicket);
       }
       
       // Automatikus válasz küldése
