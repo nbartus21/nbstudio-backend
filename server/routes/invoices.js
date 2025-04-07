@@ -9,7 +9,8 @@ import fs from 'fs';
 import path from 'path';
 import cron from 'node-cron';
 import { checkOverdueInvoices, checkDueSoonInvoices } from '../services/invoiceReminderService.js';
-import { sendInvoiceNotificationEmail } from '../services/invoiceNotificationService.js';
+// E-mail értesítés funkció ideiglenesen kikapcsolva
+// import { sendInvoiceNotificationEmail } from '../services/invoiceNotificationService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -522,60 +523,17 @@ router.post('/projects/:projectId/invoices', async (req, res) => {
       });
     }
 
-    // Email értesítés küldése az ügyfélnek
-    try {
-      console.log('\n\n[DEBUG] ======== Számla létrehozás - E-mail értesítés küldése szakasz ========');
-      console.log('[DEBUG] Számla létrehozás időpontja:', new Date().toISOString());
-      console.log('[DEBUG] Projekt adatok:', JSON.stringify({
-        id: project._id,
-        name: project.name,
-        client: project.client ? {
-          name: project.client.name,
-          email: project.client.email,
-          preferredLanguage: project.client.preferredLanguage
-        } : null
-      }, null, 2));
-      console.log('[DEBUG] Számla adatok:', JSON.stringify({
-        id: invoice._id,
-        number: invoice.number,
-        date: invoice.date,
-        dueDate: invoice.dueDate,
-        totalAmount: invoice.totalAmount,
-        status: invoice.status
-      }, null, 2));
-
-      // Ellenőrizzük, hogy a projektnek van-e ügyfél e-mail címe
-      if (project.client && project.client.email) {
-        console.log('[DEBUG] Számla értesítő e-mail küldése az ügyfélnek:', project.client.email);
-
-        // Az ügyfél preferált nyelvének meghatározása
-        // Először a kérésben küldött nyelvet használjuk, ha van
-        // Ha nincs, akkor az ügyfél preferált nyelvét használjuk
-        // Ha az sincs, akkor a magyar az alapértelmezett
-        const preferredLanguage = req.body.preferredLanguage || project.client.preferredLanguage || 'hu';
-        console.log('[DEBUG] Ügyfél preferált nyelve:', preferredLanguage);
-        console.log('[DEBUG] Kérésben küldött nyelv:', req.body.preferredLanguage || 'nincs megadva');
-
-        // E-mail küldése
-        console.log('[DEBUG] sendInvoiceNotificationEmail függvény hívása...');
-        const emailResult = await sendInvoiceNotificationEmail(invoice, project, preferredLanguage);
-        console.log('[DEBUG] Számla értesítő e-mail sikeresen elküldve:', JSON.stringify(emailResult, null, 2));
-      } else {
-        console.log('[DEBUG] Nincs ügyfél e-mail cím, értesítés nem került kiküldésre');
-        if (!project.client) {
-          console.log('[DEBUG] A projekt client objektuma hiányzik');
-        } else if (!project.client.email) {
-          console.log('[DEBUG] Az ügyfél e-mail címe hiányzik');
-        }
-      }
-    } catch (emailError) {
-      console.error('[DEBUG] Hiba a számla értesítő e-mail küldésekor:', emailError);
-      console.error('[DEBUG] Hiba részletek:', JSON.stringify({
-        message: emailError.message,
-        stack: emailError.stack
-      }, null, 2));
-      // Nem szakítjuk meg a folyamatot, ha az e-mail küldés sikertelen
-    }
+    // Email értesítés küldése eltávolítva
+    // Az e-mail értesítés funkció ideiglenesen ki van kapcsolva
+    console.log('[INFO] Számla létrehozva, de e-mail értesítés nem került kiküldésre (funkció kikapcsolva)');
+    console.log('[INFO] Számla adatok:', JSON.stringify({
+      id: invoice._id,
+      number: invoice.number,
+      date: invoice.date,
+      dueDate: invoice.dueDate,
+      totalAmount: invoice.totalAmount,
+      status: invoice.status
+    }, null, 2));
 
     // Fájl írása a lemezre a számla létrehozásának ellenőrzésére
     try {
