@@ -48,6 +48,8 @@ const Dashboard = () => {
       typeDistribution: [],
       monthlyCompletion: []
     },
+    projects: [],
+    tickets: [],
     alerts: []
   });
 
@@ -480,6 +482,8 @@ const Dashboard = () => {
           typeDistribution: projectTypeDistribution,
           monthlyCompletion: monthlyProjectCompletion
         },
+        projects: data.projects || [],
+        tickets: data.tickets || [],
         tasks: data.tasks || [],
         alerts
       };
@@ -941,8 +945,8 @@ const Dashboard = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {dashboardData.projects
-                  .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+                {(dashboardData.projects || [])
+                  .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
                   .slice(0, 5)
                   .map(project => (
                     <tr key={project._id} className="hover:bg-gray-50">
@@ -998,8 +1002,8 @@ const Dashboard = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {dashboardData.tickets
-                  .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+                {(dashboardData.tickets || [])
+                  .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
                   .slice(0, 5)
                   .map(ticket => (
                     <tr key={ticket._id} className="hover:bg-gray-50">
