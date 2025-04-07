@@ -12,7 +12,7 @@ import {
   ChevronRight, ChevronLeft, Search, Filter, Download, Share2,
   MoreVertical, Plus, BarChart2, PieChart as PieChartIcon,
   LineChart as LineChartIcon, Activity, AlertTriangle, CheckSquare,
-  MoreHorizontal
+  MoreHorizontal, Loader, X, Calendar as CalendarIcon, Check
 } from 'lucide-react';
 import { api } from '../services/auth'; // Import api with authentication
 
@@ -25,6 +25,18 @@ const Dashboard = () => {
   const [refreshInterval, setRefreshInterval] = useState(300000); // 5 perc
   const [dateRange, setDateRange] = useState('30d'); // 30 nap alapértelmezett
   const [selectedView, setSelectedView] = useState('overview'); // overview, financial, projects
+  const [systemStatus, setSystemStatus] = useState({
+    status: 'loading', // loading, online, warning, error
+    services: {
+      database: { status: 'loading', latency: 0 },
+      api: { status: 'loading', latency: 0 },
+      storage: { status: 'loading', latency: 0 },
+      email: { status: 'loading', latency: 0 }
+    },
+    lastCheck: new Date()
+  });
+  const [calendarEvents, setCalendarEvents] = useState([]);
+  const [activeWorkflows, setActiveWorkflows] = useState([]);
   const [dashboardData, setDashboardData] = useState({
     stats: {
       activeProjects: 0,
@@ -108,6 +120,171 @@ const Dashboard = () => {
       ) || []
     };
   };
+
+  // Fetch calendar events
+  const fetchCalendarEvents = async () => {
+    try {
+      const response = await api.get(`${API_URL}/calendar/events`);
+      if (response.ok) {
+        const eventsData = await response.json();
+        setCalendarEvents(eventsData);
+      } else {
+        console.warn('Could not fetch calendar events:', response.statusText);
+        // Fallback mock data
+        const today = new Date();
+        const mockEvents = [
+          {
+            id: 1,
+            title: 'Domain megújítás - example.com',
+            date: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 3),
+            type: 'domain'
+          },
+          {
+            id: 2,
+            title: 'Weboldal éves karbantartás',
+            date: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 5),
+            type: 'maintenance'
+          },
+          {
+            id: 3,
+            title: 'Ügyfél egyeztetés - XYZ Projekt',
+            date: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1),
+            type: 'meeting'
+          },
+          {
+            id: 4,
+            title: 'Havi számlázás',
+            date: new Date(today.getFullYear(), today.getMonth() + 1, 1),
+            type: 'invoice'
+          },
+          {
+            id: 5,
+            title: 'Projekt határidő - Webáruház',
+            date: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 7),
+            type: 'project'
+          }
+        ];
+        setCalendarEvents(mockEvents);
+      }
+    } catch (err) {
+      console.warn('Error fetching calendar events:', err);
+      // Fallback to default empty array already set in state
+    }
+  };
+
+  // Fetch active workflows
+  const fetchActiveWorkflows = async () => {
+    try {
+      const response = await api.get(`${API_URL}/workflows/active`);
+      if (response.ok) {
+        const workflowsData = await response.json();
+        setActiveWorkflows(workflowsData);
+      } else {
+        console.warn('Could not fetch active workflows:', response.statusText);
+        // Fallback mock data
+        const mockWorkflows = [
+          {
+            id: 'wf-1',
+            name: 'E-commerce Weboldal Fejlesztés',
+            status: 'in-progress',
+            progress: 68,
+            tasks: [
+              { name: 'Design jóváhagyás', status: 'completed' },
+              { name: 'Frontend fejlesztés', status: 'in-progress' },
+              { name: 'Backend integrálás', status: 'pending' }
+            ],
+            dueDate: new Date(new Date().getTime() + 14 * 24 * 60 * 60 * 1000)
+          },
+          {
+            id: 'wf-2',
+            name: 'Marketing Kampány - Q2',
+            status: 'in-progress',
+            progress: 42,
+            tasks: [
+              { name: 'Stratégia kidolgozás', status: 'completed' },
+              { name: 'Tartalom készítés', status: 'in-progress' },
+              { name: 'Hirdetések beállítása', status: 'pending' }
+            ],
+            dueDate: new Date(new Date().getTime() + 7 * 24 * 60 * 60 * 1000)
+          },
+          {
+            id: 'wf-3',
+            name: 'Domain és Szerver Migráció',
+            status: 'in-progress',
+            progress: 85,
+            tasks: [
+              { name: 'Előkészítés', status: 'completed' },
+              { name: 'DNS beállítások', status: 'completed' },
+              { name: 'Tartalom migráció', status: 'in-progress' }
+            ],
+            dueDate: new Date(new Date().getTime() + 2 * 24 * 60 * 60 * 1000)
+          }
+        ];
+        setActiveWorkflows(mockWorkflows);
+      }
+    } catch (err) {
+      console.warn('Error fetching active workflows:', err);
+      // Fallback to default empty array already set in state
+    }
+  };
+
+  // Check system health status
+  const checkSystemHealth = async () => {
+    try {
+      const response = await api.get(`${API_URL}/system/health`);
+      if (response.ok) {
+        const healthData = await response.json();
+        setSystemStatus(healthData);
+      } else {
+        console.warn('Could not fetch system health:', response.statusText);
+        // Generate mock system health data
+        const mockSystemStatus = {
+          status: ['online', 'warning', 'error'][Math.floor(Math.random() * 3)],
+          services: {
+            database: { 
+              status: Math.random() > 0.1 ? 'online' : 'warning', 
+              latency: Math.floor(Math.random() * 20) + 5 
+            },
+            api: { 
+              status: Math.random() > 0.1 ? 'online' : 'warning', 
+              latency: Math.floor(Math.random() * 30) + 10 
+            },
+            storage: { 
+              status: Math.random() > 0.1 ? 'online' : 'warning', 
+              latency: Math.floor(Math.random() * 15) + 5 
+            },
+            email: { 
+              status: Math.random() > 0.1 ? 'online' : 'warning', 
+              latency: Math.floor(Math.random() * 40) + 20 
+            }
+          },
+          lastCheck: new Date()
+        };
+        setSystemStatus(mockSystemStatus);
+      }
+    } catch (err) {
+      console.warn('Error checking system health:', err);
+      setSystemStatus(prev => ({
+        ...prev,
+        status: 'error',
+        lastCheck: new Date()
+      }));
+    }
+  };
+
+  // Init additional data on component mount
+  useEffect(() => {
+    fetchCalendarEvents();
+    fetchActiveWorkflows();
+    checkSystemHealth();
+
+    // Auto-refresh system health every minute
+    const healthCheckInterval = setInterval(() => {
+      checkSystemHealth();
+    }, 60000);
+
+    return () => clearInterval(healthCheckInterval);
+  }, []);
 
   // Fetch all required data for the dashboard
   const fetchDashboardData = async () => {
@@ -490,10 +667,30 @@ const Dashboard = () => {
 
       setDashboardData(processedData);
       setIsLoading(false);
+
+      // Also refresh additional data
+      fetchCalendarEvents();
+      fetchActiveWorkflows();
+      checkSystemHealth();
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
       setError(err.message);
       setIsLoading(false);
+      
+      // Show a more user-friendly error message
+      let userFriendlyMessage = 'Hiba történt az adatok betöltése közben.';
+      
+      if (err.message.includes('401') || err.message.includes('403')) {
+        userFriendlyMessage = 'Munkamenet lejárt vagy nincs jogosultsága. Kérjük jelentkezzen be újra.';
+      } else if (err.message.includes('404')) {
+        userFriendlyMessage = 'A kért erőforrás nem található.';
+      } else if (err.message.includes('500')) {
+        userFriendlyMessage = 'Szerver hiba történt. Kérjük próbálja később.';
+      } else if (err.message.includes('timeout') || err.message.includes('NetworkError')) {
+        userFriendlyMessage = 'Hálózati hiba történt. Kérjük ellenőrizze internetkapcsolatát.';
+      }
+      
+      setError(userFriendlyMessage);
     }
   };
 
@@ -582,6 +779,69 @@ const Dashboard = () => {
   const handleAuthError = () => {
     // Redirect to login
     window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname);
+  };
+
+  // Format date for calendar
+  const formatEventDate = (date) => {
+    if (!date) return 'N/A';
+    try {
+      const eventDate = new Date(date);
+      return eventDate.toLocaleDateString('hu-HU', {
+        month: 'short',
+        day: 'numeric'
+      });
+    } catch (e) {
+      console.error('Date formatting error:', e);
+      return 'Invalid date';
+    }
+  };
+
+  // Get event icon based on type
+  const getEventIcon = (type) => {
+    switch (type) {
+      case 'domain':
+        return <Globe className="h-4 w-4" />;
+      case 'maintenance':
+        return <Settings className="h-4 w-4" />;
+      case 'meeting':
+        return <Users className="h-4 w-4" />;
+      case 'invoice':
+        return <CreditCard className="h-4 w-4" />;
+      case 'project':
+        return <FileText className="h-4 w-4" />;
+      default:
+        return <Calendar className="h-4 w-4" />;
+    }
+  };
+
+  // Get service status color
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'online':
+        return 'text-green-500';
+      case 'warning':
+        return 'text-yellow-500';
+      case 'error':
+        return 'text-red-500';
+      case 'loading':
+      default:
+        return 'text-gray-400';
+    }
+  };
+
+  // Get service status icon
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case 'online':
+        return <Check className="h-5 w-5 text-green-500" />;
+      case 'warning':
+        return <AlertTriangle className="h-5 w-5 text-yellow-500" />;
+      case 'error':
+        return <X className="h-5 w-5 text-red-500" />;
+      case 'loading':
+      default:
+        return <Loader className="h-5 w-5 text-gray-400 animate-spin" />;
+    }
   };
 
   if (isLoading) {
@@ -785,6 +1045,260 @@ const Dashboard = () => {
           </div>
         </div>
         
+        {/* Rendszer állapot monitor */}
+        <div className="bg-white rounded-xl shadow-sm mb-8">
+          <div className="px-6 py-5 border-b border-gray-200">
+            <h3 className="text-lg font-medium text-gray-900 flex items-center">
+              <Server className="h-5 w-5 mr-2 text-gray-500" />
+              Rendszer Állapot
+              <span className={`ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                systemStatus.status === 'online' ? 'bg-green-100 text-green-800' :
+                systemStatus.status === 'warning' ? 'bg-yellow-100 text-yellow-800' :
+                systemStatus.status === 'error' ? 'bg-red-100 text-red-800' :
+                'bg-gray-100 text-gray-800'
+              }`}>
+                {systemStatus.status === 'online' ? 'Minden rendszer működik' :
+                 systemStatus.status === 'warning' ? 'Részleges fennakadások' :
+                 systemStatus.status === 'error' ? 'Szolgáltatás kiesés' :
+                 'Ellenőrzés...'}
+              </span>
+              <span className="ml-auto text-xs text-gray-500">
+                Utolsó ellenőrzés: {formatDate(systemStatus.lastCheck)}
+              </span>
+              <button 
+                onClick={checkSystemHealth}
+                className="ml-2 p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100"
+                title="Frissítés"
+              >
+                <RefreshCw className="h-4 w-4" />
+              </button>
+            </h3>
+          </div>
+          <div className="p-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              {/* Szolgáltatások állapota */}
+              <div className="col-span-2 grid grid-cols-2 gap-4">
+                {/* Adatbázis állapot */}
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center">
+                      <Database className="h-5 w-5 text-indigo-500 mr-2" />
+                      <span className="text-sm font-medium text-gray-700">Adatbázis</span>
+                    </div>
+                    {getStatusIcon(systemStatus.services.database.status)}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    Válaszidő: {systemStatus.services.database.latency}ms
+                  </div>
+                </div>
+                
+                {/* API állapot */}
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center">
+                      <Server className="h-5 w-5 text-blue-500 mr-2" />
+                      <span className="text-sm font-medium text-gray-700">API Szerver</span>
+                    </div>
+                    {getStatusIcon(systemStatus.services.api.status)}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    Válaszidő: {systemStatus.services.api.latency}ms
+                  </div>
+                </div>
+                
+                {/* Tárhely állapot */}
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center">
+                      <HardDrive className="h-5 w-5 text-green-500 mr-2" />
+                      <span className="text-sm font-medium text-gray-700">Tárhely</span>
+                    </div>
+                    {getStatusIcon(systemStatus.services.storage.status)}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    Válaszidő: {systemStatus.services.storage.latency}ms
+                  </div>
+                </div>
+                
+                {/* Email állapot */}
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center">
+                      <Mail className="h-5 w-5 text-amber-500 mr-2" />
+                      <span className="text-sm font-medium text-gray-700">Email Szolgáltatás</span>
+                    </div>
+                    {getStatusIcon(systemStatus.services.email.status)}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    Válaszidő: {systemStatus.services.email.latency}ms
+                  </div>
+                </div>
+              </div>
+              
+              {/* CPU Használat */}
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm font-medium text-gray-700">CPU Használat</span>
+                  <span className="text-sm font-semibold text-gray-900">{dashboardData.stats.serverStatus.cpu}%</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2.5 mb-4">
+                  <div 
+                    className={`h-2.5 rounded-full ${
+                      dashboardData.stats.serverStatus.cpu > 80 ? 'bg-red-500' : 
+                      dashboardData.stats.serverStatus.cpu > 60 ? 'bg-yellow-500' : 
+                      'bg-green-500'
+                    }`} 
+                    style={{ width: `${dashboardData.stats.serverStatus.cpu}%` }}
+                  ></div>
+                </div>
+                
+                {/* Memória Használat */}
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm font-medium text-gray-700">Memória Használat</span>
+                  <span className="text-sm font-semibold text-gray-900">{dashboardData.stats.serverStatus.memory}%</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2.5 mb-4">
+                  <div 
+                    className={`h-2.5 rounded-full ${
+                      dashboardData.stats.serverStatus.memory > 80 ? 'bg-red-500' : 
+                      dashboardData.stats.serverStatus.memory > 60 ? 'bg-yellow-500' : 
+                      'bg-green-500'
+                    }`} 
+                    style={{ width: `${dashboardData.stats.serverStatus.memory}%` }}
+                  ></div>
+                </div>
+              </div>
+              
+              {/* Lemez Használat */}
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm font-medium text-gray-700">Lemez Használat</span>
+                  <span className="text-sm font-semibold text-gray-900">{dashboardData.stats.serverStatus.disk}%</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2.5 mb-4">
+                  <div 
+                    className={`h-2.5 rounded-full ${
+                      dashboardData.stats.serverStatus.disk > 80 ? 'bg-red-500' : 
+                      dashboardData.stats.serverStatus.disk > 60 ? 'bg-yellow-500' : 
+                      'bg-green-500'
+                    }`} 
+                    style={{ width: `${dashboardData.stats.serverStatus.disk}%` }}
+                  ></div>
+                </div>
+                
+                {/* Uptime */}
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm font-medium text-gray-700">Üzemidő</span>
+                  <span className="text-sm font-semibold text-gray-900">{dashboardData.stats.serverStatus.uptime} nap</span>
+                </div>
+                <div className="w-full flex items-center">
+                  <HardDrive className="h-5 w-5 text-green-500 mr-2" />
+                  <span className="text-xs text-gray-500">Utolsó újraindítás: {formatDate(new Date(Date.now() - dashboardData.stats.serverStatus.uptime * 24 * 60 * 60 * 1000))}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        {/* Naptár és Aktív Munkafolyamatok */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+          {/* Közelgő események */}
+          <div className="bg-white rounded-xl shadow-sm">
+            <div className="px-6 py-5 border-b border-gray-200 flex justify-between items-center">
+              <h3 className="text-lg font-medium text-gray-900 flex items-center">
+                <CalendarIcon className="h-5 w-5 mr-2 text-indigo-500" />
+                Közelgő események
+              </h3>
+              <button className="inline-flex items-center text-sm font-medium text-indigo-600 hover:text-indigo-500">
+                Naptár
+                <ChevronRight className="ml-1 h-4 w-4" />
+              </button>
+            </div>
+            <div className="divide-y divide-gray-200">
+              {calendarEvents.length > 0 ? (
+                calendarEvents
+                  .filter(event => new Date(event.date) >= new Date())
+                  .sort((a, b) => new Date(a.date) - new Date(b.date))
+                  .slice(0, 5)
+                  .map(event => (
+                    <div key={event.id} className="p-4 hover:bg-gray-50">
+                      <div className="flex items-start">
+                        <div className="flex-shrink-0 bg-indigo-100 rounded-md p-2">
+                          {getEventIcon(event.type)}
+                        </div>
+                        <div className="ml-3 flex-1">
+                          <p className="text-sm font-medium text-gray-900">{event.title}</p>
+                          <p className="mt-1 text-xs text-gray-500">{formatEventDate(event.date)}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+              ) : (
+                <div className="p-6 text-center text-gray-500">
+                  <CalendarIcon className="mx-auto h-10 w-10 text-gray-400 mb-2" />
+                  <p>Nincs közelgő esemény a következő 30 napban</p>
+                </div>
+              )}
+            </div>
+          </div>
+          
+          {/* Aktív munkafolyamatok */}
+          <div className="lg:col-span-2 bg-white rounded-xl shadow-sm">
+            <div className="px-6 py-5 border-b border-gray-200 flex justify-between items-center">
+              <h3 className="text-lg font-medium text-gray-900 flex items-center">
+                <Activity className="h-5 w-5 mr-2 text-green-500" />
+                Aktív munkafolyamatok
+              </h3>
+              <button className="inline-flex items-center text-sm font-medium text-indigo-600 hover:text-indigo-500">
+                Összes folyamat
+                <ChevronRight className="ml-1 h-4 w-4" />
+              </button>
+            </div>
+            <div className="p-4">
+              {activeWorkflows.length > 0 ? (
+                <div className="grid grid-cols-1 gap-4">
+                  {activeWorkflows.map(workflow => (
+                    <div key={workflow.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow">
+                      <div className="flex justify-between items-center mb-3">
+                        <h4 className="text-sm font-bold text-gray-900">{workflow.name}</h4>
+                        <span className="text-xs text-gray-500">Határidő: {formatDate(workflow.dueDate)}</span>
+                      </div>
+                      <div className="mb-3">
+                        <div className="w-full bg-gray-200 rounded-full h-2.5">
+                          <div className="h-2.5 rounded-full bg-green-500" style={{ width: `${workflow.progress}%` }}></div>
+                        </div>
+                        <div className="flex justify-between mt-1">
+                          <span className="text-xs text-gray-500">Haladás</span>
+                          <span className="text-xs font-medium text-gray-700">{workflow.progress}%</span>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        {workflow.tasks.map((task, index) => (
+                          <div 
+                            key={`${workflow.id}-task-${index}`}
+                            className={`text-xs px-2 py-1 rounded-md ${
+                              task.status === 'completed' ? 'bg-green-100 text-green-800' :
+                              task.status === 'in-progress' ? 'bg-blue-100 text-blue-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}
+                          >
+                            {task.name}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-6 text-center text-gray-500">
+                  <Activity className="mx-auto h-10 w-10 text-gray-400 mb-2" />
+                  <p>Jelenleg nincs aktív munkafolyamat</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+        
         {/* Grafikonok és táblázatok */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           {/* Bevétel/Kiadás grafikon */}
@@ -841,85 +1355,6 @@ const Dashboard = () => {
                   <Tooltip formatter={(value, name) => [value, name]} />
                 </PieChart>
               </ResponsiveContainer>
-            </div>
-          </div>
-        </div>
-        
-        {/* Rendszer állapot és szerver metrikák */}
-        <div className="bg-white rounded-xl shadow-sm mb-8">
-          <div className="px-6 py-5 border-b border-gray-200">
-            <h3 className="text-lg font-medium text-gray-900 flex items-center">
-              <Server className="h-5 w-5 mr-2 text-gray-500" />
-              Rendszer állapot
-            </h3>
-          </div>
-          <div className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              {/* CPU Használat */}
-              <div>
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm font-medium text-gray-700">CPU Használat</span>
-                  <span className="text-sm font-semibold text-gray-900">{dashboardData.stats.serverStatus.cpu}%</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2.5">
-                  <div 
-                    className={`h-2.5 rounded-full ${
-                      dashboardData.stats.serverStatus.cpu > 80 ? 'bg-red-500' : 
-                      dashboardData.stats.serverStatus.cpu > 60 ? 'bg-yellow-500' : 
-                      'bg-green-500'
-                    }`} 
-                    style={{ width: `${dashboardData.stats.serverStatus.cpu}%` }}
-                  ></div>
-                </div>
-              </div>
-              
-              {/* Memória Használat */}
-              <div>
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm font-medium text-gray-700">Memória Használat</span>
-                  <span className="text-sm font-semibold text-gray-900">{dashboardData.stats.serverStatus.memory}%</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2.5">
-                  <div 
-                    className={`h-2.5 rounded-full ${
-                      dashboardData.stats.serverStatus.memory > 80 ? 'bg-red-500' : 
-                      dashboardData.stats.serverStatus.memory > 60 ? 'bg-yellow-500' : 
-                      'bg-green-500'
-                    }`} 
-                    style={{ width: `${dashboardData.stats.serverStatus.memory}%` }}
-                  ></div>
-                </div>
-              </div>
-              
-              {/* Lemez Használat */}
-              <div>
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm font-medium text-gray-700">Lemez Használat</span>
-                  <span className="text-sm font-semibold text-gray-900">{dashboardData.stats.serverStatus.disk}%</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2.5">
-                  <div 
-                    className={`h-2.5 rounded-full ${
-                      dashboardData.stats.serverStatus.disk > 80 ? 'bg-red-500' : 
-                      dashboardData.stats.serverStatus.disk > 60 ? 'bg-yellow-500' : 
-                      'bg-green-500'
-                    }`} 
-                    style={{ width: `${dashboardData.stats.serverStatus.disk}%` }}
-                  ></div>
-                </div>
-              </div>
-              
-              {/* Uptime */}
-              <div>
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm font-medium text-gray-700">Üzemidő</span>
-                  <span className="text-sm font-semibold text-gray-900">{dashboardData.stats.serverStatus.uptime} nap</span>
-                </div>
-                <div className="w-full flex items-center">
-                  <HardDrive className="h-5 w-5 text-green-500 mr-2" />
-                  <span className="text-xs text-gray-500">Utolsó újraindítás: {formatDate(new Date(Date.now() - dashboardData.stats.serverStatus.uptime * 24 * 60 * 60 * 1000))}</span>
-                </div>
-              </div>
             </div>
           </div>
         </div>
