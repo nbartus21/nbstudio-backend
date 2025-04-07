@@ -177,11 +177,11 @@ const NotificationsManager = () => {
     // Support ticket értesítések lekérése
     fetchSupportTicketNotifications();
 
-    // Frissítési intervallum 3 percre növelve (180000 ms)
+    // Frissítési intervallum 5 percre növelve (300000 ms)
     const interval = setInterval(() => {
       fetchAllNotifications();
       fetchSupportTicketNotifications();
-    }, 180000); // 3 perc
+    }, 300000); // 5 perc
 
     return () => clearInterval(interval);
   }, []);

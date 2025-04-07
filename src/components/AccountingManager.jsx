@@ -6,7 +6,8 @@ import TransactionList from './TransactionList';
 import TransactionModal from './TransactionModal';
 import AccountingStats from './AccountingStats';
 import TaxReport from './TaxReport';
-import InvoiceReportComponent from './InvoiceReportComponent';
+// InvoiceReportComponent eltávolítva
+// import InvoiceReportComponent from './InvoiceReportComponent';
 import { api } from '../services/auth';
 
 const API_URL = 'https://admin.nb-studio.net:5001/api';
@@ -367,16 +368,7 @@ const AccountingManager = () => {
             >
               Statisztikák
             </button>
-            <button
-              className={`py-2 px-4 font-medium ${
-                activeTab === 'invoices'
-                  ? 'border-b-2 border-blue-500 text-blue-600'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-              onClick={() => setActiveTab('invoices')}
-            >
-              Számlák
-            </button>
+            {/* Számlák fül eltávolítva */}
             <button
               className={`py-2 px-4 font-medium ${
                 activeTab === 'tax'
@@ -414,42 +406,7 @@ const AccountingManager = () => {
             />
           )}
 
-          {activeTab === 'invoices' && (
-            <InvoiceReportComponent
-              transactions={transactions.filter(t =>
-                t.category === 'project_invoice' || t.invoiceNumber
-              )}
-              projects={projects}
-              selectedYear={selectedYear}
-              selectedMonth={selectedMonth}
-              onGeneratePDF={(invoiceNumber, projectId) => {
-                window.open(`/api/projects/${projectId}/invoices/${invoiceNumber}/pdf`, '_blank');
-              }}
-              onUpdateStatus={(transaction, newStatus) => {
-                if (transaction.projectId && transaction.invoiceNumber) {
-                  // Számla státusz frissítése
-                  const projectId = transaction.projectId;
-                  const invoiceId = transaction._id;
-                  const updateData = { status: newStatus };
-
-                  if (newStatus === 'fizetett') {
-                    updateData.paidAmount = transaction.amount;
-                    updateData.paidDate = new Date();
-                  }
-
-                  api.patch(
-                    `/api/projects/${projectId}/invoices/${invoiceId}`,
-                    updateData
-                  ).then(() => {
-                    fetchData();
-                    setSuccess('Számla státusza frissítve');
-                  }).catch(err => {
-                    setError('Hiba a számla frissítésekor');
-                  });
-                }
-              }}
-            />
-          )}
+          {/* Számlák fül tartalma eltávolítva */}
 
           {activeTab === 'tax' && (
             <TaxReport
