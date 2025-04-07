@@ -10,6 +10,9 @@ import fs from 'fs';
 import PDFDocument from 'pdfkit';
 import puppeteer from 'puppeteer';
 
+// Import logger
+import logger from './utils/logger.js';
+
 // Import models
 import Contact from './models/Contact.js';
 import Hosting from './models/Hosting.js';
@@ -132,20 +135,23 @@ initializeSocketIO(io);
 
 // Socket.IO connection handling
 io.on('connection', (socket) => {
-  console.log('Client connected to Socket.IO:', socket.id);
+  // Csak debug környezetben naplózzuk a kapcsolatokat
+  if (process.env.NODE_ENV === 'development') {
+    console.log('Client connected to Socket.IO:', socket.id);
+  }
 
   socket.on('joinTicket', (ticketId) => {
-    console.log(`${socket.id} joined ticket_${ticketId} room`);
     socket.join(`ticket_${ticketId}`);
   });
 
   socket.on('leaveTicket', (ticketId) => {
-    console.log(`${socket.id} left ticket_${ticketId} room`);
     socket.leave(`ticket_${ticketId}`);
   });
 
   socket.on('disconnect', () => {
-    console.log('Client disconnected:', socket.id);
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Client disconnected:', socket.id);
+    }
   });
 });
 
@@ -206,18 +212,17 @@ const validateApiKey = (req, res, next) => {
   const apiKey = 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0';
   const receivedApiKey = req.headers['x-api-key'];
 
-  console.log('API Key validation for route:', req.originalUrl);
-  console.log('Headers received:', JSON.stringify(req.headers, null, 2));
-  console.log('Received API key:', receivedApiKey ? 'Received' : 'Not provided');
-
+  // Log only the route, not the full headers
+  logger.debug('API Key validation for route:', req.originalUrl);
+  
   // Speciális kezelés a payments végpontokhoz
   if (req.originalUrl.includes('/payments/') && req.method === 'POST') {
-    console.log('Payments endpoint detected - skip API key validation temporarily for debugging');
+    logger.info('Payments endpoint detected - skip API key validation temporarily for debugging');
     return next();
   }
 
   if (!receivedApiKey) {
-    console.error('No API key received in the request');
+    logger.error('No API key received in the request');
     return res.status(401).json({
       message: 'API key is required',
       url: req.originalUrl,
@@ -226,12 +231,10 @@ const validateApiKey = (req, res, next) => {
   }
 
   if (receivedApiKey === apiKey) {
-    console.log('API key validation successful');
+    logger.debug('API key validation successful');
     next();
   } else {
-    console.error('API key validation failed');
-    console.error('Expected:', apiKey);
-    console.error('Received:', receivedApiKey);
+    logger.error('API key validation failed');
     res.status(401).json({
       message: 'Invalid API key',
       url: req.originalUrl,
@@ -243,13 +246,13 @@ const validateApiKey = (req, res, next) => {
 // Debug middleware (only in development)
 if (process.env.NODE_ENV !== 'production') {
   app.use((req, res, next) => {
-    // Kihagyjuk a monitoring végpontokat és az értesítéseket a naplózásból
-    if (!req.url.includes('/monitoring/system') &&
-        !req.url.includes('/monitoring/network') &&
-        !req.url.includes('/monitoring/security') &&
-        !req.url.includes('/notifications')) {
-      console.log(`${req.method} ${req.url}`);
-      // Eltávolítva a részletes naplózás
+    // Kihagyjuk a monitoring végpontokat, statikus fájlokat és az értesítéseket a naplózásból
+    if (!req.url.includes('/monitoring/') &&
+        !req.url.includes('/notifications') &&
+        !req.url.includes('/favicon.ico') &&
+        !req.url.includes('/static/') &&
+        !req.url.includes('/__vite__')) {
+      logger.request(req);
     }
     next();
   });

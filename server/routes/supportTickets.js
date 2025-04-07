@@ -13,8 +13,29 @@ const router = express.Router();
 let io;
 
 // Socket.IO inicializálása
-export const initializeSocketIO = (socketIO) => {
-  io = socketIO;
+export const initializeSocketIO = (io) => {
+  socketIO = io;
+  
+  io.on('connection', (socket) => {
+    // Csak debug környezetben naplózzuk a kapcsolatokat
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Support ticket client connected:', socket.id);
+    }
+    
+    socket.on('joinTicket', (ticketId) => {
+      socket.join(`ticket_${ticketId}`);
+    });
+    
+    socket.on('leaveTicket', (ticketId) => {
+      socket.leave(`ticket_${ticketId}`);
+    });
+    
+    socket.on('disconnect', () => {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Support ticket client disconnected:', socket.id);
+      }
+    });
+  });
 };
 
 // Email transporter beállítása
