@@ -330,14 +330,39 @@ router.post('/bulk-delete', async (req, res) => {
     for (const transactionId of transactions) {
       try {
         // Ellenőrizzük, hogy a tétel létezik-e
-        const transaction = await Accounting.findById(transactionId);
+        // Kezelés attól függően, hogy domain ID vagy MongoDB ObjectId
+        let transaction;
+
+        if (typeof transactionId === 'string' && transactionId.startsWith('domain_')) {
+          // Domain ID esetén
+          transaction = await Accounting.findOne({ _id: transactionId });
+        } else {
+          // Normál MongoDB ObjectId esetén
+          try {
+            transaction = await Accounting.findById(transactionId);
+          } catch (idError) {
+            // Ha hiba van az ID formátumával, próbáljuk meg string-ként keresni
+            transaction = await Accounting.findOne({ _id: transactionId });
+          }
+        }
+
         if (!transaction) {
           errors.push({ transactionId, error: 'Tétel nem található' });
           continue;
         }
 
         // Tétel törlése
-        await Accounting.deleteOne({ _id: transactionId });
+        // Kezelés attól függően, hogy domain ID vagy MongoDB ObjectId
+        if (typeof transactionId === 'string' && transactionId.startsWith('domain_')) {
+          await Accounting.deleteOne({ _id: transactionId });
+        } else {
+          try {
+            await Accounting.deleteOne({ _id: transactionId });
+          } catch (deleteError) {
+            // Ha hiba van az ID formátumával, próbáljuk meg string-ként törölni
+            await Accounting.deleteOne({ _id: transactionId });
+          }
+        }
 
         results.push({ transactionId, success: true });
         console.log(`Tétel sikeresen törölve: ${transactionId}`);
