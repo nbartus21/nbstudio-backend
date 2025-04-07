@@ -1317,45 +1317,6 @@ app.get('/', (req, res) => {
   });
 });
 
-// Completely public maintenance status endpoint
-app.get('/api/public/maintenance-status', async (req, res) => {
-  try {
-    // Enable CORS for this endpoint
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Methods', 'GET, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type');
-
-    // If it's an OPTIONS request, return 200 OK
-    if (req.method === 'OPTIONS') {
-      return res.status(200).end();
-    }
-
-    // Import Setting model directly to avoid circular dependencies
-    const Setting = mongoose.model('Setting');
-
-    // Get maintenance mode settings
-    const maintenanceModeSetting = await Setting.findOne({ key: 'maintenanceMode', category: 'website' });
-    const maintenanceMessageSetting = await Setting.findOne({ key: 'maintenanceMessage', category: 'website' });
-
-    // Prepare response
-    const maintenanceStatus = {
-      maintenanceMode: maintenanceModeSetting ? maintenanceModeSetting.value : false,
-      maintenanceMessage: maintenanceMessageSetting ? maintenanceMessageSetting.value : 'A weboldal karbantartás alatt áll. Kérjük, látogasson vissza később!'
-    };
-
-    // Log the request and response
-    console.log(`Maintenance status requested from ${req.ip}. Status: ${maintenanceStatus.maintenanceMode}`);
-
-    res.json(maintenanceStatus);
-  } catch (err) {
-    console.error('Error fetching maintenance status:', err);
-    res.status(500).json({
-      maintenanceMode: false,
-      error: 'Server error'
-    });
-  }
-});
-
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error('Unhandled error:', err.stack);
