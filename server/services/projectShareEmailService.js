@@ -67,16 +67,16 @@ try {
 }
 
 // E-mail sablon generálása különböző nyelveken
-const generateEmailTemplate = (project, shareLink, pin, language = 'hu', customSubject = null) => {
+const generateEmailTemplate = (project, shareLink, pin, language = 'hu') => {
   // Alapértelmezett magyar sablon
-  let subject = customSubject || `Megosztott projekt hozzáférés: ${project.name}`;
+  let subject = `Megosztott projekt hozzáférés: ${project.name}`;
   let greeting = `Kedves ${project.client.name}!`;
   let intro = `Norbert Bartus megosztott Önnel egy projektet az NB Studio rendszerében.`;
   let projectInfo = `Projekt neve: ${project.name}`;
   let accessInfo = 'Az alábbi linken és PIN kóddal férhet hozzá a projekthez:';
   let linkText = 'Projekt megtekintése';
   let pinInfo = `PIN kód: ${pin}`;
-  let validUntil = project.sharing && project.sharing.expiresAt
+  let validUntil = project.sharing.expiresAt
     ? `A hozzáférés érvényes: ${new Date(project.sharing.expiresAt).toLocaleDateString('hu-HU')}-ig`
     : 'A hozzáférés korlátlan ideig érvényes.';
   let helpText = 'Ha kérdése van, kérjük, vegye fel a kapcsolatot velünk.';
@@ -91,7 +91,7 @@ const generateEmailTemplate = (project, shareLink, pin, language = 'hu', customS
     accessInfo = 'You can access the project using the following link and PIN code:';
     linkText = 'View Project';
     pinInfo = `PIN code: ${pin}`;
-    validUntil = project.sharing && project.sharing.expiresAt
+    validUntil = project.sharing.expiresAt
       ? `Access valid until: ${new Date(project.sharing.expiresAt).toLocaleDateString('en-US')}`
       : 'Access is valid indefinitely.';
     helpText = 'If you have any questions, please contact us.';
@@ -107,7 +107,7 @@ const generateEmailTemplate = (project, shareLink, pin, language = 'hu', customS
     accessInfo = 'Sie können mit dem folgenden Link und PIN-Code auf das Projekt zugreifen:';
     linkText = 'Projekt ansehen';
     pinInfo = `PIN-Code: ${pin}`;
-    validUntil = project.sharing && project.sharing.expiresAt
+    validUntil = project.sharing.expiresAt
       ? `Zugang gültig bis: ${new Date(project.sharing.expiresAt).toLocaleDateString('de-DE')}`
       : 'Der Zugang ist unbegrenzt gültig.';
     helpText = 'Bei Fragen kontaktieren Sie uns bitte.';
@@ -158,7 +158,7 @@ const generateEmailTemplate = (project, shareLink, pin, language = 'hu', customS
 };
 
 // E-mail küldése a projekt megosztásáról
-export const sendProjectShareEmail = async (project, shareLink, pin, language = 'hu', customSubject = null) => {
+export const sendProjectShareEmail = async (project, shareLink, pin, language = 'hu') => {
   try {
     console.log(`[DEBUG] Projekt megosztás e-mail küldése: ${project.name} - ${project.client.email} (${language})`);
     console.log('[DEBUG] Projekt adatok:', {
@@ -179,9 +179,8 @@ export const sendProjectShareEmail = async (project, shareLink, pin, language = 
 
     // E-mail sablon generálása
     console.log('[DEBUG] E-mail sablon generálása...');
-    const { subject, html } = generateEmailTemplate(project, shareLink, pin, language, customSubject);
+    const { subject, html } = generateEmailTemplate(project, shareLink, pin, language);
     console.log('[DEBUG] E-mail sablon generálása kész. Tárgy:', subject);
-    console.log('[DEBUG] Egyedi tárgy:', customSubject ? 'Igen' : 'Nem');
 
     // E-mail küldése
     const mailOptions = {
@@ -191,23 +190,37 @@ export const sendProjectShareEmail = async (project, shareLink, pin, language = 
       html: html
     };
 
-    console.log('E-mail küldés megkísérlése:', {
+    console.log('[DEBUG] Projekt megosztás e-mail küldése megkísérlése...', {
       to: project.client.email,
-      subject: subject
+      subject: subject,
+      from: `"Norbert Bartus" <${CONTACT_SMTP_USER}>`,
+      smtpHost: CONTACT_SMTP_HOST,
+      smtpPort: CONTACT_SMTP_PORT,
+      smtpSecure: CONTACT_SMTP_SECURE,
+      smtpUser: CONTACT_SMTP_USER
     });
 
     try {
       // E-mail küldése
+      console.log('[DEBUG] E-mail küldése megkezdődik...');
       const info = await transporter.sendMail(mailOptions);
-      console.log('E-mail sikeresen elküldve:', {
+      console.log('[DEBUG] Projekt megosztás e-mail sikeresen elküldve:', {
         messageId: info.messageId,
-        to: project.client.email
+        response: info.response,
+        accepted: info.accepted,
+        rejected: info.rejected,
+        envelope: info.envelope,
+        messageSize: info.messageSize
       });
       return { success: true, messageId: info.messageId, info };
     } catch (emailError) {
-      console.error('Hiba az e-mail küldésekor:', {
+      console.error('[DEBUG] Hiba a projekt megosztás e-mail küldésekor:', {
         error: emailError.message,
-        code: emailError.code
+        stack: emailError.stack,
+        code: emailError.code,
+        command: emailError.command,
+        responseCode: emailError.responseCode,
+        response: emailError.response
       });
       throw emailError;
     }
