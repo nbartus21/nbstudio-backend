@@ -165,6 +165,39 @@ const Dashboard = () => {
       // Process projects data
       const activeProjects = data.projects.filter(project => project.status === 'aktív').length;
 
+      // Fetch contacts data
+      try {
+        const contactsResponse = await api.get(`${API_URL}/contacts`);
+        if (contactsResponse.ok) {
+          const contactsData = await contactsResponse.json();
+          data.contacts = contactsData || [];
+        }
+      } catch (err) {
+        console.warn('Could not fetch contacts:', err.message);
+      }
+
+      // Fetch calculator data
+      try {
+        const calculatorsResponse = await api.get(`${API_URL}/calculators`);
+        if (calculatorsResponse.ok) {
+          const calculatorsData = await calculatorsResponse.json();
+          data.calculators = calculatorsData || [];
+        }
+      } catch (err) {
+        console.warn('Could not fetch calculators:', err.message);
+      }
+
+      // Fetch translation tasks
+      try {
+        const translationResponse = await api.get(`${API_URL}/translation/tasks`);
+        if (translationResponse.ok) {
+          const translationData = await translationResponse.json();
+          data.translationTasks = translationData || [];
+        }
+      } catch (err) {
+        console.warn('Could not fetch translation tasks:', err.message);
+      }
+
       // Process tickets data
       const tickets = data.tickets;
       const newTickets = tickets.filter(ticket => ticket.status === 'new').length;
@@ -445,6 +478,42 @@ const Dashboard = () => {
       // Add date range filtering
       const filteredData = filterDataByDateRange(data, dateRange);
 
+      // Process contacts data
+      const contactStats = {
+        total: data.contacts?.length || 0,
+        new: data.contacts?.filter(c => c.status === 'new').length || 0,
+        pending: data.contacts?.filter(c => c.status === 'pending').length || 0
+      };
+
+      // Process calculator data
+      const calculatorStats = {
+        total: data.calculators?.length || 0,
+        new: data.calculators?.filter(c => c.status === 'new').length || 0,
+        inProgress: data.calculators?.filter(c => c.status === 'in-progress').length || 0,
+        completed: data.calculators?.filter(c => c.status === 'completed').length || 0
+      };
+
+      // Process translation tasks data
+      const translationStats = {
+        total: data.translationTasks?.length || 0,
+        active: data.translationTasks?.filter(t => t.status === 'active').length || 0,
+        completed: data.translationTasks?.filter(t => t.status === 'completed').length || 0,
+        urgent: data.translationTasks?.filter(t => {
+          if (!t.dueDate || t.status === 'completed') return false;
+          const dueDate = new Date(t.dueDate);
+          const threeDaysFromNow = new Date();
+          threeDaysFromNow.setDate(now.getDate() + 3);
+          return dueDate <= threeDaysFromNow && dueDate >= now;
+        }).length || 0
+      };
+
+      // Process support tickets data
+      const supportStats = {
+        total: tickets.length || 0,
+        open: newTickets + openTickets + pendingTickets,
+        urgent: tickets.filter(t => t.priority === 'urgent' || t.priority === 'high').length || 0
+      };
+
       // Process the filtered data
       const processedData = {
         stats: {
@@ -462,8 +531,10 @@ const Dashboard = () => {
             open: openTickets,
             pending: pendingTickets
           },
-          serverStatus: serverStatus,
-          userStats: userStats
+          contactStats,
+          calculatorStats,
+          translationStats,
+          supportStats
         },
         recentActivity: filteredData.recentActivity,
         financialData: {
@@ -840,6 +911,127 @@ const Dashboard = () => {
         </div>
 
 
+
+        {/* Modulok áttekintése */}
+        <div className="bg-white rounded-xl shadow-sm mb-8">
+          <div className="px-6 py-5 border-b border-gray-200">
+            <h3 className="text-lg font-medium text-gray-900 flex items-center">
+              <Activity className="h-5 w-5 mr-2 text-gray-500" />
+              Modulok áttekintése
+            </h3>
+          </div>
+          <div className="p-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {/* Kapcsolatok modul */}
+              <div className="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow p-5">
+                <div className="flex justify-between items-center mb-4">
+                  <h4 className="text-base font-medium text-gray-900">Kapcsolatok</h4>
+                  <MessageSquare className="h-5 w-5 text-blue-500" />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-500">Összes üzenet:</span>
+                    <span className="text-sm font-medium">{dashboardData.stats.contactStats?.total || 0}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-500">Új üzenetek:</span>
+                    <span className="text-sm font-medium text-green-600">{dashboardData.stats.contactStats?.new || 0}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-500">Válaszra vár:</span>
+                    <span className="text-sm font-medium text-amber-600">{dashboardData.stats.contactStats?.pending || 0}</span>
+                  </div>
+                </div>
+                <div className="mt-4 pt-3 border-t border-gray-100">
+                  <a href="/contacts" className="text-sm text-blue-600 hover:text-blue-800 font-medium">
+                    Összes kapcsolat megtekintése →
+                  </a>
+                </div>
+              </div>
+
+              {/* Kalkulátor modul */}
+              <div className="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow p-5">
+                <div className="flex justify-between items-center mb-4">
+                  <h4 className="text-base font-medium text-gray-900">Kalkulátor</h4>
+                  <DollarSign className="h-5 w-5 text-green-500" />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-500">Összes kalkuláció:</span>
+                    <span className="text-sm font-medium">{dashboardData.stats.calculatorStats?.total || 0}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-500">Új kalkulációk:</span>
+                    <span className="text-sm font-medium text-green-600">{dashboardData.stats.calculatorStats?.new || 0}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-500">Folyamatban:</span>
+                    <span className="text-sm font-medium text-amber-600">{dashboardData.stats.calculatorStats?.inProgress || 0}</span>
+                  </div>
+                </div>
+                <div className="mt-4 pt-3 border-t border-gray-100">
+                  <a href="/calculator" className="text-sm text-blue-600 hover:text-blue-800 font-medium">
+                    Összes kalkuláció megtekintése →
+                  </a>
+                </div>
+              </div>
+
+              {/* Fordítás modul */}
+              <div className="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow p-5">
+                <div className="flex justify-between items-center mb-4">
+                  <h4 className="text-base font-medium text-gray-900">Fordítás</h4>
+                  <Globe className="h-5 w-5 text-indigo-500" />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-500">Összes feladat:</span>
+                    <span className="text-sm font-medium">{dashboardData.stats.translationStats?.total || 0}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-500">Aktív feladatok:</span>
+                    <span className="text-sm font-medium text-green-600">{dashboardData.stats.translationStats?.active || 0}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-500">Határidős:</span>
+                    <span className="text-sm font-medium text-amber-600">{dashboardData.stats.translationStats?.urgent || 0}</span>
+                  </div>
+                </div>
+                <div className="mt-4 pt-3 border-t border-gray-100">
+                  <a href="/translation" className="text-sm text-blue-600 hover:text-blue-800 font-medium">
+                    Összes fordítás megtekintése →
+                  </a>
+                </div>
+              </div>
+
+              {/* Támogatás modul */}
+              <div className="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow p-5">
+                <div className="flex justify-between items-center mb-4">
+                  <h4 className="text-base font-medium text-gray-900">Támogatás</h4>
+                  <AlertCircle className="h-5 w-5 text-red-500" />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-500">Összes jegy:</span>
+                    <span className="text-sm font-medium">{dashboardData.stats.supportStats?.total || 0}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-500">Nyitott jegyek:</span>
+                    <span className="text-sm font-medium text-green-600">{dashboardData.stats.supportStats?.open || 0}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-500">Sürgős jegyek:</span>
+                    <span className="text-sm font-medium text-red-600">{dashboardData.stats.supportStats?.urgent || 0}</span>
+                  </div>
+                </div>
+                <div className="mt-4 pt-3 border-t border-gray-100">
+                  <a href="/support" className="text-sm text-blue-600 hover:text-blue-800 font-medium">
+                    Összes jegy megtekintése →
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
 
         {/* Legfrissebb projektek */}
         <div className="bg-white rounded-xl shadow-sm mb-8">
