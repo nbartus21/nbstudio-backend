@@ -133,12 +133,12 @@ const Navigation = () => {
   return (
     <div className="navigation-wrapper">
       {/* Fő navigációs sáv */}
-      <nav className="bg-white border-b border-gray-200 dark:bg-gray-900 dark:border-gray-800 shadow-sm fixed w-full z-30">
+      <nav className="bg-gradient-to-r from-gray-900 to-gray-800 shadow-lg fixed w-full z-30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             {/* Logo és Dashboard link */}
             <div className="flex items-center">
-              <Link to="/dashboard" className="flex items-center text-blue-600 dark:text-white text-xl font-bold hover:text-blue-700 dark:hover:text-blue-300 transition-colors">
+              <Link to="/dashboard" className="flex items-center text-white text-xl font-bold hover:text-blue-300 transition-colors">
                 <Home className="mr-2" size={24} />
                 <span className="hidden sm:block">NB-Studio</span>
               </Link>
@@ -156,8 +156,8 @@ const Navigation = () => {
                   <button
                     className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                       isCategoryActive(category.items)
-                        ? 'text-blue-600 dark:text-white bg-blue-50 dark:bg-gray-800'
-                        : 'text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-white hover:bg-blue-50 dark:hover:bg-gray-800'
+                        ? 'text-white bg-gray-700'
+                        : 'text-gray-300 hover:text-white hover:bg-gray-700'
                     }`}
                   >
                     <span className="mr-2">{category.icon}</span>
@@ -166,7 +166,7 @@ const Navigation = () => {
                   </button>
                   <div
                     className={`
-                      absolute left-0 mt-1 w-64 rounded-md shadow-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 transition-all duration-150 ease-in-out
+                      absolute left-0 mt-1 w-64 rounded-md shadow-lg bg-white border border-gray-200 transition-all duration-150 ease-in-out
                       ${activeDropdown === idx ? 'opacity-100 visible transform translate-y-0' : 'opacity-0 invisible transform -translate-y-1'}
                     `}
                   >
@@ -177,11 +177,11 @@ const Navigation = () => {
                           to={item.path}
                           className={`flex items-center px-4 py-2 text-sm ${
                             isActive(item.path)
-                              ? 'bg-blue-50 dark:bg-gray-700 text-blue-600 dark:text-blue-300 font-medium'
-                              : 'text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-gray-700 hover:text-blue-600 dark:hover:text-blue-300'
+                              ? 'bg-gray-100 text-blue-600 font-medium'
+                              : 'text-gray-700 hover:bg-gray-50 hover:text-blue-600'
                           }`}
                         >
-                          <span className="mr-2 text-gray-500 dark:text-gray-400">{item.icon}</span>
+                          <span className="mr-2 text-gray-500">{item.icon}</span>
                           {item.label}
                         </Link>
                       ))}
@@ -196,7 +196,7 @@ const Navigation = () => {
               {/* Keresés gomb */}
               <button
                 onClick={() => setIsSearchOpen(!isSearchOpen)}
-                className="p-2 text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-white hover:bg-blue-50 dark:hover:bg-gray-700 rounded-full transition-colors"
+                className="p-2 text-gray-300 hover:text-white hover:bg-gray-700 rounded-full transition-colors"
                 title="Keresés"
               >
                 <Search size={20} />
@@ -208,7 +208,7 @@ const Navigation = () => {
               {/* Súgó */}
               <Link
                 to="/help"
-                className="p-2 text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-white hover:bg-blue-50 dark:hover:bg-gray-700 rounded-full transition-colors"
+                className="p-2 text-gray-300 hover:text-white hover:bg-gray-700 rounded-full transition-colors"
                 title="Súgó"
               >
                 <HelpCircle size={20} />
@@ -217,7 +217,7 @@ const Navigation = () => {
               {/* Beállítások */}
               <Link
                 to="/settings"
-                className="p-2 text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-white hover:bg-blue-50 dark:hover:bg-gray-700 rounded-full transition-colors"
+                className="p-2 text-gray-300 hover:text-white hover:bg-gray-700 rounded-full transition-colors"
                 title="Beállítások"
               >
                 <Settings size={20} />
@@ -226,7 +226,7 @@ const Navigation = () => {
               {/* Kijelentkezés */}
               <button
                 onClick={handleLogout}
-                className="p-2 text-gray-600 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-gray-700 rounded-full transition-colors ml-1"
+                className="p-2 text-gray-300 hover:text-red-400 hover:bg-gray-700 rounded-full transition-colors ml-1"
                 title="Kijelentkezés"
               >
                 <LogOut size={20} />
@@ -237,7 +237,7 @@ const Navigation = () => {
             <div className="md:hidden">
               <button
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
-                className="p-2 text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-white rounded-full hover:bg-blue-50 dark:hover:bg-gray-700"
+                className="p-2 text-gray-300 hover:text-white rounded-full hover:bg-gray-700"
               >
                 {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
               </button>
@@ -247,7 +247,7 @@ const Navigation = () => {
 
         {/* Keresési panel */}
         {isSearchOpen && (
-          <div className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 py-3 px-4 absolute w-full shadow-md">
+          <div className="bg-gray-800 border-t border-gray-700 py-3 px-4 absolute w-full shadow-md">
             <form onSubmit={handleSearch} className="max-w-3xl mx-auto">
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -257,7 +257,7 @@ const Navigation = () => {
                   type="text"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="block w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg py-2 pl-10 pr-3 text-gray-700 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  className="block w-full bg-gray-700 border border-gray-600 rounded-lg py-2 pl-10 pr-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                   placeholder="Keresés funkciók között..."
                   autoFocus
                 />
@@ -272,15 +272,15 @@ const Navigation = () => {
 
       {/* Mobil menü */}
       {isMenuOpen && (
-        <div className="md:hidden fixed top-16 inset-x-0 z-20 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-lg max-h-[calc(100vh-4rem)] overflow-y-auto">
+        <div className="md:hidden fixed top-16 inset-x-0 z-20 bg-gray-800 border-b border-gray-700 shadow-lg max-h-[calc(100vh-4rem)] overflow-y-auto">
           <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
             {menuItems.map((category, categoryIdx) => (
               <div key={categoryIdx} className="space-y-1 pb-2">
                 <div
                   className={`flex items-center justify-between px-3 py-2 rounded-md text-base font-medium cursor-pointer ${
                     isCategoryActive(category.items)
-                      ? 'bg-blue-50 dark:bg-gray-800 text-blue-600 dark:text-white'
-                      : 'text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-gray-800 hover:text-blue-600 dark:hover:text-white'
+                      ? 'bg-gray-700 text-white'
+                      : 'text-gray-300 hover:bg-gray-700 hover:text-white'
                   }`}
                   onClick={() => handleDropdownToggle(categoryIdx)}
                 >
@@ -302,8 +302,8 @@ const Navigation = () => {
                         to={item.path}
                         className={`flex items-center px-3 py-2 rounded-md text-sm font-medium ${
                           isActive(item.path)
-                            ? 'bg-blue-50 dark:bg-gray-700 text-blue-600 dark:text-blue-300'
-                            : 'text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-gray-700 hover:text-blue-600 dark:hover:text-blue-300'
+                            ? 'bg-gray-900 text-white'
+                            : 'text-gray-300 hover:bg-gray-700 hover:text-white'
                         }`}
                         onClick={() => setIsMenuOpen(false)}
                       >
@@ -319,17 +319,17 @@ const Navigation = () => {
 
           {/* Legutóbb meglátogatott oldalak mobil nézeten */}
           {recentPages.length > 0 && (
-            <div className="border-t border-gray-200 dark:border-gray-700 px-3 py-3">
-              <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Legutóbb meglátogatott</h3>
+            <div className="border-t border-gray-700 px-3 py-3">
+              <h3 className="text-sm font-medium text-gray-400 mb-2">Legutóbb meglátogatott</h3>
               <div className="space-y-1">
                 {recentPages.map((page, idx) => (
                   <Link
                     key={idx}
                     to={page.path}
-                    className="flex items-center px-3 py-2 rounded-md text-sm text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-gray-700 hover:text-blue-600 dark:hover:text-blue-300"
+                    className="flex items-center px-3 py-2 rounded-md text-sm text-gray-300 hover:bg-gray-700 hover:text-white"
                     onClick={() => setIsMenuOpen(false)}
                   >
-                    <Clock className="mr-2 text-gray-500 dark:text-gray-400" size={16} />
+                    <Clock className="mr-2 text-gray-500" size={16} />
                     {page.title}
                   </Link>
                 ))}
@@ -341,10 +341,10 @@ const Navigation = () => {
 
       {/* Legutóbb meglátogatott oldalak sáv - csak desktop nézeten */}
       {recentPages.length > 0 && (
-        <div className="hidden md:block bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+        <div className="hidden md:block bg-gray-100 border-b border-gray-200">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center py-2 text-sm">
-              <span className="text-gray-500 dark:text-gray-400 mr-2 flex items-center">
+              <span className="text-gray-500 mr-2 flex items-center">
                 <Clock size={14} className="mr-1" /> Legutóbb megtekintett:
               </span>
               <div className="flex items-center space-x-4 overflow-x-auto hide-scrollbar">
@@ -354,8 +354,8 @@ const Navigation = () => {
                     to={page.path}
                     className={`whitespace-nowrap px-3 py-1 rounded-full transition-colors ${
                       location.pathname === page.path
-                        ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 font-medium'
-                        : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-blue-600 dark:hover:text-blue-300'
+                        ? 'bg-blue-100 text-blue-600 font-medium'
+                        : 'text-gray-600 hover:bg-gray-200 hover:text-blue-600'
                     }`}
                   >
                     {page.title}
