@@ -549,8 +549,12 @@ router.post('/projects/:projectId/invoices', async (req, res) => {
         console.log('[DEBUG] Számla értesítő e-mail küldése az ügyfélnek:', project.client.email);
 
         // Az ügyfél preferált nyelvének meghatározása
-        const preferredLanguage = project.client.preferredLanguage || 'hu';
+        // Először a kérésben küldött nyelvet használjuk, ha van
+        // Ha nincs, akkor az ügyfél preferált nyelvét használjuk
+        // Ha az sincs, akkor a magyar az alapértelmezett
+        const preferredLanguage = req.body.preferredLanguage || project.client.preferredLanguage || 'hu';
         console.log('[DEBUG] Ügyfél preferált nyelve:', preferredLanguage);
+        console.log('[DEBUG] Kérésben küldött nyelv:', req.body.preferredLanguage || 'nincs megadva');
 
         // E-mail küldése
         console.log('[DEBUG] sendInvoiceNotificationEmail függvény hívása...');

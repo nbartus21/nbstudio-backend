@@ -598,7 +598,9 @@ const handleCreateInvoice = async (selectedProjectForInvoice, invoiceData) => {
       status: 'kiállított',
       dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 nap fizetési határidő
       notes: invoiceData.notes || '',
-      recurring: recurringSettings
+      recurring: recurringSettings,
+      // Ügyfél preferált nyelve az e-mail értesítéshez
+      preferredLanguage: selectedProjectForInvoice.client?.preferredLanguage || 'hu'
     };
 
     console.log('Küldendő számla adatok:', JSON.stringify(finalInvoiceData, null, 2));
