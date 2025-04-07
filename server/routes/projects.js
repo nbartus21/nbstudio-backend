@@ -525,19 +525,45 @@ const verifyPin = async (req, res) => {
     // PIN ellenőrzése
     // Csak akkor ellenőrizzük a PIN-t, ha nincs updateProject objektum
     // Ha van updateProject, akkor feltételezzük, hogy a felhasználó már korábban sikeresen belépett
+    console.log('[DEBUG] PIN ellenőrzés kezdete');
+    console.log('[DEBUG] updateProject objektum:', updateProject ? 'Van' : 'Nincs');
+    console.log('[DEBUG] PIN értéke:', pin ? `"${pin}"` : 'Nincs megadva');
+    console.log('[DEBUG] Projekt sharing adatok:', JSON.stringify({
+      hasSharing: !!project.sharing,
+      hasPin: project.sharing && !!project.sharing.pin,
+      pinValue: project.sharing && project.sharing.pin ? `"${project.sharing.pin}"` : 'Nincs',
+      token: project.sharing && project.sharing.token ? project.sharing.token : 'Nincs'
+    }, null, 2));
+
     if (!updateProject) {
+      console.log('[DEBUG] PIN ellenőrzés végrehajtása (nincs updateProject)');
       if (!pin || pin.trim() === '') {
+        console.log('[DEBUG] Nincs megadva PIN vagy üres');
         // Ha nincs PIN a projekthez, vagy üres, akkor engedjük be
         if (project.sharing && project.sharing.pin && project.sharing.pin.trim() !== '') {
+          console.log('[DEBUG] A projekthez tartozik PIN, de a kérésben nincs megadva');
           // Ha a projekthez tartozik PIN, de a kérésben nincs megadva, akkor hiba
           return res.status(403).json({ message: 'PIN kód szükséges a projekthez való hozzáféréshez' });
         }
+        console.log('[DEBUG] A projekthez nem tartozik PIN, vagy üres, továbbengediük');
       } else if (project.sharing && project.sharing.pin && project.sharing.pin !== pin) {
+        console.log('[DEBUG] A megadott PIN nem egyezik a projekt PIN-jével');
+        console.log('[DEBUG] Megadott PIN:', pin);
+        console.log('[DEBUG] Projekt PIN:', project.sharing.pin);
         // Ha a megadott PIN nem egyezik a projekt PIN-jével, akkor hiba
         return res.status(403).json({ message: 'Érvénytelen PIN kód' });
       }
+      console.log('[DEBUG] PIN ellenőrzés sikeres');
     } else {
-      console.log('PIN ellenőrzés kihagyva, mert updateProject objektum érkezett');
+      console.log('[DEBUG] PIN ellenőrzés kihagyva, mert updateProject objektum érkezett');
+      if (updateProject.client) {
+        console.log('[DEBUG] Ügyfél adatok frissítése:', JSON.stringify({
+          name: updateProject.client.name,
+          email: updateProject.client.email,
+          hasPhone: !!updateProject.client.phone,
+          hasCompany: !!updateProject.client.companyName
+        }, null, 2));
+      }
     }
 
     // Ha updateProject objektumot küldtek, frissítsük a projektet

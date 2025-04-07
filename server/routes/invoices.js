@@ -524,21 +524,43 @@ router.post('/projects/:projectId/invoices', async (req, res) => {
 
     // Email értesítés küldése az ügyfélnek
     try {
+      console.log('[DEBUG] Számla létrehozás - E-mail értesítés küldése szakasz');
+      console.log('[DEBUG] Projekt adatok:', JSON.stringify({
+        id: project._id,
+        name: project.name,
+        client: project.client ? {
+          name: project.client.name,
+          email: project.client.email,
+          preferredLanguage: project.client.preferredLanguage
+        } : null
+      }, null, 2));
+
       // Ellenőrizzük, hogy a projektnek van-e ügyfél e-mail címe
       if (project.client && project.client.email) {
-        console.log('Számla értesítő e-mail küldése az ügyfélnek:', project.client.email);
+        console.log('[DEBUG] Számla értesítő e-mail küldése az ügyfélnek:', project.client.email);
 
         // Az ügyfél preferált nyelvének meghatározása
         const preferredLanguage = project.client.preferredLanguage || 'hu';
+        console.log('[DEBUG] Ügyfél preferált nyelve:', preferredLanguage);
 
         // E-mail küldése
-        await sendInvoiceNotificationEmail(invoice, project, preferredLanguage);
-        console.log('Számla értesítő e-mail sikeresen elküldve');
+        console.log('[DEBUG] sendInvoiceNotificationEmail függvény hívása...');
+        const emailResult = await sendInvoiceNotificationEmail(invoice, project, preferredLanguage);
+        console.log('[DEBUG] Számla értesítő e-mail sikeresen elküldve:', JSON.stringify(emailResult, null, 2));
       } else {
-        console.log('Nincs ügyfél e-mail cím, értesítés nem került kiküldésre');
+        console.log('[DEBUG] Nincs ügyfél e-mail cím, értesítés nem került kiküldésre');
+        if (!project.client) {
+          console.log('[DEBUG] A projekt client objektuma hiányzik');
+        } else if (!project.client.email) {
+          console.log('[DEBUG] Az ügyfél e-mail címe hiányzik');
+        }
       }
     } catch (emailError) {
-      console.error('Hiba a számla értesítő e-mail küldésekor:', emailError);
+      console.error('[DEBUG] Hiba a számla értesítő e-mail küldésekor:', emailError);
+      console.error('[DEBUG] Hiba részletek:', JSON.stringify({
+        message: emailError.message,
+        stack: emailError.stack
+      }, null, 2));
       // Nem szakítjuk meg a folyamatot, ha az e-mail küldés sikertelen
     }
 
