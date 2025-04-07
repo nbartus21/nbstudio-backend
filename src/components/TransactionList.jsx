@@ -44,6 +44,7 @@ const TransactionList = ({
     project_invoice: 'Projekt számla',
     server_cost: 'Szerver költség',
     license_cost: 'Licensz költség',
+    domain_cost: 'Domain költség',
     education: 'Oktatás',
     software: 'Szoftver',
     service: 'Szolgáltatás',
