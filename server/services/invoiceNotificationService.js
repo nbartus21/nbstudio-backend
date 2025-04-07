@@ -32,6 +32,15 @@ const transporterConfig = {
 // Transporter létrehozása
 const transporter = nodemailer.createTransport(transporterConfig);
 
+// Transporter tesztelése indításkor
+transporter.verify((error, success) => {
+  if (error) {
+    console.error('[DEBUG] SMTP kapcsolat hiba a szolgáltatás indításakor:', error);
+  } else {
+    console.log('[DEBUG] SMTP szerver kapcsolat OK a szolgáltatás indításakor');
+  }
+});
+
 // E-mail sablon generálása különböző nyelveken
 const generateEmailTemplate = (invoice, project, language = 'hu') => {
   // Számla adatok formázása
@@ -218,13 +227,31 @@ export const sendInvoiceNotificationEmail = async (invoice, project, language = 
     });
 
     // E-mail küldése
-    console.log('[DEBUG] E-mail küldése megkezdődik...');
-    const info = await transporter.sendMail(mailOptions);
-    console.log('[DEBUG] Számla értesítő e-mail sikeresen elküldve:', {
-      messageId: info.messageId,
-      response: info.response
-    });
-    return { success: true, messageId: info.messageId, info };
+    console.log('\n[DEBUG] E-mail küldése megkezdődik...');
+    console.log('[DEBUG] E-mail címzett:', project.client.email);
+    console.log('[DEBUG] E-mail tárgy:', subject);
+    console.log('[DEBUG] E-mail HTML tartalma (részlet):', html.substring(0, 100) + '...');
+
+    try {
+      const info = await transporter.sendMail(mailOptions);
+      console.log('[DEBUG] Számla értesítő e-mail sikeresen elküldve:', {
+        messageId: info.messageId,
+        response: info.response,
+        envelope: info.envelope,
+        accepted: info.accepted,
+        rejected: info.rejected
+      });
+      return { success: true, messageId: info.messageId, info };
+    } catch (sendError) {
+      console.error('[DEBUG] Hiba az e-mail küldése közben:', sendError);
+      console.error('[DEBUG] Hiba részletek:', JSON.stringify({
+        code: sendError.code,
+        command: sendError.command,
+        responseCode: sendError.responseCode,
+        response: sendError.response
+      }, null, 2));
+      throw sendError;
+    }
   } catch (error) {
     console.error('[DEBUG] Hiba a számla értesítő e-mail küldésekor:', error);
     throw error;

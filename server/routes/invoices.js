@@ -524,7 +524,8 @@ router.post('/projects/:projectId/invoices', async (req, res) => {
 
     // Email értesítés küldése az ügyfélnek
     try {
-      console.log('[DEBUG] Számla létrehozás - E-mail értesítés küldése szakasz');
+      console.log('\n\n[DEBUG] ======== Számla létrehozás - E-mail értesítés küldése szakasz ========');
+      console.log('[DEBUG] Számla létrehozás időpontja:', new Date().toISOString());
       console.log('[DEBUG] Projekt adatok:', JSON.stringify({
         id: project._id,
         name: project.name,
@@ -533,6 +534,14 @@ router.post('/projects/:projectId/invoices', async (req, res) => {
           email: project.client.email,
           preferredLanguage: project.client.preferredLanguage
         } : null
+      }, null, 2));
+      console.log('[DEBUG] Számla adatok:', JSON.stringify({
+        id: invoice._id,
+        number: invoice.number,
+        date: invoice.date,
+        dueDate: invoice.dueDate,
+        totalAmount: invoice.totalAmount,
+        status: invoice.status
       }, null, 2));
 
       // Ellenőrizzük, hogy a projektnek van-e ügyfél e-mail címe
