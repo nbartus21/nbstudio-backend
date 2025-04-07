@@ -47,14 +47,29 @@ const NotificationsManager = () => {
   const fetchAllNotifications = async () => {
     try {
       setLoading(true);
-      // Csak a szükséges API végpontokat hívjuk meg
-      const [contacts, calculators, domains, projects, comments] = await Promise.all([
-        api.get(`${API_URL}/contacts`).then(res => res.json()),
-        api.get(`${API_URL}/calculators`).then(res => res.json()),
-        api.get(`${API_URL}/domains`).then(res => res.json()),
-        api.get(`${API_URL}/projects`).then(res => res.json()),
-        api.get(`${API_URL}/comments`).then(res => res.json()).catch(() => [])
-      ]);
+
+      // Csak a szükséges API végpontokat hívjuk meg, és csak akkor, ha a dropdown nyitva van vagy van olvasatlan értesítés
+      // Ez jelentősen csökkenti a felesleges API kéréseket
+      const shouldFetchAll = isOpen || unreadCount === 0;
+
+      // Alapértelmezett üres tömbök
+      let contacts = [];
+      let calculators = [];
+      let domains = [];
+      let projects = [];
+      let comments = [];
+
+      // Csak akkor kérünk le adatokat, ha szükséges
+      if (shouldFetchAll) {
+        // Parallel API kérések indítása
+        [contacts, calculators, domains, projects, comments] = await Promise.all([
+          api.get(`${API_URL}/contacts`).then(res => res.json()).catch(() => []),
+          api.get(`${API_URL}/calculators`).then(res => res.json()).catch(() => []),
+          api.get(`${API_URL}/domains`).then(res => res.json()).catch(() => []),
+          api.get(`${API_URL}/projects`).then(res => res.json()).catch(() => []),
+          api.get(`${API_URL}/comments`).then(res => res.json()).catch(() => [])
+        ]);
+      }
 
       // Eltávolítva: servers, licenses
 
@@ -209,14 +224,17 @@ const NotificationsManager = () => {
   };
 
   useEffect(() => {
+    // Kezdeti lekérés
     fetchAllNotifications();
     // Support ticket értesítések lekérése
     fetchSupportTicketNotifications();
 
+    // Frissítési intervallum 3 percre növelve (180000 ms)
     const interval = setInterval(() => {
       fetchAllNotifications();
       fetchSupportTicketNotifications();
-    }, 30000);
+    }, 180000); // 3 perc
+
     return () => clearInterval(interval);
   }, []);
 
@@ -260,28 +278,28 @@ const NotificationsManager = () => {
     // Típus szerinti ikonok
     switch (type) {
       case 'domain':
-        return <Globe className={`w-5 h-5 ${getColorByLevel(severity)}`} />;
+        return <Globe className={`w-4 h-4 ${getColorByLevel(severity)}`} />;
       // Szerver és licensz ikonok eltávolítva
       case 'project':
-        return <Calendar className={`w-5 h-5 ${getColorByLevel(severity)}`} />;
+        return <Calendar className={`w-4 h-4 ${getColorByLevel(severity)}`} />;
       case 'contact':
-        return <Info className={`w-5 h-5 ${getColorByLevel(severity)}`} />;
+        return <Info className={`w-4 h-4 ${getColorByLevel(severity)}`} />;
       case 'calculator':
-        return <Database className={`w-5 h-5 ${getColorByLevel(severity)}`} />;
+        return <Database className={`w-4 h-4 ${getColorByLevel(severity)}`} />;
       // Fájl értesítés ikon eltávolítva
       case 'comment':
-        return <MessageCircle className={`w-5 h-5 ${getColorByLevel(severity)}`} />; // Hozzászólás értesítés ikon
+        return <MessageCircle className={`w-4 h-4 ${getColorByLevel(severity)}`} />; // Hozzászólás értesítés ikon
       case 'ticket':
-        return <Mail className={`w-5 h-5 ${getColorByLevel(severity)}`} />; // Support ticket értesítés ikon
+        return <Mail className={`w-4 h-4 ${getColorByLevel(severity)}`} />; // Support ticket értesítés ikon
       default:
         // Súlyosság szerinti alapértelmezett ikonok
         switch (severity) {
           case 'error':
-            return <AlertTriangle className="w-5 h-5 text-red-500" />;
+            return <AlertTriangle className="w-4 h-4 text-red-500" />;
           case 'warning':
-            return <AlertTriangle className="w-5 h-5 text-yellow-500" />;
+            return <AlertTriangle className="w-4 h-4 text-yellow-500" />;
           default:
-            return <Info className="w-5 h-5 text-blue-500" />;
+            return <Info className="w-4 h-4 text-blue-500" />;
         }
     }
   };
@@ -300,6 +318,12 @@ const NotificationsManager = () => {
 
   // Support ticket értesítések lekérése
   const fetchSupportTicketNotifications = async () => {
+    // Csak akkor kérünk le adatokat, ha a dropdown nyitva van vagy nincs olvasatlan értesítés
+    // Ez jelentősen csökkenti a felesleges API kéréseket
+    const shouldFetch = isOpen || unreadCount === 0;
+
+    if (!shouldFetch) return;
+
     try {
       const response = await api.get('/api/notifications');
       const data = await response.json();
@@ -320,22 +344,24 @@ const NotificationsManager = () => {
         link: notification.link || '/support/tickets'
       }));
 
-      // Értesítések frissítése
-      setNotifications(prev => {
-        // Meglévő ticket értesítések eltávolítása
-        const filteredNotifications = prev.filter(n => n.type !== 'ticket');
-        // Új ticket értesítések hozzáadása
-        return [...filteredNotifications, ...ticketNotifications]
-          .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-      });
+      // Csak akkor frissítjük az értesítéseket, ha van új ticket
+      if (ticketNotifications.length > 0) {
+        // Értesítések frissítése
+        setNotifications(prev => {
+          // Meglévő ticket értesítések eltávolítása
+          const filteredNotifications = prev.filter(n => n.type !== 'ticket');
+          // Új ticket értesítések hozzáadása
+          return [...filteredNotifications, ...ticketNotifications]
+            .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        });
 
-      // Olvasatlan számláló frissítése
-      setUnreadCount(prev => {
-        const ticketCount = ticketNotifications.length;
-        const otherCount = notifications.filter(n => n.type !== 'ticket').length;
-        return otherCount + ticketCount;
-      });
-
+        // Olvasatlan számláló frissítése
+        setUnreadCount(prev => {
+          const ticketCount = ticketNotifications.length;
+          const otherCount = notifications.filter(n => n.type !== 'ticket').length;
+          return otherCount + ticketCount;
+        });
+      }
     } catch (error) {
       console.error('Hiba a support ticket értesítések lekérésekor:', error);
     }
@@ -351,32 +377,32 @@ const NotificationsManager = () => {
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 text-gray-300 hover:text-white transition-colors"
+        className="relative p-1.5 text-gray-300 hover:text-white transition-colors"
       >
-        <Bell className="w-6 h-6" />
+        <Bell className="w-5 h-5" />
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-red-500 rounded-full">
+          <span className="absolute -top-1 -right-1 flex items-center justify-center w-4 h-4 text-xs font-bold text-white bg-red-500 rounded-full">
             {unreadCount}
           </span>
         )}
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-96 bg-white rounded-lg shadow-xl z-50">
-          <div className="p-4 border-b flex justify-between items-center">
-            <h3 className="text-lg font-semibold">Értesítések</h3>
-            <div className="flex space-x-2">
+        <div className="absolute right-0 mt-1.5 w-80 bg-white rounded-lg shadow-xl z-50">
+          <div className="p-3 border-b flex justify-between items-center">
+            <h3 className="text-base font-semibold">Értesítések</h3>
+            <div className="flex space-x-1.5">
               {unreadCount > 0 && (
                 <button
                   onClick={handleDismissAll}
-                  className="text-sm text-blue-600 hover:text-blue-800"
+                  className="text-xs text-blue-600 hover:text-blue-800"
                 >
                   Összes elrejtése
                 </button>
               )}
               <button
                 onClick={handleRefresh}
-                className="text-sm text-gray-600 hover:text-gray-800"
+                className="text-xs text-gray-600 hover:text-gray-800"
               >
                 Frissítés
               </button>
@@ -384,10 +410,10 @@ const NotificationsManager = () => {
           </div>
 
           {/* Szűrők */}
-          <div className="p-2 bg-gray-50 border-b flex justify-start items-center gap-1 overflow-x-auto">
+          <div className="p-1.5 bg-gray-50 border-b flex justify-start items-center gap-0.5 overflow-x-auto">
             <button
               onClick={() => setFilterType('all')}
-              className={`px-2 py-1 text-xs rounded-full ${filterType === 'all'
+              className={`px-1.5 py-0.5 text-xs rounded-full ${filterType === 'all'
                 ? 'bg-blue-100 text-blue-800'
                 : 'bg-gray-100 text-gray-800 hover:bg-gray-200'}`}
             >
@@ -395,7 +421,7 @@ const NotificationsManager = () => {
             </button>
             <button
               onClick={() => setFilterType('domain')}
-              className={`px-2 py-1 text-xs rounded-full ${filterType === 'domain'
+              className={`px-1.5 py-0.5 text-xs rounded-full ${filterType === 'domain'
                 ? 'bg-blue-100 text-blue-800'
                 : 'bg-gray-100 text-gray-800 hover:bg-gray-200'}`}
             >
@@ -404,7 +430,7 @@ const NotificationsManager = () => {
             {/* Szerver és licensz szűrők eltávolítva */}
             <button
               onClick={() => setFilterType('project')}
-              className={`px-2 py-1 text-xs rounded-full ${filterType === 'project'
+              className={`px-1.5 py-0.5 text-xs rounded-full ${filterType === 'project'
                 ? 'bg-blue-100 text-blue-800'
                 : 'bg-gray-100 text-gray-800 hover:bg-gray-200'}`}
             >
@@ -412,7 +438,7 @@ const NotificationsManager = () => {
             </button>
             <button
               onClick={() => setFilterType('contact')}
-              className={`px-2 py-1 text-xs rounded-full ${filterType === 'contact'
+              className={`px-1.5 py-0.5 text-xs rounded-full ${filterType === 'contact'
                 ? 'bg-blue-100 text-blue-800'
                 : 'bg-gray-100 text-gray-800 hover:bg-gray-200'}`}
             >
@@ -421,7 +447,7 @@ const NotificationsManager = () => {
             {/* Fájl szűrő eltávolítva */}
             <button
               onClick={() => setFilterType('comment')}
-              className={`px-2 py-1 text-xs rounded-full ${filterType === 'comment'
+              className={`px-1.5 py-0.5 text-xs rounded-full ${filterType === 'comment'
                 ? 'bg-blue-100 text-blue-800'
                 : 'bg-gray-100 text-gray-800 hover:bg-gray-200'}`}
             >
@@ -429,7 +455,7 @@ const NotificationsManager = () => {
             </button>
             <button
               onClick={() => setFilterType('ticket')}
-              className={`px-2 py-1 text-xs rounded-full ${filterType === 'ticket'
+              className={`px-1.5 py-0.5 text-xs rounded-full ${filterType === 'ticket'
                 ? 'bg-blue-100 text-blue-800'
                 : 'bg-gray-100 text-gray-800 hover:bg-gray-200'}`}
             >
@@ -437,13 +463,13 @@ const NotificationsManager = () => {
             </button>
           </div>
 
-          <div className="max-h-96 overflow-y-auto">
+          <div className="max-h-80 overflow-y-auto">
             {loading ? (
-              <div className="flex justify-center items-center p-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent"></div>
+              <div className="flex justify-center items-center p-6">
+                <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-500 border-t-transparent"></div>
               </div>
             ) : filteredNotifications.length === 0 ? (
-              <div className="p-4 text-center text-gray-500">
+              <div className="p-3 text-center text-gray-500 text-sm">
                 {notifications.length === 0 ? 'Nincsenek új értesítések' : 'Nincs a szűrésnek megfelelő értesítés'}
               </div>
             ) : (
@@ -460,13 +486,13 @@ const NotificationsManager = () => {
                     }
                   }}
                 >
-                  <div className="p-4 flex items-start gap-3">
+                  <div className="p-2.5 flex items-start gap-2">
                     {getIcon(notification.severity, notification.type)}
                     <div className="flex-1">
-                      <div className="font-medium">{notification.title}</div>
-                      <div className="text-sm text-gray-600">{notification.message}</div>
-                      <div className="text-xs text-gray-400 mt-1 flex items-center">
-                        <Clock className="h-3 w-3 mr-1" />
+                      <div className="text-sm font-medium">{notification.title}</div>
+                      <div className="text-xs text-gray-600">{notification.message}</div>
+                      <div className="text-xs text-gray-400 mt-0.5 flex items-center">
+                        <Clock className="h-2.5 w-2.5 mr-0.5" />
                         {new Date(notification.createdAt).toLocaleString()}
                       </div>
                     </div>
@@ -477,7 +503,7 @@ const NotificationsManager = () => {
                       }}
                       className="text-gray-400 hover:text-gray-600"
                     >
-                      <X className="w-5 h-5" />
+                      <X className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
@@ -487,13 +513,13 @@ const NotificationsManager = () => {
 
           {/* Panel lábléc */}
           {notifications.length > 10 && (
-            <div className="p-2 border-t text-center bg-gray-50">
+            <div className="p-1.5 border-t text-center bg-gray-50">
               <button
                 onClick={() => {
                   navigate('/notifications');
                   setIsOpen(false);
                 }}
-                className="text-sm text-blue-600 hover:text-blue-800"
+                className="text-xs text-blue-600 hover:text-blue-800"
               >
                 Összes értesítés megtekintése
               </button>
