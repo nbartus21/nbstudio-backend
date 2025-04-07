@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Bell, X, AlertTriangle, Info, Calendar, FileText, Clock, Database, Globe, MessageCircle, Mail } from 'lucide-react';
-// Eltávolítva: Server
+import { Bell, X, AlertTriangle, Info, Clock, Database, Globe, Mail } from 'lucide-react';
+// Eltávolítva: Server, Calendar, FileText, MessageCircle
 import { api } from '../services/auth';
 import { useNavigate } from 'react-router-dom';
 
@@ -56,16 +56,14 @@ const NotificationsManager = () => {
       let contacts = [];
       let calculators = [];
       let domains = [];
-      let projects = [];
 
       // Csak akkor kérünk le adatokat, ha szükséges
       if (shouldFetchAll) {
         // Parallel API kérések indítása
-        [contacts, calculators, domains, projects] = await Promise.all([
+        [contacts, calculators, domains] = await Promise.all([
           api.get(`${API_URL}/contacts`).then(res => res.json()).catch(() => []),
           api.get(`${API_URL}/calculators`).then(res => res.json()).catch(() => []),
-          api.get(`${API_URL}/domains`).then(res => res.json()).catch(() => []),
-          api.get(`${API_URL}/projects`).then(res => res.json()).catch(() => [])
+          api.get(`${API_URL}/domains`).then(res => res.json()).catch(() => [])
         ]);
       }
 
@@ -142,33 +140,7 @@ const NotificationsManager = () => {
 
       // Licensz értesítések - eltávolítva
 
-      // Projekt értesítések
-      if (Array.isArray(projects)) {
-        projects.forEach(project => {
-          const hasDelayedMilestones = (project.milestones || []).some(
-            milestone => milestone.status === 'késedelmes'
-          );
-
-          if (project.priority === 'magas' || hasDelayedMilestones) {
-            const notificationType = hasDelayedMilestones ? 'delayed' : 'priority';
-            const notificationId = `project_${project._id}_${notificationType}`;
-
-            if (!readNotifications.includes(notificationId)) {
-              newNotifications.push({
-                _id: notificationId,
-                title: 'Sürgős projekt',
-                message: hasDelayedMilestones
-                  ? `A "${project.name}" projektben késésben lévő milestone-ok vannak`
-                  : `A "${project.name}" projekt magas prioritású`,
-                severity: 'warning',
-                createdAt: project.updatedAt,
-                type: 'project',
-                link: '/projects'
-              });
-            }
-          }
-        });
-      }
+      // Projekt értesítések eltávolítva
 
       // Fájl értesítések eltávolítva
 
@@ -255,9 +227,7 @@ const NotificationsManager = () => {
     switch (type) {
       case 'domain':
         return <Globe className={`w-4 h-4 ${getColorByLevel(severity)}`} />;
-      // Szerver és licensz ikonok eltávolítva
-      case 'project':
-        return <Calendar className={`w-4 h-4 ${getColorByLevel(severity)}`} />;
+      // Szerver, licensz és projekt ikonok eltávolítva
       case 'contact':
         return <Info className={`w-4 h-4 ${getColorByLevel(severity)}`} />;
       case 'calculator':
@@ -330,11 +300,9 @@ const NotificationsManager = () => {
         });
 
         // Olvasatlan számláló frissítése
-        setUnreadCount(prev => {
-          const ticketCount = ticketNotifications.length;
-          const otherCount = notifications.filter(n => n.type !== 'ticket').length;
-          return otherCount + ticketCount;
-        });
+        const ticketCount = ticketNotifications.length;
+        const otherCount = notifications.filter(n => n.type !== 'ticket').length;
+        setUnreadCount(otherCount + ticketCount);
       }
     } catch (error) {
       console.error('Hiba a support ticket értesítések lekérésekor:', error);
@@ -401,15 +369,7 @@ const NotificationsManager = () => {
             >
               Domain
             </button>
-            {/* Szerver és licensz szűrők eltávolítva */}
-            <button
-              onClick={() => setFilterType('project')}
-              className={`px-1.5 py-0.5 text-xs rounded-full ${filterType === 'project'
-                ? 'bg-blue-100 text-blue-800'
-                : 'bg-gray-100 text-gray-800 hover:bg-gray-200'}`}
-            >
-              Projekt
-            </button>
+            {/* Szerver, licensz és projekt szűrők eltávolítva */}
             <button
               onClick={() => setFilterType('contact')}
               className={`px-1.5 py-0.5 text-xs rounded-full ${filterType === 'contact'
