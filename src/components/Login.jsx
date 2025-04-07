@@ -37,7 +37,7 @@ const Login = () => {
       sessionStorage.setItem('token', data.token);
       sessionStorage.setItem('email', credentials.email);
       
-      navigate('/dashboard');
+      navigate('/');
     } catch (error) {
       setError(error.message);
       setLoading(false);
