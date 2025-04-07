@@ -7,9 +7,6 @@ import {
   DollarSign, PlusCircle, Languages, MessageCircle, HelpCircle
 } from 'lucide-react';
 import NotificationsManager from './NotificationsManager';
-import RecentPages from './RecentPages';
-import SearchBar from './SearchBar';
-import MobileMenu from './MobileMenu';
 
 const Navigation = () => {
   const location = useLocation();
@@ -20,15 +17,12 @@ const Navigation = () => {
   const [recentPages, setRecentPages] = useState([]);
   const [activeDropdown, setActiveDropdown] = useState(null);
 
-  useEffect(() => {
-    const savedPages = JSON.parse(localStorage.getItem('recentPages') || '[]');
-    setRecentPages(savedPages);
-  }, []);
-
+  // Kezeljük a felhasználó által legutóbb meglátogatott oldalakat
   useEffect(() => {
     if (location.pathname !== '/' && location.pathname !== '/dashboard') {
       const currentPages = JSON.parse(localStorage.getItem('recentPages') || '[]');
       const filtered = currentPages.filter(page => page.path !== location.pathname);
+
       const updatedPages = [
         {
           path: location.pathname,
@@ -37,12 +31,22 @@ const Navigation = () => {
         },
         ...filtered
       ].slice(0, 5);
+
       localStorage.setItem('recentPages', JSON.stringify(updatedPages));
       setRecentPages(updatedPages);
     }
   }, [location.pathname]);
 
+  useEffect(() => {
+    const savedPages = JSON.parse(localStorage.getItem('recentPages') || '[]');
+    setRecentPages(savedPages);
+  }, []);
+
   const getPageTitle = (path) => {
+    if (path === "/help") {
+      return "Súgó és támogatás";
+    }
+
     const allMenuItems = menuItems.flatMap(category => category.items);
     const item = allMenuItems.find(item => item.path === path);
     return item ? item.label : path;
@@ -88,10 +92,18 @@ const Navigation = () => {
     },
   ];
 
+  const isActive = (path) => location.pathname === path;
+  const isCategoryActive = (items) => {
+    return items.some(item => location.pathname === item.path || location.pathname.startsWith(`${item.path}/`));
+  };
+
   const handleSearch = (e) => {
     e.preventDefault();
     const allItems = menuItems.flatMap(category => category.items);
-    const matchingItem = allItems.find(item => item.label.toLowerCase().includes(searchTerm.toLowerCase()));
+    const matchingItem = allItems.find(item =>
+      item.label.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
     if (matchingItem) {
       navigate(matchingItem.path);
       setSearchTerm('');
@@ -102,61 +114,279 @@ const Navigation = () => {
     }
   };
 
+  const handleDropdownToggle = (index) => {
+    if (activeDropdown === index) {
+      setActiveDropdown(null);
+    } else {
+      setActiveDropdown(index);
+    }
+  };
+
+  const handleLogout = () => {
+    if (window.confirm('Biztosan ki szeretnél jelentkezni?')) {
+      sessionStorage.removeItem('isAuthenticated');
+      localStorage.removeItem('recentPages');
+      window.location.href = '/login';
+    }
+  };
+
   return (
-    <>
-      <nav className="bg-gradient-to-r from-gray-900 to-gray-800 shadow-lg">
+    <div className="navigation-wrapper">
+      {/* Fő navigációs sáv */}
+      <nav className="bg-white border-b border-gray-200 dark:bg-gray-900 dark:border-gray-800 shadow-sm fixed w-full z-30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            <Link to="/dashboard" className="flex items-center text-white text-xl font-bold hover:text-blue-300 transition-colors">
-              <Home className="mr-2" size={24} />
-              <span className="hidden sm:block">NB-Studio</span>
-            </Link>
+            {/* Logo és Dashboard link */}
+            <div className="flex items-center">
+              <Link to="/dashboard" className="flex items-center text-blue-600 dark:text-white text-xl font-bold hover:text-blue-700 dark:hover:text-blue-300 transition-colors">
+                <Home className="mr-2" size={24} />
+                <span className="hidden sm:block">NB-Studio</span>
+              </Link>
+            </div>
+
+            {/* Desktop Menu */}
             <div className="hidden md:flex space-x-1">
               {menuItems.map((category, idx) => (
-                <div key={idx} className="relative group">
-                  <button className="flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors">
+                <div
+                  key={idx}
+                  className="relative group"
+                  onMouseEnter={() => setActiveDropdown(idx)}
+                  onMouseLeave={() => setActiveDropdown(null)}
+                >
+                  <button
+                    className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                      isCategoryActive(category.items)
+                        ? 'text-blue-600 dark:text-white bg-blue-50 dark:bg-gray-800'
+                        : 'text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-white hover:bg-blue-50 dark:hover:bg-gray-800'
+                    }`}
+                  >
                     <span className="mr-2">{category.icon}</span>
                     {category.category}
                     <ChevronDown className="ml-1" size={16} />
                   </button>
-                  <div className="absolute left-0 mt-2 w-60 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5">
-                    {category.items.map((item, itemIdx) => (
-                      <Link key={itemIdx} to={item.path} className="flex items-center px-4 py-2 text-sm">
-                        <span className="mr-2 text-gray-500">{item.icon}</span>
-                        {item.label}
-                      </Link>
-                    ))}
+                  <div
+                    className={`
+                      absolute left-0 mt-1 w-64 rounded-md shadow-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 transition-all duration-150 ease-in-out
+                      ${activeDropdown === idx ? 'opacity-100 visible transform translate-y-0' : 'opacity-0 invisible transform -translate-y-1'}
+                    `}
+                  >
+                    <div className="py-1">
+                      {category.items.map((item, itemIdx) => (
+                        <Link
+                          key={itemIdx}
+                          to={item.path}
+                          className={`flex items-center px-4 py-2 text-sm ${
+                            isActive(item.path)
+                              ? 'bg-blue-50 dark:bg-gray-700 text-blue-600 dark:text-blue-300 font-medium'
+                              : 'text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-gray-700 hover:text-blue-600 dark:hover:text-blue-300'
+                          }`}
+                        >
+                          <span className="mr-2 text-gray-500 dark:text-gray-400">{item.icon}</span>
+                          {item.label}
+                        </Link>
+                      ))}
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
-            <div className="flex items-center gap-2">
-              <SearchBar
-                isSearchOpen={isSearchOpen}
-                setIsSearchOpen={setIsSearchOpen}
-                searchTerm={searchTerm}
-                setSearchTerm={setSearchTerm}
-                handleSearch={handleSearch}
-              />
+
+            {/* Gyorselérési gombok és felhasználói menü */}
+            <div className="flex items-center gap-1">
+              {/* Keresés gomb */}
+              <button
+                onClick={() => setIsSearchOpen(!isSearchOpen)}
+                className="p-2 text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-white hover:bg-blue-50 dark:hover:bg-gray-700 rounded-full transition-colors"
+                title="Keresés"
+              >
+                <Search size={20} />
+              </button>
+
+              {/* Értesítések */}
               <NotificationsManager />
-              <Link to="/help" className="p-2 text-gray-300 hover:text-white hover:bg-gray-700 rounded-md transition-colors">
+
+              {/* Súgó */}
+              <Link
+                to="/help"
+                className="p-2 text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-white hover:bg-blue-50 dark:hover:bg-gray-700 rounded-full transition-colors"
+                title="Súgó"
+              >
                 <HelpCircle size={20} />
               </Link>
-              <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="md:hidden p-2 text-gray-300 hover:text-white rounded-md">
+
+              {/* Beállítások */}
+              <Link
+                to="/settings"
+                className="p-2 text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-white hover:bg-blue-50 dark:hover:bg-gray-700 rounded-full transition-colors"
+                title="Beállítások"
+              >
+                <Settings size={20} />
+              </Link>
+
+              {/* Kijelentkezés */}
+              <button
+                onClick={handleLogout}
+                className="p-2 text-gray-600 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-gray-700 rounded-full transition-colors ml-1"
+                title="Kijelentkezés"
+              >
+                <LogOut size={20} />
+              </button>
+            </div>
+
+            {/* Mobile menu button */}
+            <div className="md:hidden">
+              <button
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                className="p-2 text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-white rounded-full hover:bg-blue-50 dark:hover:bg-gray-700"
+              >
                 {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
               </button>
             </div>
           </div>
         </div>
+
+        {/* Keresési panel */}
+        {isSearchOpen && (
+          <div className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 py-3 px-4 absolute w-full shadow-md">
+            <form onSubmit={handleSearch} className="max-w-3xl mx-auto">
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Search className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="block w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg py-2 pl-10 pr-3 text-gray-700 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  placeholder="Keresés funkciók között..."
+                  autoFocus
+                />
+              </div>
+            </form>
+          </div>
+        )}
       </nav>
-      <MobileMenu
-        isMenuOpen={isMenuOpen}
-        setIsMenuOpen={setIsMenuOpen}
-        menuItems={menuItems}
-        recentPages={recentPages}
-      />
-      <RecentPages recentPages={recentPages} />
-    </>
+
+      {/* Üres hely a fix navigáció alatt */}
+      <div className="h-16"></div>
+
+      {/* Mobil menü */}
+      {isMenuOpen && (
+        <div className="md:hidden fixed top-16 inset-x-0 z-20 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-lg max-h-[calc(100vh-4rem)] overflow-y-auto">
+          <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
+            {menuItems.map((category, categoryIdx) => (
+              <div key={categoryIdx} className="space-y-1 pb-2">
+                <div
+                  className={`flex items-center justify-between px-3 py-2 rounded-md text-base font-medium cursor-pointer ${
+                    isCategoryActive(category.items)
+                      ? 'bg-blue-50 dark:bg-gray-800 text-blue-600 dark:text-white'
+                      : 'text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-gray-800 hover:text-blue-600 dark:hover:text-white'
+                  }`}
+                  onClick={() => handleDropdownToggle(categoryIdx)}
+                >
+                  <div className="flex items-center">
+                    <span className="mr-2">{category.icon}</span>
+                    {category.category}
+                  </div>
+                  <ChevronDown
+                    className={`transition-transform duration-200 ${activeDropdown === categoryIdx ? 'transform rotate-180' : ''}`}
+                    size={18}
+                  />
+                </div>
+
+                {activeDropdown === categoryIdx && (
+                  <div className="pl-8 space-y-1 animate-fadeIn">
+                    {category.items.map((item, itemIdx) => (
+                      <Link
+                        key={itemIdx}
+                        to={item.path}
+                        className={`flex items-center px-3 py-2 rounded-md text-sm font-medium ${
+                          isActive(item.path)
+                            ? 'bg-blue-50 dark:bg-gray-700 text-blue-600 dark:text-blue-300'
+                            : 'text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-gray-700 hover:text-blue-600 dark:hover:text-blue-300'
+                        }`}
+                        onClick={() => setIsMenuOpen(false)}
+                      >
+                        <span className="mr-2">{item.icon}</span>
+                        {item.label}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Legutóbb meglátogatott oldalak mobil nézeten */}
+          {recentPages.length > 0 && (
+            <div className="border-t border-gray-200 dark:border-gray-700 px-3 py-3">
+              <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Legutóbb meglátogatott</h3>
+              <div className="space-y-1">
+                {recentPages.map((page, idx) => (
+                  <Link
+                    key={idx}
+                    to={page.path}
+                    className="flex items-center px-3 py-2 rounded-md text-sm text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-gray-700 hover:text-blue-600 dark:hover:text-blue-300"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    <Clock className="mr-2 text-gray-500 dark:text-gray-400" size={16} />
+                    {page.title}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Legutóbb meglátogatott oldalak sáv - csak desktop nézeten */}
+      {recentPages.length > 0 && (
+        <div className="hidden md:block bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center py-2 text-sm">
+              <span className="text-gray-500 dark:text-gray-400 mr-2 flex items-center">
+                <Clock size={14} className="mr-1" /> Legutóbb megtekintett:
+              </span>
+              <div className="flex items-center space-x-4 overflow-x-auto hide-scrollbar">
+                {recentPages.map((page, idx) => (
+                  <Link
+                    key={idx}
+                    to={page.path}
+                    className={`whitespace-nowrap px-3 py-1 rounded-full transition-colors ${
+                      location.pathname === page.path
+                        ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 font-medium'
+                        : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-blue-600 dark:hover:text-blue-300'
+                    }`}
+                  >
+                    {page.title}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Egyedi CSS animációk és stílusok */}
+      <style dangerouslySetInnerHTML={{
+        __html: `
+          .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+          }
+          .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+          }
+          .animate-fadeIn {
+            animation: fadeIn 0.2s ease-in-out;
+          }
+          @keyframes fadeIn {
+            0% { opacity: 0; transform: translateY(-5px); }
+            100% { opacity: 1; transform: translateY(0); }
+          }
+        `
+      }} />
+    </div>
   );
 };
 
