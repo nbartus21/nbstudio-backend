@@ -1,18 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
-  LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-  AreaChart, Area, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis
+  BarChart, Bar, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
 import {
   AlertCircle, CheckCircle, Clock, FileText, Globe,
-  DollarSign, Users, MessageSquare, Bell, ArrowUp, ArrowDown,
-  Calendar, Database, Shield, CreditCard, Archive, RefreshCw,
-  Settings, Info, Clipboard, TrendingUp, Zap, Server, HardDrive, Coffee,
-  ChevronRight, ChevronLeft, Search, Filter, Download, Share2,
-  MoreVertical, Plus, BarChart2, PieChart as PieChartIcon,
-  LineChart as LineChartIcon, Activity, AlertTriangle, CheckSquare,
-  MoreHorizontal
+  DollarSign, MessageSquare, CreditCard, Shield, RefreshCw,
+  BarChart2, Activity, AlertTriangle, MoreHorizontal
 } from 'lucide-react';
 import { api } from '../services/auth'; // Import api with authentication
 
@@ -641,7 +635,7 @@ const Dashboard = () => {
               <span className="text-sm text-gray-500">
                 Utolsó frissítés: {new Date().toLocaleTimeString('hu-HU')}
               </span>
-              <button 
+              <button
                 onClick={fetchDashboardData}
                 className="inline-flex items-center p-2 text-gray-500 hover:text-gray-700 rounded-full hover:bg-gray-100"
               >
@@ -651,7 +645,7 @@ const Dashboard = () => {
           </div>
         </div>
       </div>
-      
+
       {/* Fő tartalom */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Riasztások - ha vannak */}
@@ -705,7 +699,7 @@ const Dashboard = () => {
             </div>
           </div>
         )}
-        
+
         {/* Statisztikai kártyák */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {/* Aktív projektek */}
@@ -726,7 +720,7 @@ const Dashboard = () => {
               </span>
             </div>
           </div>
-          
+
           {/* Bevételek */}
           <div className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
@@ -745,7 +739,7 @@ const Dashboard = () => {
               </span>
             </div>
           </div>
-          
+
           {/* Domain-ek */}
           <div className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
@@ -764,7 +758,7 @@ const Dashboard = () => {
               </span>
             </div>
           </div>
-          
+
           {/* Támogatási jegyek */}
           <div className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
@@ -784,7 +778,7 @@ const Dashboard = () => {
             </div>
           </div>
         </div>
-        
+
         {/* Grafikonok és táblázatok */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           {/* Bevétel/Kiadás grafikon */}
@@ -812,7 +806,7 @@ const Dashboard = () => {
               </ResponsiveContainer>
             </div>
           </div>
-          
+
           {/* Projekt státusz kördiagram */}
           <div className="bg-white rounded-xl shadow-sm p-6">
             <div className="flex justify-between items-center mb-6">
@@ -844,86 +838,9 @@ const Dashboard = () => {
             </div>
           </div>
         </div>
-        
-        {/* Rendszer állapot és szerver metrikák */}
-        <div className="bg-white rounded-xl shadow-sm mb-8">
-          <div className="px-6 py-5 border-b border-gray-200">
-            <h3 className="text-lg font-medium text-gray-900 flex items-center">
-              <Server className="h-5 w-5 mr-2 text-gray-500" />
-              Rendszer állapot
-            </h3>
-          </div>
-          <div className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              {/* CPU Használat */}
-              <div>
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm font-medium text-gray-700">CPU Használat</span>
-                  <span className="text-sm font-semibold text-gray-900">{dashboardData.stats.serverStatus.cpu}%</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2.5">
-                  <div 
-                    className={`h-2.5 rounded-full ${
-                      dashboardData.stats.serverStatus.cpu > 80 ? 'bg-red-500' : 
-                      dashboardData.stats.serverStatus.cpu > 60 ? 'bg-yellow-500' : 
-                      'bg-green-500'
-                    }`} 
-                    style={{ width: `${dashboardData.stats.serverStatus.cpu}%` }}
-                  ></div>
-                </div>
-              </div>
-              
-              {/* Memória Használat */}
-              <div>
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm font-medium text-gray-700">Memória Használat</span>
-                  <span className="text-sm font-semibold text-gray-900">{dashboardData.stats.serverStatus.memory}%</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2.5">
-                  <div 
-                    className={`h-2.5 rounded-full ${
-                      dashboardData.stats.serverStatus.memory > 80 ? 'bg-red-500' : 
-                      dashboardData.stats.serverStatus.memory > 60 ? 'bg-yellow-500' : 
-                      'bg-green-500'
-                    }`} 
-                    style={{ width: `${dashboardData.stats.serverStatus.memory}%` }}
-                  ></div>
-                </div>
-              </div>
-              
-              {/* Lemez Használat */}
-              <div>
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm font-medium text-gray-700">Lemez Használat</span>
-                  <span className="text-sm font-semibold text-gray-900">{dashboardData.stats.serverStatus.disk}%</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2.5">
-                  <div 
-                    className={`h-2.5 rounded-full ${
-                      dashboardData.stats.serverStatus.disk > 80 ? 'bg-red-500' : 
-                      dashboardData.stats.serverStatus.disk > 60 ? 'bg-yellow-500' : 
-                      'bg-green-500'
-                    }`} 
-                    style={{ width: `${dashboardData.stats.serverStatus.disk}%` }}
-                  ></div>
-                </div>
-              </div>
-              
-              {/* Uptime */}
-              <div>
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm font-medium text-gray-700">Üzemidő</span>
-                  <span className="text-sm font-semibold text-gray-900">{dashboardData.stats.serverStatus.uptime} nap</span>
-                </div>
-                <div className="w-full flex items-center">
-                  <HardDrive className="h-5 w-5 text-green-500 mr-2" />
-                  <span className="text-xs text-gray-500">Utolsó újraindítás: {formatDate(new Date(Date.now() - dashboardData.stats.serverStatus.uptime * 24 * 60 * 60 * 1000))}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        
+
+
+
         {/* Legfrissebb projektek */}
         <div className="bg-white rounded-xl shadow-sm mb-8">
           <div className="px-6 py-5 border-b border-gray-200 flex justify-between items-center">
@@ -980,7 +897,7 @@ const Dashboard = () => {
             </table>
           </div>
         </div>
-        
+
         {/* Legújabb támogatási jegyek */}
         <div className="bg-white rounded-xl shadow-sm">
           <div className="px-6 py-5 border-b border-gray-200 flex justify-between items-center">
