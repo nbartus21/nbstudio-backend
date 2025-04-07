@@ -333,123 +333,112 @@ const ProfileEditModal = ({
           }
         };
 
-        // 1.1 Először próbáljuk meg a közvetlen PUT kérést a projekt frissítésére
-        try {
-          debugLog('ProfileEditModal-submit', `Közvetlen projekt frissítés a /projects/${projectId} végponton`);
-
-          const directProjectResponse = await fetch(`${API_URL}/projects/${projectId}`, {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-API-Key': API_KEY
-            },
-            body: JSON.stringify(simplifiedProjectData),
-            credentials: 'omit' // Egyszerűsítés: nincs szükség süti küldésre
-          });
-
-          debugLog('ProfileEditModal-submit', 'Közvetlen projekt frissítés válasz státusz:', directProjectResponse.status);
-
-          if (directProjectResponse.ok) {
-            debugLog('ProfileEditModal-submit', 'MongoDB mentés sikeres!');
-            savedToDB = true;
-
+        // Keressük meg a token-t a localStorage-ban
+        let token = null;
+        
+        // Keressük meg a megfelelő session-t a localStorage-ban
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && key.startsWith('project_session_')) {
             try {
-              const responseData = await directProjectResponse.json();
-              debugLog('ProfileEditModal-submit', 'Szerver válasz:', responseData);
-            } catch (parseError) {
-              debugLog('ProfileEditModal-submit', 'Válasz feldolgozási hiba:', parseError);
+              const sessionData = JSON.parse(localStorage.getItem(key));
+              if (sessionData && sessionData.project && sessionData.project._id === projectId) {
+                token = key.replace('project_session_', '');
+                break;
+              }
+            } catch (e) {
+              console.error('Session parse error:', e);
             }
-          } else {
-            debugLog('ProfileEditModal-submit', 'Közvetlen projekt frissítés hiba:', {
-              status: directProjectResponse.status,
-              statusText: directProjectResponse.statusText
+          }
+        }
+
+        if (token) {
+          debugLog('ProfileEditModal-submit', 'Token megtalálva a localStorage-ban:', token);
+
+          // Próbáljuk meg kinyerni a PIN kódot a localStorage-ból
+          let savedPin = '';
+          try {
+            const sessionData = JSON.parse(localStorage.getItem(`project_session_${token}`));
+            if (sessionData && sessionData.pin) {
+              savedPin = sessionData.pin;
+              debugLog('ProfileEditModal-submit', 'PIN kód megtalálva a localStorage-ban');
+            }
+          } catch (e) {
+            console.error('Session parse error:', e);
+          }
+
+          // Készítsünk egy updateProject objektumot a verify-pin végponthoz
+          const updateProjectData = {
+            token: token,
+            pin: savedPin || '',
+            updateProject: simplifiedProjectData
+          };
+
+          // Közvetlenül használjuk a verify-pin végpontot
+          try {
+            debugLog('ProfileEditModal-submit', 'Projekt frissítés a /public/projects/verify-pin végponton');
+            const verifyPinResponse = await fetch(`${API_URL}/public/projects/verify-pin`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-API-Key': API_KEY
+              },
+              body: JSON.stringify(updateProjectData),
+              credentials: 'omit'
             });
 
-            // 1.2 Ha a közvetlen frissítés nem sikerült, próbáljuk meg a verify-pin végpontot
-            debugLog('ProfileEditModal-submit', 'Próbálkozás a verify-pin végponttal');
+            debugLog('ProfileEditModal-submit', 'Verify-pin válasz státusz:', verifyPinResponse.status);
 
-            // Próbáljuk meg kinyerni a token-t és PIN-t a localStorage-ból
-            let token = null;
-            let pin = null;
+            if (verifyPinResponse.ok) {
+              debugLog('ProfileEditModal-submit', 'Verify-pin frissítés sikeres!');
+              savedToDB = true;
 
-            // Keressük meg a megfelelő session-t a localStorage-ban
-            for (let i = 0; i < localStorage.length; i++) {
-              const key = localStorage.key(i);
-              if (key && key.startsWith('project_session_')) {
-                try {
-                  const sessionData = JSON.parse(localStorage.getItem(key));
-                  if (sessionData && sessionData.project && sessionData.project._id === projectId) {
-                    token = key.replace('project_session_', '');
-                    pin = sessionData.pin;
-                    break;
-                  }
-                } catch (e) {
-                  console.error('Session parse error:', e);
-                }
-              }
-            }
-
-            if (token) {
-              debugLog('ProfileEditModal-submit', 'Token megtalálva a localStorage-ban:', token);
-
-              // Próbáljuk meg kinyerni a PIN kódot a localStorage-ból
-              let savedPin = '';
               try {
-                const sessionData = JSON.parse(localStorage.getItem(`project_session_${token}`));
-                if (sessionData && sessionData.pin) {
-                  savedPin = sessionData.pin;
-                  debugLog('ProfileEditModal-submit', 'PIN kód megtalálva a localStorage-ban');
-                }
-              } catch (e) {
-                console.error('Session parse error:', e);
+                const responseData = await verifyPinResponse.json();
+                debugLog('ProfileEditModal-submit', 'Verify-pin válasz:', responseData);
+              } catch (parseError) {
+                debugLog('ProfileEditModal-submit', 'Verify-pin válasz feldolgozási hiba:', parseError);
               }
-
-              // Készítsünk egy updateProject objektumot a verify-pin végponthoz
-              const updateProjectData = {
-                token: token,
-                pin: savedPin || pin || '',
-                updateProject: simplifiedProjectData
-              };
-
-              // Próbáljuk meg a verify-pin végpontot
+            } else {
+              debugLog('ProfileEditModal-submit', 'Verify-pin frissítés hiba:', {
+                status: verifyPinResponse.status,
+                statusText: verifyPinResponse.statusText
+              });
+              
+              // Csak ha a public API nem működik, akkor próbáljuk meg a védett végpontot
               try {
-                const verifyPinResponse = await fetch(`${API_URL}/public/projects/verify-pin`, {
-                  method: 'POST',
+                debugLog('ProfileEditModal-submit', `Közvetlen projekt frissítés a /projects/${projectId} végponton`);
+
+                const directProjectResponse = await fetch(`${API_URL}/projects/${projectId}`, {
+                  method: 'PUT',
                   headers: {
                     'Content-Type': 'application/json',
                     'X-API-Key': API_KEY
                   },
-                  body: JSON.stringify(updateProjectData),
+                  body: JSON.stringify(simplifiedProjectData),
                   credentials: 'omit'
                 });
 
-                debugLog('ProfileEditModal-submit', 'Verify-pin válasz státusz:', verifyPinResponse.status);
+                debugLog('ProfileEditModal-submit', 'Közvetlen projekt frissítés válasz státusz:', directProjectResponse.status);
 
-                if (verifyPinResponse.ok) {
-                  debugLog('ProfileEditModal-submit', 'Verify-pin frissítés sikeres!');
+                if (directProjectResponse.ok) {
+                  debugLog('ProfileEditModal-submit', 'MongoDB mentés sikeres!');
                   savedToDB = true;
-
-                  try {
-                    const responseData = await verifyPinResponse.json();
-                    debugLog('ProfileEditModal-submit', 'Verify-pin válasz:', responseData);
-                  } catch (parseError) {
-                    debugLog('ProfileEditModal-submit', 'Verify-pin válasz feldolgozási hiba:', parseError);
-                  }
                 } else {
-                  debugLog('ProfileEditModal-submit', 'Verify-pin frissítés hiba:', {
-                    status: verifyPinResponse.status,
-                    statusText: verifyPinResponse.statusText
+                  debugLog('ProfileEditModal-submit', 'Közvetlen projekt frissítés hiba:', {
+                    status: directProjectResponse.status,
+                    statusText: directProjectResponse.statusText
                   });
                 }
-              } catch (verifyPinError) {
-                debugLog('ProfileEditModal-submit', 'Hálózati hiba a verify-pin során:', verifyPinError);
+              } catch (directError) {
+                debugLog('ProfileEditModal-submit', 'Hálózati hiba a projekt frissítése során:', directError);
               }
-            } else {
-              debugLog('ProfileEditModal-submit', 'Nem található token a localStorage-ban');
             }
+          } catch (verifyPinError) {
+            debugLog('ProfileEditModal-submit', 'Hálózati hiba a verify-pin során:', verifyPinError);
           }
-        } catch (directError) {
-          debugLog('ProfileEditModal-submit', 'Hálózati hiba a projekt frissítése során:', directError);
+        } else {
+          debugLog('ProfileEditModal-submit', 'Nem található token a localStorage-ban');
         }
       }
 
@@ -475,14 +464,12 @@ const ProfileEditModal = ({
           showSuccessMessage(t.validation.changesSaved + " (Helyi mentés - adatbázis frissítés sikertelen)");
         } else {
           // Ha nem volt projekt ID
-          showSuccessMessage(t.validation.changesSaved + " (Helyi mentés)");
+          showSuccessMessage(t.validation.changesSaved + " (Csak helyi mentés)");
         }
       }
 
-      // Modal bezárása késleltetéssel
-      setTimeout(() => {
-        onClose();
-      }, 1000);
+      // 4. Modal bezárása sikeres mentés után
+      onClose();
 
     } catch (error) {
       debugLog('ProfileEditModal-submit', 'Error saving profile', error);

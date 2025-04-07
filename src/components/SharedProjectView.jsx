@@ -325,66 +325,69 @@ const SharedProjectView = () => {
 
       // Try to update project on server
       try {
-        // 1. Először próbáljuk meg a közvetlen PUT kérést
-        const response = await fetch(`${API_URL}/projects/${updatedProject._id}`, {
-          method: 'PUT',
+        // 1. Először a nyilvános verify-pin végpontot próbáljuk
+        debugLog('handleProjectUpdate', 'Trying to update using verify-pin endpoint first');
+        
+        // Készítsünk egy updateProject objektumot a verify-pin végponthoz
+        const updateProjectData = {
+          token: cleanToken,
+          pin: pin || '',
+          updateProject: updatedProject
+        };
+
+        const verifyPinResponse = await fetch(`${API_URL}/public/projects/verify-pin`, {
+          method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'X-API-Key': API_KEY
           },
-          body: JSON.stringify(updatedProject)
+          body: JSON.stringify(updateProjectData),
+          credentials: 'omit'
         });
 
-        if (response.ok) {
-          debugLog('handleProjectUpdate', 'Project updated on server successfully');
-        } else {
-          debugLog('handleProjectUpdate', 'Failed to update project on server, trying verify-pin endpoint', { status: response.status });
+        if (verifyPinResponse.ok) {
+          debugLog('handleProjectUpdate', 'Project updated via verify-pin endpoint successfully');
 
-          // 2. Ha a közvetlen frissítés nem sikerült, próbáljuk meg a verify-pin végpontot
+          // Frissítsük a projektet a válasz alapján
           try {
-            // Készítsünk egy updateProject objektumot a verify-pin végponthoz
-            const updateProjectData = {
-              token: cleanToken,
-              pin: pin || '',
-              updateProject: updatedProject
-            };
+            const responseData = await verifyPinResponse.json();
+            if (responseData.project) {
+              setProject(responseData.project);
 
-            const verifyPinResponse = await fetch(`${API_URL}/public/projects/verify-pin`, {
-              method: 'POST',
+              // Frissítsük a session-t is
+              const updatedSession = {
+                project: responseData.project,
+                timestamp: new Date().toISOString(),
+                language: language,
+                pin: pin
+              };
+              localStorage.setItem(`project_session_${cleanToken}`, JSON.stringify(updatedSession));
+            }
+          } catch (parseError) {
+            debugLog('handleProjectUpdate', 'Error parsing verify-pin response', { error: parseError });
+          }
+        } else {
+          debugLog('handleProjectUpdate', 'Failed to update project via verify-pin endpoint', { status: verifyPinResponse.status });
+          
+          // 2. Ha a nyilvános végpont nem sikerült, csak akkor próbáljuk meg a közvetlen PUT kérést
+          try {
+            debugLog('handleProjectUpdate', 'Falling back to direct API call');
+            const response = await fetch(`${API_URL}/projects/${updatedProject._id}`, {
+              method: 'PUT',
               headers: {
                 'Content-Type': 'application/json',
                 'X-API-Key': API_KEY
               },
-              body: JSON.stringify(updateProjectData),
-              credentials: 'omit'
+              body: JSON.stringify(updatedProject)
             });
 
-            if (verifyPinResponse.ok) {
-              debugLog('handleProjectUpdate', 'Project updated via verify-pin endpoint successfully');
-
-              // Frissítsük a projektet a válasz alapján
-              try {
-                const responseData = await verifyPinResponse.json();
-                if (responseData.project) {
-                  setProject(responseData.project);
-
-                  // Frissítsük a session-t is
-                  const updatedSession = {
-                    project: responseData.project,
-                    timestamp: new Date().toISOString(),
-                    language: language,
-                    pin: pin
-                  };
-                  localStorage.setItem(`project_session_${cleanToken}`, JSON.stringify(updatedSession));
-                }
-              } catch (parseError) {
-                debugLog('handleProjectUpdate', 'Error parsing verify-pin response', { error: parseError });
-              }
+            if (response.ok) {
+              debugLog('handleProjectUpdate', 'Project updated on server successfully');
             } else {
-              debugLog('handleProjectUpdate', 'Failed to update project via verify-pin endpoint', { status: verifyPinResponse.status });
+              debugLog('handleProjectUpdate', 'Failed to update project on server', { status: response.status });
             }
-          } catch (verifyPinError) {
-            debugLog('handleProjectUpdate', 'Error using verify-pin endpoint', { error: verifyPinError });
+          } catch (directError) {
+            debugLog('handleProjectUpdate', 'Error during direct API call', { error: directError });
           }
         }
       } catch (apiError) {
