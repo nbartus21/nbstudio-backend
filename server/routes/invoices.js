@@ -9,6 +9,7 @@ import fs from 'fs';
 import path from 'path';
 import cron from 'node-cron';
 import { checkOverdueInvoices, checkDueSoonInvoices } from '../services/invoiceReminderService.js';
+import { sendInvoiceNotificationEmail } from '../services/invoiceNotificationService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -521,8 +522,25 @@ router.post('/projects/:projectId/invoices', async (req, res) => {
       });
     }
 
-    // Email értesítések küldése eltávolítva
-    // Később, ha szükséges, újra implementálható
+    // Email értesítés küldése az ügyfélnek
+    try {
+      // Ellenőrizzük, hogy a projektnek van-e ügyfél e-mail címe
+      if (project.client && project.client.email) {
+        console.log('Számla értesítő e-mail küldése az ügyfélnek:', project.client.email);
+
+        // Az ügyfél preferált nyelvének meghatározása
+        const preferredLanguage = project.client.preferredLanguage || 'hu';
+
+        // E-mail küldése
+        await sendInvoiceNotificationEmail(invoice, project, preferredLanguage);
+        console.log('Számla értesítő e-mail sikeresen elküldve');
+      } else {
+        console.log('Nincs ügyfél e-mail cím, értesítés nem került kiküldésre');
+      }
+    } catch (emailError) {
+      console.error('Hiba a számla értesítő e-mail küldésekor:', emailError);
+      // Nem szakítjuk meg a folyamatot, ha az e-mail küldés sikertelen
+    }
 
     // Fájl írása a lemezre a számla létrehozásának ellenőrzésére
     try {
