@@ -9,36 +9,6 @@ import dotenv from 'dotenv';
 dotenv.config();
 const router = express.Router();
 
-// Globális változó a Socket.IO objektumnak
-let socketIO;
-
-// Socket.IO inicializálása
-export const initializeSocketIO = (ioInstance) => {
-  // Mentjük a Socket.IO példányt a globális változóba
-  socketIO = ioInstance;
-  
-  ioInstance.on('connection', (socket) => {
-    // Csak debug környezetben naplózzuk a kapcsolatokat
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Support ticket client connected:', socket.id);
-    }
-    
-    socket.on('joinTicket', (ticketId) => {
-      socket.join(`ticket_${ticketId}`);
-    });
-    
-    socket.on('leaveTicket', (ticketId) => {
-      socket.leave(`ticket_${ticketId}`);
-    });
-    
-    socket.on('disconnect', () => {
-      if (process.env.NODE_ENV === 'development') {
-        console.log('Support ticket client disconnected:', socket.id);
-      }
-    });
-  });
-};
-
 // Email transporter beállítása
 const transporter = nodemailer.createTransport({
   host: process.env.CONTACT_SMTP_HOST || process.env.SMTP_HOST,
@@ -214,11 +184,6 @@ router.put('/tickets/:id', async (req, res) => {
     
     const updatedTicket = await ticket.save();
     
-    // Socket.IO értesítés a frissítésről
-    if (socketIO) {
-      socketIO.to(`ticket_${ticket._id}`).emit('ticketStatusChanged', updatedTicket);
-    }
-    
     res.json(updatedTicket);
   } catch (error) {
     console.error('Error updating ticket:', error);
@@ -295,11 +260,6 @@ router.post('/tickets/:id/responses', async (req, res) => {
     }
     
     await ticket.save();
-    
-    // Socket.IO értesítés
-    if (socketIO) {
-      socketIO.to(`ticket_${ticket._id}`).emit('newResponse', ticket);
-    }
     
     res.status(201).json(ticket);
   } catch (error) {
@@ -432,11 +392,6 @@ export function setupEmailEndpoint(app) {
           console.error('Hiba az értesítés létrehozásakor:', notificationError.message);
         }
         
-        // Socket.IO értesítés ha van új üzenet
-        if (socketIO) {
-          socketIO.emit('newTicketResponse', ticket);
-        }
-        
         return res.status(200).json({ 
           success: true, 
           message: 'Válasz sikeresen hozzáadva a tickethez',
@@ -504,11 +459,6 @@ export function setupEmailEndpoint(app) {
         await notification.save();
       } catch (notificationError) {
         console.error('Hiba az értesítés létrehozásakor:', notificationError.message);
-      }
-      
-      // Socket.IO értesítés ha van új ticket
-      if (socketIO) {
-        socketIO.emit('newTicket', newTicket);
       }
       
       // Automatikus válasz küldése

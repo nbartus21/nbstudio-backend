@@ -4,7 +4,6 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import https from 'https';
 import http from 'http';
-import { Server } from 'socket.io';
 import fs from 'fs';
 // PDF generation dependencies
 import PDFDocument from 'pdfkit';
@@ -40,7 +39,7 @@ import commentsRoutes from './routes/comments.js';
 import translationRoutes from './routes/translation.js';
 import notesRoutes from './routes/notes.js';
 import tasksRoutes from './routes/tasks.js';
-import supportTicketRouter, { setupEmailEndpoint, initializeSocketIO } from './routes/supportTickets.js';
+import supportTicketRouter, { setupEmailEndpoint } from './routes/supportTickets.js';
 import emailApiRouter from './routes/emailApi.js';
 import documentsRouter from './routes/documents.js';
 import chatApiRouter from './routes/chatApi.js';
@@ -109,51 +108,8 @@ const app = express();
 const host = process.env.HOST || '0.0.0.0';
 const port = process.env.PORT || 5001;
 
-// Create HTTP server for Socket.IO
+// Create HTTP server
 const httpServer = http.createServer(app);
-
-// Configure Socket.IO
-const io = new Server(httpServer, {
-  cors: {
-    origin: [
-      'https://admin.nb-studio.net',
-      'https://nb-studio.net',
-      'https://www.nb-studio.net',
-      'https://project.nb-studio.net',
-      'http://38.242.208.190:5173',
-      'http://localhost:5173',
-      '*',
-      'http://localhost:3000'
-    ],
-    methods: ['GET', 'POST'],
-    credentials: true
-  }
-});
-
-// Initialize Socket.IO for support tickets
-initializeSocketIO(io);
-
-// Socket.IO connection handling
-io.on('connection', (socket) => {
-  // Csak debug környezetben naplózzuk a kapcsolatokat
-  if (process.env.NODE_ENV === 'development') {
-    console.log('Client connected to Socket.IO:', socket.id);
-  }
-
-  socket.on('joinTicket', (ticketId) => {
-    socket.join(`ticket_${ticketId}`);
-  });
-
-  socket.on('leaveTicket', (ticketId) => {
-    socket.leave(`ticket_${ticketId}`);
-  });
-
-  socket.on('disconnect', () => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Client disconnected:', socket.id);
-    }
-  });
-});
 
 // SSL configuration
 let sslOptions;
@@ -1614,12 +1570,6 @@ mongoose.connect(process.env.MONGO_URI)
       const serverStartedFilePath = path.join(process.cwd(), 'api-server-started.txt');
       fs.writeFileSync(serverStartedFilePath, `API szerver indítása sikeres: ${new Date().toISOString()}\n`, { flag: 'a' });
       console.log('Fájl sikeresen írva a szerver indítása után:', serverStartedFilePath);
-    });
-
-    // Start HTTP server for Socket.IO
-    const socketPort = parseInt(port) + 1;
-    httpServer.listen(socketPort, host, () => {
-      console.log(`Socket.IO server running on http://${host}:${socketPort}`);
     });
 
     // Setup project domain handling
