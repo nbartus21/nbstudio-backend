@@ -13,7 +13,7 @@ import {
   Globe,
   ToggleLeft,
   ToggleRight,
-  Tool,
+  Wrench,
   AlertOctagon
 } from 'lucide-react';
 
@@ -411,12 +411,12 @@ const SettingsManager = () => {
                 >
                   {getMaintenanceMode() ? (
                     <>
-                      <Tool className="w-5 h-5 mr-2" />
+                      <Wrench className="w-5 h-5 mr-2" />
                       Karbantartási mód kikapcsolása
                     </>
                   ) : (
                     <>
-                      <Tool className="w-5 h-5 mr-2" />
+                      <Wrench className="w-5 h-5 mr-2" />
                       Karbantartási mód bekapcsolása
                     </>
                   )}
