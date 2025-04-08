@@ -33,6 +33,11 @@
       justify-content: center;
       align-items: center;
       z-index: 50;
+      transition: opacity 0.3s ease-in-out;
+    }
+    .loading.hidden {
+      opacity: 0;
+      pointer-events: none;
     }
     .spinner {
       border: 4px solid rgba(0, 0, 0, 0.1);
@@ -166,6 +171,15 @@
     
     // Set up our application
     document.addEventListener('DOMContentLoaded', () => {
+      // Timeout function to hide loading overlay after maximum time (prevent infinite loading)
+      setTimeout(() => {
+        const loadingEl = document.getElementById('loadingOverlay');
+        if (loadingEl && !loadingEl.classList.contains('hidden')) {
+          console.log('Force hiding loading overlay after timeout');
+          loadingEl.classList.add('hidden');
+        }
+      }, 8000); // Hide loading after 8 seconds max
+      
       const API_URL = 'https://admin.nb-studio.net:5001/api';
       const API_KEY = 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0';
       
@@ -205,70 +219,77 @@
       const fetchDocumentInfo = async () => {
         try {
           console.log('Fetching document info for token:', token);
-          const response = await fetch(`${API_URL}/public/documents/${token}/info`, {
-            headers: {
-              'X-API-Key': API_KEY
-            }
-          });
+          // Always show loading indicator before requests
+          loadingOverlay.classList.remove('hidden');
           
-          if (!response.ok) {
-            // Try the old endpoint if the new one fails
-            console.log('New endpoint failed, trying legacy endpoint');
-            const legacyResponse = await fetch(`${API_URL}/public/shared-document/${token}/info`, {
+          // Try catch block for the first endpoint with proper error handling
+          try {
+            const response = await fetch(`${API_URL}/public/documents/${token}/info`, {
               headers: {
                 'X-API-Key': API_KEY
               }
             });
             
-            if (!legacyResponse.ok) {
-              throw new Error('Document not found or link expired');
+            if (response.ok) {
+              const documentInfo = await response.json();
+              processDocumentInfo(documentInfo);
+              return documentInfo;
             }
-            
-            return await legacyResponse.json();
+            console.log(`New endpoint failed with status: ${response.status}`);
+          } catch (firstError) {
+            console.error('Error with first endpoint:', firstError);
           }
           
-          const documentInfo = await response.json();
+          // Try the legacy endpoint if the first one fails
+          console.log('Trying legacy endpoint');
+          const legacyResponse = await fetch(`${API_URL}/public/shared-document/${token}/info`, {
+            headers: {
+              'X-API-Key': API_KEY
+            }
+          });
           
-          // Set document title
-          document.title = `NB Studio - ${documentInfo.name}`;
-          documentTitle.textContent = documentInfo.name;
+          if (!legacyResponse.ok) {
+            throw new Error(`Document not found or link expired (Status: ${legacyResponse.status})`);
+          }
           
-          // Format expiry date
-          const date = new Date(documentInfo.expiresAt);
-          expiryDate.textContent = date.toLocaleDateString(
-            language === 'hu' ? 'hu-HU' : 
-            language === 'de' ? 'de-DE' : 'en-US'
-          );
-          
+          const documentInfo = await legacyResponse.json();
+          processDocumentInfo(documentInfo);
           return documentInfo;
+          
         } catch (error) {
           console.error('Error fetching document info:', error);
           showError('Dokumentum nem található vagy a link lejárt');
           return null;
         } finally {
+          // Always hide loading indicator when done
           loadingOverlay.classList.add('hidden');
         }
+      };
+      
+      // Helper function to process document info
+      const processDocumentInfo = (documentInfo) => {
+        // Set document title
+        document.title = `NB Studio - ${documentInfo.name}`;
+        documentTitle.textContent = documentInfo.name;
+        
+        // Format expiry date
+        const date = new Date(documentInfo.expiresAt);
+        expiryDate.textContent = date.toLocaleDateString(
+          language === 'hu' ? 'hu-HU' : 
+          language === 'de' ? 'de-DE' : 'en-US'
+        );
       };
       
       // Verify PIN code
       const verifyPin = async (pin) => {
         try {
+          // Show loading indicator
           loadingOverlay.classList.remove('hidden');
           
           console.log('Verifying PIN for token:', token);
-          const response = await fetch(`${API_URL}/public/documents/${token}/verify`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-API-Key': API_KEY
-            },
-            body: JSON.stringify({ pin })
-          });
-          
-          if (!response.ok) {
-            // Try the old endpoint if the new one fails
-            console.log('New verify endpoint failed, trying legacy endpoint');
-            const legacyResponse = await fetch(`${API_URL}/public/shared-document/${token}/verify`, {
+          // Try catch block for the first endpoint with proper error handling
+          try {
+            const response = await fetch(`${API_URL}/public/documents/${token}/verify`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -277,22 +298,41 @@
               body: JSON.stringify({ pin })
             });
             
-            if (!legacyResponse.ok) {
-              pinError.classList.remove('hidden');
-              return null;
+            if (response.ok) {
+              pinError.classList.add('hidden');
+              return await response.json();
             }
-            
-            return await legacyResponse.json();
+            console.log(`New verify endpoint failed with status: ${response.status}`);
+          } catch (firstError) {
+            console.error('Error with first verify endpoint:', firstError);
+          }
+          
+          // Try the legacy endpoint if the first one fails
+          console.log('Trying legacy verify endpoint');
+          const legacyResponse = await fetch(`${API_URL}/public/shared-document/${token}/verify`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-API-Key': API_KEY
+            },
+            body: JSON.stringify({ pin })
+          });
+          
+          if (!legacyResponse.ok) {
+            console.error(`Legacy endpoint failed with status: ${legacyResponse.status}`);
+            pinError.classList.remove('hidden');
+            return null;
           }
           
           pinError.classList.add('hidden');
-          return await response.json();
+          return await legacyResponse.json();
         } catch (error) {
           console.error('Error verifying PIN:', error);
           pinError.classList.remove('hidden');
           return null;
         } finally {
-          loadingOverlay.classList.remove('hidden');
+          // Always hide loading indicator when done
+          loadingOverlay.classList.add('hidden');
         }
       };
       
