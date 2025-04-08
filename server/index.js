@@ -39,13 +39,37 @@ import notesRoutes from './routes/notes.js';
 import tasksRoutes from './routes/tasks.js';
 import supportTicketRouter, { setupEmailEndpoint, initializeSocketIO } from './routes/supportTickets.js';
 import emailApiRouter from './routes/emailApi.js';
-import documentsRouter from './routes/documents.js';
 import chatApiRouter from './routes/chatApi.js';
 import paymentsRouter from './routes/payments.js';
 import invoicesRouter from './routes/invoices.js';
 import partnersRouter from './routes/partners.js';
 import webPagesRouter from './routes/webpages.js';
 import settingsRouter from './routes/settings.js';
+import projectRoutes from './routes/projects.js';
+import settingsRoutes from './routes/settings.js';
+import supportTicketsRoutes from './routes/supportTickets.js';
+import calculatorRoutes from './routes/calculator.js';
+import languageRoutes from './routes/language.js';
+import invoiceRoutes from './routes/invoices.js';
+import accountingRoutes from './routes/accounting.js';
+import partnerRoutes from './routes/partners.js';
+import hostingRoutes from './routes/hosting.js';
+import serverRoutes from './routes/servers.js';
+import authRouter from './routes/auth.js';
+import userRouter from './routes/users.js';
+import projectRouter from './routes/projects.js';
+import blogRouter from './routes/blog.js';
+import webPagesRouter from './routes/webpages.js';
+import settingsRouter from './routes/settings.js';
+import supportTicketsRouter from './routes/supportTickets.js';
+import calculatorRouter from './routes/calculator.js';
+import languageRouter from './routes/language.js';
+import invoiceRouter from './routes/invoices.js';
+import accountingRouter from './routes/accounting.js';
+import partnerRouter from './routes/partners.js';
+import hostingRouter from './routes/hosting.js';
+import serverRouter from './routes/servers.js';
+import domainRouter from './routes/domains.js';
 
 // Import middleware
 import authMiddleware from './middleware/auth.js';
@@ -499,37 +523,14 @@ app.use('/api/auth', authRoutes);
 // PUBLIC ENDPOINTS FOR SHARED PROJECTS (No authentication required)
 // ==============================================
 
-// Public endpoint to fetch project documents
+// Public endpoint to fetch project documents (document feature removed, returns empty array)
 app.get('/api/public/projects/:projectId/documents', validateApiKey, async (req, res) => {
   try {
-    console.log(`Public documents request for project ID: ${req.params.projectId}`);
-
-    // Import necessary models
-    const GeneratedDocument = mongoose.model('GeneratedDocument');
-    const Project = mongoose.model('Project');
-
-    // Ellenőrizzük, hogy a projekt megosztási beállításai engedélyezik-e a dokumentumok megjelenítését
-    const project = await Project.findById(req.params.projectId);
-    if (!project) {
-      console.error(`Project not found with ID: ${req.params.projectId}`);
-      return res.status(404).json({ message: 'Project not found' });
-    }
-
-    // Ha a dokumentumok el vannak rejtve, üres tömböt küldünk vissza
-    if (project.sharing && project.sharing.hideDocuments) {
-      console.log(`Documents are hidden for shared project: ${req.params.projectId}`);
-      return res.json([]);
-    }
-
-    // Find documents for this project
-    const documents = await GeneratedDocument.find({
-      projectId: req.params.projectId
-    }).populate('templateId', 'name type').sort({ createdAt: -1 });
-
-    console.log(`Found ${documents.length} documents for project ${req.params.projectId}`);
-    res.json(documents);
+    console.log(`Public documents request for project ID: ${req.params.projectId} - Feature removed`);
+    // Return empty array since documents feature has been removed
+    res.json([]);
   } catch (error) {
-    console.error(`Error fetching public project documents: ${error.message}`);
+    console.error(`Error handling public project documents: ${error.message}`);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
@@ -722,8 +723,7 @@ app.post('/api/public/shared-projects/:token/files', validateApiKey, async (req,
 // PUBLIC PDF ENDPOINTS (No authentication required)
 // ==============================================
 
-// Note: Document PDF generation is now handled in the documents.js router
-// See server/routes/documents.js for the implementation
+// Note: Document PDF generation feature has been removed from the application
 
 // Public Invoice PDF endpoint
 app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => {
@@ -1293,11 +1293,22 @@ app.use('/api/translation', translationRoutes);
 app.use('/api/translation/tasks', tasksRoutes);
 app.use('/api/notes', notesRoutes);
 app.use('/api/support', supportTicketRouter);
-app.use('/api', documentsRouter);
-app.use('/api', invoicesRouter);
-app.use('/api/partners', partnersRouter);
-app.use('/api/webpages', webPagesRouter);
-app.use('/api/settings', settingsRouter);
+app.use('/api', calculatorRouter);
+app.use('/api', languageRouter);
+app.use('/api', invoiceRouter);
+app.use('/api', accountingRouter);
+app.use('/api', partnerRouter);
+app.use('/api', hostingRouter);
+app.use('/api', serverRouter);
+app.use('/api', domainRouter);
+app.use('/api', emailApiRouter);
+app.use('/api', chatApiRouter);
+app.use('/api', paymentsRouter);
+app.use('/api', filesRoutes);
+app.use('/api', commentsRoutes);
+app.use('/api', translationRoutes);
+app.use('/api', notesRoutes);
+app.use('/api', tasksRoutes);
 
 // Fix for transactions endpoint directly accessing the accountingRoutes
 app.use('/api/transactions', (req, res, next) => {
@@ -1367,17 +1378,13 @@ function setupProjectDomain() {
 
   // Proxy all other requests to the frontend app running on port 5173
   projectApp.use((req, res) => {
-    // A /public/documents/ elérési útvonalat az API szerverre irányítjuk
+    // Documents feature has been removed - return 404 for document requests
     if (req.url.startsWith('/public/documents/')) {
-      console.log(`Redirecting document request to API server: ${req.method} ${req.url}`);
-
-      // Csak POST és PUT kérések esetén csomagoljuk a body-t
-      if (['POST', 'PUT'].includes(req.method) && req.body) {
-        handleAPIProxyWithBody(req, res);
-      } else {
-        // GET, DELETE, OPTIONS stb. esetén nincs szükség body-ra
-        handleAPIProxyWithoutBody(req, res);
-      }
+      console.log(`Document request received but feature has been removed: ${req.method} ${req.url}`);
+      res.status(404).json({ 
+        message: 'Document feature has been removed from the application',
+        error: 'Not Found'
+      });
     } else {
       // Minden más kérést átirányítunk a frontendes alkalmazáshoz
       console.log(`Proxying request to local frontend: ${req.method} ${req.url}`);

@@ -10,11 +10,9 @@ import { formatShortDate, debugLog, loadFromLocalStorage, getProjectId } from '.
 import ProjectOverview from './shared/ProjectOverview';
 import ProjectInvoices from './shared/ProjectInvoices';
 import SimpleFileUploader from './shared/SimpleFileUploader';
-import ProjectDocuments from './shared/ProjectDocuments'; // New component for documents
 import ProjectChangelog from './shared/ProjectChangelog'; // New component for changelog
 import FilePreviewModal from './shared/FilePreviewModal';
 import InvoiceViewModal from './shared/InvoiceViewModal';
-import DocumentViewModal from './shared/DocumentViewModal'; // New component for document preview
 import ProfileButton from './ProfileButton';
 
 // Translations
@@ -470,7 +468,7 @@ const SharedProjectDashboard = ({
       debugLog('SharedProjectDashboard', `Loaded ${savedComments.length} comments from localStorage`);
     }
 
-    // Get documents from server
+    // Get documents from server (document feature has been removed)
     fetchDocuments(projectId);
   }, [normalizedProject]);
 
@@ -500,56 +498,12 @@ const SharedProjectDashboard = ({
     }
   }, [normalizedProject]);
 
-  // Fetch documents from server
+  // Fetch documents from server (document feature has been removed)
   const fetchDocuments = async (projectId) => {
-    try {
-      debugLog('fetchDocuments', 'Fetching documents from server', { projectId });
-
-      // Először próbáljuk a dedikált public végpontot
-      const response = await fetch(`${API_URL}/public/projects/${projectId}/documents`, {
-        headers: {
-          'X-API-Key': API_KEY
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data && Array.isArray(data)) {
-          debugLog('fetchDocuments', `Fetched ${data.length} documents from server using public endpoint`);
-          setDocuments(data);
-        }
-      } else {
-        // Ha nem működik a public végpont, próbáljuk a standard API-t
-        debugLog('fetchDocuments', 'Public endpoint failed, trying standard API', { status: response.status });
-
-        try {
-          const fallbackResponse = await fetch(`${API_URL}/documents?projectId=${projectId}`, {
-            headers: {
-              'X-API-Key': API_KEY
-            }
-          });
-
-          if (fallbackResponse.ok) {
-            const data = await fallbackResponse.json();
-            if (data && Array.isArray(data)) {
-              debugLog('fetchDocuments', `Fetched ${data.length} documents from server using standard API`);
-              setDocuments(data);
-            }
-          } else {
-            debugLog('fetchDocuments', 'Standard API also failed', { status: fallbackResponse.status });
-
-            if (fallbackResponse.status === 401) {
-              debugLog('fetchDocuments', 'Authentication error (401) - falling back to local data');
-            }
-          }
-        } catch (fallbackError) {
-          debugLog('fetchDocuments', 'Error with fallback request', { error: fallbackError });
-        }
-      }
-    } catch (error) {
-      debugLog('fetchDocuments', 'Error fetching documents', { error });
-      // Hibakezelés: nem törjük meg a folyamatot, mivel lehet, hogy csak hálózati hiba történt
-    }
+    debugLog('fetchDocuments', 'Document feature has been removed, returning empty array');
+    setDocuments([]);
+    // Save empty documents to localStorage to prevent further attempts
+    saveToLocalStorage(normalizedProject, 'documents', []);
   };
 
   // Felhasználói adatok frissítése - csak lokálisan
@@ -1171,9 +1125,8 @@ const SharedProjectDashboard = ({
         )}
 
         {viewingDocument && (
-          <DocumentViewModal
-            document={viewingDocument}
-            project={normalizedProject}
+          <FilePreviewModal
+            file={viewingDocument}
             onClose={handleCloseDocumentPreview}
             language={language}
           />
