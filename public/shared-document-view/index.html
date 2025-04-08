@@ -315,12 +315,19 @@
       const pathParts = window.location.pathname.split('/');
       const token = pathParts[pathParts.length - 1];
       
-      // Get language from URL query parameter (default: hu)
-      const urlParams = new URLSearchParams(window.location.search);
-      const language = urlParams.get('lang') || 'hu';
+      // Determine language based on browser settings (hu, de, en)
+      const supportedLanguages = ['hu', 'de', 'en'];
+      let browserLang = navigator.language || navigator.userLanguage; // Get browser language
+      let langCode = browserLang.split('-')[0].toLowerCase(); // Use only the primary language code (e.g., 'hu' from 'hu-HU')
+      
+      // Default to 'en' if the browser language is not supported
+      const language = supportedLanguages.includes(langCode) ? langCode : 'en';
+      
+      // Set the lang attribute on the HTML tag
+      document.documentElement.lang = language;
       
       // Set text based on language
-      const t = translations[language] || translations.hu;
+      const t = translations[language]; // No need for default 'hu' here anymore
       projectTitle.textContent = t.projectTitle;
       document.getElementById('pinTitle').textContent = t.pinTitle;
       document.getElementById('pinDescription').textContent = t.pinDescription;
