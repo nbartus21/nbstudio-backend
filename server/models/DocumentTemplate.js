@@ -1,6 +1,5 @@
 import mongoose from 'mongoose';
 
-// Schema for document templates
 const documentTemplateSchema = new mongoose.Schema({
   name: { 
     type: String, 
@@ -23,6 +22,27 @@ const documentTemplateSchema = new mongoose.Schema({
     description: String,
     defaultValue: String
   }],
+  sections: [{
+    title: String,
+    content: String,
+    isOptional: Boolean,
+    defaultIncluded: { type: Boolean, default: true }
+  }],
+  styling: {
+    fontFamily: { type: String, default: 'Arial' },
+    fontSize: { type: Number, default: 11 },
+    primaryColor: { type: String, default: '#3B82F6' },
+    secondaryColor: { type: String, default: '#F3F4F6' },
+    includeLogo: { type: Boolean, default: true }
+  },
+  letterhead: {
+    enabled: { type: Boolean, default: true },
+    content: String
+  },
+  footer: {
+    enabled: { type: Boolean, default: true },
+    content: String
+  },
   language: { 
     type: String,
     enum: ['hu', 'de', 'en'],
@@ -33,10 +53,15 @@ const documentTemplateSchema = new mongoose.Schema({
     default: false
   },
   tags: [String],
+  usageCount: {
+    type: Number,
+    default: 0
+  },
   createdBy: {
     type: String,
     required: true
   },
+  lastUsedAt: Date,
   version: {
     type: Number,
     default: 1
@@ -51,14 +76,14 @@ const documentTemplateSchema = new mongoose.Schema({
   }
 });
 
-// Auto-update timestamps
+// Automatikus updatedAt frissítés
 documentTemplateSchema.pre('save', function(next) {
   this.updatedAt = new Date();
   next();
 });
 
-// Schema for generated documents
-const documentSchema = new mongoose.Schema({
+// Generált dokumentumok model
+const generatedDocumentSchema = new mongoose.Schema({
   templateId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'DocumentTemplate',
@@ -76,39 +101,77 @@ const documentSchema = new mongoose.Schema({
     type: String,
     required: true
   },
-  status: {
-    type: String,
-    enum: ['draft', 'final', 'archived'],
-    default: 'draft'
+  htmlVersion: {
+    type: String
   },
-  createdBy: {
+  pdfUrl: {
+    type: String
+  },
+  generatedBy: {
     type: String,
     required: true
   },
-  // Sharing information
-  sharing: {
-    isShared: {
-      type: Boolean,
-      default: false
-    },
-    token: String,
-    pin: String,
-    expiresAt: Date,
-    email: String,
-    language: {
-      type: String,
-      enum: ['hu', 'de', 'en'],
-      default: 'hu'
-    },
-    views: {
-      type: Number,
-      default: 0
-    },
-    lastViewed: Date
+  approvalStatus: {
+    type: String,
+    enum: ['draft', 'pendingApproval', 'approved', 'rejected', 'sent', 'clientApproved', 'clientRejected'],
+    default: 'draft'
   },
-  downloads: {
+  approvedBy: {
+    type: String
+  },
+  approvedAt: {
+    type: Date
+  },
+  sentTo: {
+    type: String
+  },
+  sentAt: {
+    type: Date
+  },
+  comments: [{
+    user: String,
+    text: String,
+    timestamp: { type: Date, default: Date.now }
+  }],
+  version: {
     type: Number,
-    default: 0
+    default: 1
+  },
+  // Ügyfél jóváhagyási link mezők
+  publicToken: {
+    type: String,
+    unique: true,
+    sparse: true
+  },
+  publicPin: {
+    type: String
+  },
+  publicViewExpires: {
+    type: Date
+  },
+  clientApprovedAt: {
+    type: Date
+  },
+  clientRejectedAt: {
+    type: Date
+  },
+  clientApprovalComment: {
+    type: String
+  },
+  // Dokumentum megosztás adatok
+  sharing: {
+    token: {
+      type: String,
+      unique: true,
+      sparse: true
+    },
+    pin: {
+      type: String,
+      sparse: true
+    },
+    link: String,
+    expiresAt: Date,
+    createdAt: Date
   },
   createdAt: { 
     type: Date, 
@@ -120,10 +183,10 @@ const documentSchema = new mongoose.Schema({
   }
 });
 
-documentSchema.pre('save', function(next) {
+generatedDocumentSchema.pre('save', function(next) {
   this.updatedAt = new Date();
   next();
 });
 
 export const DocumentTemplate = mongoose.model('DocumentTemplate', documentTemplateSchema);
-export const Document = mongoose.model('Document', documentSchema);
+export const GeneratedDocument = mongoose.model('GeneratedDocument', generatedDocumentSchema);

@@ -130,19 +130,12 @@ const ChangelogEditor = ({ projectId, onUpdate }) => {
     other: 'Egyéb'
   };
   
-  // Type icons rendering function
-  const renderTypeIcon = (type) => {
-    switch(type) {
-      case 'feature':
-        return <Plus className="h-4 w-4" />;
-      case 'bugfix':
-        return <AlertCircle className="h-4 w-4" />;
-      case 'improvement':
-        return <ArrowUp className="h-4 w-4" />;
-      case 'other':
-      default:
-        return <Tag className="h-4 w-4" />;
-    }
+  // Type icons
+  const typeIcons = {
+    feature: <Plus className="h-4 w-4" />,
+    bugfix: <AlertCircle className="h-4 w-4" />,
+    improvement: <ArrowUp className="h-4 w-4" />,
+    other: <Tag className="h-4 w-4" />
   };
   
   // Fetch changelog on component mount
@@ -273,7 +266,7 @@ const ChangelogEditor = ({ projectId, onUpdate }) => {
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center">
                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${typeBadgeColors[entry.type] || typeBadgeColors.other}`}>
-                    {renderTypeIcon(entry.type)}
+                    {typeIcons[entry.type] || typeIcons.other}
                     <span className="ml-1">{typeLabels[entry.type] || typeLabels.other}</span>
                   </span>
                   <span className="ml-3 text-sm text-gray-500">

@@ -142,22 +142,13 @@ export const getS3Url = (file) => {
  * Fájl törlése az S3-ból (logikai törlés)
  * @param {string} projectId - A projekt azonosítója
  * @param {string} fileId - A fájl azonosítója
- * @param {boolean} isSharedProject - Megosztott projekt-e
- * @param {string} token - Megosztott projekt token (csak megosztott projektnél)
  * @returns {Promise<Object>} - A törlés eredménye
  */
-export const deleteFileFromS3 = async (projectId, fileId, isSharedProject = false, token = null) => {
+export const deleteFileFromS3 = async (projectId, fileId) => {
   try {
-    debugLog('Fájl törlés kezdeményezése', { projectId, fileId, isSharedProject, token });
+    debugLog('Fájl törlés kezdeményezése', { projectId, fileId });
     
-    let response;
-    if (isSharedProject && token) {
-      // Megosztott projekt esetén a publikus végpontot használjuk
-      response = await api.delete(`/api/public/projects/${token}/files/${fileId}`);
-    } else {
-      // Normál projekt esetén az eredeti végpontot használjuk
-      response = await api.delete(`/api/projects/${projectId}/files/${fileId}`);
-    }
+    const response = await api.delete(`/api/projects/${projectId}/files/${fileId}`);
     
     if (!response.ok) {
       const errorText = await response.text();

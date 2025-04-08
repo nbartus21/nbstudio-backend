@@ -49,8 +49,6 @@ import settingsRouter from './routes/settings.js';
 
 // Import middleware
 import authMiddleware from './middleware/auth.js';
-// Import corsMiddleware és apiKeyMiddleware a documents.js-ből
-import { corsMiddleware, apiKeyMiddleware } from './routes/documents.js';
 
 // Load environment variables
 dotenv.config();
@@ -416,78 +414,6 @@ app.use('/api/public/chat', validateApiKey, chatApiRouter);
 // Add authenticated chat endpoints
 app.use('/api/chat', authMiddleware, chatApiRouter);
 
-// Public shared document endpoints (no auth required)
-app.get('/api/public/shared-document/:token/info', corsMiddleware, apiKeyMiddleware, async (req, res) => {
-  const { token } = req.params;
-  
-  try {
-    const document = await mongoose.model('Document').findOne({ 'sharing.token': token });
-    
-    if (!document) {
-      return res.status(404).json({ message: 'Document not found or link expired' });
-    }
-    
-    // Check if sharing has expired
-    if (document.sharing.expiresAt < new Date()) {
-      return res.status(403).json({ message: 'Document sharing has expired' });
-    }
-    
-    // Return basic document info
-    return res.json({
-      id: document._id,
-      name: document.name,
-      expiresAt: document.sharing.expiresAt,
-      language: document.sharing.language || 'hu',
-      token
-    });
-  } catch (error) {
-    console.error('Error fetching shared document info:', error);
-    return res.status(500).json({ message: 'Server error', error: error.message });
-  }
-});
-
-app.post('/api/public/shared-document/:token/verify', corsMiddleware, apiKeyMiddleware, async (req, res) => {
-  const { token } = req.params;
-  const { pin } = req.body;
-  
-  if (!pin) {
-    return res.status(400).json({ message: 'PIN is required' });
-  }
-  
-  try {
-    const document = await mongoose.model('Document').findOne({ 'sharing.token': token });
-    
-    if (!document) {
-      return res.status(404).json({ message: 'Document not found or link expired' });
-    }
-    
-    // Check if sharing has expired
-    if (document.sharing.expiresAt < new Date()) {
-      return res.status(403).json({ message: 'Document sharing has expired' });
-    }
-    
-    // Verify PIN
-    if (document.sharing.pin !== pin) {
-      return res.status(403).json({ message: 'Invalid PIN' });
-    }
-    
-    // Update view count and timestamp
-    document.sharing.views += 1;
-    document.sharing.lastViewed = new Date();
-    await document.save();
-    
-    return res.json({
-      id: document._id,
-      name: document.name,
-      content: document.content,
-      createdAt: document.createdAt
-    });
-  } catch (error) {
-    console.error('Error verifying document PIN:', error);
-    return res.status(500).json({ message: 'Server error', error: error.message });
-  }
-});
-
 // Public blog posts endpoint (no auth required)
 app.get('/api/posts', async (req, res) => {
   try {
@@ -579,8 +505,8 @@ app.get('/api/public/projects/:projectId/documents', validateApiKey, async (req,
     console.log(`Public documents request for project ID: ${req.params.projectId}`);
 
     // Import necessary models
+    const GeneratedDocument = mongoose.model('GeneratedDocument');
     const Project = mongoose.model('Project');
-    const Document = mongoose.model('Document');
 
     // Ellenőrizzük, hogy a projekt megosztási beállításai engedélyezik-e a dokumentumok megjelenítését
     const project = await Project.findById(req.params.projectId);
@@ -596,7 +522,7 @@ app.get('/api/public/projects/:projectId/documents', validateApiKey, async (req,
     }
 
     // Find documents for this project
-    const documents = await Document.find({
+    const documents = await GeneratedDocument.find({
       projectId: req.params.projectId
     }).populate('templateId', 'name type').sort({ createdAt: -1 });
 
@@ -679,49 +605,6 @@ app.get('/api/public/shared-projects/:token/files', validateApiKey, async (req, 
   } catch (error) {
     console.error('Hiba a megosztott projekt fájlok lekérdezése során:', error);
     res.status(500).json({ message: 'Szerver hiba történt' });
-  }
-});
-
-// Végpont a megosztott projekt fájl törléséhez (csak soft delete)
-app.delete('/api/public/shared-projects/:token/files/:fileId', validateApiKey, async (req, res) => {
-  try {
-    const { token, fileId } = req.params;
-    console.log(`Megosztott projekt fájl törlése (Token: ${token}, FileId: ${fileId})`);
-
-    // Keresés a projekt token alapján
-    let project = await mongoose.model('Project').findOne({ 'sharing.token': token });
-    if (!project) {
-      project = await mongoose.model('Project').findOne({ shareToken: token });
-    }
-
-    if (!project) {
-      console.log(`Megosztott projekt nem található a tokennel: ${token}`);
-      return res.status(404).json({ message: 'Megosztott projekt nem található' });
-    }
-
-    // Fájl keresése és soft delete
-    const fileIndex = project.files.findIndex(file => file.id === fileId);
-    if (fileIndex === -1) {
-      console.log(`Fájl nem található az ID alapján: ${fileId}`);
-      return res.status(404).json({ message: 'Fájl nem található' });
-    }
-
-    // Soft delete: csak megjelöljük töröltként
-    project.files[fileIndex].isDeleted = true;
-    project.files[fileIndex].deletedAt = new Date();
-    
-    await project.save();
-    console.log(`Fájl sikeresen törölve (soft delete): ${project.files[fileIndex].name}`);
-
-    // Csak a nem törölt fájlokat küldjük vissza
-    const activeFiles = project.files.filter(file => !file.isDeleted);
-    res.json({ 
-      message: 'Fájl sikeresen törölve',
-      files: activeFiles 
-    });
-  } catch (error) {
-    console.error('Hiba a fájl törlése során:', error);
-    res.status(500).json({ message: 'Szerver hiba történt', error: error.message });
   }
 });
 
@@ -1482,35 +1365,10 @@ function setupProjectDomain() {
     next();
   });
 
-  // Serve static files for document viewer
-  projectApp.use('/shared-document-view', express.static(path.join(__dirname, '../public/shared-document-view')));
-  projectApp.use('/documents', express.static(path.join(__dirname, '../public/documents')));
-  
-  // Special route handler for shared documents
-  projectApp.get('/shared-document/:token', (req, res) => {
-    // Redirect to our document viewer
-    console.log(`Handling shared document request for token: ${req.params.token}`);
-    res.sendFile(path.join(__dirname, '../public/shared-document-view/index.html'));
-  });
-  
-  // Special route handler for documents with UUID format
-  projectApp.get('/documents/:token', (req, res) => {
-    // Validate if token is a UUID format
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (uuidRegex.test(req.params.token)) {
-      console.log(`Handling document request with UUID token: ${req.params.token}`);
-      res.sendFile(path.join(__dirname, '../public/documents/index.html'));
-    } else {
-      // Not a valid UUID, pass to next handler
-      console.log(`Invalid UUID format document request: ${req.params.token}, passing to next handler`);
-      res.status(404).send('Document not found');
-    }
-  });
-  
   // Proxy all other requests to the frontend app running on port 5173
   projectApp.use((req, res) => {
-    // A /public/documents/ vagy /api/public/shared-document/ elérési útvonalat az API szerverre irányítjuk
-    if (req.url.startsWith('/public/documents/') || req.url.startsWith('/api/public/shared-document/')) {
+    // A /public/documents/ elérési útvonalat az API szerverre irányítjuk
+    if (req.url.startsWith('/public/documents/')) {
       console.log(`Redirecting document request to API server: ${req.method} ${req.url}`);
 
       // Csak POST és PUT kérések esetén csomagoljuk a body-t
@@ -1727,12 +1585,6 @@ function setupProjectDomain() {
 // ==============================================
 // Fájl írása a lemezre a szerver indításakor
 import path from 'path';
-import { fileURLToPath } from 'url';
-
-// ESM-ben nincs __dirname, így definiáljuk az import.meta.url segítségével
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
 const startupFilePath = path.join(process.cwd(), 'server-started.txt');
 fs.writeFileSync(startupFilePath, `Szerver indítva: ${new Date().toISOString()}\n`, { flag: 'a' });
 console.log('Fájl sikeresen írva a szerver indításakor:', startupFilePath);

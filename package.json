@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "npx --yes vite --force",
+    "dev": "npx --yes vite",
     "build": "npx --yes vite build",
     "preview": "npx --yes vite preview",
     "setup": "npm install -D tailwindcss postcss autoprefixer && npx tailwindcss init -p"
