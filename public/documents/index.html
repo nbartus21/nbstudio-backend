@@ -297,7 +297,7 @@
       };
       
       // Show document content
-      const showDocument = (document) => {
+      const showDocument = async (document) => {
         // Hide PIN form and show document
         pinForm.classList.add('hidden');
         documentContent.classList.remove('hidden');
@@ -350,7 +350,7 @@
         
         const document = await verifyPin(pin);
         if (document) {
-          showDocument(document);
+          await showDocument(document);
         }
       });
       
@@ -359,13 +359,20 @@
         const documentInfo = await fetchDocumentInfo();
         if (!documentInfo) return;
         
-        // Optional: Check for PIN in URL hash (e.g. #123456)
+        // Check for PIN in URL query parameter or hash
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlPin = urlParams.get('pin');
+        
+        // Optional: Check for PIN in URL hash (e.g. #123456) as fallback
         const hashPin = window.location.hash.slice(1);
-        if (hashPin && hashPin.length === 6) {
-          pinInput.value = hashPin;
-          const document = await verifyPin(hashPin);
+        const pinToTry = urlPin || (hashPin && hashPin.length === 6 ? hashPin : null);
+        
+        if (pinToTry) {
+          console.log('Auto-trying PIN from URL');
+          pinInput.value = pinToTry;
+          const document = await verifyPin(pinToTry);
           if (document) {
-            showDocument(document);
+            await showDocument(document);
           }
         }
       })();
