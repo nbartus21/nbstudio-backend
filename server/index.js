@@ -414,6 +414,78 @@ app.use('/api/public/chat', validateApiKey, chatApiRouter);
 // Add authenticated chat endpoints
 app.use('/api/chat', authMiddleware, chatApiRouter);
 
+// Public shared document endpoints (no auth required)
+app.get('/api/public/shared-document/:token/info', corsMiddleware, apiKeyMiddleware, async (req, res) => {
+  const { token } = req.params;
+  
+  try {
+    const document = await mongoose.model('Document').findOne({ 'sharing.token': token });
+    
+    if (!document) {
+      return res.status(404).json({ message: 'Document not found or link expired' });
+    }
+    
+    // Check if sharing has expired
+    if (document.sharing.expiresAt < new Date()) {
+      return res.status(403).json({ message: 'Document sharing has expired' });
+    }
+    
+    // Return basic document info
+    return res.json({
+      id: document._id,
+      name: document.name,
+      expiresAt: document.sharing.expiresAt,
+      language: document.sharing.language || 'hu',
+      token
+    });
+  } catch (error) {
+    console.error('Error fetching shared document info:', error);
+    return res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+app.post('/api/public/shared-document/:token/verify', corsMiddleware, apiKeyMiddleware, async (req, res) => {
+  const { token } = req.params;
+  const { pin } = req.body;
+  
+  if (!pin) {
+    return res.status(400).json({ message: 'PIN is required' });
+  }
+  
+  try {
+    const document = await mongoose.model('Document').findOne({ 'sharing.token': token });
+    
+    if (!document) {
+      return res.status(404).json({ message: 'Document not found or link expired' });
+    }
+    
+    // Check if sharing has expired
+    if (document.sharing.expiresAt < new Date()) {
+      return res.status(403).json({ message: 'Document sharing has expired' });
+    }
+    
+    // Verify PIN
+    if (document.sharing.pin !== pin) {
+      return res.status(403).json({ message: 'Invalid PIN' });
+    }
+    
+    // Update view count and timestamp
+    document.sharing.views += 1;
+    document.sharing.lastViewed = new Date();
+    await document.save();
+    
+    return res.json({
+      id: document._id,
+      name: document.name,
+      content: document.content,
+      createdAt: document.createdAt
+    });
+  } catch (error) {
+    console.error('Error verifying document PIN:', error);
+    return res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 // Public blog posts endpoint (no auth required)
 app.get('/api/posts', async (req, res) => {
   try {
@@ -1365,10 +1437,21 @@ function setupProjectDomain() {
     next();
   });
 
+  // Serve static files for document viewer
+  projectApp.use('/shared-document-view', express.static(path.join(__dirname, '../public/shared-document-view')));
+  projectApp.use('/documents', express.static(path.join(__dirname, '../public/documents')));
+  
+  // Special route handler for shared documents
+  projectApp.get('/shared-document/:token', (req, res) => {
+    // Redirect to our document viewer
+    console.log(`Handling shared document request for token: ${req.params.token}`);
+    res.sendFile(path.join(__dirname, '../public/shared-document-view/index.html'));
+  });
+  
   // Proxy all other requests to the frontend app running on port 5173
   projectApp.use((req, res) => {
-    // A /public/documents/ elérési útvonalat az API szerverre irányítjuk
-    if (req.url.startsWith('/public/documents/')) {
+    // A /public/documents/ vagy /api/public/shared-document/ elérési útvonalat az API szerverre irányítjuk
+    if (req.url.startsWith('/public/documents/') || req.url.startsWith('/api/public/shared-document/')) {
       console.log(`Redirecting document request to API server: ${req.method} ${req.url}`);
 
       // Csak POST és PUT kérések esetén csomagoljuk a body-t

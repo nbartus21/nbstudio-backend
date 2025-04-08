@@ -1440,6 +1440,45 @@ router.get('/public/projects/:token/files', async (req, res) => {
   }
 });
 
+// Megosztott projekt fájl törlése (publikus végpont)
+router.delete('/public/projects/:token/files/:fileId', async (req, res) => {
+  try {
+    const { token, fileId } = req.params;
+    console.log(`DELETE /api/public/projects/${token}/files/${fileId} publikus kérés érkezett`);
+
+    // Keresés a sharing.token mezőben
+    let project = await Project.findOne({ 'sharing.token': token });
+
+    // Ha nem találja, próbáljuk a régebbi shareToken mezővel is
+    if (!project) {
+      project = await Project.findOne({ shareToken: token });
+    }
+
+    if (!project) {
+      console.log(`Megosztott projekt nem található a tokennel: ${token}`);
+      return res.status(404).json({ message: 'Megosztott projekt nem található' });
+    }
+
+    const fileIndex = project.files.findIndex(file => file.id === fileId);
+    if (fileIndex === -1) {
+      console.log(`Fájl nem található: ${fileId}`);
+      return res.status(404).json({ message: 'Fájl nem található' });
+    }
+
+    // Csak logikai törlés - megjelöljük a fájlt töröltként
+    project.files[fileIndex].isDeleted = true;
+    project.files[fileIndex].deletedAt = new Date();
+
+    await project.save();
+    console.log(`Fájl sikeresen törölve a megosztott projektből: ${fileId}`);
+
+    res.json({ message: 'Fájl sikeresen törölve' });
+  } catch (error) {
+    console.error('Hiba a fájl törlése során:', error);
+    res.status(500).json({ message: 'Szerver hiba történt' });
+  }
+});
+
 // Fájl hozzáadása megosztott projekthez (publikus végpont)
 router.post('/public/projects/:token/files', async (req, res) => {
   try {

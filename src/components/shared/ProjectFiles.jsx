@@ -370,7 +370,36 @@ const ProjectFiles = ({
     }
   };
 
-  // Fájl törlés funkció eltávolítva
+  // Fájl törlés funkció
+  const handleDeleteFile = async (fileId) => {
+    try {
+      if (window.confirm(t.confirmDelete)) {
+        console.log('🗑️ Fájl törlés kezdeményezése', { fileId, projectId });
+        debugLog('handleDeleteFile', `Deleting file ${fileId}`);
+        
+        // Ellenőrizzük, hogy megosztott projekt-e
+        const isSharedProject = window.location.href.includes('/shared-project/');
+        let token = null;
+        
+        if (isSharedProject) {
+          // Ha megosztott projekt, akkor kinyerjük a tokent az URL-ből
+          const tokenMatch = window.location.href.match(/\/shared-project\/([^\/\?]+)/);
+          token = tokenMatch ? tokenMatch[1] : '';
+          console.log('Megosztott projekt törlés:', { token });
+        }
+        
+        const result = await deleteFileFromS3(projectId, fileId, isSharedProject, token);
+        
+        console.log('✅ Fájl sikeresen törölve:', result);
+        setRefreshKey(prev => prev + 1); // Frissítjük a fájllistát
+        showSuccessMessage(t.deleteSuccess);
+      }
+    } catch (error) {
+      console.error('❌ Hiba a fájl törlése során:', error);
+      debugLog('handleDeleteFile', 'Error deleting file', error);
+      showErrorMessage(t.deleteError);
+    }
+  };
 
   // Kézi frissítés gomb kezelése
   const handleRefresh = () => {
@@ -574,7 +603,14 @@ const ProjectFiles = ({
                           <Download size={16} className="mr-1" />
                           <span>{t.downloadFile}</span>
                         </a>
-                        {/* Törlés gomb eltávolítva */}
+                        <button
+                          onClick={() => handleDeleteFile(file.id)}
+                          className="inline-flex items-center px-3 py-1.5 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors ml-2"
+                          title={t.delete}
+                        >
+                          <Trash2 size={16} className="mr-1" />
+                          <span>{t.delete}</span>
+                        </button>
                       </td>
                     </tr>
                   ))}
