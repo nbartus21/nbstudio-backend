@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Route, Routes, Navigate } from 'react-router-dom';
+import React from 'react';
+import { Routes, Route, Navigate, Link } from 'react-router-dom';
 import { MessageSquare, Mail } from 'lucide-react';
 import Navigation from './Navigation';
 import Dashboard from './Dashboard';
@@ -18,16 +18,13 @@ import HostingManager from './HostingManager';
 import TranslationTool from './TranslationTool';
 import SupportTicketManager from './SupportTicketManager';
 import QRLogin from './QRLogin';
+import DocumentManager from './DocumentManager';
 import AIChat from './AIChat';
 import SideChat from './SideChat';
 import Help from './Help';
 import PartnersAdmin from './PartnersAdmin';
-import WebPagesAdmin from './WebPagesAdmin';
-import SettingsManager from './SettingsManager';
-import ServerMonitoring from './ServerMonitoring';
-import MaintenanceOverlay from './MaintenanceOverlay';
-import TransactionList from './TransactionList';
-import Partners from './Partners';
+import WebPagesAdmin from './WebPagesAdmin'; // Weboldalak kezelő komponens importálása
+import SettingsManager from './SettingsManager'; // Beállítások kezelő komponens importálása
 
 
 const App = () => {
@@ -180,6 +177,14 @@ const App = () => {
          </PrivateRoute>
        }
      />
+     <Route
+  path="/documents"
+  element={
+    <PrivateRoute>
+      <DocumentManager />
+    </PrivateRoute>
+  }
+/>
      <Route path="/qr-login" element={<QRLogin />} />
      <Route
        path="/help"
@@ -189,7 +194,7 @@ const App = () => {
          </PrivateRoute>
        }
      />
-     <Route path="*" element={<Navigate to="/" replace />} />
+     <Route path="*" element={<Navigate to="/magic-login" />} />
      <Route path="/shared-project/:token" element={<SharedProjectView />} />
      <Route
        path="/ai-chat"
