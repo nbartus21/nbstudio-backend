@@ -8,7 +8,7 @@ import { v4 as uuidv4 } from 'uuid';
 const router = express.Router();
 
 // CORS middleware for public routes
-const corsMiddleware = (req, res, next) => {
+export const corsMiddleware = (req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key');
@@ -21,7 +21,7 @@ const corsMiddleware = (req, res, next) => {
 };
 
 // API key middleware for public access
-const apiKeyMiddleware = (req, res, next) => {
+export const apiKeyMiddleware = (req, res, next) => {
   // Skip if user is already authenticated via token
   if (req.userData) {
     return next();

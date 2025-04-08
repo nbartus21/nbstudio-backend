@@ -49,6 +49,8 @@ import settingsRouter from './routes/settings.js';
 
 // Import middleware
 import authMiddleware from './middleware/auth.js';
+// Import corsMiddleware és apiKeyMiddleware a documents.js-ből
+import { corsMiddleware, apiKeyMiddleware } from './routes/documents.js';
 
 // Load environment variables
 dotenv.config();
