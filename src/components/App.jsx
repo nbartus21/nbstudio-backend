@@ -12,6 +12,7 @@ import MagicLogin from './MagicLogin';
 import ProjectManager from './ProjectManager';
 import DomainManager from './domain/DomainManager';
 import SharedProjectView from './SharedProjectView';
+import SharedDocumentView from './SharedDocumentView';
 import InvoiceManager from './InvoiceManager';
 import AccountingManager from './AccountingManager';
 import HostingManager from './HostingManager';
@@ -196,6 +197,7 @@ const App = () => {
      />
      <Route path="*" element={<Navigate to="/magic-login" />} />
      <Route path="/shared-project/:token" element={<SharedProjectView />} />
+     <Route path="/shared-document/:token" element={<SharedDocumentView />} />
      <Route
        path="/ai-chat"
        element={

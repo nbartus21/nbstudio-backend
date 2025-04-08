@@ -7,6 +7,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import { sendDocumentShareEmail } from '../services/documentShareEmailService.js';
 
 const router = express.Router();
 
@@ -640,7 +641,7 @@ router.put('/documents/:id/status', async (req, res) => {
 // Dokumentum küldése emailben
 router.post('/documents/:id/send', async (req, res) => {
   try {
-    const { email, subject, message } = req.body;
+    const { email, subject, message, language = 'hu' } = req.body;
 
     if (!email) {
       return res.status(400).json({ message: 'Email cím megadása kötelező' });
@@ -652,8 +653,47 @@ router.post('/documents/:id/send', async (req, res) => {
       return res.status(404).json({ message: 'Dokumentum nem található' });
     }
 
-    // Itt lenne az email küldési logika...
-    // A valós megvalósításban itt használnánk a nodemailer-t a küldéshez
+    // Ha nincs még megosztási link, generáljunk egyet
+    if (!document.sharing || !document.sharing.token) {
+      // Lejárati dátum számítása (30 nap)
+      const expiryDate = new Date();
+      expiryDate.setDate(expiryDate.getDate() + 30);
+
+      // Token generálása
+      const { v4: uuidv4 } = await import('uuid');
+      const shareToken = uuidv4();
+
+      // 6 jegyű PIN kód generálása
+      const pin = Math.floor(100000 + Math.random() * 900000).toString();
+
+      // Megosztási link generálása
+      const shareLink = `https://project.nb-studio.net/shared-document/${shareToken}`;
+
+      // Megosztási adatok mentése
+      document.sharing = {
+        token: shareToken,
+        pin: pin,
+        link: shareLink,
+        expiresAt: expiryDate,
+        createdAt: new Date()
+      };
+
+      await document.save();
+    }
+
+    // Email küldése
+    const emailResult = await sendDocumentShareEmail(
+      document,
+      email,
+      document.sharing.link,
+      document.sharing.pin,
+      language,
+      message // Egyéni üzenet
+    );
+
+    if (!emailResult.success) {
+      throw new Error(`Email küldési hiba: ${emailResult.error}`);
+    }
 
     // Frissítsük a dokumentum állapotát
     document.approvalStatus = 'sent';
@@ -664,7 +704,9 @@ router.post('/documents/:id/send', async (req, res) => {
 
     res.json({
       success: true,
-      message: `Dokumentum sikeresen elküldve a következő címre: ${email}`
+      message: `Dokumentum sikeresen elküldve a következő címre: ${email}`,
+      shareLink: document.sharing.link,
+      pin: document.sharing.pin
     });
   } catch (error) {
     console.error('Hiba a dokumentum küldésekor:', error);
@@ -885,7 +927,7 @@ router.post('/public/documents/:token/verify', corsMiddleware, apiKeyChecker, as
   }
 });
 
-// Ügyfél dokumentum elfogadás/elutasítás
+// Ügyfél dokumentum elfogadás/elutasítás (régi végpont - publicToken használatával)
 router.post('/public/documents/:token/response', corsMiddleware, apiKeyChecker, async (req, res) => {
   try {
     const { response, comment, pin } = req.body;
@@ -911,6 +953,67 @@ router.post('/public/documents/:token/response', corsMiddleware, apiKeyChecker, 
 
     // Ellenőrizzük a PIN kódot
     if (document.publicPin !== pin) {
+      return res.status(403).json({ message: 'Érvénytelen PIN kód' });
+    }
+
+    // Frissítsük a dokumentum státuszát
+    if (response === 'approve') {
+      document.approvalStatus = 'clientApproved';
+      document.clientApprovedAt = new Date();
+    } else {
+      document.approvalStatus = 'clientRejected';
+      document.clientRejectedAt = new Date();
+    }
+
+    // Mentsük a megjegyzést, ha van
+    if (comment) {
+      document.clientApprovalComment = comment;
+      document.comments.push({
+        user: 'Client',
+        text: comment,
+        timestamp: new Date()
+      });
+    }
+
+    await document.save();
+
+    res.json({
+      success: true,
+      message: response === 'approve' ? 'Dokumentum sikeresen elfogadva' : 'Dokumentum elutasítva',
+      documentStatus: document.approvalStatus
+    });
+  } catch (error) {
+    console.error('Hiba a dokumentum ügyfél válaszának feldolgozásakor:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Ügyfél dokumentum elfogadás/elutasítás (új végpont - sharing.token használatával)
+router.post('/public/shared-document/:token/response', corsMiddleware, apiKeyChecker, async (req, res) => {
+  try {
+    const { response, comment, pin } = req.body;
+
+    if (!response || !['approve', 'reject'].includes(response)) {
+      return res.status(400).json({ message: 'Érvénytelen válasz. Kérjük, válaszd az "approve" vagy "reject" opciót.' });
+    }
+
+    if (!pin) {
+      return res.status(400).json({ message: 'PIN kód megadása kötelező' });
+    }
+
+    const document = await GeneratedDocument.findOne({ 'sharing.token': req.params.token });
+
+    if (!document) {
+      return res.status(404).json({ message: 'Dokumentum nem található vagy a link érvénytelen' });
+    }
+
+    // Ellenőrizzük a lejárati dátumot
+    if (document.sharing.expiresAt && new Date() > document.sharing.expiresAt) {
+      return res.status(403).json({ message: 'A dokumentum elfogadási link lejárt' });
+    }
+
+    // Ellenőrizzük a PIN kódot
+    if (document.sharing.pin !== pin) {
       return res.status(403).json({ message: 'Érvénytelen PIN kód' });
     }
 

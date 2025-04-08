@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  FileText, Plus, Search, Filter, Download, 
+import {
+  FileText, Plus, Search, Filter, Download,
   Edit, Trash2, Eye, CheckCircle, XCircle, Send,
   Copy, FilePlus, FileCheck, Clock, Link, Share2
 } from 'lucide-react';
@@ -60,7 +60,8 @@ const DocumentManager = () => {
   const [sendEmailData, setSendEmailData] = useState({
     email: '',
     subject: '',
-    message: ''
+    message: '',
+    language: 'hu'
   });
   const [showSendForm, setShowSendForm] = useState(false);
   const [showShareForm, setShowShareForm] = useState(false);
@@ -152,7 +153,7 @@ const DocumentManager = () => {
       }
 
       const response = await api.post('/api/document-templates', formData);
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Hiba történt a sablon létrehozása során');
@@ -168,7 +169,7 @@ const DocumentManager = () => {
         variables: [],
         isDefault: false
       });
-      
+
       fetchTemplates();
       showSuccess('Sablon sikeresen létrehozva');
     } catch (error) {
@@ -191,7 +192,7 @@ const DocumentManager = () => {
       }
 
       const response = await api.put(`/api/document-templates/${selectedTemplate._id}`, formData);
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Hiba történt a sablon frissítése során');
@@ -208,7 +209,7 @@ const DocumentManager = () => {
         variables: [],
         isDefault: false
       });
-      
+
       fetchTemplates();
       showSuccess('Sablon sikeresen frissítve');
     } catch (error) {
@@ -220,10 +221,10 @@ const DocumentManager = () => {
   // Delete template
   const handleDeleteTemplate = async (templateId) => {
     if (!window.confirm('Biztosan törli ezt a sablont?')) return;
-    
+
     try {
       const response = await api.delete(`/api/document-templates/${templateId}`);
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Hiba történt a sablon törlése során');
@@ -261,7 +262,7 @@ const DocumentManager = () => {
       }
 
       const response = await api.post('/api/documents/generate', documentData);
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Hiba történt a dokumentum generálása során');
@@ -273,7 +274,7 @@ const DocumentManager = () => {
         projectId: '',
         variables: {}
       });
-      
+
       fetchDocuments();
       showSuccess('Dokumentum sikeresen generálva');
     } catch (error) {
@@ -296,20 +297,20 @@ const DocumentManager = () => {
   const handleViewDocument = async (documentId) => {
     try {
       console.log('Megtekinteni kívánt dokumentum ID:', documentId);
-      
+
       // Először nullázd a kiválasztott dokumentumot, így biztosan nem a régi látszik
       setSelectedDocument(null);
-      
+
       const response = await api.get(`/api/documents/${documentId}`);
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Hiba történt a dokumentum lekérése során');
       }
-  
+
       const data = await response.json();
       console.log('Visszakapott dokumentum:', data._id, data.name);
-      
+
       // Most állítsd be az új dokumentumot
       setSelectedDocument(data);
       setPreviewMode(true);
@@ -322,11 +323,11 @@ const DocumentManager = () => {
   // Update document status
   const handleUpdateDocumentStatus = async (documentId, status) => {
     try {
-      const response = await api.put(`/api/documents/${documentId}/status`, { 
+      const response = await api.put(`/api/documents/${documentId}/status`, {
         status,
-        comment: approvalComment 
+        comment: approvalComment
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Hiba történt a dokumentum státuszának frissítése során');
@@ -350,19 +351,33 @@ const DocumentManager = () => {
       }
 
       const response = await api.post(`/api/documents/${documentId}/send`, sendEmailData);
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Hiba történt a dokumentum küldése során');
+      }
+
+      const data = await response.json();
+
+      // Ha van shareLink és PIN, akkor mutassuk meg a felhasználónak
+      if (data.shareLink && data.pin) {
+        setShareData({
+          documentId,
+          expiryDays: 30,
+          shareLink: data.shareLink,
+          pin: data.pin
+        });
+        setShowShareForm(true);
       }
 
       setShowSendForm(false);
       setSendEmailData({
         email: '',
         subject: '',
-        message: ''
+        message: '',
+        language: 'hu'
       });
-      
+
       fetchDocuments();
       showSuccess('Dokumentum sikeresen elküldve');
     } catch (error) {
@@ -370,7 +385,7 @@ const DocumentManager = () => {
       setError(error.message);
     }
   };
-  
+
   // Generate share link for document
   const handleGenerateShareLink = async (documentId) => {
     try {
@@ -385,28 +400,28 @@ const DocumentManager = () => {
       setError(error.message);
     }
   };
-  
+
   // Create share link
   const handleCreateShareLink = async () => {
     try {
       const response = await api.post(
-        `/api/documents/${shareData.documentId}/share-document`, 
+        `/api/documents/${shareData.documentId}/share-document`,
         { expiryDays: shareData.expiryDays }
       );
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Hiba történt a megosztási link generálása során');
       }
-      
+
       const data = await response.json();
-      
+
       setShareData({
         ...shareData,
         shareLink: data.shareLink,
         pin: data.pin
       });
-      
+
       fetchDocuments();
       showSuccess('Megosztási link sikeresen létrehozva');
     } catch (error) {
@@ -414,19 +429,19 @@ const DocumentManager = () => {
       setError(error.message);
     }
   };
-  
+
   // Delete document
   const handleDeleteDocument = async (documentId) => {
     if (!window.confirm('Biztosan törli ezt a dokumentumot?')) return;
-    
+
     try {
       const response = await api.delete(`/api/documents/${documentId}`);
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Hiba történt a dokumentum törlése során');
       }
-      
+
       fetchDocuments();
       showSuccess('Dokumentum sikeresen törölve');
     } catch (error) {
@@ -612,7 +627,7 @@ const DocumentManager = () => {
               {templates.length > 0 ? (
                 templates.map((template) => {
                   const typeInfo = DOCUMENT_TYPES.find(t => t.value === template.type) || { label: 'Egyéb' };
-                  
+
                   return (
                     <li key={template._id} className="hover:bg-gray-50">
                       <div className="px-6 py-4">
@@ -633,7 +648,7 @@ const DocumentManager = () => {
                                 {typeInfo.label}
                               </span>
                               <span className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded-full">
-                                {template.language === 'hu' ? 'Magyar' : 
+                                {template.language === 'hu' ? 'Magyar' :
                                  template.language === 'de' ? 'Német' : 'Angol'}
                               </span>
                               <span className="text-gray-500 flex items-center">
@@ -703,8 +718,8 @@ const DocumentManager = () => {
             <button
               onClick={() => setSelectedStatus('')}
               className={`px-3 py-1.5 text-sm rounded-full border ${
-                selectedStatus === '' 
-                  ? 'bg-indigo-100 text-indigo-800 border-indigo-300' 
+                selectedStatus === ''
+                  ? 'bg-indigo-100 text-indigo-800 border-indigo-300'
                   : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
               }`}
             >
@@ -715,8 +730,8 @@ const DocumentManager = () => {
                 key={status.value}
                 onClick={() => setSelectedStatus(status.value)}
                 className={`px-3 py-1.5 text-sm rounded-full border ${
-                  selectedStatus === status.value 
-                    ? `${status.color} border-${status.color.split(' ')[0].replace('bg-', 'border-')}` 
+                  selectedStatus === status.value
+                    ? `${status.color} border-${status.color.split(' ')[0].replace('bg-', 'border-')}`
                     : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
                 }`}
               >
@@ -731,7 +746,7 @@ const DocumentManager = () => {
               {documents.length > 0 ? (
                 documents.map((doc) => {
                   const status = DOCUMENT_STATUSES.find(s => s.value === doc.approvalStatus) || DOCUMENT_STATUSES[0];
-                  
+
                   return (
                     <li key={doc._id} className="hover:bg-gray-50">
                       <div className="px-6 py-4">
@@ -810,7 +825,7 @@ const DocumentManager = () => {
                                     email: doc.projectId?.client?.email || '',
                                     subject: `Dokumentum: ${doc.name}`,
                                     message: `Tisztelt Ügyfelünk!\n\nMellékelten küldjük a következő dokumentumot: ${doc.name}.\n\n` +
-                                    (doc.sharing?.token && doc.sharing?.pin ? 
+                                    (doc.sharing?.token && doc.sharing?.pin ?
                                     `A dokumentum online is megtekinthető az alábbi linken:\nLink: ${doc.sharing.link}\nPIN kód: ${doc.sharing.pin}\n\nA hozzáférés lejár: ${doc.sharing.expiresAt ? new Date(doc.sharing.expiresAt).toLocaleDateString('hu-HU') : 'N/A'}` : '')
                                   });
                                 }}
@@ -1121,7 +1136,7 @@ const DocumentManager = () => {
           <div className="bg-white rounded-lg shadow-xl max-w-5xl w-full max-h-[90vh] flex flex-col">
             <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
               <h2 className="text-xl font-medium">
-                {selectedDocument.name} 
+                {selectedDocument.name}
                 <span className="ml-2 text-xs text-gray-500">(ID: {selectedDocument._id})</span>
               </h2>
               <div className="flex items-center space-x-2">
@@ -1144,14 +1159,14 @@ const DocumentManager = () => {
                 </button>
               </div>
             </div>
-            
+
             <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
               {/* Kulcs hozzáadása a tartalom komponenshez, hogy minden új dokumentumnál újra renderelődjön */}
               <div key={`document-content-${selectedDocument._id}`} className="max-w-3xl mx-auto bg-white shadow-sm rounded-lg p-8 min-h-[800px]">
                 <div dangerouslySetInnerHTML={{ __html: selectedDocument.htmlVersion || selectedDocument.content }} />
               </div>
             </div>
-            
+
             <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
               <div className="flex items-center">
                 <span className="text-sm text-gray-500 mr-2">Állapot:</span>
@@ -1161,7 +1176,7 @@ const DocumentManager = () => {
                   {DOCUMENT_STATUSES.find(s => s.value === selectedDocument.approvalStatus)?.label || 'Piszkozat'}
                 </span>
               </div>
-              
+
               {selectedDocument.approvalStatus === 'pendingApproval' && (
                 <div className="flex items-center space-x-2">
                   <textarea
@@ -1260,6 +1275,23 @@ const DocumentManager = () => {
                 />
               </div>
 
+              <div className="mb-4">
+                <label htmlFor="language" className="block text-sm font-medium text-gray-700 mb-1">
+                  Nyelv
+                </label>
+                <select
+                  id="language"
+                  name="language"
+                  value={sendEmailData.language}
+                  onChange={handleEmailFormChange}
+                  className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                >
+                  <option value="hu">Magyar</option>
+                  <option value="en">Angol</option>
+                  <option value="de">Német</option>
+                </select>
+              </div>
+
               <div className="mb-6 p-4 border border-gray-200 rounded bg-gray-50">
                 <h3 className="text-sm font-medium mb-2 flex items-center">
                   <FileText className="h-4 w-4 mr-1 text-indigo-600" />
@@ -1323,7 +1355,7 @@ const DocumentManager = () => {
                       Az ügyfél ennyi napig fogja tudni megtekinteni a dokumentumot a link segítségével.
                     </p>
                   </div>
-                  
+
                   <div className="mb-6 p-4 border border-gray-200 rounded bg-gray-50">
                     <h3 className="text-sm font-medium mb-2">Megjegyzések</h3>
                     <p className="text-xs text-gray-500">
@@ -1333,7 +1365,7 @@ const DocumentManager = () => {
                       - A megosztási linkkel együtt kapott dokumentum az eredeti állapotát fogja tükrözni, akkor is ha később módosítja
                     </p>
                   </div>
-                  
+
                   <div className="flex justify-end space-x-3">
                     <button
                       onClick={() => setShowShareForm(false)}
@@ -1371,7 +1403,7 @@ const DocumentManager = () => {
                         <Copy className="h-4 w-4" />
                       </button>
                     </div>
-                    
+
                     <div className="mt-4">
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         PIN kód
@@ -1397,13 +1429,13 @@ const DocumentManager = () => {
                         FONTOS: Jegyezd fel ezt a PIN kódot, mert az ügyfélnek szüksége lesz rá a dokumentum megtekintéséhez!
                       </p>
                     </div>
-                    
+
                     <p className="text-xs text-gray-500 mt-4">
                       Ezen a linken keresztül az ügyfél megtekintheti és elfogadhatja a dokumentumot a PIN kód megadása után.
                       A link {shareData.expiryDays} nap múlva fog lejárni.
                     </p>
                   </div>
-                  
+
                   <div className="flex justify-end space-x-3">
                     <button
                       onClick={() => setShowShareForm(false)}
