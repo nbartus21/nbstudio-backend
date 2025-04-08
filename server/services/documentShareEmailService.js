@@ -22,10 +22,17 @@ if (!CONTACT_SMTP_USER || !CONTACT_SMTP_PASS) {
 const transporterConfig = {
   host: CONTACT_SMTP_HOST,
   port: CONTACT_SMTP_PORT,
-  secure: CONTACT_SMTP_SECURE,
+  secure: false, // Explicit false, mert SMTP esetén többnyire nincs SSL
   auth: {
     user: CONTACT_SMTP_USER,
     pass: CONTACT_SMTP_PASS
+  },
+  // Debug opciók hozzáadása a könnyebb hibakereséshez
+  debug: true,
+  logger: true,
+  // TLS beállítások - ne legyen SSL/TLS ellenőrzés, mert problémák lehetnek vele
+  tls: {
+    rejectUnauthorized: false
   }
 };
 
@@ -58,6 +65,49 @@ try {
         response: error.response,
         stack: error.stack
       });
+      
+      console.error('[DEBUG] SMTP konfigurációs adatok:');
+      console.error(`Host: ${CONTACT_SMTP_HOST}`);
+      console.error(`Port: ${CONTACT_SMTP_PORT}`);
+      console.error(`Secure: ${CONTACT_SMTP_SECURE}`);
+      console.error(`User: ${CONTACT_SMTP_USER}`);
+      console.error(`Pass ellenőrzése: ${CONTACT_SMTP_PASS ? 'Jelszó beállítva' : 'HIÁNYZIK A JELSZÓ'}`);
+      console.error(`TLS beállítás: rejectUnauthorized: false`);
+      
+      // Próbáljunk meg alternatív SMTP beállításokat
+      console.log('[DEBUG] Próbálkozás alternatív SMTP beállításokkal...');
+      
+      const alternativeConfig = {
+        host: 'mail.nb-hosting.hu', // Alternatív hostname
+        port: 587, // Próbáljuk a 587-es portot
+        secure: false,
+        auth: {
+          user: CONTACT_SMTP_USER,
+          pass: CONTACT_SMTP_PASS
+        },
+        debug: true,
+        logger: true,
+        tls: {
+          rejectUnauthorized: false
+        }
+      };
+      
+      try {
+        const alternativeTransporter = nodemailer.createTransport(alternativeConfig);
+        alternativeTransporter.verify((altError) => {
+          if (altError) {
+            console.error('[DEBUG] Alternatív SMTP beállítások is hibásak:', {
+              error: altError.message,
+              code: altError.code
+            });
+          } else {
+            console.log('[DEBUG] Alternatív SMTP beállítások működnek! Beállítjuk az új transportert.');
+            transporter = alternativeTransporter;
+          }
+        });
+      } catch (err) {
+        console.error('[DEBUG] Hiba az alternatív transporter létrehozásakor:', err);
+      }
     } else {
       console.log('[DEBUG] SMTP szerver kapcsolat OK a dokumentum megosztás e-mail szolgáltatásban, kész az emailek küldésére');
     }

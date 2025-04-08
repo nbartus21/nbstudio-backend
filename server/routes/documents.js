@@ -13,13 +13,16 @@ const router = express.Router();
 
 // Egyszerű CORS middleware a nyilvános dokumentum végpontokhoz
 const corsMiddleware = (req, res, next) => {
+  // Minden origin-t engedünk, de ideális esetben csak specifikus origin-okat engedélyeznénk
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key, Accept');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, HEAD, PATCH');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key, Accept, Origin, X-Requested-With');
   res.setHeader('Access-Control-Max-Age', '3600');
+  res.setHeader('Access-Control-Allow-Credentials', 'false'); // Ne küldjön cookies-t
 
   // OPTIONS kérések kezelése
   if (req.method === 'OPTIONS') {
+    console.log('OPTIONS kérés kezelése közvetlenül');
     return res.status(200).end();
   }
 
@@ -39,18 +42,18 @@ const apiKeyChecker = (req, res, next) => {
     return next();
   }
 
-  // Ha nincs token, ellenőrizzük az API kulcsot
-  const apiKey = req.headers['x-api-key'];
-  console.log('API Key ellenőrzés a dokumentum végponton:', req.originalUrl);
-  console.log('Kapott fejlécek:', JSON.stringify(req.headers, null, 2));
-  console.log('Kapott API kulcs:', apiKey ? 'Megkapva' : 'Nincs megadva');
-
-  // IDEIGLENES: Engedélyezzük a hozzáférést a megosztott dokumentum végpontokhoz API kulcs nélkül is
+  // FONTOS: Engedélyezzük a hozzáférést a megosztott dokumentum végpontokhoz API kulcs nélkül is
   if (req.originalUrl.includes('/public/shared-document/')) {
     console.log('Megosztott dokumentum végpont, engedélyezve API kulcs nélkül is');
     req.userData = { email: 'public-client@example.com' };
     return next();
   }
+
+  // Ha nincs token, ellenőrizzük az API kulcsot
+  const apiKey = req.headers['x-api-key'];
+  console.log('API Key ellenőrzés a dokumentum végponton:', req.originalUrl);
+  console.log('Kapott fejlécek:', JSON.stringify(req.headers, null, 2));
+  console.log('Kapott API kulcs:', apiKey ? 'Megkapva' : 'Nincs megadva');
 
   if (apiKey === 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0') {
     // Ha érvényes az API kulcs, állítsuk be egy alap userData objektumot
@@ -775,16 +778,19 @@ router.post('/documents/:id/share-document', async (req, res) => {
 });
 
 // Dokumentum publikus adatainak lekérése token alapján
-router.get('/public/shared-document/:token/info', corsMiddleware, apiKeyChecker, async (req, res) => {
+router.get('/public/shared-document/:token/info', corsMiddleware, async (req, res) => {
   try {
+    console.log(`Megosztott dokumentum info kérés, token: ${req.params.token}`);
     const document = await GeneratedDocument.findOne({ 'sharing.token': req.params.token });
 
     if (!document) {
+      console.log(`Dokumentum nem található ezzel a token-nel: ${req.params.token}`);
       return res.status(404).json({ message: 'Dokumentum nem található vagy a link érvénytelen' });
     }
 
     // Ellenőrizzük a lejárati dátumot
     if (document.sharing.expiresAt && new Date() > document.sharing.expiresAt) {
+      console.log(`Dokumentum lejárt: ${req.params.token}, lejárat: ${document.sharing.expiresAt}`);
       return res.status(403).json({ message: 'A megtekintési link lejárt' });
     }
 
@@ -797,6 +803,7 @@ router.get('/public/shared-document/:token/info', corsMiddleware, apiKeyChecker,
       createdAt: document.createdAt
     };
 
+    console.log(`Dokumentum info sikeres: ${document.name}`);
     res.json(basicInfo);
   } catch (error) {
     console.error('Hiba a megosztott dokumentum információ lekérésekor:', error);
@@ -805,8 +812,10 @@ router.get('/public/shared-document/:token/info', corsMiddleware, apiKeyChecker,
 });
 
 // Dokumentum PIN kód ellenőrzése
-router.post('/public/shared-document/:token/verify', corsMiddleware, apiKeyChecker, async (req, res) => {
+router.post('/public/shared-document/:token/verify', corsMiddleware, async (req, res) => {
   try {
+    console.log(`Megosztott dokumentum PIN ellenőrzés, token: ${req.params.token}`);
+    
     const { pin } = req.body;
 
     if (!pin) {
@@ -816,15 +825,18 @@ router.post('/public/shared-document/:token/verify', corsMiddleware, apiKeyCheck
     const document = await GeneratedDocument.findOne({ 'sharing.token': req.params.token });
 
     if (!document) {
+      console.log(`Dokumentum nem található PIN ellenőrzéskor: ${req.params.token}`);
       return res.status(404).json({ message: 'Dokumentum nem található vagy a link érvénytelen' });
     }
 
     // Lejárat ellenőrzése
     if (document.sharing.expiresAt && new Date() > document.sharing.expiresAt) {
+      console.log(`Dokumentum lejárt PIN ellenőrzéskor: ${req.params.token}`);
       return res.status(403).json({ message: 'A megosztási link lejárt' });
     }
 
     if (document.sharing.pin !== pin) {
+      console.log(`Érvénytelen PIN kód: ${req.params.token}`);
       return res.status(403).json({ message: 'Érvénytelen PIN kód' });
     }
 
@@ -836,6 +848,7 @@ router.post('/public/shared-document/:token/verify', corsMiddleware, apiKeyCheck
       updatedAt: document.updatedAt
     };
 
+    console.log(`Megosztott dokumentum PIN ellenőrzés sikeres: ${document.name}`);
     res.json(documentData);
   } catch (error) {
     console.error('Hiba a dokumentum megtekintésnél:', error);
@@ -1002,8 +1015,10 @@ router.post('/public/documents/:token/response', corsMiddleware, apiKeyChecker, 
 });
 
 // Ügyfél dokumentum elfogadás/elutasítás (új végpont - sharing.token használatával)
-router.post('/public/shared-document/:token/response', corsMiddleware, apiKeyChecker, async (req, res) => {
+router.post('/public/shared-document/:token/response', corsMiddleware, async (req, res) => {
   try {
+    console.log(`Megosztott dokumentum válasz, token: ${req.params.token}`);
+    
     const { response, comment, pin } = req.body;
 
     if (!response || !['approve', 'reject'].includes(response)) {
@@ -1017,16 +1032,19 @@ router.post('/public/shared-document/:token/response', corsMiddleware, apiKeyChe
     const document = await GeneratedDocument.findOne({ 'sharing.token': req.params.token });
 
     if (!document) {
+      console.log(`Dokumentum nem található válasz küldésekor: ${req.params.token}`);
       return res.status(404).json({ message: 'Dokumentum nem található vagy a link érvénytelen' });
     }
 
     // Ellenőrizzük a lejárati dátumot
     if (document.sharing.expiresAt && new Date() > document.sharing.expiresAt) {
+      console.log(`Dokumentum lejárt válasz küldésekor: ${req.params.token}`);
       return res.status(403).json({ message: 'A dokumentum elfogadási link lejárt' });
     }
 
     // Ellenőrizzük a PIN kódot
     if (document.sharing.pin !== pin) {
+      console.log(`Érvénytelen PIN kód válasz küldésekor: ${req.params.token}`);
       return res.status(403).json({ message: 'Érvénytelen PIN kód' });
     }
 
@@ -1051,6 +1069,7 @@ router.post('/public/shared-document/:token/response', corsMiddleware, apiKeyChe
 
     await document.save();
 
+    console.log(`Dokumentum válasz sikeresen elmentve: ${document.name}, válasz: ${response}`);
     res.json({
       success: true,
       message: response === 'approve' ? 'Dokumentum sikeresen elfogadva' : 'Dokumentum elutasítva',

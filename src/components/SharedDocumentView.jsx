@@ -181,8 +181,10 @@ const SharedDocumentView = () => {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'X-API-Key': API_KEY
-        }
+          'X-API-Key': API_KEY,
+          'Accept': 'application/json'
+        },
+        credentials: 'omit' // CORS hívás esetén ne küldjön sütit
       });
 
       if (!response.ok) {
@@ -229,7 +231,8 @@ const SharedDocumentView = () => {
           'X-API-Key': API_KEY,
           'Accept': 'application/json'
         },
-        body: JSON.stringify({ pin })
+        body: JSON.stringify({ pin }),
+        credentials: 'omit' // CORS hívás esetén ne küldjön sütit
       });
 
       if (!response.ok) {
@@ -304,7 +307,8 @@ const SharedDocumentView = () => {
         headers: {
           'X-API-Key': API_KEY,
           'Accept': 'application/pdf'
-        }
+        },
+        credentials: 'omit' // CORS hívás esetén ne küldjön sütit
       });
 
       if (!response.ok) {
@@ -364,7 +368,8 @@ const SharedDocumentView = () => {
           response: responseType,
           comment,
           pin
-        })
+        }),
+        credentials: 'omit' // CORS hívás esetén ne küldjön sütit
       });
 
       if (!response.ok) {
