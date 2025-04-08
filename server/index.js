@@ -1,14 +1,57 @@
 import express from 'express';
-import mongoose from 'mongoose';
 import cors from 'cors';
+import mongoose from 'mongoose';
 import dotenv from 'dotenv';
-import https from 'https';
-import http from 'http';
 import { Server } from 'socket.io';
+import http from 'http';
 import fs from 'fs';
-// PDF generation dependencies
 import PDFDocument from 'pdfkit';
-import puppeteer from 'puppeteer';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
+import jwt from 'jsonwebtoken';
+import bcrypt from 'bcrypt';
+import { v4 as uuidv4 } from 'uuid';
+import axios from 'axios';
+import nodemailer from 'nodemailer';
+import sgMail from '@sendgrid/mail';
+import sharp from 'sharp';
+import crypto from 'crypto';
+import multer from 'multer';
+import requestIp from 'request-ip';
+import geoip from 'geoip-lite';
+import xml2js from 'xml2js';
+
+// Convert ESM URL to file path
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Import routes - egységes elnevezésekkel
+import authRouter from './routes/auth.js';
+import userRouter from './routes/users.js';
+import projectRouter from './routes/projects.js';
+import blogRouter from './routes/blog.js';
+import webPagesRouter from './routes/webpages.js';
+import settingsRouter from './routes/settings.js';
+import supportTicketRouter, { setupEmailEndpoint, initializeSocketIO } from './routes/supportTickets.js';
+import calculatorRouter from './routes/calculator.js';
+import languageRouter from './routes/language.js';
+import invoiceRouter from './routes/invoices.js';
+import accountingRouter from './routes/accounting.js';
+import partnerRouter from './routes/partners.js';
+import hostingRouter from './routes/hosting.js';
+import serverRouter from './routes/servers.js';
+import domainRouter from './routes/domains.js';
+import emailApiRouter from './routes/emailApi.js';
+import chatApiRouter from './routes/chatApi.js';
+import paymentsRouter from './routes/payments.js';
+import filesRouter from './routes/files.js';
+import commentsRouter from './routes/comments.js';
+import translationRouter from './routes/translation.js';
+import notesRouter from './routes/notes.js';
+import tasksRouter from './routes/tasks.js';
+import notificationRouter from './routes/notifications.js';
+import postRouter from './routes/posts.js';
+import contactRouter from './routes/contacts.js';
 
 // Import models
 import Contact from './models/Contact.js';
@@ -20,56 +63,6 @@ import Note from './models/Note.js';
 import Task from './models/Task.js';
 import Partner from './models/Partner.js';
 import WebPage from './models/WebPage.js';
-
-// Import routes
-import postRoutes from './routes/posts.js';
-import contactRoutes from './routes/contacts.js';
-import calculatorRoutes from './routes/calculators.js';
-import projectRoutes from './routes/projects.js';
-import domainRoutes from './routes/domains.js';
-// Eltávolítva: serverRoutes, licenseRoutes
-import authRoutes from './routes/auth.js';
-import notificationRoutes from './routes/notifications.js';
-import accountingRoutes from './routes/accounting.js';
-import hostingRoutes from './routes/hosting.js';
-import filesRoutes from './routes/files.js';
-import commentsRoutes from './routes/comments.js';
-import translationRoutes from './routes/translation.js';
-import notesRoutes from './routes/notes.js';
-import tasksRoutes from './routes/tasks.js';
-import supportTicketRouter, { setupEmailEndpoint, initializeSocketIO } from './routes/supportTickets.js';
-import emailApiRouter from './routes/emailApi.js';
-import chatApiRouter from './routes/chatApi.js';
-import paymentsRouter from './routes/payments.js';
-import invoicesRouter from './routes/invoices.js';
-import partnersRouter from './routes/partners.js';
-import webPagesRouter from './routes/webpages.js';
-import settingsRouter from './routes/settings.js';
-import projectRoutes from './routes/projects.js';
-import settingsRoutes from './routes/settings.js';
-import supportTicketsRoutes from './routes/supportTickets.js';
-import calculatorRoutes from './routes/calculator.js';
-import languageRoutes from './routes/language.js';
-import invoiceRoutes from './routes/invoices.js';
-import accountingRoutes from './routes/accounting.js';
-import partnerRoutes from './routes/partners.js';
-import hostingRoutes from './routes/hosting.js';
-import serverRoutes from './routes/servers.js';
-import authRouter from './routes/auth.js';
-import userRouter from './routes/users.js';
-import projectRouter from './routes/projects.js';
-import blogRouter from './routes/blog.js';
-import webPagesRouter from './routes/webpages.js';
-import settingsRouter from './routes/settings.js';
-import supportTicketsRouter from './routes/supportTickets.js';
-import calculatorRouter from './routes/calculator.js';
-import languageRouter from './routes/language.js';
-import invoiceRouter from './routes/invoices.js';
-import accountingRouter from './routes/accounting.js';
-import partnerRouter from './routes/partners.js';
-import hostingRouter from './routes/hosting.js';
-import serverRouter from './routes/servers.js';
-import domainRouter from './routes/domains.js';
 
 // Import middleware
 import authMiddleware from './middleware/auth.js';
@@ -496,7 +489,7 @@ import { verifyPin, uploadToS3 } from './routes/projects.js';
 // Így biztosítjuk, hogy több URL-ről is elérhető legyen
 
 // 1. A public/projects alá
-app.use('/api/public/projects', validateApiKey, projectRoutes);
+app.use('/api/public/projects', validateApiKey, projectRouter);
 
 // 2. Közvetlenül az api alá is
 app.post('/api/verify-pin', validateApiKey, async (req, res) => {
@@ -517,7 +510,7 @@ app.use('/api/email', emailApiRouter);
 setupEmailEndpoint(app);
 
 // Auth routes (for login/logout)
-app.use('/api/auth', authRoutes);
+app.use('/api/auth', authRouter);
 
 // ==============================================
 // PUBLIC ENDPOINTS FOR SHARED PROJECTS (No authentication required)
@@ -1278,20 +1271,19 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
 // PROTECTED ENDPOINTS (Require authentication)
 // ==============================================
 app.use('/api', authMiddleware);
-app.use('/api', postRoutes);
-app.use('/api', contactRoutes);
-app.use('/api', calculatorRoutes);
-app.use('/api', projectRoutes);
-app.use('/api', domainRoutes);
-// Eltávolítva: serverRoutes, licenseRoutes
-app.use('/api', notificationRoutes);
-app.use('/api/accounting', accountingRoutes);
-app.use('/api', hostingRoutes);
-app.use('/api', filesRoutes);
-app.use('/api', commentsRoutes);
-app.use('/api/translation', translationRoutes);
-app.use('/api/translation/tasks', tasksRoutes);
-app.use('/api/notes', notesRoutes);
+app.use('/api', postRouter);
+app.use('/api', contactRouter);
+app.use('/api', calculatorRouter);
+app.use('/api', projectRouter);
+app.use('/api', domainRouter);
+app.use('/api', notificationRouter);
+app.use('/api/accounting', accountingRouter);
+app.use('/api', hostingRouter);
+app.use('/api', filesRouter);
+app.use('/api', commentsRouter);
+app.use('/api/translation', translationRouter);
+app.use('/api/translation/tasks', tasksRouter);
+app.use('/api/notes', notesRouter);
 app.use('/api/support', supportTicketRouter);
 app.use('/api', calculatorRouter);
 app.use('/api', languageRouter);
@@ -1304,20 +1296,17 @@ app.use('/api', domainRouter);
 app.use('/api', emailApiRouter);
 app.use('/api', chatApiRouter);
 app.use('/api', paymentsRouter);
-app.use('/api', filesRoutes);
-app.use('/api', commentsRoutes);
-app.use('/api', translationRoutes);
-app.use('/api', notesRoutes);
-app.use('/api', tasksRoutes);
+app.use('/api', filesRouter);
+app.use('/api', commentsRouter);
+app.use('/api', translationRouter);
+app.use('/api', notesRouter);
+app.use('/api', tasksRouter);
 
-// Fix for transactions endpoint directly accessing the accountingRoutes
+// Fix for transactions endpoint directly accessing the accountingRouter
 app.use('/api/transactions', (req, res, next) => {
-  // Redirect to accounting/transactions to match the client's request
-  console.log('Redirecting from /api/transactions to /api/accounting/transactions');
-  req.url = req.url === '/' ? '/transactions' : req.url;
   req.baseUrl = '/api/accounting';
   next();
-}, accountingRoutes);
+}, accountingRouter);
 
 // Basic health check endpoint
 app.get('/', (req, res) => {

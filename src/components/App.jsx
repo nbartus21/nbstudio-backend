@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
+import { Route, Routes, Navigate } from 'react-router-dom';
 import { MessageSquare, Mail } from 'lucide-react';
 import Navigation from './Navigation';
 import Dashboard from './Dashboard';
@@ -22,8 +22,8 @@ import AIChat from './AIChat';
 import SideChat from './SideChat';
 import Help from './Help';
 import PartnersAdmin from './PartnersAdmin';
-import WebPagesAdmin from './WebPagesAdmin'; // Weboldalak kezelő komponens importálása
-import SettingsManager from './SettingsManager'; // Beállítások kezelő komponens importálása
+import WebPagesAdmin from './WebPagesAdmin';
+import SettingsManager from './SettingsManager';
 import ServerMonitoring from './ServerMonitoring';
 import MaintenanceOverlay from './MaintenanceOverlay';
 import TransactionList from './TransactionList';
@@ -48,165 +48,163 @@ const App = () => {
  };
 
  return (
-   <Router>
-     <Routes>
-       <Route path="/login" element={<Login />} />
-       <Route path="/magic-login" element={<MagicLogin />} />
+   <Routes>
+     <Route path="/login" element={<Login />} />
+     <Route path="/magic-login" element={<MagicLogin />} />
 
-       <Route
-         path="/"
-         element={
-           <PrivateRoute>
-             <BlogAdmin />
-           </PrivateRoute>
-         }
-       />
-       <Route
-         path="/dashboard"
-         element={
-           <PrivateRoute>
-             <Dashboard />
-           </PrivateRoute>
-         }
-       />
-       <Route
-         path="/blog"
-         element={
-           <PrivateRoute>
-             <BlogAdmin />
-           </PrivateRoute>
-         }
-       />
-       <Route
-         path="/blog/new"
-         element={
-           <PrivateRoute>
-             <BlogCreator />
-           </PrivateRoute>
-         }
-       />
-       <Route
-         path="/contacts"
-         element={
-           <PrivateRoute>
-             <ContactAdmin />
-           </PrivateRoute>
-         }
-       />
-       <Route
-         path="/calculator"
-         element={
-           <PrivateRoute>
-             <CalculatorAdmin />
-           </PrivateRoute>
-         }
-       />
-       <Route
-         path="/translation"
-         element={
-           <PrivateRoute>
-             <TranslationTool />
-           </PrivateRoute>
-         }
-       />
-       <Route
-         path="/projects"
-         element={
-           <PrivateRoute>
-             <ProjectManager />
-           </PrivateRoute>
-         }
-       />
-       <Route
-         path="/domains"
-         element={
-           <PrivateRoute>
-             <DomainManager />
-           </PrivateRoute>
-         }
-       />
-       <Route
-         path="/invoices"
-         element={
-           <PrivateRoute>
-             <InvoiceManager />
-           </PrivateRoute>
-         }
-       />
-       <Route
-         path="/accounting"
-         element={
-           <PrivateRoute>
-             <AccountingManager />
-           </PrivateRoute>
-         }
-       />
-       <Route
-         path="/hosting"
-         element={
-           <PrivateRoute>
-             <HostingManager />
-           </PrivateRoute>
-         }
-       />
-       <Route
-         path="/partners"
-         element={
-           <PrivateRoute>
-             <PartnersAdmin />
-           </PrivateRoute>
-         }
-       />
-       <Route
-         path="/webpages"
-         element={
-           <PrivateRoute>
-             <WebPagesAdmin />
-           </PrivateRoute>
-         }
-       />
-       <Route
-         path="/settings"
-         element={
-           <PrivateRoute>
-             <SettingsManager />
-           </PrivateRoute>
-         }
-       />
-       <Route
-         path="/support"
-         element={
-           <PrivateRoute>
-             <SupportTicketManager />
-           </PrivateRoute>
-         }
-       />
-       <Route path="/qr-login" element={<QRLogin />} />
-       <Route
-         path="/help"
-         element={
-           <PrivateRoute>
-             <Help />
-           </PrivateRoute>
-         }
-       />
-       <Route path="*" element={<Navigate to="/" replace />} />
-       <Route path="/shared-project/:token" element={<SharedProjectView />} />
-       <Route
-         path="/ai-chat"
-         element={
-           <PrivateRoute>
-             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 h-[calc(100vh-64px)] flex flex-col">
-               <h1 className="text-2xl font-bold mb-4">AI Asszisztens</h1>
-               <div className="bg-white rounded-lg shadow-lg flex-1">
-                 <AIChat />
-               </div>
+     <Route
+       path="/"
+       element={
+         <PrivateRoute>
+           <BlogAdmin />
+         </PrivateRoute>
+       }
+     />
+     <Route
+       path="/dashboard"
+       element={
+         <PrivateRoute>
+           <Dashboard />
+         </PrivateRoute>
+       }
+     />
+     <Route
+       path="/blog"
+       element={
+         <PrivateRoute>
+           <BlogAdmin />
+         </PrivateRoute>
+       }
+     />
+     <Route
+       path="/blog/new"
+       element={
+         <PrivateRoute>
+           <BlogCreator />
+         </PrivateRoute>
+       }
+     />
+     <Route
+       path="/contacts"
+       element={
+         <PrivateRoute>
+           <ContactAdmin />
+         </PrivateRoute>
+       }
+     />
+     <Route
+       path="/calculator"
+       element={
+         <PrivateRoute>
+           <CalculatorAdmin />
+         </PrivateRoute>
+       }
+     />
+     <Route
+       path="/translation"
+       element={
+         <PrivateRoute>
+           <TranslationTool />
+         </PrivateRoute>
+       }
+     />
+     <Route
+       path="/projects"
+       element={
+         <PrivateRoute>
+           <ProjectManager />
+         </PrivateRoute>
+       }
+     />
+     <Route
+       path="/domains"
+       element={
+         <PrivateRoute>
+           <DomainManager />
+         </PrivateRoute>
+       }
+     />
+     <Route
+       path="/invoices"
+       element={
+         <PrivateRoute>
+           <InvoiceManager />
+         </PrivateRoute>
+       }
+     />
+     <Route
+       path="/accounting"
+       element={
+         <PrivateRoute>
+           <AccountingManager />
+         </PrivateRoute>
+       }
+     />
+     <Route
+       path="/hosting"
+       element={
+         <PrivateRoute>
+           <HostingManager />
+         </PrivateRoute>
+       }
+     />
+     <Route
+       path="/partners"
+       element={
+         <PrivateRoute>
+           <PartnersAdmin />
+         </PrivateRoute>
+       }
+     />
+     <Route
+       path="/webpages"
+       element={
+         <PrivateRoute>
+           <WebPagesAdmin />
+         </PrivateRoute>
+       }
+     />
+     <Route
+       path="/settings"
+       element={
+         <PrivateRoute>
+           <SettingsManager />
+         </PrivateRoute>
+       }
+     />
+     <Route
+       path="/support"
+       element={
+         <PrivateRoute>
+           <SupportTicketManager />
+         </PrivateRoute>
+       }
+     />
+     <Route path="/qr-login" element={<QRLogin />} />
+     <Route
+       path="/help"
+       element={
+         <PrivateRoute>
+           <Help />
+         </PrivateRoute>
+       }
+     />
+     <Route path="*" element={<Navigate to="/" replace />} />
+     <Route path="/shared-project/:token" element={<SharedProjectView />} />
+     <Route
+       path="/ai-chat"
+       element={
+         <PrivateRoute>
+           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 h-[calc(100vh-64px)] flex flex-col">
+             <h1 className="text-2xl font-bold mb-4">AI Asszisztens</h1>
+             <div className="bg-white rounded-lg shadow-lg flex-1">
+               <AIChat />
              </div>
-           </PrivateRoute>
-         }
-       />
-     </Routes>
-   </Router>
+           </div>
+         </PrivateRoute>
+       }
+     />
+   </Routes>
  );
 };
 
