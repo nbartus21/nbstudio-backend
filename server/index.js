@@ -1450,6 +1450,20 @@ function setupProjectDomain() {
     res.sendFile(path.join(__dirname, '../public/shared-document-view/index.html'));
   });
   
+  // Special route handler for documents with UUID format
+  projectApp.get('/documents/:token', (req, res) => {
+    // Validate if token is a UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (uuidRegex.test(req.params.token)) {
+      console.log(`Handling document request with UUID token: ${req.params.token}`);
+      res.sendFile(path.join(__dirname, '../public/documents/index.html'));
+    } else {
+      // Not a valid UUID, pass to next handler
+      console.log(`Invalid UUID format document request: ${req.params.token}, passing to next handler`);
+      res.status(404).send('Document not found');
+    }
+  });
+  
   // Proxy all other requests to the frontend app running on port 5173
   projectApp.use((req, res) => {
     // A /public/documents/ vagy /api/public/shared-document/ elérési útvonalat az API szerverre irányítjuk
