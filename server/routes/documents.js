@@ -14,8 +14,9 @@ const router = express.Router();
 // Egyszerű CORS middleware a nyilvános dokumentum végpontokhoz
 const corsMiddleware = (req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key, Accept');
+  res.setHeader('Access-Control-Max-Age', '3600');
 
   // OPTIONS kérések kezelése
   if (req.method === 'OPTIONS') {
@@ -30,6 +31,11 @@ const corsMiddleware = (req, res, next) => {
 const apiKeyChecker = (req, res, next) => {
   // Ha van érvényes token, akkor engedjük tovább
   if (req.userData) {
+    return next();
+  }
+
+  // Ellenőrizzük, hogy a kérés a CORS preflight-e (OPTIONS)
+  if (req.method === 'OPTIONS') {
     return next();
   }
 
@@ -50,7 +56,7 @@ const apiKeyChecker = (req, res, next) => {
   console.error('API kulcs ellenőrzés sikertelen');
   console.error('Várt:', 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0');
   console.error('Kapott:', apiKey);
-  return res.status(401).json({ message: 'Unauthorized access' });
+  return res.status(401).json({ message: 'Nincs autentikációs token' });
 };
 
 // Regisztráljuk a PDF generálás végpontot az authMiddleware előtt

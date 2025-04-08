@@ -145,12 +145,12 @@ const SharedDocumentView = () => {
         try {
           const session = JSON.parse(savedSession);
           debugLog('SharedDocumentView', 'Found existing session', { session });
-          
+
           // Check if session is still valid (24 hours)
           const sessionTime = new Date(session.timestamp);
           const now = new Date();
           const hoursSinceSession = (now - sessionTime) / (1000 * 60 * 60);
-          
+
           if (hoursSinceSession < 24) {
             setDocument(session.document);
             setIsVerified(true);
@@ -176,21 +176,29 @@ const SharedDocumentView = () => {
   const fetchDocumentInfo = async () => {
     try {
       debugLog('fetchDocumentInfo', 'Fetching document info', { token });
-      
+
       const response = await fetch(`${API_URL}/public/shared-document/${token}/info`, {
+        method: 'GET',
         headers: {
+          'Content-Type': 'application/json',
           'X-API-Key': API_KEY
         }
       });
-      
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to fetch document info');
+        // Próbáljuk meg kiolvasni a hibaüzenetet
+        try {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Failed to fetch document info');
+        } catch (jsonError) {
+          // Ha nem sikerül a JSON parse, akkor használjuk a status text-et
+          throw new Error(`Failed to fetch document info: ${response.status} ${response.statusText}`);
+        }
       }
-      
+
       const data = await response.json();
       debugLog('fetchDocumentInfo', 'Document info fetched successfully', { data });
-      
+
       // We don't set the document state here, just log the info
       // The full document will be fetched after PIN verification
     } catch (error) {
@@ -202,40 +210,47 @@ const SharedDocumentView = () => {
   // Handle PIN verification
   const handleVerify = async (e) => {
     e.preventDefault();
-    
+
     if (!pin || pin.length < 4) {
       setError('Please enter a valid PIN code');
       return;
     }
-    
+
     setLoading(true);
     setError(null);
-    
+
     try {
       debugLog('handleVerify', 'Verifying PIN', { token, pin });
-      
+
       const response = await fetch(`${API_URL}/public/shared-document/${token}/verify`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-API-Key': API_KEY
+          'X-API-Key': API_KEY,
+          'Accept': 'application/json'
         },
         body: JSON.stringify({ pin })
       });
-      
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'PIN verification failed');
+        // Próbáljuk meg kiolvasni a hibaüzenetet
+        try {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'PIN verification failed');
+        } catch (jsonError) {
+          // Ha nem sikerül a JSON parse, akkor használjuk a status text-et
+          throw new Error(`PIN verification failed: ${response.status} ${response.statusText}`);
+        }
       }
-      
+
       const documentData = await response.json();
       debugLog('handleVerify', 'PIN verified successfully', { documentData });
-      
+
       // Save document data to state
       setDocument(documentData);
       setIsVerified(true);
       setError(null);
-      
+
       // Save session to localStorage with language
       const session = {
         document: documentData,
@@ -267,7 +282,7 @@ const SharedDocumentView = () => {
   const handleLanguageChange = (lang) => {
     debugLog('handleLanguageChange', `Changing language to ${lang}`);
     setLanguage(lang);
-    
+
     // If user is logged in, update the session with the new language
     if (isVerified && token) {
       const savedSession = localStorage.getItem(`document_session_${token}`);
@@ -283,31 +298,33 @@ const SharedDocumentView = () => {
   const handleDownload = async () => {
     try {
       debugLog('handleDownload', 'Downloading document', { documentId: document.id });
-      
+
       const response = await fetch(`${API_URL}/public/documents/${document.id}/pdf?language=${language}`, {
+        method: 'GET',
         headers: {
-          'X-API-Key': API_KEY
+          'X-API-Key': API_KEY,
+          'Accept': 'application/pdf'
         }
       });
-      
+
       if (!response.ok) {
         throw new Error('Failed to download document');
       }
-      
+
       // Get blob from response
       const blob = await response.blob();
-      
+
       // Create download link for blob
       const url = window.URL.createObjectURL(blob);
       const fileName = language === 'hu' ? `dokumentum-${document.name}.pdf` :
                       (language === 'de' ? `dokument-${document.name}.pdf` : `document-${document.name}.pdf`);
-      
+
       const a = window.document.createElement('a');
       a.href = url;
       a.download = fileName;
       window.document.body.appendChild(a);
       a.click();
-      
+
       // Cleanup
       setTimeout(() => {
         window.document.body.removeChild(a);
@@ -324,42 +341,43 @@ const SharedDocumentView = () => {
     if (!responseType) {
       return;
     }
-    
+
     setLoading(true);
     setError(null);
-    
+
     try {
-      debugLog('handleResponseSubmit', 'Submitting response', { 
-        token, 
-        responseType, 
+      debugLog('handleResponseSubmit', 'Submitting response', {
+        token,
+        responseType,
         comment,
         pin
       });
-      
+
       const response = await fetch(`${API_URL}/public/shared-document/${token}/response`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-API-Key': API_KEY
+          'X-API-Key': API_KEY,
+          'Accept': 'application/json'
         },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           response: responseType,
           comment,
           pin
         })
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Failed to submit response');
       }
-      
+
       const data = await response.json();
       debugLog('handleResponseSubmit', 'Response submitted successfully', { data });
-      
+
       setResponseSubmitted(true);
       setResponseSuccess(true);
-      
+
       // Update document status in session
       const savedSession = localStorage.getItem(`document_session_${token}`);
       if (savedSession) {
@@ -495,18 +513,18 @@ const SharedDocumentView = () => {
               )}
             </div>
           </div>
-          
+
           <h2 className="text-2xl font-bold mb-4">
-            {responseSuccess 
+            {responseSuccess
               ? (responseType === 'approve' ? t.documentApproved : t.documentRejected)
               : t.responseError
             }
           </h2>
-          
+
           {responseSuccess && (
             <p className="text-gray-600 mb-6">{t.thankYou}</p>
           )}
-          
+
           <div className="mt-6">
             <button
               onClick={() => navigate('/')}
@@ -528,7 +546,7 @@ const SharedDocumentView = () => {
           <h3 className="text-lg font-medium mb-4">
             {responseType === 'approve' ? t.approveConfirm : t.rejectConfirm}
           </h3>
-          
+
           <div className="flex justify-end space-x-3">
             <button
               onClick={() => setShowConfirm(false)}
@@ -539,8 +557,8 @@ const SharedDocumentView = () => {
             <button
               onClick={handleResponseSubmit}
               className={`px-4 py-2 rounded-md text-white ${
-                responseType === 'approve' 
-                  ? 'bg-green-600 hover:bg-green-700' 
+                responseType === 'approve'
+                  ? 'bg-green-600 hover:bg-green-700'
                   : 'bg-red-600 hover:bg-red-700'
               }`}
             >
@@ -562,7 +580,7 @@ const SharedDocumentView = () => {
             <FileText className="h-6 w-6 mr-2 text-indigo-600" />
             {document?.name || t.viewDocument}
           </h1>
-          
+
           <div className="flex items-center space-x-4">
             {/* Language selector */}
             <div className="flex space-x-2">
@@ -597,7 +615,7 @@ const SharedDocumentView = () => {
                 EN
               </button>
             </div>
-            
+
             <button
               onClick={handleLogout}
               className="text-gray-500 hover:text-gray-700"
@@ -607,7 +625,7 @@ const SharedDocumentView = () => {
           </div>
         </div>
       </header>
-      
+
       {/* Main content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="bg-white shadow rounded-lg overflow-hidden">
@@ -618,18 +636,18 @@ const SharedDocumentView = () => {
               <div className="flex-1 min-h-[500px] border rounded-lg p-6 bg-white">
                 <div dangerouslySetInnerHTML={{ __html: document?.content }} />
               </div>
-              
+
               {/* Sidebar */}
               <div className="md:w-80 md:ml-6 mt-6 md:mt-0">
                 <div className="bg-gray-50 rounded-lg p-6 mb-6">
                   <h3 className="font-medium text-gray-900 mb-4">{t.documentInfo}</h3>
-                  
+
                   <div className="space-y-3">
                     <div>
                       <p className="text-sm text-gray-500">{t.documentName}</p>
                       <p className="font-medium">{document?.name}</p>
                     </div>
-                    
+
                     <div>
                       <p className="text-sm text-gray-500">{t.createdAt}</p>
                       <p className="font-medium">
@@ -639,7 +657,7 @@ const SharedDocumentView = () => {
                       </p>
                     </div>
                   </div>
-                  
+
                   <button
                     onClick={handleDownload}
                     className="mt-4 w-full flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
@@ -647,7 +665,7 @@ const SharedDocumentView = () => {
                     {t.downloadPdf}
                   </button>
                 </div>
-                
+
                 {/* Response form */}
                 <div className="bg-white border rounded-lg p-6">
                   <div className="space-y-4">
@@ -665,7 +683,7 @@ const SharedDocumentView = () => {
                         onChange={(e) => setComment(e.target.value)}
                       />
                     </div>
-                    
+
                     <div className="flex space-x-3">
                       <button
                         onClick={() => {
@@ -677,7 +695,7 @@ const SharedDocumentView = () => {
                         <ThumbsUp className="h-4 w-4 mr-2" />
                         {t.approve}
                       </button>
-                      
+
                       <button
                         onClick={() => {
                           setResponseType('reject');
