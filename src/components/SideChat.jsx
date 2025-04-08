@@ -426,9 +426,16 @@ const SideChat = () => {
             if (currentList !== 'ul') {
               // If we were building a different type of list, add it first
               if (currentList && listItems.length > 0) {
-                processedChunks.push(
-                  React.createElement(currentList, { key: `list-${keyCounter}`, className: "pl-4 ml-2 my-2 space-y-1" }, listItems)
-                );
+                // Render lists by type directly rather than using React.createElement
+                if (currentList === 'ul') {
+                  processedChunks.push(
+                    <ul key={`list-${keyCounter}`} className="pl-4 ml-2 my-2 space-y-1">{listItems}</ul>
+                  );
+                } else if (currentList === 'ol') {
+                  processedChunks.push(
+                    <ol key={`list-${keyCounter}`} className="pl-4 ml-2 my-2 space-y-1">{listItems}</ol>
+                  );
+                }
                 listItems = [];
               }
               currentList = 'ul';
@@ -455,9 +462,16 @@ const SideChat = () => {
             if (currentList !== 'ol') {
               // If we were building a different type of list, add it first
               if (currentList && listItems.length > 0) {
-                processedChunks.push(
-                  React.createElement(currentList, { key: `list-${keyCounter}`, className: "pl-4 ml-2 my-2 space-y-1" }, listItems)
-                );
+                // Render lists by type directly rather than using React.createElement
+                if (currentList === 'ul') {
+                  processedChunks.push(
+                    <ul key={`list-${keyCounter}`} className="pl-4 ml-2 my-2 space-y-1">{listItems}</ul>
+                  );
+                } else if (currentList === 'ol') {
+                  processedChunks.push(
+                    <ol key={`list-${keyCounter}`} className="pl-4 ml-2 my-2 space-y-1">{listItems}</ol>
+                  );
+                }
                 listItems = [];
               }
               currentList = 'ol';
@@ -530,9 +544,16 @@ const SideChat = () => {
         
         // If we ended with a list, add it
         if (currentList && listItems.length > 0) {
-          processedChunks.push(
-            React.createElement(currentList, { key: `list-${keyCounter + 1}`, className: "pl-4 ml-2 my-2 space-y-1" }, listItems)
-          );
+          // Render lists by type directly rather than using React.createElement
+          if (currentList === 'ul') {
+            processedChunks.push(
+              <ul key={`list-${keyCounter + 1}`} className="pl-4 ml-2 my-2 space-y-1">{listItems}</ul>
+            );
+          } else if (currentList === 'ol') {
+            processedChunks.push(
+              <ol key={`list-${keyCounter + 1}`} className="pl-4 ml-2 my-2 space-y-1">{listItems}</ol>
+            );
+          }
         }
       }
     });

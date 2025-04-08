@@ -9,10 +9,14 @@ const __dirname = path.dirname(__filename)
 
 export default defineConfig({
   plugins: [react({
-    jsxRuntime: 'automatic',
-    jsxImportSource: 'react'
+    babel: {
+      babelrc: false,
+      configFile: false,
+      plugins: []
+    }
   })],
   server: {
+    host: true,
     proxy: {
       '/api': {
         target: 'https://admin.nb-studio.net:5001',
@@ -24,18 +28,18 @@ export default defineConfig({
     sourcemap: true,
     minify: false,
   },
+  optimizeDeps: {
+    force: true
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src')
     }
   },
   esbuild: {
-    jsxFactory: 'React.createElement',
-    jsxFragment: 'React.Fragment',
-    logLevel: 'warning',
-    logOverride: {
-      'jsx-syntax-error': 'error',
-    }
+    jsx: 'automatic',
+    jsxInject: `import React from 'react'`,
+    logLevel: 'warning'
   },
   logLevel: 'info'
 })
