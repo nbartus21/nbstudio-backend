@@ -4,6 +4,8 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { DocumentTemplate, Document } from '../models/DocumentTemplate.js';
+import { join } from 'path';
+import fs from 'fs';
 
 // Create email transporter
 const transporter = nodemailer.createTransport({
@@ -50,11 +52,15 @@ const documentService = {
         // Create a PDF document
         const pdf = new PDFDocument({
           size: 'A4',
-          margins: { top: 50, bottom: 50, left: 50, right: 50 },
+          margin: 40,
+          bufferPages: true,
+          autoFirstPage: true,
+          layout: 'portrait',
           info: {
             Title: document.name,
             Author: 'NB Studio',
             Subject: 'Document',
+            Keywords: 'document, nb studio'
           }
         });
         
@@ -65,68 +71,147 @@ const documentService = {
           resolve(Buffer.concat(buffers));
         });
         
-        // Define colors
+        // Define colors (modern color scheme)
         const colors = {
-          primary: '#4F46E5',
-          text: '#1F2937',
-          light: '#E5E7EB'
+          primary: '#2563EB',     // Fő kék szín
+          secondary: '#1E293B',   // Sötét szürke
+          accent: '#3B82F6',      // Világos kék
+          text: '#1E293B',        // Sötét szöveg
+          light: '#F8FAFC',       // Világos háttér
+          border: '#E2E8F0',      // Szegély szín
+          background: '#FFFFFF',  // Fehér háttér
+          lightBlue: '#EFF6FF',   // Világos kék háttér
+          darkBlue: '#1E40AF',    // Sötét kék kiemelésekhez
         };
         
-        // Add document header
+        // Translations for different languages
+        const translations = {
+          hu: {
+            documentTitle: 'DOKUMENTUM',
+            createdOn: 'Készült:',
+            documentContent: 'Dokumentum tartalma',
+            page: 'oldal',
+            company: 'NB Studio',
+            footer: 'A dokumentum elektronikusan készült és érvényes aláírás nélkül is.'
+          },
+          de: {
+            documentTitle: 'DOKUMENT',
+            createdOn: 'Erstellt am:',
+            documentContent: 'Dokumentinhalt',
+            page: 'Seite',
+            company: 'NB Studio',
+            footer: 'Dieses Dokument wurde elektronisch erstellt und ist ohne Unterschrift gültig.'
+          },
+          en: {
+            documentTitle: 'DOCUMENT',
+            createdOn: 'Created on:',
+            documentContent: 'Document content',
+            page: 'page',
+            company: 'NB Studio',
+            footer: 'This document was created electronically and is valid without signature.'
+          }
+        };
+        
+        // Get translations for specified language
+        const t = translations[language] || translations.en;
+        
+        // Thin color bar at the top of the page
+        pdf.rect(0, 0, pdf.page.width, 8)
+           .fill(colors.primary);
+        
+        // Header area
+        pdf.rect(0, 8, pdf.page.width, 120)
+           .fill(colors.background);
+        
+        // Try to add logo if it exists
+        try {
+          const logoPath = join(__dirname, '..', '..', 'public', 'logo.png');
+          if (fs.existsSync(logoPath)) {
+            pdf.image(logoPath, 50, 20, { width: 100 });
+          }
+        } catch (logoError) {
+          console.warn('Logo loading error:', logoError.message);
+        }
+        
+        // Document title and name
         pdf.font('Helvetica-Bold')
            .fontSize(28)
            .fillColor(colors.primary)
-           .text('DOKUMENTUM', 50, 50)
-           .fontSize(16)
-           .fillColor(colors.text)
-           .text(document.name, 50, 90);
+           .text(t.documentTitle, 50, 30)
+           .fontSize(14)
+           .fillColor(colors.secondary)
+           .text(document.name, 50, 65);
         
-        // Add date
-        const dateText = language === 'hu' ? 'Készült:' :
-                        (language === 'de' ? 'Erstellt am:' : 'Created on:');
-        pdf.font('Helvetica')
-           .fontSize(10)
-           .text(`${dateText} ${new Date().toLocaleDateString(
+        // Right column date information
+        const rightColumnX = 400;
+        pdf.fontSize(10)
+           .fillColor(colors.secondary)
+           .text(`${t.createdOn}`, rightColumnX, 30, { align: 'right' })
+           .fontSize(12)
+           .fillColor(colors.primary)
+           .text(new Date().toLocaleDateString(
              language === 'hu' ? 'hu-HU' :
              language === 'de' ? 'de-DE' : 'en-US'
-           )}`, 50, 115);
+           ), rightColumnX, 45, { align: 'right' });
         
-        // Company info
-        pdf.moveDown(2);
+        // Thin divider line after header
+        pdf.rect(50, 140, pdf.page.width - 100, 1)
+           .fill(colors.border);
+        
+        // Company info section
+        const infoStartY = 160;
+        
+        // Provider data
         pdf.font('Helvetica-Bold')
            .fontSize(12)
-           .text('Norbert Bartus', 50, 150);
+           .fillColor(colors.primary)
+           .text(t.company, 50, infoStartY);
         
-        pdf.font('Helvetica')
-           .fontSize(10)
-           .text('Salinenstraße 25', 50, 165)
-           .text('76646 Bruchsal', 50, 180)
-           .text('Baden-Württemberg, Deutschland', 50, 195);
+        pdf.rect(50, infoStartY + 18, 220, 1)
+           .fill(colors.primary);
         
-        // Document content
-        pdf.moveDown(3);
+        pdf.font('Helvetica-Bold')
+           .fontSize(11)
+           .fillColor(colors.secondary)
+           .text('Norbert Bartus', 50, infoStartY + 25)
+           .font('Helvetica')
+           .fontSize(9)
+           .fillColor(colors.text)
+           .text('Salinenstraße 25', 50, infoStartY + 40)
+           .text('76646 Bruchsal, Baden-Württemberg', 50, infoStartY + 52)
+           .text('Deutschland', 50, infoStartY + 64)
+           .text('St.-Nr.: 68194547329', 50, infoStartY + 76)
+           .text('USt-IdNr.: DE346419031', 50, infoStartY + 88);
+        
+        // Document content section
+        const contentStartY = infoStartY + 120;
+        
+        // Document content title
         pdf.font('Helvetica-Bold')
            .fontSize(14)
-           .text(language === 'hu' ? 'Dokumentum tartalma' :
-                 language === 'de' ? 'Dokumentinhalt' : 'Document content', 50, 230);
+           .fillColor(colors.primary)
+           .text(t.documentContent, 50, contentStartY);
         
-        pdf.moveDown();
+        pdf.rect(50, contentStartY + 18, pdf.page.width - 100, 1)
+           .fill(colors.primary);
         
-        // Convert HTML to plain text (very basic)
+        // Convert HTML to plain text (basic conversion)
         const plainText = document.content
           .replace(/<[^>]*>/g, ' ')
           .replace(/\s+/g, ' ')
           .trim();
         
+        // Add document content
         pdf.font('Helvetica')
            .fontSize(11)
-           .text(plainText, 50, 260, {
+           .fillColor(colors.text)
+           .text(plainText, 50, contentStartY + 30, {
              align: 'left',
              width: pdf.page.width - 100,
              lineGap: 5
            });
         
-        // Add page numbers to each page
+        // Footer with page numbers
         const pageCount = pdf.bufferedPageRange().count;
         for (let i = 0; i < pageCount; i++) {
           pdf.switchToPage(i);
@@ -134,15 +219,24 @@ const documentService = {
           // Footer position
           const footerTop = pdf.page.height - 50;
           
+          // Thin footer separator line
+          pdf.rect(50, footerTop - 15, pdf.page.width - 100, 0.5)
+             .fill(colors.border);
+          
+          // Footer text with page number
           pdf.font('Helvetica')
              .fontSize(8)
              .fillColor('#6B7280');
           
-          // Footer text with page number
-          const footerText = `Norbert Bartus | St.-Nr.: 68194547329 | USt-IdNr.: DE346419031 | ${language === 'hu' ? `${i+1}. oldal` : (language === 'de' ? `Seite ${i+1}` : `Page ${i+1}`)} / ${pageCount}`;
-          pdf.text(footerText, 50, footerTop, {
-            align: 'center',
-            width: pdf.page.width - 100
+          // Left footer
+          pdf.text(t.footer, 50, footerTop, {
+            width: pdf.page.width - 200
+          });
+          
+          // Right footer (page numbers)
+          pdf.text(`${i+1}. ${t.page} / ${pageCount}`, pdf.page.width - 150, footerTop, {
+            align: 'right',
+            width: 100
           });
         }
         
