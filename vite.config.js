@@ -2,7 +2,9 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react({
+    jsxRuntime: 'automatic'
+  })],
   server: {
     proxy: {
       '/api': {
@@ -10,5 +12,18 @@ export default defineConfig({
         changeOrigin: true
       }
     }
-  }
+  },
+  build: {
+    sourcemap: true,
+    minify: false,
+  },
+  esbuild: {
+    jsxFactory: 'React.createElement',
+    jsxFragment: 'React.Fragment',
+    logLevel: 'info',
+    logOverride: {
+      'jsx-syntax-error': 'warning',
+    }
+  },
+  logLevel: 'info'
 })
