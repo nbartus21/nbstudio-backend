@@ -682,6 +682,49 @@ app.get('/api/public/shared-projects/:token/files', validateApiKey, async (req, 
   }
 });
 
+// Végpont a megosztott projekt fájl törléséhez (csak soft delete)
+app.delete('/api/public/shared-projects/:token/files/:fileId', validateApiKey, async (req, res) => {
+  try {
+    const { token, fileId } = req.params;
+    console.log(`Megosztott projekt fájl törlése (Token: ${token}, FileId: ${fileId})`);
+
+    // Keresés a projekt token alapján
+    let project = await mongoose.model('Project').findOne({ 'sharing.token': token });
+    if (!project) {
+      project = await mongoose.model('Project').findOne({ shareToken: token });
+    }
+
+    if (!project) {
+      console.log(`Megosztott projekt nem található a tokennel: ${token}`);
+      return res.status(404).json({ message: 'Megosztott projekt nem található' });
+    }
+
+    // Fájl keresése és soft delete
+    const fileIndex = project.files.findIndex(file => file.id === fileId);
+    if (fileIndex === -1) {
+      console.log(`Fájl nem található az ID alapján: ${fileId}`);
+      return res.status(404).json({ message: 'Fájl nem található' });
+    }
+
+    // Soft delete: csak megjelöljük töröltként
+    project.files[fileIndex].isDeleted = true;
+    project.files[fileIndex].deletedAt = new Date();
+    
+    await project.save();
+    console.log(`Fájl sikeresen törölve (soft delete): ${project.files[fileIndex].name}`);
+
+    // Csak a nem törölt fájlokat küldjük vissza
+    const activeFiles = project.files.filter(file => !file.isDeleted);
+    res.json({ 
+      message: 'Fájl sikeresen törölve',
+      files: activeFiles 
+    });
+  } catch (error) {
+    console.error('Hiba a fájl törlése során:', error);
+    res.status(500).json({ message: 'Szerver hiba történt', error: error.message });
+  }
+});
+
 // Közvetlen végpont a megosztott projektekhez tartozó fájlok feltöltéséhez
 // Növelt méretkorláttal a nagy fájlok kezeléséhez
 app.post('/api/public/shared-projects/:token/files', validateApiKey, async (req, res) => {
