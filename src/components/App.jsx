@@ -194,7 +194,6 @@ const App = () => {
          </PrivateRoute>
        }
      />
-     <Route path="*" element={<Navigate to="/magic-login" />} />
      <Route path="/shared-project/:token" element={<SharedProjectView />} />
      <Route
        path="/ai-chat"
@@ -209,6 +208,7 @@ const App = () => {
          </PrivateRoute>
        }
      />
+     <Route path="*" element={<Navigate to="/login" />} />
    </Routes>
  );
 };
