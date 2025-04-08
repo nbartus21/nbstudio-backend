@@ -579,8 +579,8 @@ app.get('/api/public/projects/:projectId/documents', validateApiKey, async (req,
     console.log(`Public documents request for project ID: ${req.params.projectId}`);
 
     // Import necessary models
-    const GeneratedDocument = mongoose.model('GeneratedDocument');
     const Project = mongoose.model('Project');
+    const Document = mongoose.model('Document');
 
     // Ellenőrizzük, hogy a projekt megosztási beállításai engedélyezik-e a dokumentumok megjelenítését
     const project = await Project.findById(req.params.projectId);
@@ -596,7 +596,7 @@ app.get('/api/public/projects/:projectId/documents', validateApiKey, async (req,
     }
 
     // Find documents for this project
-    const documents = await GeneratedDocument.find({
+    const documents = await Document.find({
       projectId: req.params.projectId
     }).populate('templateId', 'name type').sort({ createdAt: -1 });
 
