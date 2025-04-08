@@ -42,23 +42,29 @@ export const apiKeyMiddleware = (req, res, next) => {
 // Get document info by token
 router.get('/public/documents/:token/info', corsMiddleware, apiKeyMiddleware, async (req, res) => {
   try {
+    console.log(`Fetching document info for token: ${req.params.token}`);
     const document = await Document.findOne({ 'sharing.token': req.params.token });
     
     if (!document) {
+      console.log(`Document not found with token: ${req.params.token}`);
       return res.status(404).json({ message: 'Document not found' });
     }
     
     // Check if sharing has expired
     if (document.sharing.expiresAt < new Date()) {
+      console.log(`Document sharing has expired for token: ${req.params.token}`);
       return res.status(403).json({ message: 'Document sharing has expired' });
     }
+    
+    console.log(`Document found: ${document.name}`);
     
     // Return basic document info
     return res.json({
       id: document._id,
       name: document.name,
       expiresAt: document.sharing.expiresAt,
-      language: document.sharing.language || 'hu'
+      language: document.sharing.language || 'hu',
+      token: req.params.token
     });
   } catch (error) {
     console.error('Error getting document info:', error);
@@ -70,13 +76,40 @@ router.get('/public/documents/:token/info', corsMiddleware, apiKeyMiddleware, as
 router.post('/public/documents/:token/verify', corsMiddleware, apiKeyMiddleware, async (req, res) => {
   try {
     const { pin } = req.body;
+    console.log(`Verifying PIN for document token: ${req.params.token}`);
     
     if (!pin) {
+      console.log('PIN is required but was not provided');
       return res.status(400).json({ message: 'PIN is required' });
     }
     
     try {
-      const document = await documentService.verifyDocumentPin(req.params.token, pin);
+      // Direct implementation without using documentService for debugging
+      const document = await Document.findOne({ 'sharing.token': req.params.token });
+      
+      if (!document) {
+        console.log(`Document not found with token: ${req.params.token}`);
+        return res.status(404).json({ message: 'Document not found or link expired' });
+      }
+      
+      // Check if sharing has expired
+      if (document.sharing.expiresAt < new Date()) {
+        console.log(`Document sharing has expired for token: ${req.params.token}`);
+        return res.status(403).json({ message: 'Document sharing has expired' });
+      }
+      
+      // Verify PIN
+      if (document.sharing.pin !== pin) {
+        console.log(`Invalid PIN for document: ${document.name}`);
+        return res.status(403).json({ message: 'Invalid PIN' });
+      }
+      
+      console.log(`PIN verified successfully for document: ${document.name}`);
+      
+      // Update view count and timestamp
+      document.sharing.views += 1;
+      document.sharing.lastViewed = new Date();
+      await document.save();
       
       // Return document content
       return res.json({
@@ -86,6 +119,7 @@ router.post('/public/documents/:token/verify', corsMiddleware, apiKeyMiddleware,
         createdAt: document.createdAt
       });
     } catch (error) {
+      console.error('Error in document verification:', error);
       return res.status(403).json({ message: error.message });
     }
   } catch (error) {

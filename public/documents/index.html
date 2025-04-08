@@ -204,14 +204,27 @@
       // Fetch document info
       const fetchDocumentInfo = async () => {
         try {
-          const response = await fetch(`${API_URL}/public/shared-document/${token}/info`, {
+          console.log('Fetching document info for token:', token);
+          const response = await fetch(`${API_URL}/public/documents/${token}/info`, {
             headers: {
               'X-API-Key': API_KEY
             }
           });
           
           if (!response.ok) {
-            throw new Error('Document not found or link expired');
+            // Try the old endpoint if the new one fails
+            console.log('New endpoint failed, trying legacy endpoint');
+            const legacyResponse = await fetch(`${API_URL}/public/shared-document/${token}/info`, {
+              headers: {
+                'X-API-Key': API_KEY
+              }
+            });
+            
+            if (!legacyResponse.ok) {
+              throw new Error('Document not found or link expired');
+            }
+            
+            return await legacyResponse.json();
           }
           
           const documentInfo = await response.json();
@@ -242,7 +255,8 @@
         try {
           loadingOverlay.classList.remove('hidden');
           
-          const response = await fetch(`${API_URL}/public/shared-document/${token}/verify`, {
+          console.log('Verifying PIN for token:', token);
+          const response = await fetch(`${API_URL}/public/documents/${token}/verify`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -252,8 +266,23 @@
           });
           
           if (!response.ok) {
-            pinError.classList.remove('hidden');
-            return null;
+            // Try the old endpoint if the new one fails
+            console.log('New verify endpoint failed, trying legacy endpoint');
+            const legacyResponse = await fetch(`${API_URL}/public/shared-document/${token}/verify`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-API-Key': API_KEY
+              },
+              body: JSON.stringify({ pin })
+            });
+            
+            if (!legacyResponse.ok) {
+              pinError.classList.remove('hidden');
+              return null;
+            }
+            
+            return await legacyResponse.json();
           }
           
           pinError.classList.add('hidden');
@@ -277,8 +306,25 @@
         documentName.textContent = document.name;
         documentHtml.innerHTML = document.content;
         
-        // Set PDF download link
-        pdfDownloadLink.href = `${API_URL}/public/documents/${token}/pdf?language=${language}`;
+        // Set PDF download link with fallback
+        try {
+          // Test if the new endpoint works
+          const testResponse = await fetch(`${API_URL}/public/documents/${token}/info`, {
+            headers: {
+              'X-API-Key': API_KEY
+            }
+          });
+          
+          // Use appropriate endpoint based on test response
+          if (testResponse.ok) {
+            pdfDownloadLink.href = `${API_URL}/public/documents/${token}/pdf?language=${language}`;
+          } else {
+            pdfDownloadLink.href = `${API_URL}/public/shared-document/${token}/pdf?language=${language}`;
+          }
+        } catch (error) {
+          // Fallback to legacy endpoint if test fails
+          pdfDownloadLink.href = `${API_URL}/public/shared-document/${token}/pdf?language=${language}`;
+        }
       };
       
       // Show error message
