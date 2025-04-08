@@ -45,6 +45,13 @@ const apiKeyChecker = (req, res, next) => {
   console.log('Kapott fejlécek:', JSON.stringify(req.headers, null, 2));
   console.log('Kapott API kulcs:', apiKey ? 'Megkapva' : 'Nincs megadva');
 
+  // IDEIGLENES: Engedélyezzük a hozzáférést a megosztott dokumentum végpontokhoz API kulcs nélkül is
+  if (req.originalUrl.includes('/public/shared-document/')) {
+    console.log('Megosztott dokumentum végpont, engedélyezve API kulcs nélkül is');
+    req.userData = { email: 'public-client@example.com' };
+    return next();
+  }
+
   if (apiKey === 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0') {
     // Ha érvényes az API kulcs, állítsuk be egy alap userData objektumot
     req.userData = { email: 'api-client@example.com' };
