@@ -1670,6 +1670,12 @@ function setupProjectDomain() {
 // ==============================================
 // Fájl írása a lemezre a szerver indításakor
 import path from 'path';
+import { fileURLToPath } from 'url';
+
+// ESM-ben nincs __dirname, így definiáljuk az import.meta.url segítségével
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const startupFilePath = path.join(process.cwd(), 'server-started.txt');
 fs.writeFileSync(startupFilePath, `Szerver indítva: ${new Date().toISOString()}\n`, { flag: 'a' });
 console.log('Fájl sikeresen írva a szerver indításakor:', startupFilePath);
