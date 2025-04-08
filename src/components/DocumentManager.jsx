@@ -742,7 +742,7 @@ const DocumentManager = () => {
                     Sablon tartalma *
                   </label>
                   <p className="text-xs text-gray-500 mb-2">
-                    Használd a {'{'}'{{'}'}{'{'}változó{'}'}'{{'}'}{'{'}{'}'} formátumot a változókhoz. Példa: {'{'}'{{'}'}{'{'}clientName{'}'}'{{'}'}{'{'}{'}'} 
+                    Használd a {'{'}{'{'}változó{'}'}{'}'}  formátumot a változókhoz. Példa: {'{'}{'{'}clientName{'}'}{'}'}
                   </p>
                   <textarea
                     id="content"

@@ -130,7 +130,7 @@ const DocumentViewModal = ({
             <div className="flex-1 flex flex-col overflow-hidden">
               <div className="flex-1 p-6 overflow-y-auto">
                 <div className="bg-white rounded-lg border border-gray-300 p-8 max-w-4xl mx-auto shadow-sm">
-                  <div dangerouslySetInnerHTML={{ __html: documentContent }} />
+                  <div dangerouslySetInnerHTML={{ __html: documentContent || "" }} />
                 </div>
               </div>
               

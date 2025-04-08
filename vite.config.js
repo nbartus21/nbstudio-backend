@@ -8,15 +8,12 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
 export default defineConfig({
-  plugins: [react({
-    babel: {
-      babelrc: false,
-      configFile: false,
-      plugins: []
-    }
-  })],
+  plugins: [react()],
   server: {
     host: true,
+    hmr: {
+      overlay: false
+    },
     proxy: {
       '/api': {
         target: 'https://admin.nb-studio.net:5001',
@@ -29,7 +26,12 @@ export default defineConfig({
     minify: false,
   },
   optimizeDeps: {
-    force: true
+    esbuildOptions: {
+      jsx: 'automatic',
+      loader: {
+        '.js': 'jsx'
+      }
+    }
   },
   resolve: {
     alias: {
@@ -37,9 +39,10 @@ export default defineConfig({
     }
   },
   esbuild: {
-    jsx: 'automatic',
-    jsxInject: `import React from 'react'`,
-    logLevel: 'warning'
+    loader: 'jsx',
+    include: /src\/.*\.jsx?$/,
+    exclude: [],
+    jsx: 'automatic'
   },
   logLevel: 'info'
 })
