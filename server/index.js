@@ -608,6 +608,48 @@ app.get('/api/public/shared-projects/:token/files', validateApiKey, async (req, 
   }
 });
 
+// Közvetlen végpont a megosztott projektekhez tartozó fájlok törléséhez
+app.delete('/api/public/shared-projects/:token/files/:fileId', validateApiKey, async (req, res) => {
+  try {
+    const { token, fileId } = req.params;
+    console.log(`Megosztott projekthez tartozó fájl törlése (Token: ${token}, FileId: ${fileId})`);
+
+    // Keresés a sharing.token mezőben
+    let project = await mongoose.model('Project').findOne({ 'sharing.token': token });
+
+    // Ha nem találja, próbáljuk a régebbi shareToken mezővel is
+    if (!project) {
+      project = await mongoose.model('Project').findOne({ shareToken: token });
+    }
+
+    if (!project) {
+      console.log(`Megosztott projekt nem található a tokennel: ${token}`);
+      return res.status(404).json({ message: 'Megosztott projekt nem található' });
+    }
+
+    // Keressük meg a fájlt a projektben
+    const fileIndex = project.files.findIndex(file => file.id === fileId);
+    if (fileIndex === -1) {
+      console.log(`Fájl nem található: ${fileId}`);
+      return res.status(404).json({ message: 'Fájl nem található' });
+    }
+
+    // Logikai törlés - megjelöljük a fájlt töröltként
+    project.files[fileIndex].isDeleted = true;
+    project.files[fileIndex].deletedAt = new Date();
+
+    await project.save();
+    console.log(`Fájl sikeresen törölve: ${fileId}`);
+
+    // Visszaadjuk a nem törölt fájlokat
+    const activeFiles = project.files.filter(file => !file.isDeleted);
+    res.json({ message: 'Fájl sikeresen törölve', files: activeFiles });
+  } catch (error) {
+    console.error('Hiba a fájl törlése során:', error);
+    res.status(500).json({ message: 'Szerver hiba történt', error: error.message });
+  }
+});
+
 // Közvetlen végpont a megosztott projektekhez tartozó fájlok feltöltéséhez
 // Növelt méretkorláttal a nagy fájlok kezeléséhez
 app.post('/api/public/shared-projects/:token/files', validateApiKey, async (req, res) => {

@@ -10,6 +10,7 @@ import { formatShortDate, debugLog, loadFromLocalStorage, getProjectId } from '.
 import ProjectOverview from './shared/ProjectOverview';
 import ProjectInvoices from './shared/ProjectInvoices';
 import SimpleFileUploader from './shared/SimpleFileUploader';
+import ProjectFileList from './shared/ProjectFileList';
 import ProjectDocuments from './shared/ProjectDocuments'; // New component for documents
 import ProjectChangelog from './shared/ProjectChangelog'; // New component for changelog
 import FilePreviewModal from './shared/FilePreviewModal';
@@ -1136,6 +1137,14 @@ const SharedProjectDashboard = ({
               showSuccessMessage={showSuccessMessage}
               showErrorMessage={showErrorMessage}
               language={language}
+            />
+            <ProjectFileList
+              project={normalizedProject}
+              files={files}
+              showSuccessMessage={showSuccessMessage}
+              showErrorMessage={showErrorMessage}
+              language={language}
+              onRefresh={refreshProjectData}
             />
           </div>
         )}
