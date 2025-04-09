@@ -1156,6 +1156,8 @@ const SharedProjectDashboard = ({
             project={normalizedProject}
             language={language}
             onRefresh={refreshProjectData}
+            showSuccessMessage={showSuccessMessage}
+            showErrorMessage={showErrorMessage}
           />
         )}
 

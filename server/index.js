@@ -569,6 +569,69 @@ app.get('/api/public/projects/:token/changelog', validateApiKey, async (req, res
   }
 });
 
+// Végpont a changelog bejegyzésekhez való hozzászólások hozzáadásához
+app.post('/api/public/projects/:token/changelog/:entryId/comments', validateApiKey, async (req, res) => {
+  try {
+    const { token, entryId } = req.params;
+    const commentData = req.body;
+
+    console.log(`Hozzászólás hozzáadása changelog bejegyzéshez (Token: ${token}, EntryId: ${entryId})`);
+
+    if (!commentData.text || !commentData.author) {
+      return res.status(400).json({ message: 'Hiányzó hozzászólás adatok' });
+    }
+
+    // Keresés a sharing.token mezőben
+    let project = await mongoose.model('Project').findOne({ 'sharing.token': token });
+
+    // Ha nem találja, próbáljuk a régebbi shareToken mezővel is
+    if (!project) {
+      project = await mongoose.model('Project').findOne({ shareToken: token });
+    }
+
+    if (!project) {
+      console.log(`Megosztott projekt nem található a tokennel: ${token}`);
+      return res.status(404).json({ message: 'Megosztott projekt nem található' });
+    }
+
+    // Keressük meg a changelog bejegyzést
+    const changelogEntryIndex = project.changelog.findIndex(entry => entry._id.toString() === entryId);
+
+    if (changelogEntryIndex === -1) {
+      console.log(`Changelog bejegyzés nem található: ${entryId}`);
+      return res.status(404).json({ message: 'Changelog bejegyzés nem található' });
+    }
+
+    // Hozzászólás objektum létrehozása
+    const newComment = {
+      id: `${Date.now()}_${Math.random().toString(36).substring(2, 15)}`,
+      text: commentData.text,
+      author: commentData.author,
+      timestamp: new Date().toISOString(),
+      isAdminComment: commentData.isAdminComment || false
+    };
+
+    // Inicializáljuk a comments tömböt, ha még nem létezik
+    if (!project.changelog[changelogEntryIndex].comments) {
+      project.changelog[changelogEntryIndex].comments = [];
+    }
+
+    // Hozzászólás hozzáadása a changelog bejegyzéshez
+    project.changelog[changelogEntryIndex].comments.push(newComment);
+
+    // Projekt mentése
+    await project.save();
+
+    console.log(`Hozzászólás sikeresen hozzáadva a changelog bejegyzéshez: ${entryId}`);
+
+    // Visszaadjuk a frissített changelog bejegyzést
+    res.status(201).json(project.changelog[changelogEntryIndex]);
+  } catch (error) {
+    console.error('Hiba a hozzászólás hozzáadása során:', error);
+    res.status(500).json({ message: 'Szerver hiba történt', error: error.message });
+  }
+});
+
 // Közvetlen végpont a megosztott projektek fájljainak lekéréséhez
 app.get('/api/public/shared-projects/:token/files', validateApiKey, async (req, res) => {
   try {

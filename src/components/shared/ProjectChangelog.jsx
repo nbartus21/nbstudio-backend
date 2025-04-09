@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Tag, Clock, AlertCircle, CheckCircle, ArrowUp, Plus } from 'lucide-react';
+import { Calendar, Tag, Clock, AlertCircle, CheckCircle, ArrowUp, Plus, MessageCircle, Send } from 'lucide-react';
 import { api } from '../../services/auth';
 
 // API configuration
@@ -36,7 +36,17 @@ const translations = {
     other: 'Other',
     lastUpdate: 'Last update',
     refresh: 'Refresh',
-    refreshing: 'Refreshing...'
+    refreshing: 'Refreshing...',
+    comments: 'Comments',
+    noComments: 'No comments yet',
+    addComment: 'Add a comment',
+    yourComment: 'Your comment',
+    submit: 'Submit',
+    commentAdded: 'Comment added successfully',
+    commentError: 'Error adding comment',
+    showComments: 'Show comments',
+    hideComments: 'Hide comments',
+    client: 'Client'
   },
   de: {
     changelog: 'Änderungsprotokoll',
@@ -51,7 +61,17 @@ const translations = {
     other: 'Andere',
     lastUpdate: 'Letzte Aktualisierung',
     refresh: 'Aktualisieren',
-    refreshing: 'Aktualisierung...'
+    refreshing: 'Aktualisierung...',
+    comments: 'Kommentare',
+    noComments: 'Noch keine Kommentare',
+    addComment: 'Kommentar hinzufügen',
+    yourComment: 'Ihr Kommentar',
+    submit: 'Absenden',
+    commentAdded: 'Kommentar erfolgreich hinzugefügt',
+    commentError: 'Fehler beim Hinzufügen des Kommentars',
+    showComments: 'Kommentare anzeigen',
+    hideComments: 'Kommentare ausblenden',
+    client: 'Kunde'
   }
 };
 
@@ -71,11 +91,14 @@ const typeIcons = {
   other: <Tag className="h-4 w-4" />
 };
 
-const ProjectChangelog = ({ project, language = 'hu', onRefresh }) => {
+const ProjectChangelog = ({ project, language = 'hu', onRefresh, showSuccessMessage, showErrorMessage }) => {
   const [changelog, setChangelog] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [expandedComments, setExpandedComments] = useState({});
+  const [commentText, setCommentText] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState({});
 
   // Get translations for current language
   const t = translations[language] || translations.hu;
@@ -91,6 +114,90 @@ const ProjectChangelog = ({ project, language = 'hu', onRefresh }) => {
     });
   };
 
+  // Toggle expanded state for comments
+  const toggleComments = (entryId) => {
+    setExpandedComments(prev => ({
+      ...prev,
+      [entryId]: !prev[entryId]
+    }));
+  };
+
+  // Handle comment text change
+  const handleCommentChange = (entryId, text) => {
+    setCommentText(prev => ({
+      ...prev,
+      [entryId]: text
+    }));
+  };
+
+  // Submit a new comment
+  const submitComment = async (entryId) => {
+    if (!commentText[entryId] || !commentText[entryId].trim()) {
+      return;
+    }
+
+    setIsSubmitting(prev => ({ ...prev, [entryId]: true }));
+
+    try {
+      // A token többféle helyen lehet, ellenőrizzük mindegyiket
+      let token;
+      if (project.sharing?.token) {
+        token = project.sharing.token;
+      } else if (project.shareToken) {
+        token = project.shareToken;
+      } else if (project._id) {
+        token = project._id;
+      } else {
+        throw new Error('Nem található projekt azonosító a hozzászólás küldéséhez');
+      }
+
+      const response = await fetch(`${API_URL}/public/projects/${token}/changelog/${entryId}/comments`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-API-Key': API_KEY
+        },
+        body: JSON.stringify({
+          text: commentText[entryId],
+          author: t.client,
+          isAdminComment: false
+        })
+      });
+
+      if (response.ok) {
+        const updatedEntry = await response.json();
+
+        // Update the entry in the state
+        setChangelog(prev =>
+          prev.map(entry =>
+            entry._id === entryId ? updatedEntry : entry
+          )
+        );
+
+        // Clear the comment text
+        setCommentText(prev => ({ ...prev, [entryId]: '' }));
+
+        // Show success message
+        if (showSuccessMessage) {
+          showSuccessMessage(t.commentAdded);
+        }
+      } else {
+        const errorData = await response.json();
+        console.error('Error adding comment:', errorData);
+        if (showErrorMessage) {
+          showErrorMessage(t.commentError);
+        }
+      }
+    } catch (error) {
+      console.error('Error adding comment:', error);
+      if (showErrorMessage) {
+        showErrorMessage(t.commentError);
+      }
+    } finally {
+      setIsSubmitting(prev => ({ ...prev, [entryId]: false }));
+    }
+  };
+
   // Fetch changelog data
   const fetchChangelog = async () => {
     try {
@@ -99,7 +206,7 @@ const ProjectChangelog = ({ project, language = 'hu', onRefresh }) => {
 
       // Új logika a megosztott projekt token kezeléséhez
       let endpoint;
-      
+
       // A token többféle helyen lehet, ellenőrizzük mindegyiket
       if (project.sharing?.token) {
         endpoint = `/public/projects/${project.sharing.token}/changelog`;
@@ -133,7 +240,7 @@ const ProjectChangelog = ({ project, language = 'hu', onRefresh }) => {
             'X-API-Key': API_KEY
           }
         });
-        
+
         console.log('Fallback lekérés válasz:', response.status);
       }
 
@@ -246,6 +353,74 @@ const ProjectChangelog = ({ project, language = 'hu', onRefresh }) => {
               {entry.description && (
                 <p className="text-gray-600 whitespace-pre-line">{entry.description}</p>
               )}
+
+              {/* Comments section */}
+              <div className="mt-4">
+                <button
+                  onClick={() => toggleComments(entry._id)}
+                  className="flex items-center text-sm text-blue-600 hover:text-blue-800 focus:outline-none"
+                >
+                  <MessageCircle size={16} className="mr-1" />
+                  {expandedComments[entry._id] ? t.hideComments : t.showComments}
+                  {entry.comments && entry.comments.length > 0 && (
+                    <span className="ml-1 bg-blue-100 text-blue-800 text-xs font-medium px-2 py-0.5 rounded-full">
+                      {entry.comments.length}
+                    </span>
+                  )}
+                </button>
+
+                {expandedComments[entry._id] && (
+                  <div className="mt-3">
+                    <h4 className="text-sm font-medium text-gray-700 mb-2">{t.comments}</h4>
+
+                    {/* Comments list */}
+                    {entry.comments && entry.comments.length > 0 ? (
+                      <div className="space-y-3">
+                        {entry.comments.map(comment => (
+                          <div key={comment.id} className={`p-3 rounded-lg ${comment.isAdminComment ? 'bg-blue-50 border border-blue-100' : 'bg-gray-50 border border-gray-100'}`}>
+                            <div className="flex justify-between items-start">
+                              <span className="font-medium text-sm">
+                                {comment.author === 'Ügyfél' ? t.client : comment.author}
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                {formatDate(comment.timestamp)}
+                              </span>
+                            </div>
+                            <p className="mt-1 text-sm text-gray-700">{comment.text}</p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-500 italic">{t.noComments}</p>
+                    )}
+
+                    {/* Add comment form */}
+                    <div className="mt-4">
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">{t.addComment}</h4>
+                      <div className="flex">
+                        <textarea
+                          value={commentText[entry._id] || ''}
+                          onChange={(e) => handleCommentChange(entry._id, e.target.value)}
+                          placeholder={t.yourComment}
+                          className="flex-grow p-2 border border-gray-300 rounded-l-md focus:ring-blue-500 focus:border-blue-500 text-sm"
+                          rows="2"
+                        />
+                        <button
+                          onClick={() => submitComment(entry._id)}
+                          disabled={isSubmitting[entry._id] || !commentText[entry._id] || !commentText[entry._id].trim()}
+                          className="px-3 bg-blue-600 text-white rounded-r-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                        >
+                          {isSubmitting[entry._id] ? (
+                            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          ) : (
+                            <Send size={16} />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           ))}
         </div>

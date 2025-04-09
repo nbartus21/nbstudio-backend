@@ -199,7 +199,15 @@ const projectSchema = new mongoose.Schema({
       enum: ['feature', 'bugfix', 'improvement', 'other'],
       default: 'feature'
     },
-    createdBy: String
+    createdBy: String,
+    // Hozzászólások a changelog bejegyzéshez
+    comments: [{
+      id: { type: String, required: true },
+      text: { type: String, required: true },
+      author: { type: String, required: true },
+      timestamp: { type: Date, default: Date.now },
+      isAdminComment: { type: Boolean, default: false }
+    }]
   }],
 
   // Kapcsolódó domainek
