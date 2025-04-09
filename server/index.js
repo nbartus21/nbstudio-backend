@@ -39,7 +39,7 @@ import notesRoutes from './routes/notes.js';
 import tasksRoutes from './routes/tasks.js';
 import supportTicketRouter, { setupEmailEndpoint, initializeSocketIO } from './routes/supportTickets.js';
 import emailApiRouter from './routes/emailApi.js';
-import documentsRouter from './routes/documents.js';
+// Document router removed
 import chatApiRouter from './routes/chatApi.js';
 import paymentsRouter from './routes/payments.js';
 import invoicesRouter from './routes/invoices.js';
@@ -499,40 +499,7 @@ app.use('/api/auth', authRoutes);
 // PUBLIC ENDPOINTS FOR SHARED PROJECTS (No authentication required)
 // ==============================================
 
-// Public endpoint to fetch project documents
-app.get('/api/public/projects/:projectId/documents', validateApiKey, async (req, res) => {
-  try {
-    console.log(`Public documents request for project ID: ${req.params.projectId}`);
-
-    // Import necessary models
-    const GeneratedDocument = mongoose.model('GeneratedDocument');
-    const Project = mongoose.model('Project');
-
-    // Ellenőrizzük, hogy a projekt megosztási beállításai engedélyezik-e a dokumentumok megjelenítését
-    const project = await Project.findById(req.params.projectId);
-    if (!project) {
-      console.error(`Project not found with ID: ${req.params.projectId}`);
-      return res.status(404).json({ message: 'Project not found' });
-    }
-
-    // Ha a dokumentumok el vannak rejtve, üres tömböt küldünk vissza
-    if (project.sharing && project.sharing.hideDocuments) {
-      console.log(`Documents are hidden for shared project: ${req.params.projectId}`);
-      return res.json([]);
-    }
-
-    // Find documents for this project
-    const documents = await GeneratedDocument.find({
-      projectId: req.params.projectId
-    }).populate('templateId', 'name type').sort({ createdAt: -1 });
-
-    console.log(`Found ${documents.length} documents for project ${req.params.projectId}`);
-    res.json(documents);
-  } catch (error) {
-    console.error(`Error fetching public project documents: ${error.message}`);
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-});
+// Document endpoint removed
 
 // Végpont a megosztott projektek changelog bejegyzéseinek lekéréséhez
 app.get('/api/public/projects/:token/changelog', validateApiKey, async (req, res) => {
@@ -827,8 +794,7 @@ app.post('/api/public/shared-projects/:token/files', validateApiKey, async (req,
 // PUBLIC PDF ENDPOINTS (No authentication required)
 // ==============================================
 
-// Note: Document PDF generation is now handled in the documents.js router
-// See server/routes/documents.js for the implementation
+// Document functionality removed
 
 // Public Invoice PDF endpoint
 app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => {
@@ -1398,7 +1364,7 @@ app.use('/api/translation', translationRoutes);
 app.use('/api/translation/tasks', tasksRoutes);
 app.use('/api/notes', notesRoutes);
 app.use('/api/support', supportTicketRouter);
-app.use('/api', documentsRouter);
+// Document router removed
 app.use('/api', invoicesRouter);
 app.use('/api/partners', partnersRouter);
 app.use('/api/webpages', webPagesRouter);
@@ -1472,18 +1438,8 @@ function setupProjectDomain() {
 
   // Proxy all other requests to the frontend app running on port 5173
   projectApp.use((req, res) => {
-    // A /public/documents/ elérési útvonalat az API szerverre irányítjuk
-    if (req.url.startsWith('/public/documents/')) {
-      console.log(`Redirecting document request to API server: ${req.method} ${req.url}`);
-
-      // Csak POST és PUT kérések esetén csomagoljuk a body-t
-      if (['POST', 'PUT'].includes(req.method) && req.body) {
-        handleAPIProxyWithBody(req, res);
-      } else {
-        // GET, DELETE, OPTIONS stb. esetén nincs szükség body-ra
-        handleAPIProxyWithoutBody(req, res);
-      }
-    } else {
+    // Document handling removed
+    {
       // Minden más kérést átirányítunk a frontendes alkalmazáshoz
       console.log(`Proxying request to local frontend: ${req.method} ${req.url}`);
       proxyRequest(req, res);

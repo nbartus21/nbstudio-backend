@@ -174,38 +174,7 @@ const ProjectDocuments = ({
     }
   }, []);
 
-  // Fetch documents from server
-  const fetchDocumentsFromServer = async () => {
-    try {
-      debugLog('fetchDocumentsFromServer', 'Fetching documents', { projectId });
-
-      const response = await fetch(`${API_URL}/projects/${projectId}/documents`, {
-        headers: {
-          'X-API-Key': API_KEY
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data && Array.isArray(data)) {
-          // Update documents with projectId if not set
-          const processedDocs = data.map(doc => ({
-            ...doc,
-            projectId: doc.projectId || projectId
-          }));
-
-          setDocuments(processedDocs);
-          saveToLocalStorage(project, 'documents', processedDocs);
-
-          debugLog('fetchDocumentsFromServer', `Fetched ${processedDocs.length} documents successfully`);
-        }
-      } else {
-        debugLog('fetchDocumentsFromServer', 'Failed to fetch documents', { status: response.status });
-      }
-    } catch (error) {
-      debugLog('fetchDocumentsFromServer', 'Error fetching documents', { error });
-    }
-  };
+  // Document server fetching removed
 
   // Handle file upload
   const handleFileUpload = async (event) => {
@@ -384,78 +353,7 @@ const ProjectDocuments = ({
     return <IconComponent className={`h-5 w-5 ${typeInfo.color}`} />;
   };
 
-  // Generate PDF for document
-  const handleGeneratePDF = async (doc) => {
-    try {
-      debugLog('handleGeneratePDF', 'Generating PDF for document', { documentName: doc.name });
-
-      // Check if document has _id
-      if (!doc._id) {
-        if (doc.id) {
-          doc._id = doc.id; // Use id as _id if it exists
-          debugLog('handleGeneratePDF', 'Using doc.id as _id', { id: doc.id });
-        } else {
-          // If no _id or id, throw error
-          throw new Error('Missing document ID');
-        }
-      }
-
-      // Check if project has _id
-      const projectId = getProjectId(project);
-      if (!projectId) {
-        throw new Error('Missing project ID');
-      }
-
-      // Call API to generate PDF
-      const pdfUrl = `${API_URL}/public/documents/${doc._id}/pdf?language=${language}`;
-      debugLog('handleGeneratePDF', 'Calling API', {
-        documentId: doc._id,
-        language: language,
-        url: pdfUrl
-      });
-
-      const response = await fetch(pdfUrl, {
-        method: 'GET',
-        headers: {
-          'X-API-Key': API_KEY
-        }
-      });
-
-      if (response.ok) {
-        // Get blob from response
-        const blob = await response.blob();
-
-        // Create download link
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        // Set filename based on language
-        const fileName = language === 'hu' ? `dokumentum-${doc.name}.pdf` :
-                        (language === 'de' ? `dokument-${doc.name}.pdf` : `document-${doc.name}.pdf`);
-        link.setAttribute('download', fileName);
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-
-        // Free blob URL
-        setTimeout(() => {
-          window.URL.revokeObjectURL(url);
-        }, 100);
-
-        showSuccessMessage('PDF sikeresen letöltve');
-        debugLog('handleGeneratePDF', 'PDF downloaded successfully');
-      } else {
-        debugLog('handleGeneratePDF', 'Failed to generate PDF', {
-          status: response.status,
-          statusText: response.statusText
-        });
-        showErrorMessage('Hiba történt a PDF generálása során');
-      }
-    } catch (error) {
-      debugLog('handleGeneratePDF', 'Error generating PDF', { error: error.message });
-      showErrorMessage('Hiba történt a PDF generálása során: ' + error.message);
-    }
-  };
+  // Document PDF generation removed
 
   // Filter and sort documents
   const filteredAndSortedDocuments = [...documents]
@@ -640,10 +538,7 @@ const ProjectDocuments = ({
                       <button
                         onClick={() => {
                           debugLog('downloadDocument', `Downloading document: ${doc.name}`);
-                          if (doc._id) {
-                            // Use PDF generation for server documents
-                            handleGeneratePDF(doc);
-                          } else if (doc.content) {
+                          if (doc.content) {
                             // Fallback for local documents
                             const link = document.createElement('a');
                             link.href = doc.content;
