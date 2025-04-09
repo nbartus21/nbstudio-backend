@@ -151,135 +151,83 @@ const Navigation = () => {
 
   return (
     <>
-      {/* Fő navigációs sáv */}
-      <nav className="bg-gradient-to-r from-gray-900 to-gray-800 shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
+      {/* Felső navigációs sáv */}
+      <nav className="bg-gray-900 shadow-lg relative z-20">
+        <div className="max-w-7xl mx-auto flex items-center justify-between px-4 h-16">
+          {/* Bal oldal: Logo */}
+          <Link to="/dashboard" className="flex items-center text-white font-bold text-xl hover:text-blue-400 transition">
+            <Home className="mr-2" size={24} />
+            <span className="hidden sm:block">NB-Studio</span>
+          </Link>
 
-            {/* Logo és Dashboard link */}
-            <div className="flex items-center">
-              <Link to="/dashboard" className="flex items-center text-white text-xl font-bold hover:text-blue-300 transition-colors">
-                <Home className="mr-2" size={24} />
-                <span className="hidden sm:block">NB-Studio</span>
-              </Link>
-            </div>
-
-            {/* Desktop Menu */}
-            <div className="hidden md:flex space-x-1">
-              {menuItems.map((category, idx) => (
-                <div
-                  key={idx}
-                  className="relative group"
+          {/* Középső: Menü desktopon */}
+          <div className="hidden md:flex space-x-2">
+            {menuItems.map((cat, idx) => (
+              <div key={idx} className="relative group">
+                <button
                   onMouseEnter={() => setActiveDropdown(idx)}
                   onMouseLeave={() => setActiveDropdown(null)}
+                  className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition ${
+                    isCategoryActive(cat.items) ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                  }`}
                 >
-                  <button
-                    className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                      isCategoryActive(category.items)
-                        ? 'text-white bg-gray-700'
-                        : 'text-gray-300 hover:text-white hover:bg-gray-700'
-                    }`}
-                  >
-                    <span className="mr-2">{category.icon}</span>
-                    {category.category}
-                    <ChevronDown className="ml-1" size={16} />
-                  </button>
-                  <div
-                    className={`
-                      absolute left-0 mt-2 w-60 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 transition-all duration-200
-                      ${activeDropdown === idx ? 'opacity-100 visible' : 'opacity-0 invisible'}
-                    `}
-                  >
-                    <div className="py-1">
-                      {category.items.map((item, itemIdx) => (
-                        <Link
-                          key={itemIdx}
-                          to={item.path}
-                          className={`flex items-center px-4 py-2 text-sm ${
-                            isActive(item.path)
-                              ? 'bg-gray-100 text-blue-600 font-medium'
-                              : 'text-gray-700 hover:bg-gray-50 hover:text-blue-600'
-                          }`}
-                        >
-                          <span className="mr-2 text-gray-500">{item.icon}</span>
-                          {item.label}
-                        </Link>
-                      ))}
-                    </div>
+                  <span className="mr-2">{cat.icon}</span>
+                  {cat.category}
+                  <ChevronDown size={16} className="ml-1" />
+                </button>
+                {/* Dropdown */}
+                <div className={`absolute left-0 mt-2 w-60 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 transition-all duration-200
+                  ${activeDropdown === idx ? 'opacity-100 visible' : 'opacity-0 invisible'}`}>
+                  <div className="py-1">
+                    {cat.items.map((item, iidx) => (
+                      <Link key={iidx} to={item.path}
+                        className={`flex items-center px-4 py-2 text-sm ${
+                          isActive(item.path) ? 'bg-gray-100 text-blue-600 font-medium' : 'text-gray-700 hover:bg-gray-50 hover:text-blue-600'
+                        }`}>
+                        <span className="mr-2 text-gray-500">{item.icon}</span>
+                        {item.label}
+                      </Link>
+                    ))}
                   </div>
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
+          </div>
 
-            {/* Gyorselérési gombok és felhasználói menü */}
-            <div className="flex items-center gap-2">
-              {/* Keresés gomb */}
-              <button
-                onClick={() => setIsSearchOpen(!isSearchOpen)}
-                className="p-2 text-gray-300 hover:text-white hover:bg-gray-700 rounded-md transition-colors"
-                title="Keresés"
-              >
-                <Search size={20} />
-              </button>
-
-              {/* Értesítések */}
-              <NotificationsManager />
-
-              {/* Súgó */}
-              <Link
-                to="/help"
-                className="p-2 text-gray-300 hover:text-white hover:bg-gray-700 rounded-md transition-colors"
-                title="Súgó"
-              >
-                <HelpCircle size={20} />
-              </Link>
-
-              {/* Gyorselérési gombok */}
-              <Link
-                to="/settings"
-                className="p-2 text-gray-300 hover:text-white hover:bg-gray-700 rounded-md transition-colors"
-                title="Gyorselérési gombok"
-              >
-                <Settings size={20} />
-              </Link>
-
-              {/* Kijelentkezés */}
-              <button
-                onClick={handleLogout}
-                className="p-2 text-gray-300 hover:text-white hover:bg-gray-700 rounded-md transition-colors"
-                title="Kijelentkezés"
-              >
-                <LogOut size={20} />
-              </button>
-            </div>
-
-            {/* Mobile menu button */}
-            <div className="md:hidden">
-              <button
-                onClick={() => setIsMenuOpen(!isMenuOpen)}
-                className="p-2 text-gray-300 hover:text-white rounded-md"
-              >
-                {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
-              </button>
-            </div>
+          {/* Jobb oldal: ikonok */}
+          <div className="flex items-center gap-2">
+            <button onClick={() => setIsSearchOpen(!isSearchOpen)} className="p-2 rounded-md hover:bg-gray-700 hover:text-white text-gray-300 transition" title="Keresés">
+              <Search size={20} />
+            </button>
+            <NotificationsManager />
+            <Link to="/help" className="p-2 rounded-md hover:bg-gray-700 hover:text-white text-gray-300 transition" title="Súgó">
+              <HelpCircle size={20} />
+            </Link>
+            <Link to="/settings" className="p-2 rounded-md hover:bg-gray-700 hover:text-white text-gray-300 transition" title="Beállítások">
+              <Settings size={20} />
+            </Link>
+            <button onClick={handleLogout} className="p-2 rounded-md hover:bg-gray-700 hover:text-white text-gray-300 transition" title="Kijelentkezés">
+              <LogOut size={20} />
+            </button>
+            {/* Mobilmenü gomb */}
+            <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="md:hidden p-2 rounded-md hover:bg-gray-700 hover:text-white text-gray-300 transition">
+              {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+            </button>
           </div>
         </div>
 
-        {/* Keresési panel */}
+        {/* Kereső overlay */}
         {isSearchOpen && (
-          <div className="bg-gray-800 py-2 px-4">
+          <div className="absolute inset-x-0 top-16 bg-gray-800 py-3 px-4 z-30">
             <form onSubmit={handleSearch} className="max-w-3xl mx-auto">
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Search className="h-5 w-5 text-gray-400" />
-                </div>
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                 <input
-                  type="text"
+                  autoFocus
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="block w-full bg-gray-700 border-0 rounded-md py-2 pl-10 pr-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Keresés funkciók között..."
-                  autoFocus
+                  className="w-full bg-gray-700 text-white rounded-md pl-10 pr-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
                 />
               </div>
             </form>
@@ -287,40 +235,30 @@ const Navigation = () => {
         )}
       </nav>
 
-      {/* Mobil menü */}
+      {/* Mobilmenü slide-in */}
       {isMenuOpen && (
-        <div className="md:hidden bg-gray-800">
-          <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
-            {menuItems.map((category, categoryIdx) => (
-              <div key={categoryIdx} className="space-y-1 pb-2">
+        <div className="md:hidden bg-gray-800 z-10">
+          <div className="px-3 py-3 space-y-2">
+            {menuItems.map((cat, idx) => (
+              <div key={idx}>
                 <div
-                  className="flex items-center justify-between text-gray-300 px-3 py-2 rounded-md text-base font-medium cursor-pointer hover:bg-gray-700 hover:text-white"
-                  onClick={() => handleDropdownToggle(categoryIdx)}
+                  onClick={() => handleDropdownToggle(idx)}
+                  className="flex justify-between items-center px-3 py-2 rounded-md text-gray-300 hover:bg-gray-700 hover:text-white cursor-pointer"
                 >
                   <div className="flex items-center">
-                    <span className="mr-2">{category.icon}</span>
-                    {category.category}
+                    <span className="mr-2">{cat.icon}</span>
+                    {cat.category}
                   </div>
-                  <ChevronDown
-                    className={`transition-transform duration-200 ${activeDropdown === categoryIdx ? 'transform rotate-180' : ''}`}
-                    size={18}
-                  />
+                  <ChevronDown size={18} className={`transition-transform ${activeDropdown === idx ? 'rotate-180' : ''}`} />
                 </div>
-
-                {activeDropdown === categoryIdx && (
-                  <div className="pl-8 space-y-1">
-                    {category.items.map((item, itemIdx) => (
-                      <Link
-                        key={itemIdx}
-                        to={item.path}
-                        className={`flex items-center px-3 py-2 rounded-md text-sm font-medium ${
-                          isActive(item.path)
-                            ? 'bg-gray-900 text-white'
-                            : 'text-gray-300 hover:bg-gray-700 hover:text-white'
-                        }`}
+                {activeDropdown === idx && (
+                  <div className="pl-8 space-y-1 mt-1">
+                    {cat.items.map((item, iidx) => (
+                      <Link key={iidx} to={item.path}
                         onClick={() => setIsMenuOpen(false)}
-                      >
-                        <span className="mr-2">{item.icon}</span>
+                        className={`block px-3 py-2 rounded-md text-sm ${
+                          isActive(item.path) ? 'bg-gray-900 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                        }`}>
                         {item.label}
                       </Link>
                     ))}
@@ -329,20 +267,15 @@ const Navigation = () => {
               </div>
             ))}
           </div>
-
-          {/* Legutóbb meglátogatott oldalak mobil nézeten */}
+          {/* Legutóbbi oldalak mobilon */}
           {recentPages.length > 0 && (
             <div className="border-t border-gray-700 px-3 py-3">
-              <h3 className="text-sm font-medium text-gray-400 mb-2">Legutóbb meglátogatott</h3>
+              <h3 className="text-sm text-gray-400 mb-2">Legutóbb meglátogatott</h3>
               <div className="space-y-1">
                 {recentPages.map((page, idx) => (
-                  <Link
-                    key={idx}
-                    to={page.path}
-                    className="flex items-center px-3 py-2 rounded-md text-sm text-gray-300 hover:bg-gray-700 hover:text-white"
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    <Clock className="mr-2" size={16} />
+                  <Link key={idx} to={page.path} onClick={() => setIsMenuOpen(false)}
+                    className="flex items-center px-3 py-2 rounded-md text-sm text-gray-300 hover:bg-gray-700 hover:text-white">
+                    <Clock size={16} className="mr-2" />
                     {page.title}
                   </Link>
                 ))}
@@ -352,46 +285,30 @@ const Navigation = () => {
         </div>
       )}
 
-      {/* Legutóbb meglátogatott oldalak sáv - csak desktop nézeten */}
+      {/* Legutóbbi oldalak desktopon */}
       {recentPages.length > 0 && (
         <div className="hidden md:block bg-gray-100 border-b border-gray-200">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center py-1 text-sm">
-              <span className="text-gray-500 mr-2 flex items-center">
-                <Clock size={14} className="mr-1" /> Legutóbb megtekintett:
-              </span>
-              <div className="flex items-center space-x-4 overflow-x-auto hide-scrollbar">
-                {recentPages.map((page, idx) => (
-                  <Link
-                    key={idx}
-                    to={page.path}
-                    className={`whitespace-nowrap px-2 py-1 rounded ${
-                      location.pathname === page.path
-                        ? 'text-blue-600 font-medium'
-                        : 'text-gray-600 hover:text-blue-600'
-                    }`}
-                  >
-                    {page.title}
-                  </Link>
-                ))}
-              </div>
-            </div>
+          <div className="max-w-7xl mx-auto px-4 py-1 flex items-center space-x-4 overflow-x-auto hide-scrollbar">
+            <span className="flex items-center text-gray-500 text-sm">
+              <Clock size={14} className="mr-1" /> Legutóbb megtekintett:
+            </span>
+            {recentPages.map((page, idx) => (
+              <Link key={idx} to={page.path}
+                className={`whitespace-nowrap px-2 py-1 rounded ${
+                  location.pathname === page.path ? 'text-blue-600 font-medium' : 'text-gray-600 hover:text-blue-600'
+                }`}>
+                {page.title}
+              </Link>
+            ))}
           </div>
         </div>
       )}
 
-      {/* Egyedi CSS a görgetősáv elrejtéséhez */}
-      <style dangerouslySetInnerHTML={{
-  __html: `
-    .hide-scrollbar::-webkit-scrollbar {
-      display: none;
-    }
-    .hide-scrollbar {
-      -ms-overflow-style: none;
-      scrollbar-width: none;
-    }
-  `
-}} />
+      {/* Görgetősáv elrejtése */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      `}} />
     </>
   );
 };
