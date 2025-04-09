@@ -21,7 +21,8 @@ const translations = {
     tipMultiple: "You can upload multiple files at once",
     tipSecure: "Uploaded files are stored securely",
     tipTypes: "Supported file types: documents, images, PDFs, etc.",
-    tipSize: "Maximum file size: 100MB"
+    tipSize: "Maximum file size: 100MB",
+    uploadedBy: "Client"
   },
   de: {
     uploadTitle: "Dateien hochladen",
@@ -40,7 +41,8 @@ const translations = {
     tipMultiple: "Sie können mehrere Dateien gleichzeitig hochladen",
     tipSecure: "Hochgeladene Dateien werden sicher gespeichert",
     tipSize: "Maximale Dateigröße: 100MB",
-    tipTypes: "Unterstützte Dateitypen: Dokumente, Bilder, PDFs, usw."
+    tipTypes: "Unterstützte Dateitypen: Dokumente, Bilder, PDFs, usw.",
+    uploadedBy: "Kunde"
   },
   hu: {
     uploadTitle: "Fájlok feltöltése",
@@ -59,7 +61,8 @@ const translations = {
     tipMultiple: "Egyszerre több fájlt is feltölthet",
     tipSecure: "A feltöltött fájlok biztonságosan tárolódnak",
     tipTypes: "Támogatott fájltípusok: dokumentumok, képek, PDF-ek, stb.",
-    tipSize: "Maximális fájlméret: 100MB"
+    tipSize: "Maximális fájlméret: 100MB",
+    uploadedBy: "Ügyfél"
   }
 };
 
@@ -172,7 +175,7 @@ const SimpleFileUploader = ({
           type: file.type,
           uploadedAt: new Date().toISOString(),
           content: fileContent,
-          uploadedBy: 'Ügyfél'
+          uploadedBy: t.uploadedBy || 'Ügyfél'
         };
 
         // Közvetlen feltöltés a szerverre a publikus végponton keresztül

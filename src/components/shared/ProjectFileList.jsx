@@ -26,7 +26,8 @@ const translations = {
     refresh: "Refresh",
     noSearchResults: "No files match your search",
     tryAdjustingSearch: "Try adjusting your search term",
-    loading: "Loading files..."
+    loading: "Loading files...",
+    client: "Client"
   },
   hu: {
     title: "Projekt fájlok",
@@ -48,6 +49,7 @@ const translations = {
     deleteError: "Hiba a fájl törlése közben",
     refresh: "Frissítés",
     noSearchResults: "Nincs a keresésnek megfelelő fájl",
+    client: "Ügyfél",
     tryAdjustingSearch: "Próbáld módosítani a keresési feltételt",
     loading: "Fájlok betöltése..."
   },
@@ -72,7 +74,8 @@ const translations = {
     refresh: "Aktualisieren",
     noSearchResults: "Keine Dateien entsprechen Ihrer Suche",
     tryAdjustingSearch: "Versuchen Sie, Ihren Suchbegriff anzupassen",
-    loading: "Dateien werden geladen..."
+    loading: "Dateien werden geladen...",
+    client: "Kunde"
   }
 };
 
@@ -89,13 +92,13 @@ const ProjectFileList = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [fileToDelete, setFileToDelete] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  
+
   // Get translations for current language
   const t = translations[language] || translations.hu;
-  
+
   // Get project token for API calls
   const projectToken = project?.sharing?.token;
-  
+
   // API configuration
   const API_URL = 'https://admin.nb-studio.net:5001/api';
   const API_KEY = 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0';
@@ -157,7 +160,7 @@ const ProjectFileList = ({
     }
 
     debugLog('handleDeleteFile', `Deleting file with ID: ${fileId}`);
-    
+
     try {
       const response = await fetch(`${API_URL}/public/shared-projects/${projectToken}/files/${fileId}`, {
         method: 'DELETE',
@@ -169,10 +172,10 @@ const ProjectFileList = ({
 
       if (response.ok) {
         debugLog('handleDeleteFile', 'File deleted successfully');
-        
+
         // Remove the file from the state
         setFiles(files.filter(file => file.id !== fileId));
-        
+
         // Show success message
         showSuccessMessage(t.deleteSuccess);
       } else {
@@ -191,7 +194,7 @@ const ProjectFileList = ({
   };
 
   // Filter files based on search term
-  const filteredFiles = files.filter(file => 
+  const filteredFiles = files.filter(file =>
     file.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -280,7 +283,7 @@ const ProjectFileList = ({
                         <div className="text-sm text-gray-900">{formatShortDate(new Date(file.uploadedAt))}</div>
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{file.uploadedBy || '-'}</div>
+                        <div className="text-sm text-gray-900">{file.uploadedBy === 'Ügyfél' ? t.client : file.uploadedBy || '-'}</div>
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium space-x-1">
                         <a
