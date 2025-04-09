@@ -15,7 +15,7 @@ import ProjectDocuments from './shared/ProjectDocuments'; // New component for d
 import ProjectChangelog from './shared/ProjectChangelog'; // New component for changelog
 import FilePreviewModal from './shared/FilePreviewModal';
 import InvoiceViewModal from './shared/InvoiceViewModal';
-import DocumentViewModal from './shared/DocumentViewModal'; // New component for document preview
+// DocumentViewModal removed
 import ProfileButton from './ProfileButton';
 
 // Translations
@@ -394,7 +394,7 @@ const SharedProjectDashboard = ({
   const [errorMessage, setErrorMessage] = useState('');
   const [previewFile, setPreviewFile] = useState(null);
   const [viewingInvoice, setViewingInvoice] = useState(null);
-  const [viewingDocument, setViewingDocument] = useState(null);
+  // Document viewing state removed
   const [adminMode, setAdminMode] = useState(isAdmin);
   const [showLanguageDropdown, setShowLanguageDropdown] = useState(false);
 
@@ -617,23 +617,13 @@ const SharedProjectDashboard = ({
     setPreviewFile(file);
   };
 
-  // Handler for showing document preview
-  const handleShowDocumentPreview = (document) => {
-    debugLog('handleShowDocumentPreview', 'Showing document preview', { documentName: document.name });
-    setViewingDocument(document);
-  };
-
   // Handler for closing file preview
   const handleCloseFilePreview = () => {
     debugLog('handleCloseFilePreview', 'Closing file preview');
     setPreviewFile(null);
   };
 
-  // Handler for closing document preview
-  const handleCloseDocumentPreview = () => {
-    debugLog('handleCloseDocumentPreview', 'Closing document preview');
-    setViewingDocument(null);
-  };
+  // Document preview handlers removed
 
   // Handler for showing invoice details
   const handleViewInvoice = (invoice) => {
@@ -1181,14 +1171,7 @@ const SharedProjectDashboard = ({
           />
         )}
 
-        {viewingDocument && (
-          <DocumentViewModal
-            document={viewingDocument}
-            project={normalizedProject}
-            onClose={handleCloseDocumentPreview}
-            language={language}
-          />
-        )}
+        {/* Document view modal removed */}
       </div>
     </div>
   );
