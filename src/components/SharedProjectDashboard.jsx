@@ -221,21 +221,45 @@ const SharedProjectDashboard = ({
 
     try {
       // Get the saved session with PIN
-      const savedSession = localStorage.getItem(`project_session_${normalizedProject.sharing?.token}`);
+      const cleanToken = normalizedProject.sharing?.token;
+      const savedSession = localStorage.getItem(`project_session_${cleanToken}`);
       const session = savedSession ? JSON.parse(savedSession) : { pin: '' };
 
       console.log('Trying to refresh project data with /verify-pin endpoint directly');
 
-      // Ellenőrizzük a PIN legalitását
-      if (session.pin === undefined || session.pin === null) {
-        console.log('No PIN in session, setting empty string');
-        session.pin = '';
+      // Ellenőrizzük a PIN legalitását és próbáljuk kinyerni a PIN-t a localStorage-ból
+      let pinToUse = '';
+
+      // 1. Először próbáljuk a session-ből
+      if (session.pin !== undefined && session.pin !== null) {
+        pinToUse = session.pin;
+        console.log('Using PIN from session:', pinToUse);
+      } else {
+        console.log('No PIN in session');
+      }
+
+      // 2. Ha nincs a session-ben, próbáljuk a SharedProjectView által mentett session-ből
+      if (!pinToUse) {
+        const viewSession = localStorage.getItem(`project_session_${cleanToken}`);
+        if (viewSession) {
+          const viewSessionData = JSON.parse(viewSession);
+          if (viewSessionData.pin) {
+            pinToUse = viewSessionData.pin;
+            console.log('Using PIN from SharedProjectView session:', pinToUse);
+          }
+        }
+      }
+
+      // 3. Ha még mindig nincs, próbáljuk a projekt sharing adataiból
+      if (!pinToUse && normalizedProject.sharing && normalizedProject.sharing.pin) {
+        pinToUse = normalizedProject.sharing.pin;
+        console.log('Using PIN from project sharing data:', pinToUse);
       }
 
       // Előkészítjük a kérés tartalmát, részletes naplózással
       const requestData = {
-        token: normalizedProject.sharing?.token,
-        pin: session.pin || ''
+        token: cleanToken,
+        pin: pinToUse
       };
       console.log('Request body prepared:', JSON.stringify(requestData, null, 2));
 
