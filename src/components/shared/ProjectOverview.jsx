@@ -21,7 +21,8 @@ const translations = {
       paid: "Paid",
       pendingAmount: "Pending amount",
       totalAmount: "Total amount",
-      domains: "Domains"
+      domains: "Domains",
+      hostings: "Web Hosting"
     },
     chart: {
       invoiceStatus: "Invoice Status",
@@ -64,7 +65,8 @@ const translations = {
       paid: "Bezahlt",
       pendingAmount: "Ausstehender Betrag",
       totalAmount: "Gesamtbetrag",
-      domains: "Domains"
+      domains: "Domains",
+      hostings: "Webhosting"
     },
     chart: {
       invoiceStatus: "Rechnungsstatus",
@@ -107,7 +109,8 @@ const translations = {
       paid: "Fizetve",
       pendingAmount: "Függő összeg",
       totalAmount: "Teljes összeg",
-      domains: "Domainek"
+      domains: "Domainek",
+      hostings: "Webtárhelyek"
     },
     chart: {
       invoiceStatus: "Számlák Állapota",
@@ -214,7 +217,7 @@ const ProjectOverview = ({ project, files = [], comments = [], setActiveTab, lan
     });
   };
 
-  // Calculate days until expiry
+  // Calculate days until domain/hosting expiry
   const calculateDaysUntilExpiry = (expiryDate) => {
     const now = new Date();
     const expiry = new Date(expiryDate);
@@ -222,7 +225,7 @@ const ProjectOverview = ({ project, files = [], comments = [], setActiveTab, lan
     return Math.ceil(diff / (1000 * 60 * 60 * 24));
   };
 
-  // Get status color for domain expiry
+  // Get status color for domain/hosting expiry
   const getDomainStatusColor = (daysUntil) => {
     if (daysUntil < 0) return 'text-red-600';
     if (daysUntil <= 30) return 'text-yellow-600';
@@ -477,6 +480,35 @@ const ProjectOverview = ({ project, files = [], comments = [], setActiveTab, lan
                       <div className="flex items-center">
                         <span className={`text-sm ${statusColor}`}>
                           {new Date(domain.expiryDate).toLocaleDateString()}
+                          ({daysUntil} {language === 'hu' ? 'nap' : language === 'de' ? 'Tage' : 'days'})
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Webtárhelyek megjelenítése, ha vannak */}
+        {project.hostings && project.hostings.length > 0 && (
+          <div className="mb-6">
+            <h4 className="font-medium text-gray-700 mb-2">{t.statistics.hostings}</h4>
+            <div className="bg-gray-50 p-4 rounded-md">
+              <div className="space-y-2">
+                {project.hostings.map((hosting, index) => {
+                  const daysUntil = calculateDaysUntilExpiry(hosting.endDate);
+                  const statusColor = getDomainStatusColor(daysUntil);
+                  return (
+                    <div key={index} className="flex justify-between items-center border-b border-gray-200 pb-2 last:border-b-0 last:pb-0">
+                      <div>
+                        <span className="font-medium">{hosting.domainName}</span>
+                        <span className="text-sm text-gray-500 ml-2">({hosting.planName})</span>
+                      </div>
+                      <div className="flex items-center">
+                        <span className={`text-sm ${statusColor}`}>
+                          {new Date(hosting.endDate).toLocaleDateString()}
                           ({daysUntil} {language === 'hu' ? 'nap' : language === 'de' ? 'Tage' : 'days'})
                         </span>
                       </div>
