@@ -561,12 +561,63 @@ const HostingManager = () => {
         orderId: orderId
       });
 
-      // Értesítés küldése az ügyfélnek
+      // Ha jóváhagyták a rendelést, létrehozunk egy SharedWebhosting fiókot az ügyfélnek
       if (newStatus === 'active') {
-        await sendClientNotification(
-          updatedOrder.client.email,
-          'Rendelés jóváhagyva',
-          `Tisztelt ${updatedOrder.client.name}!
+        try {
+          // A SharedWebhosting objektum létrehozása
+          const sharedWebhosting = {
+            client: {
+              name: updatedOrder.client.name,
+              email: updatedOrder.client.email,
+              phone: updatedOrder.client.phone || '',
+              company: updatedOrder.client.company || '',
+              vatNumber: updatedOrder.client.vatNumber || '',
+              address: updatedOrder.client.address || {},
+              language: 'hu' // Alapértelmezett nyelv
+            },
+            hosting: {
+              type: updatedOrder.plan.type || 'regular',
+              packageName: updatedOrder.plan.name,
+              billing: updatedOrder.plan.billing,
+              price: updatedOrder.plan.price,
+              domainName: updatedOrder.service.domainName,
+              startDate: new Date().toISOString(),
+              endDate: (() => {
+                const endDate = new Date();
+                if (updatedOrder.plan.billing === 'monthly') {
+                  endDate.setMonth(endDate.getMonth() + 1);
+                } else {
+                  endDate.setFullYear(endDate.getFullYear() + 1);
+                }
+                return endDate.toISOString();
+              })()
+            },
+            status: 'active',
+            sharing: {
+              // PIN és token automatikusan generálódik a szerveren
+            }
+          };
+
+          // SharedWebhosting létrehozása
+          const webhostingResponse = await api.post(`${API_URL}/sharedwebhosting`, sharedWebhosting);
+          
+          if (!webhostingResponse.ok) {
+            throw new Error('Failed to create shared webhosting account');
+          }
+
+          const createdWebhosting = await webhostingResponse.json();
+
+          // Email értesítés küldése az ügyfélnek
+          const notifyResponse = await api.post(`${API_URL}/notify-client`, {
+            webHostingId: createdWebhosting._id,
+            language: 'hu' // Alapértelmezett nyelv
+          });
+
+          // Értesítés küldése az ügyfélnek a régi módon is (kompatibilitás miatt)
+          await sendClientNotification(
+            updatedOrder.client.email,
+            'Rendelés jóváhagyva',
+            `Tisztelt ${updatedOrder.client.name}!
 
 Az Ön ${updatedOrder.plan.name} hosting csomag rendelését jóváhagytuk, a szolgáltatás aktív.
 
@@ -574,15 +625,22 @@ Domain: ${updatedOrder.service.domainName}
 Csomag: ${updatedOrder.plan.name}
 Időszak: ${updatedOrder.plan.billing === 'monthly' ? 'Havi' : 'Éves'}
 
-A szolgáltatáshoz szükséges belépési adatokat külön e-mailben küldjük el Önnek.
+A szolgáltatáshoz az alábbi linken férhet hozzá:
+https://project.nb-studio.net/shared-webhosting/${createdWebhosting.sharing.token}
+
+A belépéshez szükséges PIN kód: ${createdWebhosting.sharing.pin}
 
 Üdvözlettel,
 Az NB-Studio csapata`
-        );
+          );
 
-        setSuccessMessage(`A rendelés sikeresen aktiválva, és értesítő e-mail kiküldve: ${updatedOrder.client.email}`);
-        setShowSuccessMessage(true);
-        setTimeout(() => setShowSuccessMessage(false), 5000);
+          setSuccessMessage(`A rendelés sikeresen aktiválva, ügyfélfiók létrehozva, és értesítő e-mail kiküldve: ${updatedOrder.client.email}`);
+          setShowSuccessMessage(true);
+          setTimeout(() => setShowSuccessMessage(false), 5000);
+        } catch (webhostingError) {
+          console.error('Error creating shared webhosting account:', webhostingError);
+          setError('Sikeres aktiválás, de hiba történt az ügyfélfiók létrehozása során');
+        }
       }
 
       await fetchOrders();

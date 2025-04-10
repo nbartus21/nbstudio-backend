@@ -20,6 +20,7 @@ import Note from './models/Note.js';
 import Task from './models/Task.js';
 import Partner from './models/Partner.js';
 import WebPage from './models/WebPage.js';
+import SharedWebhosting from './models/SharedWebhosting.js';
 
 // Import routes
 import postRoutes from './routes/posts.js';
@@ -46,6 +47,7 @@ import invoicesRouter from './routes/invoices.js';
 import partnersRouter from './routes/partners.js';
 import webPagesRouter from './routes/webpages.js';
 import settingsRouter from './routes/settings.js';
+import sharedWebhostingRoutes from './routes/sharedwebhosting.js';
 
 // Import middleware
 import authMiddleware from './middleware/auth.js';
@@ -348,8 +350,24 @@ publicRouter.post('/hosting/orders', validateApiKey, async (req, res) => {
   }
 });
 
-// Register public endpoints
-app.use('/api/public', publicRouter);
+// Public endpoints for shared webhosting customer portal
+publicRouter.get('/shared-webhosting/:token', validateApiKey, async (req, res) => {
+  try {
+    const { token } = req.params;
+    console.log(`Requesting shared webhosting with token: ${token}`);
+    
+    const webhosting = await SharedWebhosting.findOne({ 'sharing.token': token });
+    
+    if (!webhosting) {
+      return res.status(404).json({ message: 'Shared webhosting not found' });
+    }
+    
+    res.json({ success: true, webhosting });
+  } catch (error) {
+    console.error('Error fetching shared webhosting:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
 
 // Public chat endpoint - külön kezelő a root path számára
 app.post('/api/public/chat', validateApiKey, async (req, res) => {
@@ -484,6 +502,25 @@ app.post('/api/verify-pin', validateApiKey, async (req, res) => {
 app.post('/verify-pin', validateApiKey, async (req, res) => {
   console.log('Request from root /verify-pin route');
   await verifyPin(req, res);
+});
+
+// SharedWebhosting PIN verification endpoints - multiple routes for accessibility
+app.post('/api/webhosting/verify-pin', validateApiKey, async (req, res) => {
+  console.log('Request from /api/webhosting/verify-pin route');
+  const webhostingVerifyPin = sharedWebhostingRoutes.stack.find(r => r.route && r.route.path === '/verify-pin').route.stack[0].handle;
+  await webhostingVerifyPin(req, res);
+});
+
+app.post('/api/public/webhosting/verify-pin', validateApiKey, async (req, res) => {
+  console.log('Request from /api/public/webhosting/verify-pin route');
+  const webhostingVerifyPin = sharedWebhostingRoutes.stack.find(r => r.route && r.route.path === '/verify-pin').route.stack[0].handle;
+  await webhostingVerifyPin(req, res);
+});
+
+app.post('/webhosting/verify-pin', validateApiKey, async (req, res) => {
+  console.log('Request from /webhosting/verify-pin route');
+  const webhostingVerifyPin = sharedWebhostingRoutes.stack.find(r => r.route && r.route.path === '/verify-pin').route.stack[0].handle;
+  await webhostingVerifyPin(req, res);
 });
 
 // Email API routes
@@ -1369,6 +1406,7 @@ app.use('/api', invoicesRouter);
 app.use('/api/partners', partnersRouter);
 app.use('/api/webpages', webPagesRouter);
 app.use('/api/settings', settingsRouter);
+app.use('/api', sharedWebhostingRoutes);
 
 // Fix for transactions endpoint directly accessing the accountingRoutes
 app.use('/api/transactions', (req, res, next) => {
