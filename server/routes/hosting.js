@@ -52,7 +52,7 @@ router.use(authMiddleware);
 // Összes webtárhely lekérése
 router.get('/hostings', async (req, res) => {
   try {
-    const hostings = await Hosting.find().sort({ service: { endDate: 1 } });
+    const hostings = await Hosting.find().sort({ 'service.endDate': 1 });
     res.json(hostings);
   } catch (error) {
     res.status(500).json({ message: error.message });
