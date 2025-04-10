@@ -159,7 +159,7 @@ const ProjectChangelog = ({ project, language = 'hu', onRefresh, showSuccessMess
         },
         body: JSON.stringify({
           text: commentText[entryId],
-          author: t.client,
+          author: project?.client?.name || t.client,
           isAdminComment: false
         })
       });
@@ -185,7 +185,9 @@ const ProjectChangelog = ({ project, language = 'hu', onRefresh, showSuccessMess
         const errorData = await response.json();
         console.error('Error adding comment:', errorData);
         if (showErrorMessage) {
-          showErrorMessage(t.commentError);
+          // Részletesebb hibaüzenet megjelenítése
+          const errorMessage = errorData.message ? `${t.commentError}: ${errorData.message}` : t.commentError;
+          showErrorMessage(errorMessage);
         }
       }
     } catch (error) {
