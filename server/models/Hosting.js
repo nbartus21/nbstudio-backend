@@ -14,7 +14,7 @@ const hostingSchema = new mongoose.Schema({
       country: { type: String, default: 'DE' }
     }
   },
-  
+
   plan: {
     type: { type: String, enum: ['regular', 'reseller'], required: true },
     name: { type: String, required: true },
@@ -26,10 +26,10 @@ const hostingSchema = new mongoose.Schema({
     databases: Number,
     accounts: Number
   },
-  
+
   payment: {
-    status: { 
-      type: String, 
+    status: {
+      type: String,
       enum: ['pending', 'paid', 'cancelled', 'refunded'],
       default: 'pending'
     },
@@ -37,10 +37,10 @@ const hostingSchema = new mongoose.Schema({
     transactionId: String,
     paidAt: Date
   },
-  
+
   service: {
-    status: { 
-      type: String, 
+    status: {
+      type: String,
       enum: ['pending', 'active', 'suspended', 'cancelled'],
       default: 'pending'
     },
@@ -51,7 +51,7 @@ const hostingSchema = new mongoose.Schema({
     serverIp: String,
     cpanelUsername: String
   },
-  
+
   status: {
     type: String,
     enum: ['new', 'processing', 'active', 'suspended', 'cancelled'],
@@ -62,6 +62,19 @@ const hostingSchema = new mongoose.Schema({
     addedBy: String,
     addedAt: { type: Date, default: Date.now }
   }],
+  // Előzmények követése
+  history: [{
+    action: String,
+    date: { type: Date, default: Date.now },
+    details: String
+  }],
+  // Kapcsolódó projekt
+  projectId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Project',
+    default: null
+  },
+  projectName: String,
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
 });

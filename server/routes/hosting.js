@@ -49,7 +49,148 @@ router.post('/public/hosting/orders', async (req, res) => {
 // Védett végpontok
 router.use(authMiddleware);
 
-// Rendelések lekérése
+// Összes webtárhely lekérése
+router.get('/hostings', async (req, res) => {
+  try {
+    const hostings = await Hosting.find().sort({ service: { endDate: 1 } });
+    res.json(hostings);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Új webtárhely létrehozása
+router.post('/hostings', async (req, res) => {
+  const hosting = new Hosting(req.body);
+  try {
+    const newHosting = await hosting.save();
+
+    // Ha van projektId, akkor frissítsük a projektet is
+    if (req.body.projectId) {
+      const Project = (await import('../models/Project.js')).default;
+      const project = await Project.findById(req.body.projectId);
+
+      if (project) {
+        // Ellenőrizzük, hogy a webtárhely már hozzá van-e adva a projekthez
+        const hostingExists = project.hostings && project.hostings.some(h => h.hostingId && h.hostingId.toString() === newHosting._id.toString());
+
+        if (!hostingExists) {
+          // Adjuk hozzá a webtárhelyet a projekthez
+          if (!project.hostings) project.hostings = [];
+
+          project.hostings.push({
+            hostingId: newHosting._id,
+            planName: newHosting.plan.name,
+            domainName: newHosting.service.domainName,
+            endDate: newHosting.service.endDate,
+            addedAt: new Date()
+          });
+
+          await project.save();
+        }
+      }
+    }
+
+    res.status(201).json(newHosting);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+});
+
+// Webtárhely frissítése
+router.put('/hostings/:id', async (req, res) => {
+  try {
+    const hosting = await Hosting.findById(req.params.id);
+    if (!hosting) {
+      return res.status(404).json({ message: 'Webtárhely nem található' });
+    }
+
+    // Ellenőrizzük, hogy változott-e a projektId
+    const oldProjectId = hosting.projectId ? hosting.projectId.toString() : null;
+    const newProjectId = req.body.projectId || null;
+
+    // Frissítsük a webtárhely adatait
+    Object.assign(hosting, req.body);
+    hosting.history.push({
+      action: 'update',
+      details: 'Webtárhely adatok frissítve'
+    });
+
+    const updatedHosting = await hosting.save();
+
+    // Ha változott a projekt, frissítsük a projekt kapcsolatokat
+    if (oldProjectId !== newProjectId) {
+      const Project = (await import('../models/Project.js')).default;
+
+      // Ha volt régi projekt, távolítsuk el a webtárhelyet
+      if (oldProjectId) {
+        const oldProject = await Project.findById(oldProjectId);
+        if (oldProject && oldProject.hostings) {
+          oldProject.hostings = oldProject.hostings.filter(h =>
+            !h.hostingId || h.hostingId.toString() !== hosting._id.toString());
+          await oldProject.save();
+        }
+      }
+
+      // Ha van új projekt, adjuk hozzá a webtárhelyet
+      if (newProjectId) {
+        const newProject = await Project.findById(newProjectId);
+        if (newProject) {
+          // Ellenőrizzük, hogy a webtárhely már hozzá van-e adva a projekthez
+          const hostingExists = newProject.hostings && newProject.hostings.some(h =>
+            h.hostingId && h.hostingId.toString() === hosting._id.toString());
+
+          if (!hostingExists) {
+            // Adjuk hozzá a webtárhelyet a projekthez
+            if (!newProject.hostings) newProject.hostings = [];
+
+            newProject.hostings.push({
+              hostingId: hosting._id,
+              planName: hosting.plan.name,
+              domainName: hosting.service.domainName,
+              endDate: hosting.service.endDate,
+              addedAt: new Date()
+            });
+
+            await newProject.save();
+          }
+        }
+      }
+    }
+
+    res.json(updatedHosting);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+});
+
+// Webtárhely törlése
+router.delete('/hostings/:id', async (req, res) => {
+  try {
+    const hosting = await Hosting.findById(req.params.id);
+    if (!hosting) {
+      return res.status(404).json({ message: 'Webtárhely nem található' });
+    }
+
+    // Ha van projektId, távolítsuk el a kapcsolatot
+    if (hosting.projectId) {
+      const Project = (await import('../models/Project.js')).default;
+      const project = await Project.findById(hosting.projectId);
+      if (project && project.hostings) {
+        project.hostings = project.hostings.filter(h =>
+          !h.hostingId || h.hostingId.toString() !== hosting._id.toString());
+        await project.save();
+      }
+    }
+
+    await Hosting.findByIdAndDelete(req.params.id);
+    res.json({ message: 'Webtárhely sikeresen törölve' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Rendelések lekérése (régi útvonal kompatibilitás miatt)
 router.get('/hosting/orders', async (req, res) => {
   try {
     const orders = await Hosting.find()
@@ -90,13 +231,13 @@ router.put('/hosting/orders/:id/status', async (req, res) => {
   try {
     const { status } = req.body;
     const order = await Hosting.findById(req.params.id);
-    
+
     if (!order) {
       return res.status(404).json({ message: 'Rendelés nem található' });
     }
 
     order.status = status;
-    
+
     // Szolgáltatás státusz automatikus frissítése
     switch (status) {
       case 'processing':

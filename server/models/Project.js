@@ -216,6 +216,15 @@ const projectSchema = new mongoose.Schema({
     name: String,
     expiryDate: Date,
     addedAt: { type: Date, default: Date.now }
+  }],
+
+  // Kapcsolódó webtárhelyek
+  hostings: [{
+    hostingId: { type: mongoose.Schema.Types.ObjectId, ref: 'Hosting' },
+    planName: String,
+    domainName: String,
+    endDate: Date,
+    addedAt: { type: Date, default: Date.now }
   }]
 }, {
   timestamps: true

@@ -14,7 +14,7 @@ import DomainManager from './domain/DomainManager';
 import SharedProjectView from './SharedProjectView';
 import InvoiceManager from './InvoiceManager';
 import AccountingManager from './AccountingManager';
-import HostingManager from './HostingManager';
+import HostingManager from './hosting/HostingManager';
 import TranslationTool from './TranslationTool';
 import SupportTicketManager from './SupportTicketManager';
 import QRLogin from './QRLogin';
