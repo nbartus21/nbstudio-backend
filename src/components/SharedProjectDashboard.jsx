@@ -11,7 +11,7 @@ import ProjectOverview from './shared/ProjectOverview';
 import ProjectInvoices from './shared/ProjectInvoices';
 import SimpleFileUploader from './shared/SimpleFileUploader';
 import ProjectFileList from './shared/ProjectFileList';
-import ProjectDocuments from './shared/ProjectDocuments'; // New component for documents
+// ProjectDocuments import removed
 import ProjectChangelog from './shared/ProjectChangelog'; // New component for changelog
 import FilePreviewModal from './shared/FilePreviewModal';
 import InvoiceViewModal from './shared/InvoiceViewModal';
@@ -24,7 +24,7 @@ const translations = {
     overview: "Overview",
     invoices: "Invoices",
     files: "Files",
-    documents: "Documents",
+    // documents: "Documents", // Removed
     milestones: "Milestones",
     changelog: "Changelog",
     uploadFile: "Upload File",
@@ -55,7 +55,7 @@ const translations = {
     overview: "Übersicht",
     invoices: "Rechnungen",
     files: "Dateien",
-    documents: "Dokumente",
+    // documents: "Dokumente", // Removed
     milestones: "Meilensteine",
     changelog: "Änderungsprotokoll",
     uploadFile: "Datei hochladen",
@@ -86,7 +86,7 @@ const translations = {
     overview: "Áttekintés",
     invoices: "Számlák",
     files: "Fájlok",
-    documents: "Dokumentumok",
+    // documents: "Dokumentumok", // Removed
     milestones: "Mérföldkövek",
     changelog: "Fejlesztési napló",
     uploadFile: "Fájl feltöltése",
@@ -205,7 +205,7 @@ const SharedProjectDashboard = ({
 
   // State management
   const [files, setFiles] = useState([]);
-  const [documents, setDocuments] = useState([]);
+  // Documents state removed
   const [comments, setComments] = useState([]); // Comments array
   const [isRefreshing, setIsRefreshing] = useState(false); // Frissítési állapot
   const [currentInvoiceId, setCurrentInvoiceId] = useState(null); // Aktuális számla ID
@@ -381,13 +381,9 @@ const SharedProjectDashboard = ({
   }, [normalizedProject?.sharing?.token]); // Csak akkor futtatjuk újra, ha a token változik
   const [activeTab, setActiveTab] = useState('overview');
 
-  // Biztonsági ellenőrzés - ha valaki mégis a 'documents' tabra próbálna váltani
+  // Egyszerű tab váltó függvény (documents tab ellenőrzés eltávolítva)
   const setActiveTabSafe = (tab) => {
-    if (tab === 'documents') {
-      setActiveTab('overview');
-    } else {
-      setActiveTab(tab);
-    }
+    setActiveTab(tab);
   };
   const fileInputRef = useRef(null);
   const [successMessage, setSuccessMessage] = useState('');
@@ -457,12 +453,7 @@ const SharedProjectDashboard = ({
       debugLog('SharedProjectDashboard', `Loaded ${savedFiles.length} files from localStorage`);
     }
 
-    // Load documents from localStorage
-    const savedDocuments = loadFromLocalStorage(normalizedProject, 'documents');
-    if (savedDocuments && savedDocuments.length > 0) {
-      setDocuments(savedDocuments);
-      debugLog('SharedProjectDashboard', `Loaded ${savedDocuments.length} documents from localStorage`);
-    }
+    // Documents loading from localStorage removed
 
     // Load comments from localStorage
     const savedComments = loadFromLocalStorage(normalizedProject, 'comments');
@@ -471,8 +462,7 @@ const SharedProjectDashboard = ({
       debugLog('SharedProjectDashboard', `Loaded ${savedComments.length} comments from localStorage`);
     }
 
-    // Get documents from server
-    fetchDocuments(projectId);
+    // Documents fetching from server removed
   }, [normalizedProject]);
 
   // Amikor a projekt betöltődik, frissítsük a felhasználói adatokat
@@ -501,57 +491,7 @@ const SharedProjectDashboard = ({
     }
   }, [normalizedProject]);
 
-  // Fetch documents from server
-  const fetchDocuments = async (projectId) => {
-    try {
-      debugLog('fetchDocuments', 'Fetching documents from server', { projectId });
-
-      // Először próbáljuk a dedikált public végpontot
-      const response = await fetch(`${API_URL}/public/projects/${projectId}/documents`, {
-        headers: {
-          'X-API-Key': API_KEY
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data && Array.isArray(data)) {
-          debugLog('fetchDocuments', `Fetched ${data.length} documents from server using public endpoint`);
-          setDocuments(data);
-        }
-      } else {
-        // Ha nem működik a public végpont, próbáljuk a standard API-t
-        debugLog('fetchDocuments', 'Public endpoint failed, trying standard API', { status: response.status });
-
-        try {
-          const fallbackResponse = await fetch(`${API_URL}/documents?projectId=${projectId}`, {
-            headers: {
-              'X-API-Key': API_KEY
-            }
-          });
-
-          if (fallbackResponse.ok) {
-            const data = await fallbackResponse.json();
-            if (data && Array.isArray(data)) {
-              debugLog('fetchDocuments', `Fetched ${data.length} documents from server using standard API`);
-              setDocuments(data);
-            }
-          } else {
-            debugLog('fetchDocuments', 'Standard API also failed', { status: fallbackResponse.status });
-
-            if (fallbackResponse.status === 401) {
-              debugLog('fetchDocuments', 'Authentication error (401) - falling back to local data');
-            }
-          }
-        } catch (fallbackError) {
-          debugLog('fetchDocuments', 'Error with fallback request', { error: fallbackError });
-        }
-      }
-    } catch (error) {
-      debugLog('fetchDocuments', 'Error fetching documents', { error });
-      // Hibakezelés: nem törjük meg a folyamatot, mivel lehet, hogy csak hálózati hiba történt
-    }
-  };
+  // Documents fetching function removed
 
   // Felhasználói adatok frissítése - csak lokálisan
   const handleUpdateUser = async (updatedUser) => {
@@ -1087,7 +1027,7 @@ const SharedProjectDashboard = ({
           <ProjectOverview
             project={normalizedProject}
             files={files}
-            documents={documents}
+            // documents prop removed
             comments={comments} // Átadjuk a comments props-ot
             setActiveTab={setActiveTab}
             language={language}
