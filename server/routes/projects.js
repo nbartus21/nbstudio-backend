@@ -687,6 +687,8 @@ const verifyPin = async (req, res) => {
         })),
       // Hozzáadjuk a projekthez kapcsolódó domaineket
       domains: project.domains || [],
+      // Hozzáadjuk a projekthez kapcsolódó webtárhelyeket
+      hostings: project.hostings || [],
       sharing: {
         token: project.sharing.token, // Hozzáadjuk a tokent is, hogy a kliens használhassa
         expiresAt: project.sharing.expiresAt,
