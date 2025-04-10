@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Check, X, Info, Edit, Monitor, Server, Bell, Mail, User, DollarSign, AlertCircle, Share2, Plus, Eye, Copy } from 'lucide-react';
+import { Check, X, Info, Edit, Monitor, Server, Bell, Mail, User, DollarSign, AlertCircle, Share2, Plus, Eye, Copy, Trash2, AlertTriangle } from 'lucide-react';
 import { api } from '../services/auth';
 import { Card, CardHeader, CardTitle, CardContent } from './Card';
 
@@ -396,7 +396,7 @@ const HostingManager = () => {
       type: 'regular',
       packageName: '',
       billing: 'monthly',
-      price: 0,
+      price: '0',
       domainName: '',
       startDate: new Date().toISOString().split('T')[0],
       endDate: ''
@@ -412,6 +412,10 @@ const HostingManager = () => {
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
+  const [orderToDelete, setOrderToDelete] = useState(null);
+  const [showDeleteAllConfirmModal, setShowDeleteAllConfirmModal] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Értesítések engedélyezésének kérése
   const requestNotificationPermission = async () => {
@@ -450,12 +454,29 @@ const HostingManager = () => {
     };
   };
 
+  // Értesítés megjelenítése
+  const showNotification = (type, title, message) => {
+    // Itt használhatjuk a meglévő értesítési rendszert
+    createSystemNotification({
+      type: 'system',  // Használjunk érvényes enum értéket
+      title,
+      message,
+      severity: type === 'error' ? 'error' : 'info',  // A severity mezőben adjuk meg a hiba típusát
+      read: false,
+      date: new Date()
+    });
+  };
+
   // Rendszerértesítés létrehozása
   const createSystemNotification = async (notification) => {
     try {
       const response = await api.post(`${API_URL}/notifications/generate`, {
-        type: 'hosting',
-        ...notification
+        type: notification.type || 'system',
+        title: notification.title,
+        message: notification.message,
+        severity: notification.severity || 'info',
+        read: notification.read || false,
+        link: notification.link
       });
 
       if (response.ok) {
@@ -800,8 +821,20 @@ Az NB-Studio csapata`
         return;
       }
       
+      // Az adatokat a szerver modellhez igazítjuk
+      const hostingData = {
+        ...newHostingData,
+        hosting: {
+          ...newHostingData.hosting,
+          // Konvertáljuk a billing értéket, ha 'annual' kell a modellben
+          billing: newHostingData.hosting.billing === 'yearly' ? 'annual' : newHostingData.hosting.billing,
+          // Konvertáljuk a price-t számra, mert a modellben Number típusú
+          price: parseFloat(newHostingData.hosting.price) || 0
+        }
+      };
+      
       // Létrehozzuk a shared webhosting fiókot
-      const response = await api.post(`${API_URL}/sharedwebhosting`, newHostingData);
+      const response = await api.post(`${API_URL}/sharedwebhosting`, hostingData);
       
       if (!response.ok) {
         throw new Error('Nem sikerült létrehozni a webhosting fiókot');
@@ -838,7 +871,7 @@ Az NB-Studio csapata`
           type: 'regular',
           packageName: '',
           billing: 'monthly',
-          price: 0,
+          price: '0',
           domainName: '',
           startDate: new Date().toISOString().split('T')[0],
           endDate: ''
@@ -854,16 +887,59 @@ Az NB-Studio csapata`
     }
   };
 
-  // Értesítés megjelenítése
-  const showNotification = (type, title, message) => {
-    // Itt használhatjuk a meglévő értesítési rendszert
-    createSystemNotification({
-      type: type === 'error' ? 'error' : 'success',
-      title,
-      message,
-      read: false,
-      date: new Date()
-    });
+  // Egy rendelés törlése
+  const handleDeleteOrder = async (orderId) => {
+    try {
+      setIsDeleting(true);
+      const response = await api.delete(`${API_URL}/hosting/orders/${orderId}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to delete order');
+      }
+      
+      // Frissítjük a listát a törléssel
+      setOrders(orders.filter(order => order._id !== orderId));
+      
+      // Értesítés
+      showNotification('success', 'Siker', 'A rendelés sikeresen törölve.');
+      
+      // Modal bezárása
+      setShowDeleteConfirmModal(false);
+      setOrderToDelete(null);
+    } catch (error) {
+      console.error('Error deleting order:', error);
+      showNotification('error', 'Hiba', 'Nem sikerült törölni a rendelést.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  // Minden rendelés törlése
+  const handleDeleteAllOrders = async () => {
+    try {
+      setIsDeleting(true);
+      
+      // Töröljük az összes rendelést
+      const response = await api.delete(`${API_URL}/hosting/orders`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to delete all orders');
+      }
+      
+      // Lista frissítése
+      setOrders([]);
+      
+      // Értesítés
+      showNotification('success', 'Siker', 'Minden rendelés sikeresen törölve.');
+      
+      // Modal bezárása
+      setShowDeleteAllConfirmModal(false);
+    } catch (error) {
+      console.error('Error deleting all orders:', error);
+      showNotification('error', 'Hiba', 'Nem sikerült törölni a rendeléseket.');
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   // Inicializálás
@@ -990,6 +1066,13 @@ Az NB-Studio csapata`
             <Plus className="w-4 h-4" />
             Új hosting létrehozása
           </button>
+          <button 
+            onClick={() => setShowDeleteAllConfirmModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+          >
+            <Trash2 className="w-4 h-4" />
+            Összes törlése
+          </button>
         </div>
       </div>
 
@@ -1075,14 +1158,14 @@ Az NB-Studio csapata`
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {orders.length === 0 ? (
+                {filteredOrders.length === 0 ? (
                   <tr>
                     <td colSpan="8" className="px-4 py-4 text-center text-gray-500">
                       {loading ? 'Betöltés...' : 'Nincsenek megjeleníthető rendelések'}
                     </td>
                   </tr>
                 ) : (
-                  orders.map((order) => (
+                  filteredOrders.map((order) => (
                     <tr key={order._id} className="border-b hover:bg-gray-50">
                       <td className="py-3 px-4">{order.client.name}</td>
                       <td className="py-3 px-4">{order.client.email}</td>
@@ -1165,6 +1248,18 @@ Az NB-Studio csapata`
                               <Check size={18} />
                             </button>
                           )}
+                          
+                          {/* Törlés gomb minden sorhoz */}
+                          <button
+                            onClick={() => {
+                              setOrderToDelete(order);
+                              setShowDeleteConfirmModal(true);
+                            }}
+                            className="p-1 text-red-600 hover:text-red-800"
+                            title="Törlés"
+                          >
+                            <Trash2 size={18} />
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -1563,13 +1658,13 @@ Az NB-Studio csapata`
                       Ár (EUR)
                     </label>
                     <input 
-                      type="number" 
+                      type="text" 
                       value={newHostingData.hosting.price} 
                       onChange={(e) => setNewHostingData({
                         ...newHostingData,
                         hosting: {
                           ...newHostingData.hosting,
-                          price: parseFloat(e.target.value)
+                          price: e.target.value
                         }
                       })}
                       className="w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -1628,6 +1723,114 @@ Az NB-Studio csapata`
                 className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
               >
                 Létrehozás
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Törlés megerősítő modális ablak */}
+      {showDeleteConfirmModal && orderToDelete && (
+        <Modal isOpen={showDeleteConfirmModal} onClose={() => setShowDeleteConfirmModal(false)}>
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-semibold">Rendelés törlése</h2>
+              <button
+                onClick={() => setShowDeleteConfirmModal(false)}
+                className="text-gray-500 hover:text-gray-700"
+                disabled={isDeleting}
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+            
+            <div className="bg-yellow-50 p-4 rounded-lg border-l-4 border-yellow-400">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <AlertTriangle className="h-5 w-5 text-yellow-400" />
+                </div>
+                <div className="ml-3">
+                  <p className="text-yellow-700">
+                    Biztosan törölni szeretné ezt a rendelést?
+                  </p>
+                  <p className="text-yellow-700 mt-2 font-medium">
+                    {orderToDelete.client.name} - {orderToDelete.service.domainName}
+                  </p>
+                  <p className="text-yellow-700 mt-2">
+                    Ez a művelet nem visszavonható!
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setShowDeleteConfirmModal(false)}
+                className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300"
+                disabled={isDeleting}
+              >
+                Mégsem
+              </button>
+              <button
+                onClick={() => handleDeleteOrder(orderToDelete._id)}
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+                disabled={isDeleting}
+              >
+                {isDeleting ? 'Törlés folyamatban...' : 'Törlés'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Összes törlése megerősítő modális ablak */}
+      {showDeleteAllConfirmModal && (
+        <Modal isOpen={showDeleteAllConfirmModal} onClose={() => setShowDeleteAllConfirmModal(false)}>
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-semibold">Összes rendelés törlése</h2>
+              <button
+                onClick={() => setShowDeleteAllConfirmModal(false)}
+                className="text-gray-500 hover:text-gray-700"
+                disabled={isDeleting}
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+            
+            <div className="bg-red-50 p-4 rounded-lg border-l-4 border-red-400">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <AlertTriangle className="h-5 w-5 text-red-400" />
+                </div>
+                <div className="ml-3">
+                  <p className="text-red-700 font-bold">
+                    FIGYELEM! Ez a művelet az ÖSSZES rendelést törölni fogja!
+                  </p>
+                  <p className="text-red-700 mt-2">
+                    Összesen {orders.length} rendelés lesz törölve.
+                  </p>
+                  <p className="text-red-700 mt-2 font-medium">
+                    Ez a művelet nem visszavonható!
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setShowDeleteAllConfirmModal(false)}
+                className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300"
+                disabled={isDeleting}
+              >
+                Mégsem
+              </button>
+              <button
+                onClick={handleDeleteAllOrders}
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+                disabled={isDeleting}
+              >
+                {isDeleting ? 'Törlés folyamatban...' : 'Összes törlése'}
               </button>
             </div>
           </div>
