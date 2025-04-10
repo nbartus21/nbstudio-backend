@@ -60,12 +60,18 @@ const translations = {
     subject: {
       overdue: 'OVERDUE: Invoice {invoiceNumber} payment is overdue',
       dueSoon: 'REMINDER: Invoice {invoiceNumber} payment due soon',
-      new: 'New invoice {invoiceNumber} has been issued'
+      new: 'New invoice {invoiceNumber} has been issued',
+      firstReminder: 'PAYMENT REMINDER: Invoice {invoiceNumber} is past due',
+      secondReminder: 'SECOND REMINDER: Invoice {invoiceNumber} requires immediate attention',
+      finalReminder: 'FINAL NOTICE: Invoice {invoiceNumber} - Urgent payment required'
     },
     greeting: 'Dear {clientName},',
     overdueMessage: 'This is a friendly reminder that the payment for invoice {invoiceNumber} is overdue. The payment was due on {dueDate}.',
     dueSoonMessage: 'This is a friendly reminder that the payment for invoice {invoiceNumber} is due soon. The payment is due on {dueDate}.',
     newInvoiceMessage: 'A new invoice has been issued for your project. Please find the details below.',
+    firstReminderMessage: 'We would like to remind you that invoice {invoiceNumber} is now past due. The payment was due on {dueDate}. Please arrange for payment at your earliest convenience.',
+    secondReminderMessage: 'This is our second reminder that invoice {invoiceNumber} remains unpaid. The payment was due on {dueDate}. Please arrange for immediate payment to avoid any service interruptions.',
+    finalReminderMessage: 'URGENT: Despite our previous reminders, invoice {invoiceNumber} remains unpaid. The payment was due on {dueDate}. Please be advised that failure to make payment within 7 days may result in service suspension or termination.',
     paymentDetails: 'Payment Details',
     invoiceNumber: 'Invoice Number',
     amount: 'Amount',
@@ -88,12 +94,18 @@ const translations = {
     subject: {
       overdue: 'ÜBERFÄLLIG: Zahlung für Rechnung {invoiceNumber} ist überfällig',
       dueSoon: 'ERINNERUNG: Zahlung für Rechnung {invoiceNumber} ist bald fällig',
-      new: 'Neue Rechnung {invoiceNumber} wurde ausgestellt'
+      new: 'Neue Rechnung {invoiceNumber} wurde ausgestellt',
+      firstReminder: 'ZAHLUNGSERINNERUNG: Rechnung {invoiceNumber} ist überfällig',
+      secondReminder: 'ZWEITE MAHNUNG: Rechnung {invoiceNumber} erfordert sofortige Aufmerksamkeit',
+      finalReminder: 'LETZTE MAHNUNG: Rechnung {invoiceNumber} - Dringende Zahlung erforderlich'
     },
     greeting: 'Sehr geehrte(r) {clientName},',
     overdueMessage: 'Dies ist eine freundliche Erinnerung, dass die Zahlung für die Rechnung {invoiceNumber} überfällig ist. Die Zahlung war fällig am {dueDate}.',
     dueSoonMessage: 'Dies ist eine freundliche Erinnerung, dass die Zahlung für die Rechnung {invoiceNumber} bald fällig ist. Die Zahlung ist fällig am {dueDate}.',
     newInvoiceMessage: 'Eine neue Rechnung wurde für Ihr Projekt ausgestellt. Die Details finden Sie unten.',
+    firstReminderMessage: 'Wir möchten Sie daran erinnern, dass die Rechnung {invoiceNumber} überfällig ist. Die Zahlung war fällig am {dueDate}. Bitte veranlassen Sie die Zahlung so bald wie möglich.',
+    secondReminderMessage: 'Dies ist unsere zweite Mahnung, dass die Rechnung {invoiceNumber} noch unbezahlt ist. Die Zahlung war fällig am {dueDate}. Bitte veranlassen Sie die sofortige Zahlung, um Serviceunterbrechungen zu vermeiden.',
+    finalReminderMessage: 'DRINGEND: Trotz unserer vorherigen Mahnungen bleibt die Rechnung {invoiceNumber} unbezahlt. Die Zahlung war fällig am {dueDate}. Bitte beachten Sie, dass bei Nichtzahlung innerhalb von 7 Tagen der Service ausgesetzt oder beendet werden kann.',
     paymentDetails: 'Zahlungsdetails',
     invoiceNumber: 'Rechnungsnummer',
     amount: 'Betrag',
@@ -116,12 +128,19 @@ const translations = {
     subject: {
       overdue: 'LEJÁRT: A(z) {invoiceNumber} számú számla fizetési határideje lejárt',
       dueSoon: 'EMLÉKEZTETŐ: A(z) {invoiceNumber} számú számla fizetési határideje hamarosan lejár',
-      new: 'Új számla kiállítva: {invoiceNumber}'
+      new: 'Új számla kiállítva: {invoiceNumber}',
+      firstReminder: 'FIZETÉSI EMLÉKEZTETŐ: A(z) {invoiceNumber} számú számla fizetési határideje lejárt',
+      secondReminder: 'MÁSODIK FELSZÓLÍTÁS: A(z) {invoiceNumber} számú számla azonnali fizetést igényel',
+      finalReminder: 'VÉGSŐ FELSZÓLÍTÁS: A(z) {invoiceNumber} számú számla - Sürgős fizetés szükséges'
     },
     greeting: 'Tisztelt {clientName}!',
     overdueMessage: 'Ezúton szeretnénk emlékeztetni, hogy a(z) {invoiceNumber} számú számla fizetési határideje lejárt. A fizetési határidő {dueDate} volt.',
     dueSoonMessage: 'Ezúton szeretnénk emlékeztetni, hogy a(z) {invoiceNumber} számú számla fizetési határideje hamarosan lejár. A fizetési határidő: {dueDate}.',
     newInvoiceMessage: 'Új számlát állítottunk ki az Ön projektjéhez. A részleteket alább találja.',
+    firstReminderMessage: 'Ezúton szeretnénk emlékeztetni, hogy a(z) {invoiceNumber} számú számla fizetési határideje lejárt. A fizetési határidő {dueDate} volt. Kérjük, intézkedjen a számla kiegyenlítéséről a lehető leghamarabb.',
+    secondReminderMessage: 'Ez a második felszólításunk a(z) {invoiceNumber} számú számla ügyében, amely még mindig kiegyenlítetlen. A fizetési határidő {dueDate} volt. Kérjük, intézkedjen a számla azonnali kiegyenlítéséről, hogy elkerülje a szolgáltatás felfüggesztését.',
+    finalReminderMessage: 'SÜRGŐS: Korábbi emlékeztetőink ellenére a(z) {invoiceNumber} számú számla még mindig kiegyenlítetlen. A fizetési határidő {dueDate} volt. Tájékoztatjuk, hogy amennyiben 7 napon belül nem történik meg a fizetés, a szolgáltatást felfüggeszthetjük vagy megszüntethetjük.',
+
     paymentDetails: 'Fizetési adatok',
     invoiceNumber: 'Számlaszám',
     amount: 'Összeg',
@@ -173,6 +192,15 @@ const generateEmailTemplate = (invoice, project, type, language = 'hu') => {
   } else if (type === 'new') {
     subject = t.subject.new.replace('{invoiceNumber}', invoiceNumber);
     message = t.newInvoiceMessage;
+  } else if (type === 'firstReminder') {
+    subject = t.subject.firstReminder.replace('{invoiceNumber}', invoiceNumber);
+    message = t.firstReminderMessage.replace('{invoiceNumber}', invoiceNumber).replace('{dueDate}', dueDate);
+  } else if (type === 'secondReminder') {
+    subject = t.subject.secondReminder.replace('{invoiceNumber}', invoiceNumber);
+    message = t.secondReminderMessage.replace('{invoiceNumber}', invoiceNumber).replace('{dueDate}', dueDate);
+  } else if (type === 'finalReminder') {
+    subject = t.subject.finalReminder.replace('{invoiceNumber}', invoiceNumber);
+    message = t.finalReminderMessage.replace('{invoiceNumber}', invoiceNumber).replace('{dueDate}', dueDate);
   }
 
   // HTML sablon
@@ -390,16 +418,56 @@ export const checkOverdueInvoices = async () => {
 
       // Minden lejárt számlához küldünk emlékeztetőt
       for (const invoice of overdueInvoices) {
-        const result = await sendInvoiceReminder(project._id, invoice._id, 'overdue', language);
-        results.push({
-          projectId: project._id,
-          invoiceId: invoice._id,
-          invoiceNumber: invoice.number,
-          success: result.success
-        });
+        // Határozzuk meg, hogy milyen típusú emlékeztetőt küldjünk a lejárat óta eltelt idő alapján
+        const daysOverdue = Math.floor((now - new Date(invoice.dueDate)) / (1000 * 60 * 60 * 24));
+        let reminderType = 'overdue';
 
-        if (result.success) {
-          sentCount++;
+        // 1-2 nap késés: első emlékeztető
+        if (daysOverdue <= 2) {
+          reminderType = 'firstReminder';
+        }
+        // 3-9 nap késés: második felszólítás
+        else if (daysOverdue <= 9) {
+          reminderType = 'secondReminder';
+        }
+        // 10+ nap késés: végső felszólítás
+        else {
+          reminderType = 'finalReminder';
+        }
+
+        // Ellenőrizzük, hogy küldtünk-e már ilyen típusú emlékeztetőt ehhez a számlához
+        const lastReminder = invoice.reminders?.find(r => r.type === reminderType);
+
+        // Ha még nem küldtünk ilyen típusú emlékeztetőt, vagy az utolsó küldés óta eltelt legalább 7 nap
+        if (!lastReminder || (now - new Date(lastReminder.sentAt) > 7 * 24 * 60 * 60 * 1000)) {
+          const result = await sendInvoiceReminder(project._id, invoice._id, reminderType, language);
+
+          // Ha sikeres volt a küldés, mentsük el az emlékeztető adatait
+          if (result.success) {
+            // Ha még nincs reminders tömb, hozzuk létre
+            if (!invoice.reminders) {
+              await Invoice.updateOne(
+                { _id: invoice._id },
+                { $set: { reminders: [] } }
+              );
+            }
+
+            // Adjuk hozzá az új emlékeztetőt
+            await Invoice.updateOne(
+              { _id: invoice._id },
+              { $push: { reminders: { type: reminderType, sentAt: now } } }
+            );
+
+            sentCount++;
+          }
+
+          results.push({
+            projectId: project._id,
+            invoiceId: invoice._id,
+            invoiceNumber: invoice.number,
+            reminderType,
+            success: result.success
+          });
         }
       }
     }

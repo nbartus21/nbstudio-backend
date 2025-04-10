@@ -94,7 +94,13 @@ const projectSchema = new mongoose.Schema({
       nextDate: Date, // Következő számlázási dátum
       endDate: Date, // Ha üres, akkor végtelen
       remainingOccurrences: Number // Ha 0 vagy üres, akkor végtelen
-    }
+    },
+    // Emlékeztetők és felszólítások
+    reminders: [{
+      type: { type: String, enum: ['firstReminder', 'secondReminder', 'finalReminder', 'overdue', 'dueSoon', 'new'] },
+      sentAt: { type: Date, default: Date.now },
+      success: { type: Boolean, default: true }
+    }]
   }],
   // AI elemzések és javaslatok
   aiAnalysis: {
