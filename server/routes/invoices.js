@@ -9,6 +9,7 @@ import fs from 'fs';
 import path from 'path';
 import cron from 'node-cron';
 import { checkOverdueInvoices, checkDueSoonInvoices } from '../services/invoiceReminderService.js';
+import { processExpiryInvoices } from '../services/expiryInvoiceService.js';
 // E-mail értesítés funkció ideiglenesen kikapcsolva
 // import { sendInvoiceNotificationEmail } from '../services/invoiceNotificationService.js';
 
@@ -1420,6 +1421,47 @@ cron.schedule('0 10 * * *', async () => {
     console.log(`Hamarosan lejáró számla emlékeztetők küldése befejezve, ${result.sentCount} email elküldve`);
   } catch (error) {
     console.error('Hiba a hamarosan lejáró számla emlékeztetők küldése során:', error);
+  }
+});
+
+// Cron job beállítása a domain és hosting lejárat előtti számlák generálásához
+// Minden nap 08:00-kor lefut
+cron.schedule('0 8 * * *', async () => {
+  try {
+    console.log('Domain és hosting lejárat előtti számlák generálása indul...');
+    const result = await processExpiryInvoices();
+    console.log(`Lejárat előtti számlák generálása befejezve, ${result.totalGenerated} számla generálva`);
+    console.log(`- Domain számlák: ${result.domainResults.generatedCount}`);
+    console.log(`- Hosting számlák: ${result.hostingResults.generatedCount}`);
+  } catch (error) {
+    console.error('Hiba a lejárat előtti számlák generálása során:', error);
+  }
+});
+
+// Lejárat előtti számlák manuális generálása
+router.post('/expiry-invoices/generate', async (req, res) => {
+  try {
+    console.log('Lejárat előtti számlák manuális generálása indul...');
+    const result = await processExpiryInvoices();
+
+    res.status(200).json({
+      success: true,
+      message: `Lejárat előtti számlák generálása befejezve, ${result.totalGenerated} számla generálva`,
+      totalGenerated: result.totalGenerated,
+      domainInvoices: result.domainResults.generatedCount,
+      hostingInvoices: result.hostingResults.generatedCount,
+      details: {
+        domains: result.domainResults.results,
+        hostings: result.hostingResults.results
+      }
+    });
+  } catch (error) {
+    console.error('Hiba a lejárat előtti számlák manuális generálása során:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Hiba történt a lejárat előtti számlák generálása közben',
+      error: error.message
+    });
   }
 });
 
