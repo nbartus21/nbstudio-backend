@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Trash2, Download, Search, RefreshCw, AlertCircle } from 'lucide-react';
+import { FileText, Trash2, Download, Search, RefreshCw, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { formatFileSize, formatShortDate, debugLog } from './utils';
 import { getS3Url } from '../../services/s3Service';
 
@@ -27,7 +27,12 @@ const translations = {
     noSearchResults: "No files match your search",
     tryAdjustingSearch: "Try adjusting your search term",
     loading: "Loading files...",
-    client: "Client"
+    client: "Client",
+    previous: "Previous",
+    next: "Next",
+    page: "Page",
+    of: "of",
+    totalFiles: "files total"
   },
   hu: {
     title: "Projekt fájlok",
@@ -51,7 +56,12 @@ const translations = {
     noSearchResults: "Nincs a keresésnek megfelelő fájl",
     client: "Ügyfél",
     tryAdjustingSearch: "Próbáld módosítani a keresési feltételt",
-    loading: "Fájlok betöltése..."
+    loading: "Fájlok betöltése...",
+    previous: "Előző",
+    next: "Következő",
+    page: "Oldal",
+    of: "/",
+    totalFiles: "fájl összesen"
   },
   de: {
     title: "Projektdateien",
@@ -75,7 +85,12 @@ const translations = {
     noSearchResults: "Keine Dateien entsprechen Ihrer Suche",
     tryAdjustingSearch: "Versuchen Sie, Ihren Suchbegriff anzupassen",
     loading: "Dateien werden geladen...",
-    client: "Kunde"
+    client: "Kunde",
+    previous: "Zurück",
+    next: "Weiter",
+    page: "Seite",
+    of: "von",
+    totalFiles: "Dateien insgesamt"
   }
 };
 
@@ -92,6 +107,12 @@ const ProjectFileList = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [fileToDelete, setFileToDelete] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 10,
+    total: initialFiles.length,
+    pages: Math.ceil(initialFiles.length / 10)
+  });
 
   // Get translations for current language
   const t = translations[language] || translations.hu;
@@ -137,6 +158,11 @@ const ProjectFileList = ({
         const data = await response.json();
         debugLog('fetchFiles', `Successfully fetched ${data.length} files`);
         setFiles(data);
+        setPagination(prev => ({
+          ...prev,
+          total: data.length,
+          pages: Math.ceil(data.length / prev.limit)
+        }));
       } else {
         console.error('Error fetching files:', response.status, response.statusText);
         const errorText = await response.text();
@@ -197,6 +223,18 @@ const ProjectFileList = ({
   const filteredFiles = files.filter(file =>
     file.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // Handle pagination
+  const handlePageChange = (newPage) => {
+    if (newPage > 0 && newPage <= pagination.pages) {
+      setPagination(prev => ({ ...prev, page: newPage }));
+    }
+  };
+
+  // Get current page files
+  const indexOfLastFile = pagination.page * pagination.limit;
+  const indexOfFirstFile = indexOfLastFile - pagination.limit;
+  const currentFiles = filteredFiles.slice(indexOfFirstFile, indexOfLastFile);
 
   return (
     <div className="w-full mt-6">
@@ -259,7 +297,7 @@ const ProjectFileList = ({
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredFiles.map((file) => (
+                  {currentFiles.map((file) => (
                     <tr key={file.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3 whitespace-nowrap">
                         <div className="flex items-center">
@@ -311,6 +349,94 @@ const ProjectFileList = ({
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+
+          {/* Pagination controls - only show if we have files and more than one page */}
+          {filteredFiles.length > 0 && pagination.pages > 1 && (
+            <div className="flex items-center justify-between bg-white px-4 py-3 border-t border-gray-200 sm:px-6">
+              <div className="flex flex-1 justify-between sm:hidden">
+                <button
+                  onClick={() => handlePageChange(pagination.page - 1)}
+                  disabled={pagination.page === 1}
+                  className="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {t.previous}
+                </button>
+                <button
+                  onClick={() => handlePageChange(pagination.page + 1)}
+                  disabled={pagination.page === pagination.pages}
+                  className="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {t.next}
+                </button>
+              </div>
+              <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm text-gray-700">
+                    <span className="font-medium">{filteredFiles.length}</span> {t.totalFiles},
+                    <span className="font-medium"> {pagination.page}</span> {t.of} <span className="font-medium">{pagination.pages}</span>
+                  </p>
+                </div>
+                <div>
+                  <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+                    <button
+                      onClick={() => handlePageChange(pagination.page - 1)}
+                      disabled={pagination.page === 1}
+                      className={`relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ${pagination.page === 1 ? 'cursor-not-allowed' : 'hover:bg-gray-50'}`}
+                    >
+                      <span className="sr-only">{t.previous}</span>
+                      <ChevronLeft className="h-5 w-5" aria-hidden="true" />
+                    </button>
+
+                    {/* Page numbers */}
+                    {Array.from({ length: pagination.pages }, (_, i) => {
+                      // Show only a limited number of page buttons
+                      if (
+                        i === 0 || // First page
+                        i === pagination.pages - 1 || // Last page
+                        (i >= pagination.page - 2 && i <= pagination.page) || // 2 pages before current
+                        (i >= pagination.page && i <= pagination.page + 1) // 1 page after current
+                      ) {
+                        return (
+                          <button
+                            key={i + 1}
+                            onClick={() => handlePageChange(i + 1)}
+                            className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold ${pagination.page === i + 1
+                              ? 'z-10 bg-indigo-600 text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600'
+                              : 'text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0'
+                              }`}
+                          >
+                            {i + 1}
+                          </button>
+                        );
+                      } else if (
+                        (i === 1 && pagination.page > 3) || // Show ellipsis after first page
+                        (i === pagination.pages - 2 && pagination.page < pagination.pages - 2) // Show ellipsis before last page
+                      ) {
+                        return (
+                          <span
+                            key={i + 1}
+                            className="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-700 ring-1 ring-inset ring-gray-300"
+                          >
+                            ...
+                          </span>
+                        );
+                      }
+                      return null;
+                    })}
+
+                    <button
+                      onClick={() => handlePageChange(pagination.page + 1)}
+                      disabled={pagination.page === pagination.pages}
+                      className={`relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ${pagination.page === pagination.pages ? 'cursor-not-allowed' : 'hover:bg-gray-50'}`}
+                    >
+                      <span className="sr-only">{t.next}</span>
+                      <ChevronRight className="h-5 w-5" aria-hidden="true" />
+                    </button>
+                  </nav>
+                </div>
+              </div>
             </div>
           )}
         </>
