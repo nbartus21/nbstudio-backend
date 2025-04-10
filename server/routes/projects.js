@@ -538,11 +538,6 @@ const verifyPin = async (req, res) => {
     if (!updateProject) {
       console.log('[DEBUG] PIN ellenőrzés végrehajtása (nincs updateProject)');
 
-      // FONTOS: PIN ellenőrzés kikapcsolva, minden kérést engedünk
-      console.log('[DEBUG] PIN ellenőrzés kikapcsolva, minden kérést engedünk');
-      console.log('[DEBUG] PIN ellenőrzés sikeres');
-
-      /* Régi PIN ellenőrzés kikommentezve
       if (!pin || pin.trim() === '') {
         console.log('[DEBUG] Nincs megadva PIN vagy üres');
         // Ha nincs PIN a projekthez, vagy üres, akkor engedjük be
@@ -559,7 +554,7 @@ const verifyPin = async (req, res) => {
         // Ha a megadott PIN nem egyezik a projekt PIN-jével, akkor hiba
         return res.status(403).json({ message: 'Érvénytelen PIN kód' });
       }
-      */
+      console.log('[DEBUG] PIN ellenőrzés sikeres');
     } else {
       console.log('[DEBUG] PIN ellenőrzés kihagyva, mert updateProject objektum érkezett');
       if (updateProject.client) {

@@ -175,6 +175,14 @@ const SharedProjectView = () => {
     // Tisztítsuk meg a tokent minden extra paramétertől
     const cleanToken = token.split('?')[0];
 
+    // Adjuk hozzá a PIN-t az URL-hez, hogy a SharedProjectDashboard is hozzáférjen
+    // Ez csak akkor történik meg, ha a PIN ellenőrzés sikeres
+    const addPinToUrl = (verifiedPin) => {
+      const url = new URL(window.location.href);
+      url.searchParams.set('pin', verifiedPin);
+      window.history.replaceState({}, '', url);
+    };
+
     debugLog('verifyPin', 'Verifying PIN', { token: cleanToken, pinLength: pin.length, language });
 
     try {
@@ -289,7 +297,10 @@ const SharedProjectView = () => {
         };
         localStorage.setItem(`project_session_${cleanToken}`, JSON.stringify(session));
 
-        debugLog('verifyPin', 'Session saved with language preference');
+        // Adjuk hozzá a PIN-t az URL-hez, hogy a SharedProjectDashboard is hozzáférjen
+        addPinToUrl(pin);
+
+        debugLog('verifyPin', 'Session saved with language preference and PIN added to URL');
       } else {
         debugLog('verifyPin', 'PIN verification failed', { message: data.message });
         setError(data.message || t.invalidPin);
@@ -327,7 +338,7 @@ const SharedProjectView = () => {
       try {
         // 1. Először a nyilvános verify-pin végpontot próbáljuk
         debugLog('handleProjectUpdate', 'Trying to update using verify-pin endpoint first');
-        
+
         // Készítsünk egy updateProject objektumot a verify-pin végponthoz
         const updateProjectData = {
           token: cleanToken,
@@ -368,7 +379,7 @@ const SharedProjectView = () => {
           }
         } else {
           debugLog('handleProjectUpdate', 'Failed to update project via verify-pin endpoint', { status: verifyPinResponse.status });
-          
+
           // 2. Ha a nyilvános végpont nem sikerült, csak akkor próbáljuk meg a közvetlen PUT kérést
           try {
             debugLog('handleProjectUpdate', 'Falling back to direct API call');

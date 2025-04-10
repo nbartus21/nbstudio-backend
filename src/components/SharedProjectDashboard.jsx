@@ -256,6 +256,27 @@ const SharedProjectDashboard = ({
         console.log('Using PIN from project sharing data:', pinToUse);
       }
 
+      // 4. Ha még mindig nincs, próbáljuk a URL-ből kinyerni a PIN-t
+      if (!pinToUse) {
+        const urlParams = new URLSearchParams(window.location.search);
+        const pinFromUrl = urlParams.get('pin');
+        if (pinFromUrl) {
+          pinToUse = pinFromUrl;
+          console.log('Using PIN from URL:', pinToUse);
+
+          // Mentsük el a PIN-t a session-be, hogy később is tudjuk használni
+          session.pin = pinToUse;
+          localStorage.setItem(`project_session_${cleanToken}`, JSON.stringify(session));
+        }
+      }
+
+      // 5. Ha még mindig nincs, kérjük meg a felhasználót, hogy adja meg a PIN-t
+      if (!pinToUse) {
+        // Itt nem kérünk PIN-t, mert ez egy automatikus frissítés
+        // A felhasználó már megadta a PIN-t a SharedProjectView-ban
+        console.log('No PIN found, user needs to enter it manually');
+      }
+
       // Előkészítjük a kérés tartalmát, részletes naplózással
       const requestData = {
         token: cleanToken,
