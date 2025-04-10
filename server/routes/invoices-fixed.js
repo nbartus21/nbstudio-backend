@@ -7,7 +7,6 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import fs from 'fs';
 import cron from 'node-cron';
-import path from 'path';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -499,7 +498,7 @@ router.get('/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => {
     
     // Fejléc logó (ha létezik)
     try {
-      const logoPath = path.join(__dirname, '..', 'public', 'logo.png');
+      const logoPath = join(__dirname, '..', 'public', 'logo.png');
       console.log('Logo útvonal ellenőrzése:', logoPath);
       if (fs.existsSync(logoPath)) {
         console.log('Logo megtalálva, hozzáadás a PDF-hez');

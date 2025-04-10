@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Check, X, Info, Edit, Monitor, Server, Bell, Mail, User, DollarSign, AlertCircle, Share2, Plus, Eye, Copy, Trash2, AlertTriangle } from 'lucide-react';
+import { Check, X, Info, Edit, Monitor, Server, Bell, Mail, User, DollarSign, AlertCircle } from 'lucide-react';
 import { api } from '../services/auth';
 import { Card, CardHeader, CardTitle, CardContent } from './Card';
 
@@ -374,36 +374,6 @@ const HostingManager = () => {
   const [error, setError] = useState(null);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
-  const [showShareModal, setShowShareModal] = useState(false);
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [shareableLink, setShareableLink] = useState('');
-  const [shareablePIN, setShareablePIN] = useState('');
-  const [newHostingData, setNewHostingData] = useState({
-    client: {
-      name: '',
-      email: '',
-      phone: '',
-      company: '',
-      address: {
-        street: '',
-        city: '',
-        postcode: '',
-        country: 'DE'
-      },
-      language: 'hu'
-    },
-    hosting: {
-      type: 'regular',
-      packageName: '',
-      billing: 'monthly',
-      price: '0',
-      domainName: '',
-      startDate: new Date().toISOString().split('T')[0],
-      endDate: ''
-    }
-  });
-  const [createFormErrors, setCreateFormErrors] = useState({});
-  const [copySuccess, setCopySuccess] = useState(false);
   const [lastCheckedTimestamp, setLastCheckedTimestamp] = useState(Date.now());
   const [hasNotificationPermission, setHasNotificationPermission] = useState(false);
   const [notificationCount, setNotificationCount] = useState(0);
@@ -411,11 +381,6 @@ const HostingManager = () => {
   const [notifications, setNotifications] = useState([]);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
-  const [filterStatus, setFilterStatus] = useState('all');
-  const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
-  const [orderToDelete, setOrderToDelete] = useState(null);
-  const [showDeleteAllConfirmModal, setShowDeleteAllConfirmModal] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
 
   // Értesítések engedélyezésének kérése
   const requestNotificationPermission = async () => {
@@ -454,29 +419,12 @@ const HostingManager = () => {
     };
   };
 
-  // Értesítés megjelenítése
-  const showNotification = (type, title, message) => {
-    // Itt használhatjuk a meglévő értesítési rendszert
-    createSystemNotification({
-      type: 'system',  // Használjunk érvényes enum értéket
-      title,
-      message,
-      severity: type === 'error' ? 'error' : 'info',  // A severity mezőben adjuk meg a hiba típusát
-      read: false,
-      date: new Date()
-    });
-  };
-
   // Rendszerértesítés létrehozása
   const createSystemNotification = async (notification) => {
     try {
       const response = await api.post(`${API_URL}/notifications/generate`, {
-        type: notification.type || 'system',
-        title: notification.title,
-        message: notification.message,
-        severity: notification.severity || 'info',
-        read: notification.read || false,
-        link: notification.link
+        type: 'hosting',
+        ...notification
       });
 
       if (response.ok) {
@@ -613,63 +561,12 @@ const HostingManager = () => {
         orderId: orderId
       });
 
-      // Ha jóváhagyták a rendelést, létrehozunk egy SharedWebhosting fiókot az ügyfélnek
+      // Értesítés küldése az ügyfélnek
       if (newStatus === 'active') {
-        try {
-          // A SharedWebhosting objektum létrehozása
-          const sharedWebhosting = {
-            client: {
-              name: updatedOrder.client.name,
-              email: updatedOrder.client.email,
-              phone: updatedOrder.client.phone || '',
-              company: updatedOrder.client.company || '',
-              vatNumber: updatedOrder.client.vatNumber || '',
-              address: updatedOrder.client.address || {},
-              language: 'hu' // Alapértelmezett nyelv
-            },
-            hosting: {
-              type: updatedOrder.plan.type || 'regular',
-              packageName: updatedOrder.plan.name,
-              billing: updatedOrder.plan.billing,
-              price: updatedOrder.plan.price,
-              domainName: updatedOrder.service.domainName,
-              startDate: new Date().toISOString(),
-              endDate: (() => {
-                const endDate = new Date();
-                if (updatedOrder.plan.billing === 'monthly') {
-                  endDate.setMonth(endDate.getMonth() + 1);
-                } else {
-                  endDate.setFullYear(endDate.getFullYear() + 1);
-                }
-                return endDate.toISOString();
-              })()
-            },
-            status: 'active',
-            sharing: {
-              // PIN és token automatikusan generálódik a szerveren
-            }
-          };
-
-          // SharedWebhosting létrehozása
-          const webhostingResponse = await api.post(`${API_URL}/sharedwebhosting`, sharedWebhosting);
-          
-          if (!webhostingResponse.ok) {
-            throw new Error('Failed to create shared webhosting account');
-          }
-
-          const createdWebhosting = await webhostingResponse.json();
-
-          // Email értesítés küldése az ügyfélnek
-          const notifyResponse = await api.post(`${API_URL}/notify-client`, {
-            webHostingId: createdWebhosting._id,
-            language: 'hu' // Alapértelmezett nyelv
-          });
-
-          // Értesítés küldése az ügyfélnek a régi módon is (kompatibilitás miatt)
-          await sendClientNotification(
-            updatedOrder.client.email,
-            'Rendelés jóváhagyva',
-            `Tisztelt ${updatedOrder.client.name}!
+        await sendClientNotification(
+          updatedOrder.client.email,
+          'Rendelés jóváhagyva',
+          `Tisztelt ${updatedOrder.client.name}!
 
 Az Ön ${updatedOrder.plan.name} hosting csomag rendelését jóváhagytuk, a szolgáltatás aktív.
 
@@ -677,22 +574,15 @@ Domain: ${updatedOrder.service.domainName}
 Csomag: ${updatedOrder.plan.name}
 Időszak: ${updatedOrder.plan.billing === 'monthly' ? 'Havi' : 'Éves'}
 
-A szolgáltatáshoz az alábbi linken férhet hozzá:
-https://project.nb-studio.net/shared-webhosting/${createdWebhosting.sharing.token}
-
-A belépéshez szükséges PIN kód: ${createdWebhosting.sharing.pin}
+A szolgáltatáshoz szükséges belépési adatokat külön e-mailben küldjük el Önnek.
 
 Üdvözlettel,
 Az NB-Studio csapata`
-          );
+        );
 
-          setSuccessMessage(`A rendelés sikeresen aktiválva, ügyfélfiók létrehozva, és értesítő e-mail kiküldve: ${updatedOrder.client.email}`);
-          setShowSuccessMessage(true);
-          setTimeout(() => setShowSuccessMessage(false), 5000);
-        } catch (webhostingError) {
-          console.error('Error creating shared webhosting account:', webhostingError);
-          setError('Sikeres aktiválás, de hiba történt az ügyfélfiók létrehozása során');
-        }
+        setSuccessMessage(`A rendelés sikeresen aktiválva, és értesítő e-mail kiküldve: ${updatedOrder.client.email}`);
+        setShowSuccessMessage(true);
+        setTimeout(() => setShowSuccessMessage(false), 5000);
       }
 
       await fetchOrders();
@@ -765,183 +655,6 @@ Az NB-Studio csapata`
     }
   };
 
-  // Megosztható link és PIN megtekintése
-  const handleViewSharing = async (orderId) => {
-    try {
-      // Megkeressük a megfelelő SharedWebhosting fiókot az orderId alapján
-      const response = await api.get(`${API_URL}/sharedwebhosting`);
-      
-      if (!response.ok) {
-        throw new Error('Nem sikerült lekérni a webhosting fiókokat');
-      }
-      
-      const webhostings = await response.json();
-      
-      // Találjuk meg a megfelelő webhosting fiókot
-      // Az egyszerűség kedvéért most csak az első fiókot vesszük, de itt lehetne keresés is
-      // Valós megoldásban a webhosting fiókhoz hozzáadnánk egy orderID mezőt a könnyebb kereséshez
-      const webhosting = webhostings.find(wh => 
-        // Itt lenne a jobb keresési feltétel, pl. wh.orderId === orderId
-        wh.hosting.domainName === orders.find(o => o._id === orderId)?.service.domainName
-      );
-      
-      if (!webhosting) {
-        throw new Error('Nem található megosztható fiók ehhez a rendeléshez');
-      }
-      
-      // Beállítjuk a megosztható adatokat
-      setShareableLink(`https://project.nb-studio.net/shared-webhosting/${webhosting.sharing.token}`);
-      setShareablePIN(webhosting.sharing.pin);
-      setShowShareModal(true);
-    } catch (error) {
-      console.error('Hiba a megosztási adatok lekérésekor:', error);
-      showNotification('error', 'Hiba', 'Nem sikerült lekérni a megosztási adatokat.');
-    }
-  };
-
-  // Link másolása a vágólapra
-  const handleCopyLink = () => {
-    navigator.clipboard.writeText(shareableLink);
-    setCopySuccess(true);
-    setTimeout(() => setCopySuccess(false), 3000);
-  };
-
-  // Új webhosting fiók létrehozása
-  const handleCreateHosting = async () => {
-    try {
-      // Adatok validálása
-      const errors = {};
-      if (!newHostingData.client.name) errors.name = 'A név kötelező';
-      if (!newHostingData.client.email) errors.email = 'Az email kötelező';
-      if (!newHostingData.hosting.packageName) errors.packageName = 'A csomag neve kötelező';
-      if (!newHostingData.hosting.domainName) errors.domainName = 'A domain név kötelező';
-      
-      if (Object.keys(errors).length > 0) {
-        setCreateFormErrors(errors);
-        return;
-      }
-      
-      // Az adatokat a szerver modellhez igazítjuk
-      const hostingData = {
-        ...newHostingData,
-        hosting: {
-          ...newHostingData.hosting,
-          // Konvertáljuk a billing értéket, ha 'annual' kell a modellben
-          billing: newHostingData.hosting.billing === 'yearly' ? 'annual' : newHostingData.hosting.billing,
-          // Konvertáljuk a price-t számra, mert a modellben Number típusú
-          price: parseFloat(newHostingData.hosting.price) || 0
-        }
-      };
-      
-      // Létrehozzuk a shared webhosting fiókot
-      const response = await api.post(`${API_URL}/sharedwebhosting`, hostingData);
-      
-      if (!response.ok) {
-        throw new Error('Nem sikerült létrehozni a webhosting fiókot');
-      }
-      
-      const createdWebhosting = await response.json();
-      
-      // Sikerült létrehozni, értesítjük a felhasználót
-      showNotification('success', 'Siker', 'A webhosting fiók sikeresen létrehozva.');
-      
-      // Email küldés
-      await api.post(`${API_URL}/sharedwebhosting/notify-client`, {
-        webHostingId: createdWebhosting._id,
-        language: createdWebhosting.client.language || 'hu'
-      });
-      
-      // Modál bezárása és adatok frissítése
-      setShowCreateModal(false);
-      setNewHostingData({
-        client: {
-          name: '',
-          email: '',
-          phone: '',
-          company: '',
-          address: {
-            street: '',
-            city: '',
-            postcode: '',
-            country: 'DE'
-          },
-          language: 'hu'
-        },
-        hosting: {
-          type: 'regular',
-          packageName: '',
-          billing: 'monthly',
-          price: '0',
-          domainName: '',
-          startDate: new Date().toISOString().split('T')[0],
-          endDate: ''
-        }
-      });
-      
-      // Frissítjük az adatokat
-      fetchOrders();
-      
-    } catch (error) {
-      console.error('Hiba a webhosting fiók létrehozásakor:', error);
-      showNotification('error', 'Hiba', 'Nem sikerült létrehozni a webhosting fiókot.');
-    }
-  };
-
-  // Egy rendelés törlése
-  const handleDeleteOrder = async (orderId) => {
-    try {
-      setIsDeleting(true);
-      const response = await api.delete(`${API_URL}/hosting/orders/${orderId}`);
-      
-      if (!response.ok) {
-        throw new Error('Failed to delete order');
-      }
-      
-      // Frissítjük a listát a törléssel
-      setOrders(orders.filter(order => order._id !== orderId));
-      
-      // Értesítés
-      showNotification('success', 'Siker', 'A rendelés sikeresen törölve.');
-      
-      // Modal bezárása
-      setShowDeleteConfirmModal(false);
-      setOrderToDelete(null);
-    } catch (error) {
-      console.error('Error deleting order:', error);
-      showNotification('error', 'Hiba', 'Nem sikerült törölni a rendelést.');
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-
-  // Minden rendelés törlése
-  const handleDeleteAllOrders = async () => {
-    try {
-      setIsDeleting(true);
-      
-      // Töröljük az összes rendelést
-      const response = await api.delete(`${API_URL}/hosting/orders`);
-      
-      if (!response.ok) {
-        throw new Error('Failed to delete all orders');
-      }
-      
-      // Lista frissítése
-      setOrders([]);
-      
-      // Értesítés
-      showNotification('success', 'Siker', 'Minden rendelés sikeresen törölve.');
-      
-      // Modal bezárása
-      setShowDeleteAllConfirmModal(false);
-    } catch (error) {
-      console.error('Error deleting all orders:', error);
-      showNotification('error', 'Hiba', 'Nem sikerült törölni a rendeléseket.');
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-
   // Inicializálás
   useEffect(() => {
     requestNotificationPermission();
@@ -953,24 +666,9 @@ Az NB-Studio csapata`
     return () => clearInterval(interval);
   }, []);
 
-  // Rendelések szűrése státusz alapján
+  // Rendelés szűrés
   const filterOrders = (status) => {
-    if (status === 'all') {
-      return orders;
-    }
-    return orders.filter((order) => order.status === status);
-  };
-
-  // A szűrés eredménye a filtered orders változóban
-  const filteredOrders = filterOrders(filterStatus);
-
-  // Csomag adatok formázása
-  const formatPackageDetails = (plan) => {
-    const type = plan.type === 'reseller' ? 'Viszonteladói' : 'Normál';
-    const billing = plan.billing === 'monthly' ? 'Havi' : 'Éves';
-    const price = new Intl.NumberFormat('hu-HU', { style: 'currency', currency: 'EUR' }).format(plan.price);
-    
-    return `${plan.name} (${type}, ${billing})`;
+    return orders.filter(order => order.status === status);
   };
 
   // Státusz színek
@@ -1055,221 +753,306 @@ Az NB-Studio csapata`
   }
 
   return (
-    <div className="container mx-auto px-4 py-6">
+    <div className="p-6 bg-gray-50 min-h-screen">
+      {/* Értesítések engedélyezése banner */}
+      {!hasNotificationPermission && (
+        <Card className="mb-6 bg-yellow-50 border-yellow-200">
+          <CardContent className="flex justify-between items-center py-3">
+            <span>Az értesítések engedélyezése segít nyomon követni az új rendeléseket.</span>
+            <button
+              onClick={requestNotificationPermission}
+              className="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600"
+            >
+              Értesítések engedélyezése
+            </button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Sikeres művelet üzenet */}
+      {showSuccessMessage && (
+        <Card className="mb-6 bg-green-50 border-green-200">
+          <CardContent className="flex justify-between items-center py-3">
+            <span className="text-green-700">{successMessage}</span>
+            <button
+              onClick={() => setShowSuccessMessage(false)}
+              className="text-green-700 hover:text-green-900"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Fejléc értesítés gombbal */}
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Hosting Kezelő</h1>
-        <div className="flex gap-2">
-          <button 
-            onClick={() => setShowCreateModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
-            <Plus className="w-4 h-4" />
-            Új hosting létrehozása
-          </button>
-          <button 
-            onClick={() => setShowDeleteAllConfirmModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-          >
-            <Trash2 className="w-4 h-4" />
-            Összes törlése
-          </button>
-        </div>
-      </div>
-
-      <div className="mb-6">
-        <div className="flex flex-wrap gap-2">
+        <h1 className="text-2xl font-bold text-gray-900">Hosting Rendelések</h1>
+        <div className="flex space-x-2 items-center">
           <button
-            className={`px-4 py-2 rounded-md ${
-              filterStatus === 'all' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800'
-            }`}
-            onClick={() => setFilterStatus('all')}
+            onClick={fetchOrders}
+            className="px-4 py-2 bg-white border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 flex items-center"
           >
-            Összes
+            <svg className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Frissítés
           </button>
-          <button
-            className={`px-4 py-2 rounded-md ${
-              filterStatus === 'new' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800'
-            }`}
-            onClick={() => setFilterStatus('new')}
-          >
-            Új
-          </button>
-          <button
-            className={`px-4 py-2 rounded-md ${
-              filterStatus === 'active' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800'
-            }`}
-            onClick={() => setFilterStatus('active')}
-          >
-            Aktív
-          </button>
-          <button
-            className={`px-4 py-2 rounded-md ${
-              filterStatus === 'suspended' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800'
-            }`}
-            onClick={() => setFilterStatus('suspended')}
-          >
-            Felfüggesztve
-          </button>
-          <button
-            className={`px-4 py-2 rounded-md ${
-              filterStatus === 'cancelled' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800'
-            }`}
-            onClick={() => setFilterStatus('cancelled')}
-          >
-            Törölve
-          </button>
-        </div>
-      </div>
-
-      {error ? (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-          <p>{error}</p>
-        </div>
-      ) : (
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Ügyfél
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Email
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Domain
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Csomag
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Státusz
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Fizetés
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Dátum
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Műveletek
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredOrders.length === 0 ? (
-                  <tr>
-                    <td colSpan="8" className="px-4 py-4 text-center text-gray-500">
-                      {loading ? 'Betöltés...' : 'Nincsenek megjeleníthető rendelések'}
-                    </td>
-                  </tr>
-                ) : (
-                  filteredOrders.map((order) => (
-                    <tr key={order._id} className="border-b hover:bg-gray-50">
-                      <td className="py-3 px-4">{order.client.name}</td>
-                      <td className="py-3 px-4">{order.client.email}</td>
-                      <td className="py-3 px-4">{order.service.domainName}</td>
-                      <td className="py-3 px-4">{formatPackageDetails(order.plan)}</td>
-                      <td className="py-3 px-4">
-                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(order.status)}`}>
-                          {order.status === 'new' ? 'Új' : 
-                           order.status === 'processing' ? 'Feldolgozás alatt' : 
-                           order.status === 'active' ? 'Aktív' :
-                           order.status === 'suspended' ? 'Felfüggesztve' : 'Törölve'}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4">
-                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${getPaymentStatusColor(order.payment.status)}`}>
-                          {order.payment.status === 'paid' ? 'Fizetve' : 
-                           order.payment.status === 'pending' ? 'Függőben' : 
-                           'Visszavonva'}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4">{formatDate(order.createdAt)}</td>
-                      <td className="py-3 px-4">
-                        <div className="flex space-x-2">
-                          <button
-                            onClick={() => {
-                              setSelectedOrder(order);
-                              setShowDetailsModal(true);
-                            }}
-                            className="p-1 text-blue-600 hover:text-blue-800"
-                            title="Részletek"
-                          >
-                            <Eye size={18} />
-                          </button>
-                          
-                          {order.status === 'active' && (
-                            <button
-                              onClick={() => handleViewSharing(order._id)}
-                              className="p-1 text-green-600 hover:text-green-800"
-                              title="Megosztási információk"
-                            >
-                              <Share2 size={18} />
-                            </button>
-                          )}
-                          
-                          {order.status === 'new' && (
-                            <>
-                              <button
-                                onClick={() => handleStatusUpdate(order._id, 'active')}
-                                className="p-1 text-green-600 hover:text-green-800"
-                                title="Jóváhagyás"
-                              >
-                                <Check size={18} />
-                              </button>
-                              <button
-                                onClick={() => handleRejectOrder(order._id)}
-                                className="p-1 text-red-600 hover:text-red-800"
-                                title="Elutasítás"
-                              >
-                                <X size={18} />
-                              </button>
-                            </>
-                          )}
-                          
-                          {order.status === 'active' && (
-                            <button
-                              onClick={() => handleStatusUpdate(order._id, 'suspended')}
-                              className="p-1 text-yellow-600 hover:text-yellow-800"
-                              title="Felfüggesztés"
-                            >
-                              <AlertCircle size={18} />
-                            </button>
-                          )}
-                          
-                          {order.status === 'suspended' && (
-                            <button
-                              onClick={() => handleStatusUpdate(order._id, 'active')}
-                              className="p-1 text-green-600 hover:text-green-800"
-                              title="Aktiválás"
-                            >
-                              <Check size={18} />
-                            </button>
-                          )}
-                          
-                          {/* Törlés gomb minden sorhoz */}
-                          <button
-                            onClick={() => {
-                              setOrderToDelete(order);
-                              setShowDeleteConfirmModal(true);
-                            }}
-                            className="p-1 text-red-600 hover:text-red-800"
-                            title="Törlés"
-                          >
-                            <Trash2 size={18} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+          
+          <div className="relative">
+            <button
+              onClick={() => setShowNotifications(!showNotifications)}
+              className="relative p-2 text-gray-600 hover:text-gray-800"
+            >
+              <Bell className="w-6 h-6" />
+              {notificationCount > 0 && (
+                <span className="absolute -top-1 -right-1 flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-red-500 rounded-full">
+                  {notificationCount}
+                </span>
+              )}
+            </button>
+            {showNotifications && <NotificationsPanel />}
           </div>
         </div>
-      )}
+      </div>
+
+      {/* Statisztika kártyák */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex justify-between items-center">
+              <div>
+                <p className="text-sm text-gray-500">Összes rendelés</p>
+                <p className="text-2xl font-bold">{orders.length}</p>
+              </div>
+              <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
+                <Monitor className="h-6 w-6 text-blue-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex justify-between items-center">
+              <div>
+                <p className="text-sm text-gray-500">Aktív csomagok</p>
+                <p className="text-2xl font-bold">
+                  {orders.filter(order => order.status === 'active').length}
+                </p>
+              </div>
+              <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
+                <Server className="h-6 w-6 text-green-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex justify-between items-center">
+              <div>
+                <p className="text-sm text-gray-500">Feldolgozandó</p>
+                <p className="text-2xl font-bold">
+                  {filterOrders('new').length + filterOrders('processing').length}
+                </p>
+              </div>
+              <div className="h-12 w-12 rounded-full bg-yellow-100 flex items-center justify-center">
+                <Info className="h-6 w-6 text-yellow-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex justify-between items-center">
+              <div>
+                <p className="text-sm text-gray-500">Felfüggesztett</p>
+                <p className="text-2xl font-bold">
+                  {filterOrders('suspended').length}
+                </p>
+              </div>
+              <div className="h-12 w-12 rounded-full bg-red-100 flex items-center justify-center">
+                <X className="h-6 w-6 text-red-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Rendelések táblázat */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Rendelések</CardTitle>
+        </CardHeader>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Ügyfél
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Csomag
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Státusz
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Fizetés
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Dátum
+                </th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Műveletek
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {orders.map((order) => (
+                <tr key={order._id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div>
+                      <div className="font-medium text-gray-900">{order.client.name}</div>
+                      <div className="text-sm text-gray-500">{order.client.email}</div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div>
+                      <div className="font-medium text-gray-900">{order.plan.name}</div>
+                      <div className="text-sm text-gray-500">
+                        {order.plan.type === 'reseller' ? 'Viszonteladói' : 'Normál'} - {
+                          order.plan.billing === 'monthly' ? 'Havi' : 'Éves'
+                        }
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(order.status)}`}>
+                      {order.status === 'new' ? 'Új' : 
+                       order.status === 'processing' ? 'Feldolgozás alatt' : 
+                       order.status === 'active' ? 'Aktív' :
+                       order.status === 'suspended' ? 'Felfüggesztve' : 'Törölve'}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getPaymentStatusColor(order.payment.status)}`}>
+                      {order.payment.status === 'paid' ? 'Fizetve' : 
+                       order.payment.status === 'pending' ? 'Függőben' : 
+                       order.payment.status === 'cancelled' ? 'Törölve' :
+                       'Visszatérítve'}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {new Date(order.createdAt).toLocaleDateString('hu-HU')}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <button
+                      onClick={() => {
+                        setSelectedOrder(order);
+                        setShowDetailsModal(true);
+                      }}
+                      className="text-indigo-600 hover:text-indigo-900 mr-3"
+                      title="Részletek"
+                    >
+                      <Info className="h-5 w-5" />
+                    </button>
+                    
+                    {(order.status === 'new' || order.status === 'processing') && (
+                      <button
+                        onClick={() => handleStatusUpdate(order._id, 'processing')}
+                        className="text-blue-600 hover:text-blue-900 mr-3"
+                        title="Feldolgozás indítása"
+                      >
+                        <Edit className="h-5 w-5" />
+                      </button>
+                    )}
+                    
+                    {order.status === 'processing' && (
+                      <button
+                        onClick={() => handleStatusUpdate(order._id, 'active')}
+                        className="text-green-600 hover:text-green-900 mr-3"
+                        title="Aktiválás"
+                      >
+                        <Check className="h-5 w-5" />
+                      </button>
+                    )}
+                    
+                    {order.status === 'active' && (
+                      <button
+                        onClick={() => handleStatusUpdate(order._id, 'suspended')}
+                        className="text-red-600 hover:text-red-900"
+                        title="Felfüggesztés"
+                      >
+                        <X className="h-5 w-5" />
+                      </button>
+                    )}
+                    
+                    {order.status === 'suspended' && (
+                      <button
+                        onClick={() => handleStatusUpdate(order._id, 'active')}
+                        className="text-green-600 hover:text-green-900"
+                        title="Újraaktiválás"
+                      >
+                        <Check className="h-5 w-5" />
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
+      {/* WHMCS integráció magyarázat kártya */}
+      <Card className="mt-6 bg-blue-50 border-blue-200">
+        <CardHeader>
+          <CardTitle className="text-blue-800">WHMCS Integráció Beállítások</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="mb-4">
+            A rendszer a következő WHMCS csomag azonosítókat használja az automatikus rendelések létrehozásához:
+          </p>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <h3 className="font-medium text-lg mb-2">Normál csomagok:</h3>
+              <ul className="list-disc pl-5 space-y-1">
+                <li><strong>Kezdő csomag:</strong> ID = 1</li>
+                <li><strong>Üzleti csomag:</strong> ID = 2</li>
+                <li><strong>Professzionális csomag:</strong> ID = 3</li>
+              </ul>
+            </div>
+            
+            <div>
+              <h3 className="font-medium text-lg mb-2">Viszonteladói csomagok:</h3>
+              <ul className="list-disc pl-5 space-y-1">
+                <li><strong>Viszonteladói kezdő:</strong> ID = 4</li>
+                <li><strong>Viszonteladói üzleti:</strong> ID = 5</li>
+                <li><strong>Viszonteladói professzionális:</strong> ID = 6</li>
+              </ul>
+            </div>
+          </div>
+          
+          <div className="mt-4 bg-blue-100 p-4 rounded-md">
+            <p className="font-medium">A WHMCS csomag ID-kat a kódban a következő helyen lehet beállítani:</p>
+            <p className="mt-2 font-mono text-sm bg-white p-2 rounded">
+              const WHMCS_CONFIG = &#123;<br />
+              &nbsp;&nbsp;PACKAGE_IDS: &#123;<br />
+              &nbsp;&nbsp;&nbsp;&nbsp;normal: &#123;<br />
+              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;starter: 1,&nbsp;&nbsp;&nbsp;&nbsp;// Kezdő csomag ID<br />
+              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;business: 2,&nbsp;&nbsp;// Üzleti csomag ID<br />
+              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;professional: 3&nbsp;&nbsp;// Professzionális csomag ID<br />
+              &nbsp;&nbsp;&nbsp;&nbsp;&#125;,<br />
+              &nbsp;&nbsp;&nbsp;&nbsp;reseller: &#123;...&#125;<br />
+              &nbsp;&nbsp;&#125;<br />
+              &#125;;
+            </p>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Részletek Modal */}
       {showDetailsModal && selectedOrder && (
@@ -1282,559 +1065,6 @@ Az NB-Studio csapata`
           onStatusUpdate={handleStatusUpdate}
           onReject={handleRejectOrder}
         />
-      )}
-
-      {/* Megosztási információk modális */}
-      {showShareModal && (
-        <Modal isOpen={showShareModal} onClose={() => setShowShareModal(false)}>
-          <div className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h2 className="text-xl font-semibold">Megosztási információk</h2>
-              <button
-                onClick={() => setShowShareModal(false)}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                <X className="h-6 w-6" />
-              </button>
-            </div>
-            
-            <div className="space-y-6">
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <h3 className="font-medium mb-2">Ügyfél megosztó link:</h3>
-                <div className="flex items-center">
-                  <input 
-                    type="text" 
-                    value={shareableLink} 
-                    readOnly 
-                    className="flex-1 border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <button 
-                    onClick={handleCopyLink}
-                    className="ml-2 p-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                    title="Másolás vágólapra"
-                  >
-                    <Copy size={18} />
-                  </button>
-                </div>
-                {copySuccess && (
-                  <p className="text-green-600 text-sm mt-1">Link másolva a vágólapra!</p>
-                )}
-              </div>
-              
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <h3 className="font-medium mb-2">PIN kód:</h3>
-                <div className="flex items-center">
-                  <span className="text-xl font-semibold tracking-widest">{shareablePIN}</span>
-                </div>
-                <p className="text-sm text-gray-500 mt-1">Ezt a PIN kódot ossza meg az ügyféllel a belépéshez.</p>
-              </div>
-              
-              <div className="bg-yellow-50 p-4 rounded-lg border-l-4 border-yellow-400">
-                <div className="flex">
-                  <div className="flex-shrink-0">
-                    <Info className="h-5 w-5 text-yellow-400" />
-                  </div>
-                  <div className="ml-3">
-                    <p className="text-yellow-700">
-                      Ezek az információk bizalmasak. A megosztó linket és PIN kódot csak az ügyféllel ossza meg.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <div className="flex justify-end">
-              <button
-                onClick={() => setShowShareModal(false)}
-                className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300"
-              >
-                Bezárás
-              </button>
-            </div>
-          </div>
-        </Modal>
-      )}
-      
-      {/* Új hosting létrehozása modális */}
-      {showCreateModal && (
-        <Modal isOpen={showCreateModal} onClose={() => setShowCreateModal(false)}>
-          <div className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h2 className="text-xl font-semibold">Új Hosting Létrehozása</h2>
-              <button
-                onClick={() => setShowCreateModal(false)}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                <X className="h-6 w-6" />
-              </button>
-            </div>
-            
-            <div className="space-y-6">
-              {/* Ügyfél adatok */}
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <h3 className="font-medium mb-4">Ügyfél adatok</h3>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Név*
-                    </label>
-                    <input 
-                      type="text" 
-                      value={newHostingData.client.name} 
-                      onChange={(e) => setNewHostingData({
-                        ...newHostingData,
-                        client: {
-                          ...newHostingData.client,
-                          name: e.target.value
-                        }
-                      })}
-                      className={`w-full border ${createFormErrors.name ? 'border-red-500' : 'border-gray-300'} rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                    />
-                    {createFormErrors.name && (
-                      <p className="text-red-500 text-xs mt-1">{createFormErrors.name}</p>
-                    )}
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Email*
-                    </label>
-                    <input 
-                      type="email" 
-                      value={newHostingData.client.email} 
-                      onChange={(e) => setNewHostingData({
-                        ...newHostingData,
-                        client: {
-                          ...newHostingData.client,
-                          email: e.target.value
-                        }
-                      })}
-                      className={`w-full border ${createFormErrors.email ? 'border-red-500' : 'border-gray-300'} rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                    />
-                    {createFormErrors.email && (
-                      <p className="text-red-500 text-xs mt-1">{createFormErrors.email}</p>
-                    )}
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Telefon
-                    </label>
-                    <input 
-                      type="text" 
-                      value={newHostingData.client.phone} 
-                      onChange={(e) => setNewHostingData({
-                        ...newHostingData,
-                        client: {
-                          ...newHostingData.client,
-                          phone: e.target.value
-                        }
-                      })}
-                      className="w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Cég
-                    </label>
-                    <input 
-                      type="text" 
-                      value={newHostingData.client.company} 
-                      onChange={(e) => setNewHostingData({
-                        ...newHostingData,
-                        client: {
-                          ...newHostingData.client,
-                          company: e.target.value
-                        }
-                      })}
-                      className="w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Cím (utca, házszám)
-                    </label>
-                    <input 
-                      type="text" 
-                      value={newHostingData.client.address.street} 
-                      onChange={(e) => setNewHostingData({
-                        ...newHostingData,
-                        client: {
-                          ...newHostingData.client,
-                          address: {
-                            ...newHostingData.client.address,
-                            street: e.target.value
-                          }
-                        }
-                      })}
-                      className="w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Város
-                    </label>
-                    <input 
-                      type="text" 
-                      value={newHostingData.client.address.city} 
-                      onChange={(e) => setNewHostingData({
-                        ...newHostingData,
-                        client: {
-                          ...newHostingData.client,
-                          address: {
-                            ...newHostingData.client.address,
-                            city: e.target.value
-                          }
-                        }
-                      })}
-                      className="w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Irányítószám
-                    </label>
-                    <input 
-                      type="text" 
-                      value={newHostingData.client.address.postcode} 
-                      onChange={(e) => setNewHostingData({
-                        ...newHostingData,
-                        client: {
-                          ...newHostingData.client,
-                          address: {
-                            ...newHostingData.client.address,
-                            postcode: e.target.value
-                          }
-                        }
-                      })}
-                      className="w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Ország
-                    </label>
-                    <select 
-                      value={newHostingData.client.address.country} 
-                      onChange={(e) => setNewHostingData({
-                        ...newHostingData,
-                        client: {
-                          ...newHostingData.client,
-                          address: {
-                            ...newHostingData.client.address,
-                            country: e.target.value
-                          }
-                        }
-                      })}
-                      className="w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="DE">Németország</option>
-                      <option value="HU">Magyarország</option>
-                      <option value="AT">Ausztria</option>
-                      <option value="CH">Svájc</option>
-                    </select>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Nyelv
-                    </label>
-                    <select 
-                      value={newHostingData.client.language} 
-                      onChange={(e) => setNewHostingData({
-                        ...newHostingData,
-                        client: {
-                          ...newHostingData.client,
-                          language: e.target.value
-                        }
-                      })}
-                      className="w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="hu">Magyar</option>
-                      <option value="de">Német</option>
-                      <option value="en">Angol</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Hosting adatok */}
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <h3 className="font-medium mb-4">Hosting adatok</h3>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Csomag típus
-                    </label>
-                    <select 
-                      value={newHostingData.hosting.type} 
-                      onChange={(e) => setNewHostingData({
-                        ...newHostingData,
-                        hosting: {
-                          ...newHostingData.hosting,
-                          type: e.target.value
-                        }
-                      })}
-                      className="w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="regular">Normál</option>
-                      <option value="reseller">Viszonteladói</option>
-                    </select>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Csomag név*
-                    </label>
-                    <input 
-                      type="text" 
-                      value={newHostingData.hosting.packageName} 
-                      onChange={(e) => setNewHostingData({
-                        ...newHostingData,
-                        hosting: {
-                          ...newHostingData.hosting,
-                          packageName: e.target.value
-                        }
-                      })}
-                      className={`w-full border ${createFormErrors.packageName ? 'border-red-500' : 'border-gray-300'} rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                      placeholder="pl. Kezdő Csomag"
-                    />
-                    {createFormErrors.packageName && (
-                      <p className="text-red-500 text-xs mt-1">{createFormErrors.packageName}</p>
-                    )}
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Domain név*
-                    </label>
-                    <input 
-                      type="text" 
-                      value={newHostingData.hosting.domainName} 
-                      onChange={(e) => setNewHostingData({
-                        ...newHostingData,
-                        hosting: {
-                          ...newHostingData.hosting,
-                          domainName: e.target.value
-                        }
-                      })}
-                      className={`w-full border ${createFormErrors.domainName ? 'border-red-500' : 'border-gray-300'} rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                      placeholder="pl. pelda.com"
-                    />
-                    {createFormErrors.domainName && (
-                      <p className="text-red-500 text-xs mt-1">{createFormErrors.domainName}</p>
-                    )}
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Számlázási ciklus
-                    </label>
-                    <select 
-                      value={newHostingData.hosting.billing} 
-                      onChange={(e) => setNewHostingData({
-                        ...newHostingData,
-                        hosting: {
-                          ...newHostingData.hosting,
-                          billing: e.target.value
-                        }
-                      })}
-                      className="w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="monthly">Havi</option>
-                      <option value="annual">Éves</option>
-                    </select>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Ár (EUR)
-                    </label>
-                    <input 
-                      type="text" 
-                      value={newHostingData.hosting.price} 
-                      onChange={(e) => setNewHostingData({
-                        ...newHostingData,
-                        hosting: {
-                          ...newHostingData.hosting,
-                          price: e.target.value
-                        }
-                      })}
-                      className="w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      step="0.01"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Kezdő dátum
-                    </label>
-                    <input 
-                      type="date" 
-                      value={newHostingData.hosting.startDate} 
-                      onChange={(e) => setNewHostingData({
-                        ...newHostingData,
-                        hosting: {
-                          ...newHostingData.hosting,
-                          startDate: e.target.value
-                        }
-                      })}
-                      className="w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Lejárati dátum
-                    </label>
-                    <input 
-                      type="date" 
-                      value={newHostingData.hosting.endDate} 
-                      onChange={(e) => setNewHostingData({
-                        ...newHostingData,
-                        hosting: {
-                          ...newHostingData.hosting,
-                          endDate: e.target.value
-                        }
-                      })}
-                      className="w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <div className="flex justify-end space-x-3">
-              <button
-                onClick={() => setShowCreateModal(false)}
-                className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300"
-              >
-                Mégsem
-              </button>
-              <button
-                onClick={handleCreateHosting}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-              >
-                Létrehozás
-              </button>
-            </div>
-          </div>
-        </Modal>
-      )}
-
-      {/* Törlés megerősítő modális ablak */}
-      {showDeleteConfirmModal && orderToDelete && (
-        <Modal isOpen={showDeleteConfirmModal} onClose={() => setShowDeleteConfirmModal(false)}>
-          <div className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h2 className="text-xl font-semibold">Rendelés törlése</h2>
-              <button
-                onClick={() => setShowDeleteConfirmModal(false)}
-                className="text-gray-500 hover:text-gray-700"
-                disabled={isDeleting}
-              >
-                <X className="h-6 w-6" />
-              </button>
-            </div>
-            
-            <div className="bg-yellow-50 p-4 rounded-lg border-l-4 border-yellow-400">
-              <div className="flex">
-                <div className="flex-shrink-0">
-                  <AlertTriangle className="h-5 w-5 text-yellow-400" />
-                </div>
-                <div className="ml-3">
-                  <p className="text-yellow-700">
-                    Biztosan törölni szeretné ezt a rendelést?
-                  </p>
-                  <p className="text-yellow-700 mt-2 font-medium">
-                    {orderToDelete.client.name} - {orderToDelete.service.domainName}
-                  </p>
-                  <p className="text-yellow-700 mt-2">
-                    Ez a művelet nem visszavonható!
-                  </p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="flex justify-end space-x-3">
-              <button
-                onClick={() => setShowDeleteConfirmModal(false)}
-                className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300"
-                disabled={isDeleting}
-              >
-                Mégsem
-              </button>
-              <button
-                onClick={() => handleDeleteOrder(orderToDelete._id)}
-                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
-                disabled={isDeleting}
-              >
-                {isDeleting ? 'Törlés folyamatban...' : 'Törlés'}
-              </button>
-            </div>
-          </div>
-        </Modal>
-      )}
-
-      {/* Összes törlése megerősítő modális ablak */}
-      {showDeleteAllConfirmModal && (
-        <Modal isOpen={showDeleteAllConfirmModal} onClose={() => setShowDeleteAllConfirmModal(false)}>
-          <div className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h2 className="text-xl font-semibold">Összes rendelés törlése</h2>
-              <button
-                onClick={() => setShowDeleteAllConfirmModal(false)}
-                className="text-gray-500 hover:text-gray-700"
-                disabled={isDeleting}
-              >
-                <X className="h-6 w-6" />
-              </button>
-            </div>
-            
-            <div className="bg-red-50 p-4 rounded-lg border-l-4 border-red-400">
-              <div className="flex">
-                <div className="flex-shrink-0">
-                  <AlertTriangle className="h-5 w-5 text-red-400" />
-                </div>
-                <div className="ml-3">
-                  <p className="text-red-700 font-bold">
-                    FIGYELEM! Ez a művelet az ÖSSZES rendelést törölni fogja!
-                  </p>
-                  <p className="text-red-700 mt-2">
-                    Összesen {orders.length} rendelés lesz törölve.
-                  </p>
-                  <p className="text-red-700 mt-2 font-medium">
-                    Ez a művelet nem visszavonható!
-                  </p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="flex justify-end space-x-3">
-              <button
-                onClick={() => setShowDeleteAllConfirmModal(false)}
-                className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300"
-                disabled={isDeleting}
-              >
-                Mégsem
-              </button>
-              <button
-                onClick={handleDeleteAllOrders}
-                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
-                disabled={isDeleting}
-              >
-                {isDeleting ? 'Törlés folyamatban...' : 'Összes törlése'}
-              </button>
-            </div>
-          </div>
-        </Modal>
       )}
     </div>
   );

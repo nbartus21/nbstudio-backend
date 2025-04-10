@@ -25,7 +25,6 @@ import Help from './Help';
 import PartnersAdmin from './PartnersAdmin';
 import WebPagesAdmin from './WebPagesAdmin'; // Weboldalak kezelő komponens importálása
 import SettingsManager from './SettingsManager'; // Beállítások kezelő komponens importálása
-import SharedWebhostingView from './SharedWebhostingView';
 
 
 const App = () => {
@@ -189,7 +188,6 @@ const App = () => {
      />
      <Route path="*" element={<Navigate to="/magic-login" />} />
      <Route path="/shared-project/:token" element={<SharedProjectView />} />
-     <Route path="/shared-webhosting/:token" element={<SharedWebhostingView />} />
      <Route
        path="/ai-chat"
        element={
