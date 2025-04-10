@@ -231,7 +231,14 @@ const projectSchema = new mongoose.Schema({
     domainName: String,
     endDate: Date,
     addedAt: { type: Date, default: Date.now }
-  }]
+  }],
+
+  // Projekt nyelve
+  language: {
+    type: String,
+    enum: ['hu', 'en', 'de'],
+    default: 'hu'
+  }
 }, {
   timestamps: true
 });
