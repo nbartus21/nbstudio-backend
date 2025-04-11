@@ -474,6 +474,12 @@ import { verifyPin, uploadToS3 } from './routes/projects.js';
 // 1. A public/projects alá
 app.use('/api/public/projects', validateApiKey, projectRoutes);
 
+// Explicit regisztráljuk a verify-pin végpontot a public/projects alá is
+app.post('/api/public/projects/verify-pin', validateApiKey, async (req, res) => {
+  console.log('Request from /api/public/projects/verify-pin route');
+  await verifyPin(req, res);
+});
+
 // 2. Közvetlenül az api alá is
 app.post('/api/verify-pin', validateApiKey, async (req, res) => {
   console.log('Request from /api/verify-pin route');
