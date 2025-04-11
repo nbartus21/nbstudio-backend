@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   Upload, Check, AlertTriangle, LogOut, Users, Calendar,
   Globe, ChevronDown, File, Download, FileText, History,
-  LayoutDashboard, FileText as InvoiceIcon, Archive, Flag
+  LayoutDashboard, FileText as InvoiceIcon, Archive, Flag, RefreshCw
 } from 'lucide-react';
 import { formatShortDate, debugLog, loadFromLocalStorage, getProjectId } from './shared/utils';
 
@@ -49,7 +49,8 @@ const translations = {
       completed: "Completed",
       suspended: "Suspended",
       deleted: "Deleted"
-    }
+    },
+    refresh: "Refresh"
   },
   de: {
     overview: "Übersicht",
@@ -80,7 +81,8 @@ const translations = {
       completed: "Abgeschlossen",
       suspended: "Ausgesetzt",
       deleted: "Gelöscht"
-    }
+    },
+    refresh: "Aktualisieren"
   },
   hu: {
     overview: "Áttekintés",
@@ -111,7 +113,8 @@ const translations = {
       completed: "Befejezett",
       suspended: "Felfüggesztett",
       deleted: "Törölt"
-    }
+    },
+    refresh: "Frissítés"
   }
 };
 
@@ -852,6 +855,13 @@ const SharedProjectDashboard = ({
                   <span>{t.lastUpdate}: {formatShortDate(normalizedProject.updatedAt || new Date())}</span>
                   {/* Debug information about project ID */}
                   <span className="mx-1 text-xs text-gray-400">ID: {projectId?.substring(0, 8)}</span>
+                  <button
+                    onClick={refreshProjectData}
+                    className="ml-2 p-1 text-gray-500 hover:text-gray-700 focus:outline-none"
+                    title={t.refresh}
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                  </button>
                 </div>
               </div>
             </div>
