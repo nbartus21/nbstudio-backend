@@ -93,7 +93,8 @@ const Navigation = () => {
         { path: "/domains", label: "Domain Kezelő", icon: <Globe size={16} /> },
         { path: "/hosting", label: "Hosting Kezelő", icon: <Database size={16} /> },
         { path: "/accounting", label: "Könyvelés", icon: <DollarSign size={16} /> },
-        { path: "/support", label: "Support Ticketek", icon: <MessageCircle size={16} /> }
+        { path: "/support", label: "Support Ticketek", icon: <MessageCircle size={16} /> },
+        { path: "/calendar", label: "Naptár", icon: <Calendar size={16} /> }
       ]
     },
     // Rendszer menüpont eltávolítva
