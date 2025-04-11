@@ -19,6 +19,7 @@ const CalendarView = () => {
     title: '',
     description: '',
     dueDate: new Date().toISOString().split('T')[0],
+    dueTime: new Date().toTimeString().split(' ')[0].substring(0, 5),
     priority: 'medium',
     status: 'active',
     progress: 0
@@ -143,8 +144,21 @@ const CalendarView = () => {
     try {
       setIsSaving(true);
 
+      // Dátum és idő kombinálása
+      const combinedDateTime = newTask.dueTime
+        ? `${newTask.dueDate}T${newTask.dueTime}:00`
+        : `${newTask.dueDate}T00:00:00`;
+
+      // Feladat adatok előkészítése küldéshez
+      const taskToSave = {
+        ...newTask,
+        dueDate: combinedDateTime,
+        // Az idő mezőt nem küldjuk el, mert a szerver nem ismeri
+        dueTime: undefined
+      };
+
       // API hívás
-      const response = await api.post(`${API_URL}/api/translation/tasks`, newTask);
+      const response = await api.post(`${API_URL}/api/translation/tasks`, taskToSave);
 
       if (response.ok) {
         const savedTask = await response.json();
@@ -157,7 +171,7 @@ const CalendarView = () => {
         } else {
           // Offline mentés, ha az API nem elérhető
           const newTaskWithId = {
-            ...newTask,
+            ...taskToSave,
             _id: Date.now().toString(),
             createdAt: new Date().toISOString()
           };
@@ -173,7 +187,7 @@ const CalendarView = () => {
 
       // Offline mentés hiba esetén
       const newTaskWithId = {
-        ...newTask,
+        ...taskToSave,
         _id: Date.now().toString(),
         createdAt: new Date().toISOString()
       };
@@ -373,10 +387,12 @@ const CalendarView = () => {
           </button>
           <button
             onClick={() => {
+              const now = new Date();
               setNewTask({
                 title: '',
                 description: '',
-                dueDate: new Date().toISOString().split('T')[0],
+                dueDate: now.toISOString().split('T')[0],
+                dueTime: now.toTimeString().split(' ')[0].substring(0, 5),
                 priority: 'medium',
                 status: 'active',
                 progress: 0
@@ -583,7 +599,7 @@ const CalendarView = () => {
 
               <div>
                 <label htmlFor="dueDate" className="block text-sm font-medium text-gray-700 mb-1">
-                  Határidő <span className="text-red-500">*</span>
+                  Határidő dátuma <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="date"
@@ -593,6 +609,20 @@ const CalendarView = () => {
                   onChange={handleInputChange}
                   className="w-full p-2 border rounded-md focus:ring-blue-500 focus:border-blue-500"
                   required
+                />
+              </div>
+
+              <div>
+                <label htmlFor="dueTime" className="block text-sm font-medium text-gray-700 mb-1">
+                  Határidő időpontja
+                </label>
+                <input
+                  type="time"
+                  id="dueTime"
+                  name="dueTime"
+                  value={newTask.dueTime}
+                  onChange={handleInputChange}
+                  className="w-full p-2 border rounded-md focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
 
