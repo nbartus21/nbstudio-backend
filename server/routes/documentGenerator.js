@@ -34,8 +34,11 @@ router.post('/generate', authMiddleware, async (req, res) => {
     // Dokumentum generálása a szolgáltatással
     const result = await generateDocumentFromTemplate(templateId, documentData, req.user.id);
 
+    // Fejlesztői módban ellenőrizzük, hogy fut-e a MongoDB
+    const isDevelopment = process.env.NODE_ENV === 'development' || !process.env.NODE_ENV;
+
     // Ha kérték, mentsük el a generált dokumentumot az adatbázisba
-    if (saveAsDocument && result.content) {
+    if (saveAsDocument && result.content && !isDevelopment) {
       try {
         // Új Document modell létrehozása a generált tartalommal
         const newDocument = new Document({
@@ -57,6 +60,10 @@ router.post('/generate', authMiddleware, async (req, res) => {
         // Nem dobunk hibát, csak naplózzuk és folytatjuk a generált tartalom visszaadásával
         result.documentSaveError = docError.message;
       }
+    } else if (saveAsDocument && result.content && isDevelopment) {
+      // Fejlesztői módban nem mentjük az adatbázisba, csak visszaadjuk a generált tartalmat
+      console.log('Fejlesztői módban nem mentjük a dokumentumot az adatbázisba');
+      result.documentId = 'dev-mode-document-id';
     }
 
     res.json({
