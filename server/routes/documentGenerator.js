@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import PDFDocument from 'pdfkit';
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import authMiddleware from '../middleware/auth.js';
 import Document from '../models/Document.js';
 import { generateDocumentFromTemplate } from '../services/documentGenerator/generator.js';
@@ -35,17 +36,27 @@ router.post('/generate', authMiddleware, async (req, res) => {
 
     // Ha kérték, mentsük el a generált dokumentumot az adatbázisba
     if (saveAsDocument && result.content) {
-      // Új Document modell létrehozása a generált tartalommal
-      const newDocument = new Document({
-        title: documentData.title || `Generált dokumentum - ${new Date().toLocaleDateString('hu-HU')}`,
-        content: result.content,
-        client: documentData.client || null,
-        status: 'draft', // Alapértelmezett státusz
-        createdBy: req.user.id
-      });
+      try {
+        // Új Document modell létrehozása a generált tartalommal
+        const newDocument = new Document({
+          title: documentData.title || `Generált dokumentum - ${new Date().toLocaleDateString('hu-HU')}`,
+          content: result.content,
+          client: documentData.client || null,
+          status: 'draft', // Alapértelmezett státusz
+          createdBy: req.user.id,
+          // A pin és sharingToken automatikusan generálódik a pre-validate hook által
+          // de biztonság kedvéért itt is beállítjuk
+          pin: Math.floor(100000 + Math.random() * 900000).toString(),
+          sharingToken: crypto.randomBytes(32).toString('hex')
+        });
 
-      await newDocument.save();
-      result.documentId = newDocument._id; // Visszaadjuk a létrehozott dokumentum azonosítóját
+        await newDocument.save();
+        result.documentId = newDocument._id; // Visszaadjuk a létrehozott dokumentum azonosítóját
+      } catch (docError) {
+        console.error('Hiba a dokumentum mentésekor:', docError);
+        // Nem dobunk hibát, csak naplózzuk és folytatjuk a generált tartalom visszaadásával
+        result.documentSaveError = docError.message;
+      }
     }
 
     res.json({
@@ -63,7 +74,7 @@ router.post('/generate', authMiddleware, async (req, res) => {
 router.post('/generate-pdf', authMiddleware, async (req, res) => {
   try {
     const { content, templateId, documentData } = req.body;
-    
+
     // Nyelvi paraméter kezelése (alapértelmezett: hu) - ugyanúgy mint az invoice esetén
     const language = req.query.language || 'hu';
     const validLanguage = ['hu', 'en', 'de'].includes(language) ? language : 'hu';
@@ -87,7 +98,7 @@ router.post('/generate-pdf', authMiddleware, async (req, res) => {
         confidential: "CONFIDENTIAL DOCUMENT",
         status: {
           draft: "Draft",
-          active: "Active", 
+          active: "Active",
           expired: "Expired",
           cancelled: "Cancelled"
         }
@@ -105,7 +116,7 @@ router.post('/generate-pdf', authMiddleware, async (req, res) => {
         confidential: "VERTRAULICHES DOKUMENT",
         status: {
           draft: "Entwurf",
-          active: "Aktiv", 
+          active: "Aktiv",
           expired: "Abgelaufen",
           cancelled: "Storniert"
         }
@@ -123,7 +134,7 @@ router.post('/generate-pdf', authMiddleware, async (req, res) => {
         confidential: "BIZALMAS DOKUMENTUM",
         status: {
           draft: "Piszkozat",
-          active: "Aktív", 
+          active: "Aktív",
           expired: "Lejárt",
           cancelled: "Törölt"
         }
@@ -135,7 +146,7 @@ router.post('/generate-pdf', authMiddleware, async (req, res) => {
 
     // PDF generálás az invoice-hoz hasonló designnal
     console.log(`PDF generálása a(z) ${documentData.title || 'Generált dokumentum'} dokumentumhoz`);
-    
+
     // Create PDF document with explicit options to prevent auto page breaks
     const doc = new PDFDocument({
       size: 'A4',
@@ -345,7 +356,7 @@ router.post('/generate-pdf', authMiddleware, async (req, res) => {
     // Dokumentum tartalom - a HTML tartalom konvertálva sima szöveggé
     // Egyszerű HTML -> szöveg konverzió
     const textContent = content.replace(/<[^>]*>?/gm, '');
-    
+
     doc.font('Helvetica')
        .fontSize(11)
        .fillColor(colors.text)
