@@ -152,15 +152,27 @@ io.on('connection', (socket) => {
 
 // SSL configuration
 let sslOptions;
+const isDevelopment = process.env.NODE_ENV === 'development' || !process.env.NODE_ENV;
+
 try {
-  sslOptions = {
-    key: fs.readFileSync('/etc/letsencrypt/live/admin.nb-studio.net/privkey.pem'),
-    cert: fs.readFileSync('/etc/letsencrypt/live/admin.nb-studio.net/fullchain.pem')
-  };
-  console.log('SSL certificates loaded successfully');
+  if (!isDevelopment) {
+    sslOptions = {
+      key: fs.readFileSync('/etc/letsencrypt/live/admin.nb-studio.net/privkey.pem'),
+      cert: fs.readFileSync('/etc/letsencrypt/live/admin.nb-studio.net/fullchain.pem')
+    };
+    console.log('SSL certificates loaded successfully');
+  } else {
+    console.log('Running in development mode, skipping SSL certificate loading');
+    sslOptions = { key: 'dev', cert: 'dev' }; // Dummy values for development
+  }
 } catch (error) {
   console.error('Error loading SSL certificates:', error.message);
-  process.exit(1);
+  if (!isDevelopment) {
+    process.exit(1);
+  } else {
+    console.log('Continuing in development mode without SSL');
+    sslOptions = { key: 'dev', cert: 'dev' }; // Dummy values for development
+  }
 }
 
 // CORS configuration
@@ -1409,6 +1421,12 @@ app.use((err, req, res, next) => {
 // PROJECT DOMAIN HANDLING
 // ==============================================
 function setupProjectDomain() {
+  // Skip in development mode
+  if (isDevelopment) {
+    console.log('Skipping project domain setup in development mode');
+    return;
+  }
+
   // Create a separate Express app for project.nb-studio.net
   const projectApp = express();
 
@@ -1663,33 +1681,57 @@ console.log('EGYEDI_NAPLOBEJEGYZES_SZERVER_INDITAS: Szerver indítás kezdete');
 console.log('EGYEDI_NAPLOBEJEGYZES_SZERVER_INDITAS: Git commit:', 'fd7072dc461a07479dc0ab7ecc8b2d0f1b02425c');
 console.log('EGYEDI_NAPLOBEJEGYZES_SZERVER_INDITAS: Időpont:', new Date().toISOString());
 
-mongoose.connect(process.env.MONGO_URI)
+// MongoDB kapcsolódás
+const mongoUri = process.env.MONGO_URI || 'mongodb://localhost:27017/nbstudio';
+
+mongoose.connect(mongoUri)
   .then(() => {
-    console.log('Connected to MongoDB');
+    console.log('Connected to MongoDB:', mongoUri);
 
-    // Fájl írása a lemezre a MongoDB kapcsolat után
-    const mongoConnectedFilePath = path.join(process.cwd(), 'mongo-connected.txt');
-    fs.writeFileSync(mongoConnectedFilePath, `MongoDB kapcsolat sikeres: ${new Date().toISOString()}\n`, { flag: 'a' });
-    console.log('Fájl sikeresen írva a MongoDB kapcsolat után:', mongoConnectedFilePath);
+    try {
+      // Fájl írása a lemezre a MongoDB kapcsolat után
+      const mongoConnectedFilePath = path.join(process.cwd(), 'mongo-connected.txt');
+      fs.writeFileSync(mongoConnectedFilePath, `MongoDB kapcsolat sikeres: ${new Date().toISOString()}\n`, { flag: 'a' });
+      console.log('Fájl sikeresen írva a MongoDB kapcsolat után:', mongoConnectedFilePath);
+    } catch (error) {
+      console.warn('Nem sikerült a MongoDB kapcsolat fájlt írni:', error.message);
+    }
 
-    // Start HTTPS API server
-    https.createServer(sslOptions, app).listen(port, host, () => {
-      console.log(`API Server running on https://${host}:${port}`);
+    if (isDevelopment) {
+      // Fejlesztői módban HTTP szerver indítása
+      app.listen(port, host, () => {
+        console.log(`Development API Server running on http://${host}:${port}`);
+      });
 
-      // Fájl írása a lemezre a szerver indítása után
-      const serverStartedFilePath = path.join(process.cwd(), 'api-server-started.txt');
-      fs.writeFileSync(serverStartedFilePath, `API szerver indítása sikeres: ${new Date().toISOString()}\n`, { flag: 'a' });
-      console.log('Fájl sikeresen írva a szerver indítása után:', serverStartedFilePath);
-    });
+      // Start HTTP server for Socket.IO
+      const socketPort = parseInt(port) + 1;
+      httpServer.listen(socketPort, host, () => {
+        console.log(`Socket.IO server running on http://${host}:${socketPort}`);
+      });
+    } else {
+      // Éles környezetben HTTPS szerver indítása
+      https.createServer(sslOptions, app).listen(port, host, () => {
+        console.log(`API Server running on https://${host}:${port}`);
 
-    // Start HTTP server for Socket.IO
-    const socketPort = parseInt(port) + 1;
-    httpServer.listen(socketPort, host, () => {
-      console.log(`Socket.IO server running on http://${host}:${socketPort}`);
-    });
+        try {
+          // Fájl írása a lemezre a szerver indítása után
+          const serverStartedFilePath = path.join(process.cwd(), 'api-server-started.txt');
+          fs.writeFileSync(serverStartedFilePath, `API szerver indítása sikeres: ${new Date().toISOString()}\n`, { flag: 'a' });
+          console.log('Fájl sikeresen írva a szerver indítása után:', serverStartedFilePath);
+        } catch (error) {
+          console.warn('Nem sikerült a szerver indítás fájlt írni:', error.message);
+        }
+      });
 
-    // Setup project domain handling
-    setupProjectDomain();
+      // Start HTTP server for Socket.IO
+      const socketPort = parseInt(port) + 1;
+      httpServer.listen(socketPort, host, () => {
+        console.log(`Socket.IO server running on http://${host}:${socketPort}`);
+      });
+
+      // Setup project domain handling
+      setupProjectDomain();
+    }
   })
   .catch((error) => {
     console.error('MongoDB connection error:', error);
