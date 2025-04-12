@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FileText, Download, Check, AlertTriangle, RefreshCw, Copy, File } from 'lucide-react';
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://admin.nb-studio.net';
+const API_URL = import.meta.env.VITE_API_URL || 'https://admin.nb-studio.net:5001';
 
 const DocumentGenerator = () => {
   const [templates, setTemplates] = useState([]);
@@ -92,7 +92,7 @@ const DocumentGenerator = () => {
     } else if (name.includes('.')) {
       // Többszintű beágyazás kezelése (pl. client.address.city)
       const [parent, child, grandchild] = name.split('.');
-      
+
       if (grandchild) {
         // Három szintű beágyazás (pl. client.address.city)
         setDocumentData(prevData => ({
@@ -128,18 +128,18 @@ const DocumentGenerator = () => {
   const handleArrayItemChange = (arrayName, index, fieldName, value) => {
     setDocumentData(prevData => {
       const updatedArray = [...(prevData[arrayName] || [])];
-      
+
       // Ha az index nagyobb mint a tömb hossza, feltöltjük üres objektumokkal
       while (updatedArray.length <= index) {
         updatedArray.push({});
       }
-      
+
       // Frissítjük a megadott elemet
       updatedArray[index] = {
         ...updatedArray[index],
         [fieldName]: value
       };
-      
+
       return {
         ...prevData,
         [arrayName]: updatedArray
@@ -169,9 +169,9 @@ const DocumentGenerator = () => {
       setLoading(true);
       setError(null);
       setSuccess(null);
-      
+
       const response = await axios.post(
-        `${API_URL}/api/document-generator/generate`, 
+        `${API_URL}/api/document-generator/generate`,
         {
           templateId: selectedTemplate.id,
           documentData,
@@ -183,13 +183,13 @@ const DocumentGenerator = () => {
           }
         }
       );
-      
+
       setGeneratedContent(response.data.content);
-      
+
       if (response.data.documentId) {
         setGeneratedDocumentId(response.data.documentId);
       }
-      
+
       setSuccess('Dokumentum sikeresen létrehozva!');
       setLoading(false);
     } catch (err) {
@@ -202,16 +202,16 @@ const DocumentGenerator = () => {
   // PDF generálása és letöltése
   const handleGeneratePDF = async () => {
     if (!generatedContent) return;
-    
+
     try {
       setLoading(true);
-      
+
       const response = await axios.post(
         `${API_URL}/api/document-generator/generate-pdf?language=${language}`,
         {
           content: generatedContent,
           documentData
-        }, 
+        },
         {
           headers: {
             Authorization: `Bearer ${sessionStorage.getItem('token')}`
@@ -219,21 +219,21 @@ const DocumentGenerator = () => {
           responseType: 'blob'
         }
       );
-      
+
       // Blob létrehozása
       const blob = new Blob([response.data], { type: 'application/pdf' });
       const url = window.URL.createObjectURL(blob);
-      
+
       // Letöltés kezdeményezése
       const link = document.createElement('a');
       const fileName = `${documentData.title || 'document'}.pdf`.replace(/\s+/g, '_');
-      
+
       link.href = url;
       link.setAttribute('download', fileName);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      
+
       setLoading(false);
     } catch (err) {
       console.error('Hiba a PDF generálásakor:', err);
@@ -245,7 +245,7 @@ const DocumentGenerator = () => {
   // Mezők renderelése a sablonhoz - egyszerűsített implementáció
   const renderRequiredFields = () => {
     if (!selectedTemplate) return null;
-    
+
     return (
       <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="col-span-2">
@@ -259,7 +259,7 @@ const DocumentGenerator = () => {
             required
           />
         </div>
-        
+
         {/* Céges mezők */}
         <div>
           <label className="block text-sm font-medium text-gray-700">Cég neve</label>
@@ -271,7 +271,7 @@ const DocumentGenerator = () => {
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
           />
         </div>
-        
+
         <div>
           <label className="block text-sm font-medium text-gray-700">Cég címe</label>
           <input
@@ -282,7 +282,7 @@ const DocumentGenerator = () => {
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
           />
         </div>
-        
+
         <div>
           <label className="block text-sm font-medium text-gray-700">Adószám</label>
           <input
@@ -293,7 +293,7 @@ const DocumentGenerator = () => {
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
           />
         </div>
-        
+
         <div>
           <label className="block text-sm font-medium text-gray-700">Ügyvezető neve</label>
           <input
@@ -304,7 +304,7 @@ const DocumentGenerator = () => {
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
           />
         </div>
-        
+
         <div>
           <label className="block text-sm font-medium text-gray-700">Város</label>
           <input
@@ -315,7 +315,7 @@ const DocumentGenerator = () => {
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
           />
         </div>
-        
+
         {/* Email és telefon opcionális mezők */}
         <div>
           <label className="block text-sm font-medium text-gray-700">Email (opcionális)</label>
@@ -327,7 +327,7 @@ const DocumentGenerator = () => {
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
           />
         </div>
-        
+
         <div>
           <label className="block text-sm font-medium text-gray-700">Telefon (opcionális)</label>
           <input
@@ -341,7 +341,7 @@ const DocumentGenerator = () => {
       </div>
     );
   };
-  
+
   // UI renderelése
   return (
     <div className="bg-white shadow rounded-lg p-6 max-w-7xl mx-auto">
@@ -359,7 +359,7 @@ const DocumentGenerator = () => {
             />
             <span className="ml-2 text-sm text-gray-700">Mentés dokumentumként</span>
           </label>
-          
+
           <select
             value={language}
             onChange={(e) => setLanguage(e.target.value)}
@@ -371,7 +371,7 @@ const DocumentGenerator = () => {
           </select>
         </div>
       </div>
-      
+
       {error && (
         <div className="mb-4 p-4 rounded-md bg-red-50 border border-red-200">
           <div className="flex">
@@ -384,7 +384,7 @@ const DocumentGenerator = () => {
           </div>
         </div>
       )}
-      
+
       {success && (
         <div className="mb-4 p-4 rounded-md bg-green-50 border border-green-200">
           <div className="flex">
@@ -397,12 +397,12 @@ const DocumentGenerator = () => {
           </div>
         </div>
       )}
-      
+
       {/* Sablon kiválasztása */}
       {!selectedTemplate ? (
         <div>
           <h2 className="text-lg font-medium text-gray-900 mb-4">Válassz egy sablont</h2>
-          
+
           {loading ? (
             <div className="flex justify-center">
               <RefreshCw className="animate-spin h-8 w-8 text-blue-600" />
@@ -453,9 +453,9 @@ const DocumentGenerator = () => {
               Vissza a sablonokhoz
             </button>
           </div>
-          
+
           {renderRequiredFields()}
-          
+
           <div className="mt-6 flex justify-end space-x-3">
             <button
               type="button"
@@ -466,7 +466,7 @@ const DocumentGenerator = () => {
               {loading ? <RefreshCw className="animate-spin h-4 w-4 mr-2" /> : null}
               {generatedContent ? 'Újragenerálás' : 'Dokumentum generálása'}
             </button>
-            
+
             {generatedContent && (
               <button
                 type="button"
@@ -479,7 +479,7 @@ const DocumentGenerator = () => {
               </button>
             )}
           </div>
-          
+
           {/* Generált dokumentum előnézete */}
           {generatedContent && (
             <div className="mt-8">
@@ -492,7 +492,7 @@ const DocumentGenerator = () => {
                     </span>
                   )}
                 </h3>
-                
+
                 <div className="mt-4 p-4 border rounded-md bg-gray-50 relative">
                   <button
                     onClick={() => {
@@ -504,8 +504,8 @@ const DocumentGenerator = () => {
                   >
                     <Copy className="h-4 w-4 text-gray-500" />
                   </button>
-                  
-                  <div 
+
+                  <div
                     className="prose max-w-none overflow-auto"
                     dangerouslySetInnerHTML={{ __html: generatedContent }}
                   />
