@@ -46,6 +46,7 @@ import invoicesRouter from './routes/invoices.js';
 import partnersRouter from './routes/partners.js';
 import webPagesRouter from './routes/webpages.js';
 import settingsRouter from './routes/settings.js';
+import documentGeneratorRouter from './routes/documentGenerator.js';
 
 // Import middleware
 import authMiddleware from './middleware/auth.js';
@@ -1375,6 +1376,7 @@ app.use('/api', invoicesRouter);
 app.use('/api/partners', partnersRouter);
 app.use('/api/webpages', webPagesRouter);
 app.use('/api/settings', settingsRouter);
+app.use('/api/document-generator', documentGeneratorRouter);
 
 // Fix for transactions endpoint directly accessing the accountingRoutes
 app.use('/api/transactions', (req, res, next) => {
