@@ -83,8 +83,7 @@ const Navigation = () => {
       icon: <Calendar size={18} />,
       items: [
         { path: "/projects", label: "Projekt kezelő", icon: <FileText size={16} /> },
-        { path: "/invoices", label: "Számla Kezelő", icon: <DollarSign size={16} /> },
-        { path: "/document-generator", label: "Dokumentum Generátor", icon: <FileText size={16} /> }
+        { path: "/invoices", label: "Számla Kezelő", icon: <DollarSign size={16} /> }
       ]
     },
     {
