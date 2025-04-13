@@ -1150,7 +1150,7 @@ app.get('/api/projects/:projectId/invoices/:invoiceId/pdf', async (req, res) => 
          .fill(colors.primary);
 
       const tableHeaders = [t.item, t.quantity, t.unitPrice, t.total];
-      const tableColumnWidths = [270, 80, 90, 80]; // Javított oszlopszélességek, hogy az "Összesen" fejléc teljesen kiférjen
+      const tableColumnWidths = [245, 80, 90, 80]; // Javított oszlopszélességek
       const columnPositions = [50];
 
       // Kiszámoljuk a pozíciókat
