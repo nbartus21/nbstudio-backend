@@ -26,6 +26,7 @@ import PartnersAdmin from './PartnersAdmin';
 import WebPagesAdmin from './WebPagesAdmin'; // Weboldalak kezelő komponens importálása
 import SettingsManager from './SettingsManager'; // Beállítások kezelő komponens importálása
 import CalendarView from './services/CalendarView'; // Naptár nézet komponens importálása
+import DocumentGenerator from './DocumentGenerator'; // Dokumentum generátor importálása
 
 
 const App = () => {
@@ -192,6 +193,14 @@ const App = () => {
        element={
          <PrivateRoute>
            <Help />
+         </PrivateRoute>
+       }
+     />
+     <Route
+       path="/document-generator"
+       element={
+         <PrivateRoute>
+           <DocumentGenerator />
          </PrivateRoute>
        }
      />
