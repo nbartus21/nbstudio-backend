@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FileText, Download, Check, AlertTriangle, RefreshCw, Copy, File } from 'lucide-react';
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://admin.nb-studio.net:5001';
+const API_URL = import.meta.env.VITE_API_URL || 'https://admin.nb-studio.net';
 
 const DocumentGenerator = () => {
   const [templates, setTemplates] = useState([]);
@@ -92,7 +92,7 @@ const DocumentGenerator = () => {
     } else if (name.includes('.')) {
       // Többszintű beágyazás kezelése (pl. client.address.city)
       const [parent, child, grandchild] = name.split('.');
-
+      
       if (grandchild) {
         // Három szintű beágyazás (pl. client.address.city)
         setDocumentData(prevData => ({
@@ -128,18 +128,18 @@ const DocumentGenerator = () => {
   const handleArrayItemChange = (arrayName, index, fieldName, value) => {
     setDocumentData(prevData => {
       const updatedArray = [...(prevData[arrayName] || [])];
-
+      
       // Ha az index nagyobb mint a tömb hossza, feltöltjük üres objektumokkal
       while (updatedArray.length <= index) {
         updatedArray.push({});
       }
-
+      
       // Frissítjük a megadott elemet
       updatedArray[index] = {
         ...updatedArray[index],
         [fieldName]: value
       };
-
+      
       return {
         ...prevData,
         [arrayName]: updatedArray
@@ -169,9 +169,9 @@ const DocumentGenerator = () => {
       setLoading(true);
       setError(null);
       setSuccess(null);
-
+      
       const response = await axios.post(
-        `${API_URL}/api/document-generator/generate`,
+        `${API_URL}/api/document-generator/generate`, 
         {
           templateId: selectedTemplate.id,
           documentData,
@@ -183,13 +183,13 @@ const DocumentGenerator = () => {
           }
         }
       );
-
+      
       setGeneratedContent(response.data.content);
-
+      
       if (response.data.documentId) {
         setGeneratedDocumentId(response.data.documentId);
       }
-
+      
       setSuccess('Dokumentum sikeresen létrehozva!');
       setLoading(false);
     } catch (err) {
@@ -202,16 +202,16 @@ const DocumentGenerator = () => {
   // PDF generálása és letöltése
   const handleGeneratePDF = async () => {
     if (!generatedContent) return;
-
+    
     try {
       setLoading(true);
-
+      
       const response = await axios.post(
         `${API_URL}/api/document-generator/generate-pdf?language=${language}`,
         {
           content: generatedContent,
           documentData
-        },
+        }, 
         {
           headers: {
             Authorization: `Bearer ${sessionStorage.getItem('token')}`
@@ -219,21 +219,21 @@ const DocumentGenerator = () => {
           responseType: 'blob'
         }
       );
-
+      
       // Blob létrehozása
       const blob = new Blob([response.data], { type: 'application/pdf' });
       const url = window.URL.createObjectURL(blob);
-
+      
       // Letöltés kezdeményezése
       const link = document.createElement('a');
       const fileName = `${documentData.title || 'document'}.pdf`.replace(/\s+/g, '_');
-
+      
       link.href = url;
       link.setAttribute('download', fileName);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-
+      
       setLoading(false);
     } catch (err) {
       console.error('Hiba a PDF generálásakor:', err);
@@ -241,108 +241,8 @@ const DocumentGenerator = () => {
       setLoading(false);
     }
   };
-
-  // Mezők renderelése a sablonhoz - egyszerűsített implementáció
-  const renderRequiredFields = () => {
-    if (!selectedTemplate) return null;
-
-    return (
-      <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="col-span-2">
-          <label className="block text-sm font-medium text-gray-700">Dokumentum címe</label>
-          <input
-            type="text"
-            name="title"
-            value={documentData.title || ''}
-            onChange={(e) => handleInputChange(e)}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-            required
-          />
-        </div>
-
-        {/* Céges mezők */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Cég neve</label>
-          <input
-            type="text"
-            name="companyName"
-            value={documentData.companyName || ''}
-            onChange={(e) => handleInputChange(e)}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Cég címe</label>
-          <input
-            type="text"
-            name="companyAddress"
-            value={documentData.companyAddress || ''}
-            onChange={(e) => handleInputChange(e)}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Adószám</label>
-          <input
-            type="text"
-            name="taxNumber"
-            value={documentData.taxNumber || ''}
-            onChange={(e) => handleInputChange(e)}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Ügyvezető neve</label>
-          <input
-            type="text"
-            name="ceoName"
-            value={documentData.ceoName || ''}
-            onChange={(e) => handleInputChange(e)}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Város</label>
-          <input
-            type="text"
-            name="companyCity"
-            value={documentData.companyCity || ''}
-            onChange={(e) => handleInputChange(e)}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-          />
-        </div>
-
-        {/* Email és telefon opcionális mezők */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Email (opcionális)</label>
-          <input
-            type="email"
-            name="companyEmail"
-            value={documentData.companyEmail || ''}
-            onChange={(e) => handleInputChange(e)}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Telefon (opcionális)</label>
-          <input
-            type="text"
-            name="companyPhone"
-            value={documentData.companyPhone || ''}
-            onChange={(e) => handleInputChange(e)}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-          />
-        </div>
-      </div>
-    );
-  };
-
-  // UI renderelése
+  
+  // Az UI renderelése
   return (
     <div className="bg-white shadow rounded-lg p-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-6">
@@ -359,7 +259,7 @@ const DocumentGenerator = () => {
             />
             <span className="ml-2 text-sm text-gray-700">Mentés dokumentumként</span>
           </label>
-
+          
           <select
             value={language}
             onChange={(e) => setLanguage(e.target.value)}
@@ -371,7 +271,7 @@ const DocumentGenerator = () => {
           </select>
         </div>
       </div>
-
+      
       {error && (
         <div className="mb-4 p-4 rounded-md bg-red-50 border border-red-200">
           <div className="flex">
@@ -384,7 +284,7 @@ const DocumentGenerator = () => {
           </div>
         </div>
       )}
-
+      
       {success && (
         <div className="mb-4 p-4 rounded-md bg-green-50 border border-green-200">
           <div className="flex">
@@ -397,12 +297,12 @@ const DocumentGenerator = () => {
           </div>
         </div>
       )}
-
+      
       {/* Sablon kiválasztása */}
       {!selectedTemplate ? (
         <div>
           <h2 className="text-lg font-medium text-gray-900 mb-4">Válassz egy sablont</h2>
-
+          
           {loading ? (
             <div className="flex justify-center">
               <RefreshCw className="animate-spin h-8 w-8 text-blue-600" />
@@ -453,9 +353,9 @@ const DocumentGenerator = () => {
               Vissza a sablonokhoz
             </button>
           </div>
-
+          
           {renderRequiredFields()}
-
+          
           <div className="mt-6 flex justify-end space-x-3">
             <button
               type="button"
@@ -466,7 +366,7 @@ const DocumentGenerator = () => {
               {loading ? <RefreshCw className="animate-spin h-4 w-4 mr-2" /> : null}
               {generatedContent ? 'Újragenerálás' : 'Dokumentum generálása'}
             </button>
-
+            
             {generatedContent && (
               <button
                 type="button"
@@ -479,7 +379,7 @@ const DocumentGenerator = () => {
               </button>
             )}
           </div>
-
+          
           {/* Generált dokumentum előnézete */}
           {generatedContent && (
             <div className="mt-8">
@@ -492,7 +392,7 @@ const DocumentGenerator = () => {
                     </span>
                   )}
                 </h3>
-
+                
                 <div className="mt-4 p-4 border rounded-md bg-gray-50 relative">
                   <button
                     onClick={() => {
@@ -504,8 +404,8 @@ const DocumentGenerator = () => {
                   >
                     <Copy className="h-4 w-4 text-gray-500" />
                   </button>
-
-                  <div
+                  
+                  <div 
                     className="prose max-w-none overflow-auto"
                     dangerouslySetInnerHTML={{ __html: generatedContent }}
                   />
@@ -520,3 +420,530 @@ const DocumentGenerator = () => {
 };
 
 export default DocumentGenerator;
+    
+    return (
+      <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="col-span-2">
+          <label className="block text-sm font-medium text-gray-700">Dokumentum címe</label>
+          <input
+            type="text"
+            name="title"
+            value={documentData.title || ''}
+            onChange={(e) => handleInputChange(e)}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            required
+          />
+        </div>
+        
+        {/* Céges mezők */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Cég neve</label>
+          <input
+            type="text"
+            name="companyName"
+            value={documentData.companyName || ''}
+            onChange={(e) => handleInputChange(e)}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+          />
+        </div>
+        
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Cég címe</label>
+          <input
+            type="text"
+            name="companyAddress"
+            value={documentData.companyAddress || ''}
+            onChange={(e) => handleInputChange(e)}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+          />
+        </div>
+        
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Adószám</label>
+          <input
+            type="text"
+            name="taxNumber"
+            value={documentData.taxNumber || ''}
+            onChange={(e) => handleInputChange(e)}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+          />
+        </div>
+        
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Ügyvezető neve</label>
+          <input
+            type="text"
+            name="ceoName"
+            value={documentData.ceoName || ''}
+            onChange={(e) => handleInputChange(e)}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+          />
+        </div>
+        
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Város</label>
+          <input
+            type="text"
+            name="companyCity"
+            value={documentData.companyCity || ''}
+            onChange={(e) => handleInputChange(e)}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+          />
+        </div>
+        
+        {/* Email és telefon opcionális mezők */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Email (opcionális)</label>
+          <input
+            type="email"
+            name="companyEmail"
+            value={documentData.companyEmail || ''}
+            onChange={(e) => handleInputChange(e)}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+          />
+        </div>
+        
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Telefon (opcionális)</label>
+          <input
+            type="text"
+            name="companyPhone"
+            value={documentData.companyPhone || ''}
+            onChange={(e) => handleInputChange(e)}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+          />
+        </div>
+        
+        {/* Ügyfél mezők - ha a sablon tartalmazza a client mezőt */}
+        {(selectedTemplate.id.includes('szerzodes') || selectedTemplate.id.includes('arajanlat')) && (
+          <>
+            <div className="col-span-2 border-t border-gray-200 pt-4 mt-4">
+              <h3 className="text-lg font-medium text-gray-900">Ügyfél adatok</h3>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Ügyfél neve</label>
+              <input
+                type="text"
+                name="name"
+                value={documentData.client?.name || ''}
+                onChange={(e) => handleInputChange(e, 'client')}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Cég neve (opcionális)</label>
+              <input
+                type="text"
+                name="companyName"
+                value={documentData.client?.companyName || ''}
+                onChange={(e) => handleInputChange(e, 'client')}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Email</label>
+              <input
+                type="email"
+                name="email"
+                value={documentData.client?.email || ''}
+                onChange={(e) => handleInputChange(e, 'client')}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Telefonszám</label>
+              <input
+                type="text"
+                name="phone"
+                value={documentData.client?.phone || ''}
+                onChange={(e) => handleInputChange(e, 'client')}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Adószám (opcionális)</label>
+              <input
+                type="text"
+                name="taxNumber"
+                value={documentData.client?.taxNumber || ''}
+                onChange={(e) => handleInputChange(e, 'client')}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              />
+            </div>
+            
+            <div className="col-span-2">
+              <h4 className="text-sm font-medium text-gray-700">Címadatok</h4>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Utca, házszám</label>
+              <input
+                type="text"
+                name="client.address.street"
+                value={documentData.client?.address?.street || ''}
+                onChange={(e) => handleInputChange(e)}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Város</label>
+              <input
+                type="text"
+                name="client.address.city"
+                value={documentData.client?.address?.city || ''}
+                onChange={(e) => handleInputChange(e)}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Irányítószám</label>
+              <input
+                type="text"
+                name="client.address.postalCode"
+                value={documentData.client?.address?.postalCode || ''}
+                onChange={(e) => handleInputChange(e)}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Ország</label>
+              <input
+                type="text"
+                name="client.address.country"
+                value={documentData.client?.address?.country || ''}
+                onChange={(e) => handleInputChange(e)}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              />
+            </div>
+          </>
+        )}
+        
+        {/* Megbízási szerződés extra mezői */}
+        {selectedTemplate.id === 'megbizasi-szerzodes' && (
+          <>
+            <div className="col-span-2 border-t border-gray-200 pt-4 mt-4">
+              <h3 className="text-lg font-medium text-gray-900">Szerződés adatok</h3>
+            </div>
+            
+            <div className="col-span-2">
+              <label className="block text-sm font-medium text-gray-700">Feladat leírása</label>
+              <textarea
+                name="taskDescription"
+                value={documentData.taskDescription || ''}
+                onChange={(e) => handleInputChange(e)}
+                rows={4}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                required
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Megbízási díj</label>
+              <input
+                type="text"
+                name="fee"
+                value={documentData.fee || ''}
+                onChange={(e) => handleInputChange(e)}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                required
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Fizetési feltételek (opcionális)</label>
+              <input
+                type="text"
+                name="paymentTerms"
+                value={documentData.paymentTerms || ''}
+                onChange={(e) => handleInputChange(e)}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Szerződés kezdete</label>
+              <input
+                type="date"
+                name="contractStart"
+                value={documentData.contractStart || ''}
+                onChange={(e) => handleInputChange(e)}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Szerződés vége (opcionális)</label>
+              <input
+                type="date"
+                name="contractEnd"
+                value={documentData.contractEnd || ''}
+                onChange={(e) => handleInputChange(e)}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Keltezés helye</label>
+              <input
+                type="text"
+                name="contractCity"
+                value={documentData.contractCity || ''}
+                onChange={(e) => handleInputChange(e)}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                required
+              />
+            </div>
+          </>
+        )}
+        
+        {/* Árajánlat extra mezői */}
+        {selectedTemplate.id === 'arajanlat' && (
+          <>
+            <div className="col-span-2 border-t border-gray-200 pt-4 mt-4">
+              <h3 className="text-lg font-medium text-gray-900">Árajánlat adatok</h3>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Árajánlat száma</label>
+              <input
+                type="text"
+                name="offerNumber"
+                value={documentData.offerNumber || `AJ-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`}
+                onChange={(e) => handleInputChange(e)}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Árajánlat dátuma</label>
+              <input
+                type="date"
+                name="offerDate"
+                value={documentData.offerDate || new Date().toISOString().substr(0, 10)}
+                onChange={(e) => handleInputChange(e)}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Érvényesség</label>
+              <input
+                type="date"
+                name="validUntil"
+                value={documentData.validUntil || ''}
+                onChange={(e) => handleInputChange(e)}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Pénznem</label>
+              <select
+                name="currency"
+                value={documentData.currency || 'HUF'}
+                onChange={(e) => handleInputChange(e)}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              >
+                <option value="HUF">HUF (Ft)</option>
+                <option value="EUR">EUR (€)</option>
+                <option value="USD">USD ($)</option>
+              </select>
+            </div>
+            
+            <div className="col-span-2">
+              <label className="block text-sm font-medium text-gray-700">Fizetési feltételek</label>
+              <textarea
+                name="paymentTerms"
+                value={documentData.paymentTerms || 'Átutalás 8 napon belül. Az árajánlat elfogadása után a teljes összeg 50%-a előlegként fizetendő.'}
+                onChange={(e) => handleInputChange(e)}
+                rows={2}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              />
+            </div>
+            
+            <div className="col-span-2">
+              <label className="block text-sm font-medium text-gray-700">Megjegyzések (opcionális)</label>
+              <textarea
+                name="offerNotes"
+                value={documentData.offerNotes || ''}
+                onChange={(e) => handleInputChange(e)}
+                rows={3}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              />
+            </div>
+            
+            <div className="col-span-2 mt-4">
+              <div className="flex justify-between items-center">
+                <h4 className="text-sm font-medium text-gray-900">Tételek</h4>
+                <button
+                  type="button"
+                  onClick={() => handleAddArrayItem('offerItems', { name: '', description: '', quantity: 1, unitPrice: 0, total: 0 })}
+                  className="inline-flex items-center px-2 py-1 border border-transparent text-xs rounded shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                  + Tétel hozzáadása
+                </button>
+              </div>
+              
+              {(documentData.offerItems || []).length === 0 && (
+                <div className="mt-2 p-4 border border-dashed border-gray-300 rounded-md">
+                  <p className="text-sm text-gray-500 text-center">Nincs még tétel hozzáadva. Kattints a "Tétel hozzáadása" gombra.</p>
+                </div>
+              )}
+              
+              {(documentData.offerItems || []).map((item, index) => (
+                <div key={index} className="mt-3 p-3 border border-gray-200 rounded-md bg-gray-50">
+                  <div className="flex justify-between">
+                    <h5 className="text-sm font-medium">Tétel #{index + 1}</h5>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveArrayItem('offerItems', index)}
+                      className="text-red-600 hover:text-red-800 text-xs"
+                    >
+                      Törlés
+                    </button>
+                  </div>
+                  
+                  <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="sm:col-span-2">
+                      <label className="block text-xs font-medium text-gray-700">Megnevezés</label>
+                      <input
+                        type="text"
+                        value={item.name || ''}
+                        onChange={(e) => handleArrayItemChange('offerItems', index, 'name', e.target.value)}
+                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
+                      />
+                    </div>
+                    
+                    <div className="sm:col-span-2">
+                      <label className="block text-xs font-medium text-gray-700">Leírás</label>
+                      <textarea
+                        value={item.description || ''}
+                        onChange={(e) => handleArrayItemChange('offerItems', index, 'description', e.target.value)}
+                        rows={2}
+                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700">Mennyiség</label>
+                      <input
+                        type="number"
+                        value={item.quantity || ''}
+                        onChange={(e) => {
+                          const quantity = parseFloat(e.target.value);
+                          handleArrayItemChange('offerItems', index, 'quantity', quantity);
+                          // Frissítjük a total értéket is
+                          if (!isNaN(quantity) && !isNaN(item.unitPrice)) {
+                            handleArrayItemChange('offerItems', index, 'total', quantity * item.unitPrice);
+                          }
+                        }}
+                        min="1"
+                        step="1"
+                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700">Egységár</label>
+                      <input
+                        type="number"
+                        value={item.unitPrice || ''}
+                        onChange={(e) => {
+                          const unitPrice = parseFloat(e.target.value);
+                          handleArrayItemChange('offerItems', index, 'unitPrice', unitPrice);
+                          // Frissítjük a total értéket is
+                          if (!isNaN(unitPrice) && !isNaN(item.quantity)) {
+                            handleArrayItemChange('offerItems', index, 'total', item.quantity * unitPrice);
+                          }
+                        }}
+                        min="0"
+                        step="100"
+                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
+                      />
+                    </div>
+                    
+                    <div className="sm:col-span-2">
+                      <label className="block text-xs font-medium text-gray-700">Összesen</label>
+                      <input
+                        type="number"
+                        value={item.total || ''}
+                        readOnly
+                        className="mt-1 block w-full rounded-md bg-gray-100 border-gray-300 shadow-sm text-sm"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+              
+              {(documentData.offerItems || []).length > 0 && (
+                <div className="mt-4 flex justify-end">
+                  <div className="w-1/3">
+                    <div className="flex justify-between border-t border-gray-200 pt-2">
+                      <span className="text-sm font-medium">Végösszeg:</span>
+                      <span className="text-sm font-bold">
+                        {(documentData.offerItems || []).reduce((sum, item) => sum + (item.total || 0), 0)} {documentData.currency || 'HUF'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </>
+        )}
+        
+        {/* Alapszabályzat extra mezői */}
+        {selectedTemplate.id === 'alapszabaly' && (
+          <>
+            <div className="col-span-2 border-t border-gray-200 pt-4 mt-4">
+              <h3 className="text-lg font-medium text-gray-900">Tevékenységi körök</h3>
+              <div className="flex justify-between items-center mt-2">
+                <p className="text-sm text-gray-500">Adja meg a cég főbb tevékenységi köreit</p>
+                <button
+                  type="button"
+                  onClick={() => handleAddArrayItem('activities', { name: '' })}
+                  className="inline-flex items-center px-2 py-1 border border-transparent text-xs rounded shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                  + Tevékenység hozzáadása
+                </button>
+              </div>
+              
+              {(documentData.activities || []).length === 0 && (
+                <div className="mt-2 p-4 border border-dashed border-gray-300 rounded-md">
+                  <p className="text-sm text-gray-500 text-center">Nincs még tevékenységi kör hozzáadva.</p>
+                </div>
+              )}
+              
+              {(documentData.activities || []).map((activity, index) => (
+                <div key={index} className="mt-2 flex items-center">
+                  <input
+                    type="text"
+                    value={activity.name || ''}
+                    onChange={(e) => handleArrayItemChange('activities', index, 'name', e.target.value)}
+                    placeholder="Pl. Webfejlesztés"
+                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveArrayItem('activities', index)}
+                    className="ml-2 text-red-600 hover:text-red-800"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    );
+  };
