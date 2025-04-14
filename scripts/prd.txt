@@ -1,0 +1,77 @@
+# Dokumentumkezelő Rendszer - Product Requirements Document (PRD)
+
+## Áttekintés
+A dokumentumkezelő rendszernek lehetővé kell tennie a felhasználók számára üzleti dokumentumok létrehozását, kezelését, megosztását és tárolását. A rendszer támogatja sablonok használatát, dokumentumok biztonságos megosztását, többnyelvűséget, és PDF formátumban történő exportálást. A dokumentumok céges design-nal vannak ellátva és könnyen rendszerezhetők.
+
+## Fő Funkciók
+
+### 1. Dokumentum Létrehozás és Kezelés
+- Dokumentumok létrehozása az előre definiált sablonok alapján
+- Szövegszerkesztő funkciók a dokumentumok szerkesztéséhez
+- Dokumentumok mentése, frissítése és törlése
+- Verziókövetés és változások naplózása
+
+### 2. Sablonok Kezelése
+- Előre definiált sablonok különböző dokumentumtípusokhoz
+- Sablon szerkesztés és testreszabás
+- Új sablonok létrehozása és meglévők másolása
+- Céges design beállítások a sablonokhoz
+
+### 3. Dokumentum Megosztás
+- Dokumentumok megosztása biztonságos linkekkel
+- PIN kóddal védett hozzáférés
+- Email értesítés küldése a megosztott dokumentumokról
+- Megosztási jogosultságok kezelése (megtekintés, szerkesztés)
+
+### 4. Dokumentumok Exportálása
+- PDF formátumba exportálás
+- Céges design automatikus alkalmazása az exportált fájlokra
+- Többnyelvű dokumentumok exportálása
+- Letöltési lehetőségek a megosztott felületről
+
+### 5. Többnyelvűség
+- A felhasználói felület többnyelvű támogatása (magyar, angol, német)
+- Automatikus nyelvi észlelés a böngésző beállításai alapján
+- Nyelvváltás lehetősége a felhasználói felületen
+- Dokumentumok és sablonok nyelvének beállítása
+
+### 6. Kategorizálás és Szervezés
+- Dokumentumok csoportosítása kategóriák szerint
+- Projektekhez való csatolás lehetősége
+- Keresés és szűrés funkciók a dokumentumok között
+- Címkézési rendszer
+
+### 7. Felhasználói Felület
+- Külön navigációs pont a dokumentumkezeléshez ("documents")
+- Külön navigációs pont a megosztott dokumentumokhoz ("shared-documents")
+- Egyszerű és intuitív kezelőfelület
+- Reszponzív design (mobil, tablet, asztali eszközök támogatása)
+
+### 8. Biztonság
+- PIN kóddal védett megosztott dokumentumok
+- Szerepkör alapú hozzáférés-szabályozás
+- Dokumentumok és adatok titkosítása
+- Hozzáférési naplók és audit
+
+### 9. Értesítések
+- Email értesítések a dokumentummegosztásról
+- Értesítések a dokumentumok állapotváltozásairól
+- Emlékeztetők a lejáró vagy frissítendő dokumentumokról
+
+## Technikai Követelmények
+- Backend: Node.js
+- Frontend: React.js/Next.js
+- Adatbázis: MongoDB/PostgreSQL
+- PDF generálás: PDF.js vagy hasonló könyvtár
+- Többnyelvűség: i18next vagy hasonló megoldás
+- Email küldés: Nodemailer vagy hasonló szolgáltatás
+- Biztonságos megosztási linkek és PIN kódok kezelése
+- Felhő alapú tárolás a dokumentumok számára
+
+## Mérföldkövek
+1. Alap dokumentumkezelési funkciók implementálása
+2. Sablonok és céges design rendszer kialakítása
+3. Dokumentummegosztás és biztonsági funkciók
+4. PDF exportálás és többnyelvűség
+5. Kategorizálás és projektintegrációs funkciók
+6. Tesztelés, hibajavítás és optimalizálás 

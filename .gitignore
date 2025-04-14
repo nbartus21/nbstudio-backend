@@ -6,6 +6,8 @@ appios/
 dist/
 build/
 
+nbadmin/
+
 # Environment variables
 .env
 .env.local
@@ -43,3 +45,13 @@ Thumbs.db
 *.tmp
 *.temp
 .env.example
+
+# Added by Claude Task Master
+dev-debug.log
+# Dependency directories
+.idea
+.vscode
+# OS specific
+# Task files
+tasks.json
+tasks/ 

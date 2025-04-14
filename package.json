@@ -7,7 +7,10 @@
     "dev": "npx --yes vite",
     "build": "npx --yes vite build",
     "preview": "npx --yes vite preview",
-    "setup": "npm install -D tailwindcss postcss autoprefixer && npx tailwindcss init -p"
+    "setup": "npm install -D tailwindcss postcss autoprefixer && npx tailwindcss init -p",
+    "list": "node scripts/dev.js list",
+    "generate": "node scripts/dev.js generate",
+    "parse-prd": "node scripts/dev.js parse-prd"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.525.0",
@@ -43,7 +46,22 @@
     "socket.io": "^4.7.2",
     "tailwind-merge": "^1.14.0",
     "tailwindcss-animate": "^1.0.7",
-    "uuid": "^9.0.1"
+    "task-master-ai": "^0.11.1",
+    "uuid": "^9.0.1",
+    "@anthropic-ai/sdk": "^0.39.0",
+    "boxen": "^8.0.1",
+    "chalk": "^4.1.2",
+    "commander": "^11.1.0",
+    "cli-table3": "^0.6.5",
+    "fastmcp": "^1.20.5",
+    "figlet": "^1.8.0",
+    "fuse.js": "^7.0.0",
+    "gradient-string": "^3.0.0",
+    "helmet": "^8.1.0",
+    "inquirer": "^12.5.0",
+    "lru-cache": "^10.2.0",
+    "openai": "^4.89.0",
+    "ora": "^8.2.0"
   },
   "devDependencies": {
     "@types/react": "^18.0.28",
