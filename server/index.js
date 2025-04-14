@@ -9,8 +9,6 @@ import fs from 'fs';
 // PDF generation dependencies
 import PDFDocument from 'pdfkit';
 import puppeteer from 'puppeteer';
-// Importing the database connection function
-import { connectDB } from './config/db.js';
 
 // Import models
 import Contact from './models/Contact.js';
@@ -22,10 +20,6 @@ import Note from './models/Note.js';
 import Task from './models/Task.js';
 import Partner from './models/Partner.js';
 import WebPage from './models/WebPage.js';
-// Import the Document Management System models
-import Document from './models/Document.js';
-import DocumentVersion from './models/DocumentVersion.js';
-import DocumentShare from './models/DocumentShare.js';
 
 // Import routes
 import postRoutes from './routes/posts.js';
@@ -45,8 +39,7 @@ import notesRoutes from './routes/notes.js';
 import tasksRoutes from './routes/tasks.js';
 import supportTicketRouter, { setupEmailEndpoint, initializeSocketIO } from './routes/supportTickets.js';
 import emailApiRouter from './routes/emailApi.js';
-// Document router
-import documentsRouter from './routes/documents.js';
+// Document router removed
 import chatApiRouter from './routes/chatApi.js';
 import paymentsRouter from './routes/payments.js';
 import invoicesRouter from './routes/invoices.js';
@@ -1668,9 +1661,10 @@ console.log('EGYEDI_NAPLOBEJEGYZES_SZERVER_INDITAS: Szerver indítás kezdete');
 console.log('EGYEDI_NAPLOBEJEGYZES_SZERVER_INDITAS: Git commit:', 'fd7072dc461a07479dc0ab7ecc8b2d0f1b02425c');
 console.log('EGYEDI_NAPLOBEJEGYZES_SZERVER_INDITAS: Időpont:', new Date().toISOString());
 
-// Use our connectDB function instead of direct mongoose.connect
-connectDB()
+mongoose.connect(process.env.MONGO_URI)
   .then(() => {
+    console.log('Connected to MongoDB');
+
     // Fájl írása a lemezre a MongoDB kapcsolat után
     const mongoConnectedFilePath = path.join(process.cwd(), 'mongo-connected.txt');
     fs.writeFileSync(mongoConnectedFilePath, `MongoDB kapcsolat sikeres: ${new Date().toISOString()}\n`, { flag: 'a' });

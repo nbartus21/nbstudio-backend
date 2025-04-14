@@ -64,7 +64,6 @@ const Navigation = () => {
       category: "Tartalom kezelés",
       icon: <BookOpen size={18} />,
       items: [
-        { path: "/documents", label: "Dokumentumkezelő", icon: <FileText size={16} /> },
         { path: "/blog", label: "Blog bejegyzések listája", icon: <FileText size={16} /> },
         { path: "/partners", label: "Partnerek kezelése", icon: <Globe size={16} /> },
         { path: "/webpages", label: "Oldalak szerkesztése", icon: <FileText size={16} /> }
