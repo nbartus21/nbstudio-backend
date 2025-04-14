@@ -26,7 +26,7 @@ const storage = multer.memoryStorage();
 const upload = multer({ 
   storage,
   limits: { 
-    fileSize: config.document.maxUploadSize 
+    fileSize: config.documents.maxUploadSize 
   }
 });
 
