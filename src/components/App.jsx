@@ -18,14 +18,14 @@ import HostingManager from './hosting/HostingManager';
 import TranslationTool from './TranslationTool';
 import SupportTicketManager from './SupportTicketManager';
 import QRLogin from './QRLogin';
-// Document manager removed
+import DocumentManager from './document/DocumentManager';
 import AIChat from './AIChat';
 import SideChat from './SideChat';
 import Help from './Help';
 import PartnersAdmin from './PartnersAdmin';
-import WebPagesAdmin from './WebPagesAdmin'; // Weboldalak kezelő komponens importálása
-import SettingsManager from './SettingsManager'; // Beállítások kezelő komponens importálása
-import CalendarView from './services/CalendarView'; // Naptár nézet komponens importálása
+import WebPagesAdmin from './WebPagesAdmin';
+import SettingsManager from './SettingsManager';
+import CalendarView from './services/CalendarView';
 
 
 const App = () => {
@@ -167,6 +167,14 @@ const App = () => {
        element={
          <PrivateRoute>
            <WebPagesAdmin />
+         </PrivateRoute>
+       }
+     />
+     <Route
+       path="/documents"
+       element={
+         <PrivateRoute>
+           <DocumentManager />
          </PrivateRoute>
        }
      />
