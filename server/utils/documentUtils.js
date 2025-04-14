@@ -438,7 +438,8 @@ const hardDeleteDocument = async (documentId) => {
   }
 };
 
-export default {
+// Export the document utility functions
+export {
   isAllowedFileType,
   createShareableLink,
   generateWatermarkText,
