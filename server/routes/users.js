@@ -206,8 +206,22 @@ router.put('/me', userAuthMiddleware, async (req, res) => {
 
 // *** ADMIN VÉGPONTOK ***
 
+// Összes felhasználó lekérése (csak admin)
+router.get('/', authMiddleware, async (req, res) => {
+  try {
+    const users = await User.find()
+      .select('-password')
+      .sort({ createdAt: -1 });
+    
+    res.json(users);
+  } catch (error) {
+    console.error('Felhasználók lekérési hiba:', error);
+    res.status(500).json({ message: 'Szerver hiba történt', error: error.message });
+  }
+});
+
 // Új felhasználó létrehozása (csak admin)
-router.post('/users', authMiddleware, async (req, res) => {
+router.post('/', authMiddleware, async (req, res) => {
   try {
     const { email, name, role, language, projects, companyName, phone } = req.body;
     
@@ -265,27 +279,10 @@ router.post('/users', authMiddleware, async (req, res) => {
   }
 });
 
-// Összes felhasználó lekérése (csak admin)
-router.get('/users', authMiddleware, async (req, res) => {
+// Felhasználó lekérése ID alapján (csak admin)
+router.get('/:id', authMiddleware, async (req, res) => {
   try {
-    const users = await User.find()
-      .select('-password')
-      .sort({ createdAt: -1 });
-    
-    res.json(users);
-  } catch (error) {
-    console.error('Felhasználók lekérési hiba:', error);
-    res.status(500).json({ message: 'Szerver hiba történt', error: error.message });
-  }
-});
-
-// Felhasználó adatainak lekérése azonosító alapján (csak admin)
-router.get('/users/:id', authMiddleware, async (req, res) => {
-  try {
-    const user = await User.findById(req.params.id)
-      .select('-password')
-      .populate('projects', 'name status');
-    
+    const user = await User.findById(req.params.id).select('-password');
     if (!user) {
       return res.status(404).json({ message: 'Felhasználó nem található' });
     }
@@ -298,16 +295,17 @@ router.get('/users/:id', authMiddleware, async (req, res) => {
 });
 
 // Felhasználó módosítása (csak admin)
-router.put('/users/:id', authMiddleware, async (req, res) => {
+router.put('/:id', authMiddleware, async (req, res) => {
   try {
     const { name, email, role, language, active, companyName, phone } = req.body;
     
+    // Ellenőrizzük, hogy a felhasználó létezik-e
     const user = await User.findById(req.params.id);
     if (!user) {
       return res.status(404).json({ message: 'Felhasználó nem található' });
     }
     
-    // Ha az email változik, ellenőrizzük, hogy nem foglalt-e már
+    // Email módosítás esetén ellenőrizzük, hogy az új email már használatban van-e
     if (email && email !== user.email) {
       const existingUser = await userService.getUserByEmail(email);
       if (existingUser && existingUser._id.toString() !== req.params.id) {
@@ -316,11 +314,11 @@ router.put('/users/:id', authMiddleware, async (req, res) => {
       user.email = email;
     }
     
-    // Adatok frissítése
+    // Többi adat módosítása
     if (name) user.name = name;
     if (role) user.role = role;
     if (language) user.language = language;
-    if (active !== undefined) user.active = active;
+    if (typeof active === 'boolean') user.active = active;
     if (companyName !== undefined) user.companyName = companyName;
     if (phone !== undefined) user.phone = phone;
     
@@ -334,17 +332,20 @@ router.put('/users/:id', authMiddleware, async (req, res) => {
     
     await user.save();
     
-    res.json({
-      message: 'Felhasználó sikeresen módosítva',
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        language: user.language,
-        active: user.active
-      }
-    });
+    // Csak a szükséges adatokat küldjük vissza
+    const userData = {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      language: user.language,
+      active: user.active,
+      companyName: user.companyName,
+      phone: user.phone,
+      address: user.address
+    };
+    
+    res.json(userData);
   } catch (error) {
     console.error('Felhasználó módosítási hiba:', error);
     res.status(500).json({ message: 'Szerver hiba történt', error: error.message });
@@ -352,13 +353,9 @@ router.put('/users/:id', authMiddleware, async (req, res) => {
 });
 
 // Felhasználó törlése (csak admin)
-router.delete('/users/:id', authMiddleware, async (req, res) => {
+router.delete('/:id', authMiddleware, async (req, res) => {
   try {
-    const user = await User.findByIdAndDelete(req.params.id);
-    if (!user) {
-      return res.status(404).json({ message: 'Felhasználó nem található' });
-    }
-    
+    await User.findByIdAndDelete(req.params.id);
     res.json({ message: 'Felhasználó sikeresen törölve' });
   } catch (error) {
     console.error('Felhasználó törlési hiba:', error);
@@ -367,13 +364,9 @@ router.delete('/users/:id', authMiddleware, async (req, res) => {
 });
 
 // Projekt hozzáadása felhasználóhoz (csak admin)
-router.post('/users/:id/projects', authMiddleware, async (req, res) => {
+router.post('/:id/projects', authMiddleware, async (req, res) => {
   try {
     const { projectId } = req.body;
-    
-    if (!projectId) {
-      return res.status(400).json({ message: 'Projekt azonosító megadása kötelező' });
-    }
     
     await userService.addProjectToUser(req.params.id, projectId);
     
@@ -385,10 +378,9 @@ router.post('/users/:id/projects', authMiddleware, async (req, res) => {
 });
 
 // Projekt eltávolítása felhasználótól (csak admin)
-router.delete('/users/:id/projects/:projectId', authMiddleware, async (req, res) => {
+router.delete('/:id/projects/:projectId', authMiddleware, async (req, res) => {
   try {
     await userService.removeProjectFromUser(req.params.id, req.params.projectId);
-    
     res.json({ message: 'Projekt sikeresen eltávolítva a felhasználótól' });
   } catch (error) {
     console.error('Projekt eltávolítási hiba:', error);
@@ -396,30 +388,13 @@ router.delete('/users/:id/projects/:projectId', authMiddleware, async (req, res)
   }
 });
 
-// Jelszó visszaállítása adminisztrátorként
-router.post('/users/:id/reset-password', authMiddleware, async (req, res) => {
+// Felhasználó jelszavának visszaállítása (csak admin)
+router.post('/:id/reset-password', authMiddleware, async (req, res) => {
   try {
-    const user = await User.findById(req.params.id);
-    if (!user) {
-      return res.status(404).json({ message: 'Felhasználó nem található' });
-    }
-    
-    // Új véletlenszerű jelszó generálása
-    const newPassword = uuidv4().substring(0, 8);
-    
-    // Jelszó frissítése
-    user.password = newPassword;
-    await user.save();
-    
-    // Értesítő email küldése az új jelszóról
-    await userService.sendWelcomeEmail(user, newPassword, user.language);
-    
-    res.json({
-      message: 'Jelszó sikeresen visszaállítva és elküldve a felhasználónak',
-      email: user.email
-    });
+    await userService.resetPasswordByAdmin(req.params.id);
+    res.json({ message: 'Jelszó sikeresen visszaállítva és elküldve a felhasználónak' });
   } catch (error) {
-    console.error('Admin jelszó visszaállítási hiba:', error);
+    console.error('Jelszó visszaállítási hiba:', error);
     res.status(500).json({ message: 'Szerver hiba történt', error: error.message });
   }
 });
