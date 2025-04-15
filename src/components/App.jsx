@@ -26,6 +26,10 @@ import PartnersAdmin from './PartnersAdmin';
 import WebPagesAdmin from './WebPagesAdmin'; // Weboldalak kezelő komponens importálása
 import SettingsManager from './SettingsManager'; // Beállítások kezelő komponens importálása
 import CalendarView from './services/CalendarView'; // Naptár nézet komponens importálása
+import ClientsAdmin from './ClientsAdmin'; // Ügyfelek kezelése komponens importálása
+import ClientLogin from './ClientLogin'; // Ügyfél bejelentkezés komponens importálása
+import ClientProjects from './ClientProjects'; // Ügyfél projektek komponens importálása
+import ClientProjectDetails from './ClientProjectDetails'; // Ügyfél projekt részletek komponens importálása
 
 
 const App = () => {
@@ -45,11 +49,43 @@ const App = () => {
    );
  };
 
+ const ClientPrivateRoute = ({ children }) => {
+   const isAuthenticated = sessionStorage.getItem('clientAuthenticated') === 'true';
+
+   if (!isAuthenticated) {
+     return <Navigate to="/client/login" />;
+   }
+
+   return <>{children}</>;
+ };
+
  return (
    <Routes>
+     {/* Admin bejelentkezés */}
      <Route path="/login" element={<Login />} />
      <Route path="/magic-login" element={<MagicLogin />} />
+     <Route path="/qr-login" element={<QRLogin />} />
 
+     {/* Ügyfél bejelentkezés és kliens felület útvonalak */}
+     <Route path="/client/login" element={<ClientLogin />} />
+     <Route
+       path="/client/projects"
+       element={
+         <ClientPrivateRoute>
+           <ClientProjects />
+         </ClientPrivateRoute>
+       }
+     />
+     <Route
+       path="/client/projects/:id"
+       element={
+         <ClientPrivateRoute>
+           <ClientProjectDetails />
+         </ClientPrivateRoute>
+       }
+     />
+
+     {/* Átirányítás a kezdőoldalról a megfelelő helyre */}
      <Route
        path="/"
        element={
@@ -179,6 +215,14 @@ const App = () => {
        }
      />
      <Route
+       path="/clients"
+       element={
+         <PrivateRoute>
+           <ClientsAdmin />
+         </PrivateRoute>
+       }
+     />
+     <Route
        path="/support"
        element={
          <PrivateRoute>
@@ -186,7 +230,6 @@ const App = () => {
          </PrivateRoute>
        }
      />
-     <Route path="/qr-login" element={<QRLogin />} />
      <Route
        path="/help"
        element={
