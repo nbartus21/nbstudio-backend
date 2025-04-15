@@ -6,7 +6,7 @@ import {
 import {
   AlertCircle, CheckCircle, Clock, FileText, Globe,
   DollarSign, MessageSquare, CreditCard, Shield, RefreshCw,
-  BarChart2, Activity, AlertTriangle, MoreHorizontal, ArrowUpRight, ArrowDownRight
+  BarChart2, Activity, AlertTriangle, MoreHorizontal
 } from 'lucide-react';
 import { api } from '../services/auth'; // Import api with authentication
 
@@ -46,8 +46,6 @@ const Dashboard = () => {
     tickets: [],
     alerts: []
   });
-
-  const [lastUpdated, setLastUpdated] = useState(new Date());
 
   // Memoize expensive calculations
   const processedFinancialData = useMemo(() => {
@@ -556,7 +554,6 @@ const Dashboard = () => {
       };
 
       setDashboardData(processedData);
-      setLastUpdated(new Date());
       setIsLoading(false);
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
@@ -698,13 +695,6 @@ const Dashboard = () => {
   // Színek a grafikonokhoz
   const COLORS = ['#4f46e5', '#0ea5e9', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
 
-  // Példa: számold ki a bevétel trendet (előző hónaphoz képest)
-  const currentMonthRevenue = processedFinancialData.monthly?.[processedFinancialData.monthly.length - 1]?.revenue || 0;
-  const prevMonthRevenue = processedFinancialData.monthly?.[processedFinancialData.monthly.length - 2]?.revenue || 0;
-  const revenueTrend = prevMonthRevenue
-    ? Math.round(((currentMonthRevenue - prevMonthRevenue) / prevMonthRevenue) * 100)
-    : 0;
-
   return (
     <div className="min-h-screen bg-gray-50 pb-12">
       {/* Fejléc */}
@@ -714,7 +704,7 @@ const Dashboard = () => {
             <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
             <div className="flex items-center space-x-4">
               <span className="text-sm text-gray-500">
-                Utolsó frissítés: {lastUpdated.toLocaleTimeString('hu-HU')}
+                Utolsó frissítés: {new Date().toLocaleTimeString('hu-HU')}
               </span>
               <button
                 onClick={fetchDashboardData}
@@ -807,15 +797,7 @@ const Dashboard = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Bevételek</p>
-                <div className="mt-2 flex items-center">
-                  <span className="text-3xl font-semibold text-gray-900">{formatCurrency(dashboardData.stats.totalRevenue)}</span>
-                  {prevMonthRevenue > 0 && (
-                    <span className={`ml-2 flex items-center text-sm ${revenueTrend >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      {revenueTrend >= 0 ? <ArrowUpRight className="h-4 w-4 mr-1" /> : <ArrowDownRight className="h-4 w-4 mr-1" />}
-                      {Math.abs(revenueTrend)}%
-                    </span>
-                  )}
-                </div>
+                <p className="mt-2 text-3xl font-semibold text-gray-900">{formatCurrency(dashboardData.stats.totalRevenue)}</p>
               </div>
               <div className="p-3 bg-green-100 rounded-lg">
                 <DollarSign className="h-6 w-6 text-green-600" />
@@ -927,6 +909,8 @@ const Dashboard = () => {
             </div>
           </div>
         </div>
+
+
 
         {/* Modulok áttekintése */}
         <div className="bg-white rounded-xl shadow-sm mb-8">
@@ -1083,20 +1067,12 @@ const Dashboard = () => {
                         <div className="text-xs text-gray-500">{project.client?.email}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span
-                          className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            project.status === 'aktív' ? 'bg-green-100 text-green-800' :
-                            project.status === 'befejezett' ? 'bg-blue-100 text-blue-800' :
-                            project.status === 'felfüggesztett' ? 'bg-yellow-100 text-yellow-800' :
-                            'bg-gray-100 text-gray-800'
-                          }`}
-                          title={
-                            project.status === 'aktív' ? 'A projekt jelenleg folyamatban van'
-                            : project.status === 'befejezett' ? 'A projekt lezárult'
-                            : project.status === 'felfüggesztett' ? 'A projekt szünetel'
-                            : 'Ismeretlen státusz'
-                          }
-                        >
+                        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                          project.status === 'aktív' ? 'bg-green-100 text-green-800' :
+                          project.status === 'befejezett' ? 'bg-blue-100 text-blue-800' :
+                          project.status === 'felfüggesztett' ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}>
                           {project.status}
                         </span>
                       </td>

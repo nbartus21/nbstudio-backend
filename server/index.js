@@ -46,7 +46,6 @@ import invoicesRouter from './routes/invoices.js';
 import partnersRouter from './routes/partners.js';
 import webPagesRouter from './routes/webpages.js';
 import settingsRouter from './routes/settings.js';
-import userRoutes from './routes/users.js';
 
 // Import middleware
 import authMiddleware from './middleware/auth.js';
@@ -152,18 +151,15 @@ io.on('connection', (socket) => {
 
 // SSL configuration
 let sslOptions;
-let useHttps = false;
 try {
   sslOptions = {
     key: fs.readFileSync('/etc/letsencrypt/live/admin.nb-studio.net/privkey.pem'),
     cert: fs.readFileSync('/etc/letsencrypt/live/admin.nb-studio.net/fullchain.pem')
   };
   console.log('SSL certificates loaded successfully');
-  useHttps = true;
 } catch (error) {
   console.error('Error loading SSL certificates:', error.message);
-  console.log('Running in HTTP mode (development)');
-  // Nem állítjuk le a szervert, helyette HTTP módban fut
+  process.exit(1);
 }
 
 // CORS configuration
@@ -1379,7 +1375,6 @@ app.use('/api', invoicesRouter);
 app.use('/api/partners', partnersRouter);
 app.use('/api/webpages', webPagesRouter);
 app.use('/api/settings', settingsRouter);
-app.use('/api/users', userRoutes);
 
 // Fix for transactions endpoint directly accessing the accountingRoutes
 app.use('/api/transactions', (req, res, next) => {
@@ -1642,19 +1637,11 @@ function setupProjectDomain() {
   try {
     const projectPort = 5555;
 
-    if (useHttps) {
-      // Start HTTPS project domain server
-      https.createServer(sslOptions, projectApp).listen(projectPort, host, () => {
-        console.log(`Project domain server running on https://${host}:${projectPort}`);
-        console.log('Important: Set up iptables rule to forward traffic from port 443 to port 5555 for project.nb-studio.net:');
-        console.log('iptables -t nat -A PREROUTING -p tcp -d project.nb-studio.net --dport 443 -j REDIRECT --to-port 5555');
-      });
-    } else {
-      // Start HTTP project domain server
-      projectApp.listen(projectPort, host, () => {
-        console.log(`Project domain server running on http://${host}:${projectPort} (development mode)`);
-      });
-    }
+    https.createServer(sslOptions, projectApp).listen(projectPort, host, () => {
+      console.log(`Project domain server running on https://${host}:${projectPort}`);
+      console.log('Important: Set up iptables rule to forward traffic from port 443 to port 5555 for project.nb-studio.net:');
+      console.log('iptables -t nat -A PREROUTING -p tcp -d project.nb-studio.net --dport 443 -j REDIRECT --to-port 5555');
+    });
   } catch (error) {
     console.error('Failed to start project domain server:', error);
   }
@@ -1674,7 +1661,6 @@ console.log('EGYEDI_NAPLOBEJEGYZES_SZERVER_INDITAS: Szerver indítás kezdete');
 console.log('EGYEDI_NAPLOBEJEGYZES_SZERVER_INDITAS: Git commit:', 'fd7072dc461a07479dc0ab7ecc8b2d0f1b02425c');
 console.log('EGYEDI_NAPLOBEJEGYZES_SZERVER_INDITAS: Időpont:', new Date().toISOString());
 
-// MongoDB connection
 mongoose.connect(process.env.MONGO_URI)
   .then(() => {
     console.log('Connected to MongoDB');
@@ -1684,22 +1670,6 @@ mongoose.connect(process.env.MONGO_URI)
     fs.writeFileSync(mongoConnectedFilePath, `MongoDB kapcsolat sikeres: ${new Date().toISOString()}\n`, { flag: 'a' });
     console.log('Fájl sikeresen írva a MongoDB kapcsolat után:', mongoConnectedFilePath);
 
-    startServers();
-  })
-  .catch((error) => {
-    console.error('MongoDB connection error:', error);
-    if (process.env.NODE_ENV === 'production') {
-      process.exit(1);
-    } else {
-      console.log('Running in development mode without MongoDB connection');
-      startServers();
-    }
-  });
-
-// Function to start all servers
-function startServers() {
-  // Start HTTPS or HTTP API server based on SSL availability
-  if (useHttps) {
     // Start HTTPS API server
     https.createServer(sslOptions, app).listen(port, host, () => {
       console.log(`API Server running on https://${host}:${port}`);
@@ -1709,19 +1679,17 @@ function startServers() {
       fs.writeFileSync(serverStartedFilePath, `API szerver indítása sikeres: ${new Date().toISOString()}\n`, { flag: 'a' });
       console.log('Fájl sikeresen írva a szerver indítása után:', serverStartedFilePath);
     });
-  } else {
-    // Start HTTP API server
-    app.listen(port, host, () => {
-      console.log(`API Server running on http://${host}:${port} (development mode)`);
+
+    // Start HTTP server for Socket.IO
+    const socketPort = parseInt(port) + 1;
+    httpServer.listen(socketPort, host, () => {
+      console.log(`Socket.IO server running on http://${host}:${socketPort}`);
     });
-  }
 
-  // Start HTTP server for Socket.IO
-  const socketPort = parseInt(port) + 1;
-  httpServer.listen(socketPort, host, () => {
-    console.log(`Socket.IO server running on http://${host}:${socketPort}`);
+    // Setup project domain handling
+    setupProjectDomain();
+  })
+  .catch((error) => {
+    console.error('MongoDB connection error:', error);
+    process.exit(1);
   });
-
-  // Setup project domain handling
-  setupProjectDomain();
-}
