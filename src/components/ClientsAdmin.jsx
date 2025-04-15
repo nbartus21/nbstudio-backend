@@ -290,7 +290,7 @@ const ClientsAdmin = () => {
   const filteredClients = clients.filter(client => 
     client.name.toLowerCase().includes(filter.toLowerCase()) || 
     client.email.toLowerCase().includes(filter.toLowerCase()) ||
-    client.companyName?.toLowerCase().includes(filter.toLowerCase())
+    (client.companyName ? client.companyName.toLowerCase().includes(filter.toLowerCase()) : false)
   );
 
   if (loading) {
