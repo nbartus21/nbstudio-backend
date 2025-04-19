@@ -151,6 +151,8 @@ io.on('connection', (socket) => {
 
 // SSL configuration
 let sslOptions;
+let useHttps = true;
+
 try {
   sslOptions = {
     key: fs.readFileSync('/etc/letsencrypt/live/admin.nb-studio.net/privkey.pem'),
@@ -159,7 +161,8 @@ try {
   console.log('SSL certificates loaded successfully');
 } catch (error) {
   console.error('Error loading SSL certificates:', error.message);
-  process.exit(1);
+  console.log('Falling back to HTTP in development mode');
+  useHttps = false;
 }
 
 // CORS configuration
@@ -202,14 +205,22 @@ app.use(express.urlencoded({ extended: true, limit: '100mb' }));
 
 // API Key validation middleware
 const validateApiKey = (req, res, next) => {
-  // Hard-coded API key az egyszerűség kedvéért - ideális esetben környezeti változóból jönne
-  const apiKey = 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0';
+  // Olvassuk az API kulcsot a környezeti változóból a hardcoded érték helyett
+  const apiKey = process.env.PUBLIC_API_KEY;
   const receivedApiKey = req.headers['x-api-key'];
 
-  console.log('API Key validation for route:', req.originalUrl);
-  console.log('Headers received:', JSON.stringify(req.headers, null, 2));
-  console.log('Received API key:', receivedApiKey ? 'Received' : 'Not provided');
-
+  console.log('======= API Key Validation =======');
+  console.log('Headers received:', req.headers);
+  console.log('Received API Key:', receivedApiKey);
+  console.log('Expected API Key:', apiKey);
+  console.log('Environment variables:', process.env);
+  console.log('================================');
+  
+  if (!apiKey) {
+    console.error('PUBLIC_API_KEY is not set in environment!');
+    return res.status(500).json({ message: 'Server configuration error' });
+  }
+  
   // Speciális kezelés a payments végpontokhoz
   if (req.originalUrl.includes('/payments/') && req.method === 'POST') {
     console.log('Payments endpoint detected - skip API key validation temporarily for debugging');
@@ -230,8 +241,9 @@ const validateApiKey = (req, res, next) => {
     next();
   } else {
     console.error('API key validation failed');
-    console.error('Expected:', apiKey);
+    console.error('Keys do not match:');
     console.error('Received:', receivedApiKey);
+    console.error('Expected:', apiKey);
     res.status(401).json({
       message: 'Invalid API key',
       url: req.originalUrl,
@@ -1467,7 +1479,7 @@ function setupProjectDomain() {
 
       // Header-ek beállítása
       apiOptions.headers.host = `localhost:${port}`;
-      apiOptions.headers['x-api-key'] = 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0';
+      apiOptions.headers['x-api-key'] = process.env.PUBLIC_API_KEY;
       apiOptions.headers['content-type'] = 'application/json';
       apiOptions.headers['content-length'] = Buffer.byteLength(bodyData);
 
@@ -1518,7 +1530,7 @@ function setupProjectDomain() {
 
       // Header-ek beállítása
       apiOptions.headers.host = `localhost:${port}`;
-      apiOptions.headers['x-api-key'] = 'qpgTRyYnDjO55jGCaBiycFIv5qJAHs7iugOEAPiMkMjkRkJXhjOQmtWk6TQeRCfsOuoakAkdXFXrt2oWJZcbxWNz0cfUh3zen5xeNnJDNRyUCSppXqx2OBH1NNiFbnx0';
+      apiOptions.headers['x-api-key'] = process.env.PUBLIC_API_KEY;
 
       const proxyReq = http.request(apiOptions, (proxyRes) => {
         // Válasz header-ek továbbítása
@@ -1637,11 +1649,18 @@ function setupProjectDomain() {
   try {
     const projectPort = 5555;
 
-    https.createServer(sslOptions, projectApp).listen(projectPort, host, () => {
-      console.log(`Project domain server running on https://${host}:${projectPort}`);
-      console.log('Important: Set up iptables rule to forward traffic from port 443 to port 5555 for project.nb-studio.net:');
-      console.log('iptables -t nat -A PREROUTING -p tcp -d project.nb-studio.net --dport 443 -j REDIRECT --to-port 5555');
-    });
+    if (useHttps) {
+      https.createServer(sslOptions, projectApp).listen(projectPort, host, () => {
+        console.log(`Project domain server running on https://${host}:${projectPort}`);
+        console.log('Important: Set up iptables rule to forward traffic from port 443 to port 5555 for project.nb-studio.net:');
+        console.log('iptables -t nat -A PREROUTING -p tcp -d project.nb-studio.net --dport 443 -j REDIRECT --to-port 5555');
+      });
+    } else {
+      http.createServer(projectApp).listen(projectPort, host, () => {
+        console.log(`Project domain server running in DEV MODE on http://${host}:${projectPort}`);
+        console.log('WARNING: Using HTTP in development mode only. Use HTTPS in production.');
+      });
+    }
   } catch (error) {
     console.error('Failed to start project domain server:', error);
   }
@@ -1670,15 +1689,28 @@ mongoose.connect(process.env.MONGO_URI)
     fs.writeFileSync(mongoConnectedFilePath, `MongoDB kapcsolat sikeres: ${new Date().toISOString()}\n`, { flag: 'a' });
     console.log('Fájl sikeresen írva a MongoDB kapcsolat után:', mongoConnectedFilePath);
 
-    // Start HTTPS API server
-    https.createServer(sslOptions, app).listen(port, host, () => {
-      console.log(`API Server running on https://${host}:${port}`);
+    if (useHttps) {
+      // Start HTTPS API server
+      https.createServer(sslOptions, app).listen(port, host, () => {
+        console.log(`API Server running on https://${host}:${port}`);
 
-      // Fájl írása a lemezre a szerver indítása után
-      const serverStartedFilePath = path.join(process.cwd(), 'api-server-started.txt');
-      fs.writeFileSync(serverStartedFilePath, `API szerver indítása sikeres: ${new Date().toISOString()}\n`, { flag: 'a' });
-      console.log('Fájl sikeresen írva a szerver indítása után:', serverStartedFilePath);
-    });
+        // Fájl írása a lemezre a szerver indítása után
+        const serverStartedFilePath = path.join(process.cwd(), 'api-server-started.txt');
+        fs.writeFileSync(serverStartedFilePath, `API szerver indítása sikeres: ${new Date().toISOString()}\n`, { flag: 'a' });
+        console.log('Fájl sikeresen írva a szerver indítása után:', serverStartedFilePath);
+      });
+    } else {
+      // Fejlesztési módban HTTP szerver indítása
+      http.createServer(app).listen(port, host, () => {
+        console.log(`API Server running in DEV MODE on http://${host}:${port}`);
+        console.log('WARNING: Using HTTP in development mode only. Use HTTPS in production.');
+        
+        // Fájl írása a lemezre a szerver indítása után
+        const serverStartedFilePath = path.join(process.cwd(), 'api-server-started.txt');
+        fs.writeFileSync(serverStartedFilePath, `API szerver indítása sikeres (HTTP): ${new Date().toISOString()}\n`, { flag: 'a' });
+        console.log('Fájl sikeresen írva a szerver indítása után:', serverStartedFilePath);
+      });
+    }
 
     // Start HTTP server for Socket.IO
     const socketPort = parseInt(port) + 1;
@@ -1686,8 +1718,12 @@ mongoose.connect(process.env.MONGO_URI)
       console.log(`Socket.IO server running on http://${host}:${socketPort}`);
     });
 
-    // Setup project domain handling
-    setupProjectDomain();
+    // Setup project domain handling if HTTPS is available
+    if (useHttps) {
+      setupProjectDomain();
+    } else {
+      console.log('Project domain handling skipped in development mode');
+    }
   })
   .catch((error) => {
     console.error('MongoDB connection error:', error);
