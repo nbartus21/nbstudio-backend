@@ -7,6 +7,7 @@ import {
   DollarSign, PlusCircle, Languages, MessageCircle, HelpCircle
 } from 'lucide-react';
 import NotificationsManager from './NotificationsManager';
+import { logout, removeAuthToken } from '../services/auth';
 
 const Navigation = () => {
   const location = useLocation();
@@ -143,9 +144,8 @@ const Navigation = () => {
   // Kijelentkezés kezelése
   const handleLogout = () => {
     if (window.confirm('Biztosan ki szeretnél jelentkezni?')) {
-      sessionStorage.removeItem('isAuthenticated');
-      localStorage.removeItem('recentPages');
-      window.location.href = '/login';
+      // Használjuk az auth service logout funkcióját
+      logout();
     }
   };
 

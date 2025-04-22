@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Routes, Route, Navigate, Link } from 'react-router-dom';
 import { MessageSquare, Mail } from 'lucide-react';
 import Navigation from './Navigation';
@@ -26,11 +26,32 @@ import PartnersAdmin from './PartnersAdmin';
 import WebPagesAdmin from './WebPagesAdmin'; // Weboldalak kezelő komponens importálása
 import SettingsManager from './SettingsManager'; // Beállítások kezelő komponens importálása
 import CalendarView from './services/CalendarView'; // Naptár nézet komponens importálása
+import { startActivityMonitoring, getAuthToken } from '../services/auth'; // Aktivitás figyelő importálása
 
 
 const App = () => {
+ // Aktivitás figyelés indítása amikor a komponens betöltődik
+ useEffect(() => {
+   // Tisztítás funkció visszaadása a megfigyelés leállításához, amikor a komponens lecsatolódik
+   const cleanupMonitoring = startActivityMonitoring();
+   
+   // Felugró ablak megjelenítése, ha lejárt session miatt lett átirányítva
+   if (window.location.href.includes('session=expired')) {
+     alert('A munkamenet lejárt inaktivitás miatt. Kérjük, jelentkezzen be újra.');
+     // Az URL-ből eltávolítjuk a paramétereket
+     window.history.replaceState({}, document.title, '/login');
+   }
+   
+   return () => {
+     if (cleanupMonitoring) {
+       cleanupMonitoring();
+     }
+   };
+ }, []);
+
  const PrivateRoute = ({ children }) => {
-   const isAuthenticated = sessionStorage.getItem('isAuthenticated') === 'true';
+   // Módosítva, hogy használja a localStorage-ban is tárolt tokent
+   const isAuthenticated = sessionStorage.getItem('isAuthenticated') === 'true' || !!getAuthToken();
 
    if (!isAuthenticated) {
      return <Navigate to="/login" />;

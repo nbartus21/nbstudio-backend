@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { api } from '../services/auth';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { api, setAuthToken } from '../services/auth';
 
 const Login = () => {
   const [credentials, setCredentials] = useState({
@@ -9,11 +9,29 @@ const Login = () => {
   });
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Ellenőrizzük, hogy inaktivitás miatt lett-e kijelentkeztetve
+  useEffect(() => {
+    const queryParams = new URLSearchParams(location.search);
+    const sessionExpired = queryParams.get('session') === 'expired';
+    
+    if (sessionExpired) {
+      setError('A munkamenet lejárt inaktivitás miatt. Kérjük, jelentkezzen be újra.');
+      // Tisztítjuk az URL-t
+      window.history.replaceState({}, document.title, '/login');
+    }
+  }, [location]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setCredentials(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleRememberMeChange = (e) => {
+    setRememberMe(e.target.checked);
   };
 
   const handleSubmit = async (e) => {
@@ -32,10 +50,18 @@ const Login = () => {
       
       const data = await response.json();
       
-      // Save auth token
+      // Save auth token to both storage types
       sessionStorage.setItem('isAuthenticated', 'true');
-      sessionStorage.setItem('token', data.token);
+      localStorage.setItem('isAuthenticated', 'true');
+      
+      // Use the auth service to set the token (this will store in both sessionStorage and localStorage)
+      setAuthToken(data.token);
+      
+      // Save email
       sessionStorage.setItem('email', credentials.email);
+      if (rememberMe) {
+        localStorage.setItem('email', credentials.email);
+      }
       
       navigate('/dashboard');
     } catch (error) {
@@ -106,6 +132,8 @@ const Login = () => {
                 id="remember-me"
                 name="remember-me"
                 type="checkbox"
+                checked={rememberMe}
+                onChange={handleRememberMeChange}
                 className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
               />
               <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">
