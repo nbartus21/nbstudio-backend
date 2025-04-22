@@ -276,17 +276,24 @@ const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGenerat
   // Emlékeztető küldése
   const handleSendReminder = async () => {
     debugLog('InvoiceViewModal-sendReminder', 'Sending reminder for invoice', invoice.number);
+    setLoading(true);
 
     try {
       // Megerősítés kérése
       if (!confirm(language === 'hu' ? 'Biztos, hogy emlékeztetőt szeretne küldeni erről a számláról?' :
                   (language === 'de' ? 'Sind Sie sicher, dass Sie eine Erinnerung für diese Rechnung senden möchten?' :
                                       'Are you sure you want to send a reminder for this invoice?'))) {
+        setLoading(false);
         return;
       }
 
+      if (!project || !project._id) {
+        throw new Error(language === 'hu' ? 'Projekt azonosító hiányzik' : 
+                       (language === 'de' ? 'Projekt-ID fehlt' : 'Project ID is missing'));
+      }
+
       // API hívás az emlékeztető küldéséhez
-      const response = await fetch(`${API_URL}/projects/${projectId}/invoices/${invoice._id}/send-reminder`, {
+      const response = await fetch(`${API_URL}/projects/${project._id}/invoices/${invoice._id}/send-reminder`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -310,6 +317,8 @@ const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGenerat
       alert(language === 'hu' ? `Hiba történt: ${error.message}` :
             (language === 'de' ? `Ein Fehler ist aufgetreten: ${error.message}` :
                                 `An error occurred: ${error.message}`));
+    } finally {
+      setLoading(false);
     }
   };
 
