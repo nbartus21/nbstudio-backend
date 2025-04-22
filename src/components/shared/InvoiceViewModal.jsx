@@ -8,6 +8,7 @@ import { formatShortDate, debugLog } from './utils';
 import { API_URL, API_KEY } from '../../config';
 import QRCode from 'qrcode.react';
 import { downloadInvoicePDF } from '../../services/invoiceService';
+import { api } from '../../services/auth';
 
 // Translation data for all UI elements
 const translations = {
@@ -292,21 +293,13 @@ const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGenerat
                        (language === 'de' ? 'Projekt-ID fehlt' : 'Project ID is missing'));
       }
 
-      // API hívás az emlékeztető küldéséhez
-      const response = await fetch(`${API_URL}/projects/${project._id}/invoices/${invoice._id}/send-reminder`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-API-Key': API_KEY
-        },
-        body: JSON.stringify({ language })
-      });
+      // API hívás az emlékeztető küldéséhez az api.post segítségével, ami automatikusan hozzáadja a tokent
+      const response = await api.post(
+        `${API_URL}/projects/${project._id}/invoices/${invoice._id}/send-reminder`,
+        { language }
+      );
 
       const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Hiba történt az emlékeztető küldése közben');
-      }
 
       // Sikeres küldés esetén értesítés
       alert(language === 'hu' ? 'Emlékeztető sikeresen elküldve!' :
