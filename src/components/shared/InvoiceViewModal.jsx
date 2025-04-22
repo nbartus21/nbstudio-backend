@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   FileText, X, Download, Printer, Share2,
   CheckCircle, AlertCircle, Clock, Mail,
-  CreditCard, RefreshCw
+  CreditCard, RefreshCw, Bell
 } from 'lucide-react';
 import { formatShortDate, debugLog } from './utils';
 import { API_URL, API_KEY } from '../../config';
@@ -160,7 +160,7 @@ const translations = {
   }
 };
 
-const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGeneratePDF, language = 'hu' }) => {
+const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGeneratePDF, onGenerateRecurring, language = 'hu' }) => {
   debugLog('InvoiceViewModal', 'Rendering invoice view', {
     invoiceNumber: invoice?.number,
     invoiceStatus: invoice?.status,
@@ -168,6 +168,7 @@ const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGenerat
   });
 
   const [showQRCode, setShowQRCode] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   // Get translations for current language
   const t = translations[language] || translations.hu;
@@ -530,19 +531,69 @@ const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGenerat
 
             {/* Recurring Invoice Info */}
             {invoice.recurring?.isRecurring && (
-              <div className="mb-8">
-                <h3 className="font-bold mb-2 text-gray-700 flex items-center">
-                  <RefreshCw className="h-4 w-4 mr-2 text-purple-600" />
-                  {t.recurringInvoiceInfo}:
-                </h3>
-                <div className="bg-purple-50 p-3 border border-purple-200 rounded">
-                  <p>{t.recurringInvoiceDesc}</p>
-                  {invoice.recurring.interval && (
-                    <p className="mt-1">{t.frequency}: <span className="font-medium">{invoice.recurring.interval}</span></p>
-                  )}
-                  {invoice.recurring.nextDate && (
-                    <p className="mt-1">{t.nextInvoiceDate}: <span className="font-medium">{formatShortDate(invoice.recurring.nextDate)}</span></p>
-                  )}
+              <div className={`p-4 mb-4 rounded-lg ${invoice.recurring && invoice.recurring.isRecurring ? "bg-blue-50 border border-blue-200" : ""}`}>
+                {/* Ismétlődő számla figyelmeztetés */}
+                {invoice.recurring && invoice.recurring.isRecurring && (
+                  <div className="mb-3 p-3 bg-blue-100 border-l-4 border-blue-500 rounded">
+                    <div className="flex items-center">
+                      <span className="text-blue-700 mr-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
+                        </svg>
+                      </span>
+                      <span className="font-bold text-blue-700">{t.recurringInvoiceInfo}</span>
+                    </div>
+                    <p className="mt-1 text-blue-600">{t.recurringInvoiceDesc}</p>
+                    <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2">
+                      <div>
+                        <span className="font-semibold">{language === 'hu' ? 'Ismétlődés:' : (language === 'de' ? 'Intervall:' : 'Interval:')}</span> 
+                        <span className="ml-2">
+                          {invoice.recurring.interval === 'havonta' ? (language === 'hu' ? 'Havonta' : (language === 'de' ? 'Monatlich' : 'Monthly')) : 
+                           invoice.recurring.interval === 'negyedévente' ? (language === 'hu' ? 'Negyedévente' : (language === 'de' ? 'Vierteljährlich' : 'Quarterly')) : 
+                           invoice.recurring.interval === 'félévente' ? (language === 'hu' ? 'Félévente' : (language === 'de' ? 'Halbjährlich' : 'Semiannually')) : 
+                           invoice.recurring.interval === 'évente' ? (language === 'hu' ? 'Évente' : (language === 'de' ? 'Jährlich' : 'Annually')) : 
+                           invoice.recurring.interval}
+                        </span>
+                      </div>
+                      {invoice.recurring.nextDate && (
+                        <div>
+                          <span className="font-semibold">{language === 'hu' ? 'Következő generálás:' : (language === 'de' ? 'Nächste Generierung:' : 'Next generation:')}</span> 
+                          <span className="ml-2">{new Date(invoice.recurring.nextDate).toLocaleDateString(
+                             language === 'hu' ? 'hu-HU' : (language === 'de' ? 'de-DE' : 'en-US')
+                          )}</span>
+                        </div>
+                      )}
+                      {invoice.recurring.remainingOccurrences && (
+                        <div>
+                          <span className="font-semibold">{language === 'hu' ? 'Hátralévő ismétlődések:' : (language === 'de' ? 'Verbleibende Wiederholungen:' : 'Remaining occurrences:')}</span> 
+                          <span className="ml-2">{invoice.recurring.remainingOccurrences}</span>
+                        </div>
+                      )}
+                      {invoice.recurring.endDate && (
+                        <div>
+                          <span className="font-semibold">{language === 'hu' ? 'Befejezés dátuma:' : (language === 'de' ? 'Enddatum:' : 'End date:')}</span> 
+                          <span className="ml-2">{new Date(invoice.recurring.endDate).toLocaleDateString(
+                             language === 'hu' ? 'hu-HU' : (language === 'de' ? 'de-DE' : 'en-US')
+                          )}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Számla fejléc */}
+                <div className="flex justify-between items-start mb-8">
+                  <div>
+                    <h2 className="text-2xl font-bold">{t.invoice}</h2>
+                    <p className="text-gray-600">{t.invoiceNumber}: {invoice.number}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-medium">{t.date}: {formatShortDate(invoice.date)}</p>
+                    <p className="text-gray-600">{t.dueDate}: {formatShortDate(invoice.dueDate)}</p>
+                    <span className={`inline-block mt-2 px-2 py-1 rounded-full text-xs font-medium ${getStatusBadgeClass(invoice.status)}`}>
+                      {invoice.status}
+                    </span>
+                  </div>
                 </div>
               </div>
             )}
@@ -565,27 +616,60 @@ const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGenerat
           </div>
         </div>
 
-        <div className="flex justify-between items-center p-4 border-t bg-gray-50">
-          {/* Jobb oldali gombok */}
-          <div className="flex space-x-3 ml-auto">
+        <div className="flex flex-wrap gap-2 p-4 border-t bg-gray-50">
+          {/* Emlékeztető küldése */}
+          {(invoice.status !== 'fizetett' && invoice.status !== 'paid' && invoice.status !== 'bezahlt' && 
+            invoice.status !== 'törölt' && invoice.status !== 'canceled' && invoice.status !== 'storniert') && (
             <button
-              onClick={() => {
-                if (onGeneratePDF) {
-                  onGeneratePDF(invoice);
-                }
-              }}
-              className="px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 flex items-center text-sm"
+              onClick={handleSendReminder}
+              disabled={loading}
+              className="px-3 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 flex items-center text-sm"
             >
-              <Download className="h-4 w-4 mr-1" />
-              {t.downloadPdf}
+              <Bell className="h-4 w-4 mr-1" />
+              {language === 'hu' 
+                ? '📧 Fizetési emlékeztető küldése (nem új számla)' 
+                : (language === 'de' 
+                  ? '📧 Zahlungserinnerung senden (keine neue Rechnung)' 
+                  : '📧 Send payment reminder (not a new invoice)')}
             </button>
+          )}
+          
+          {/* Ismétlődő számla manuális generálása */}
+          {invoice.recurring && invoice.recurring.isRecurring && (
             <button
-              onClick={onClose}
-              className="px-3 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 text-sm"
+              onClick={() => onGenerateRecurring && onGenerateRecurring(invoice)}
+              disabled={loading}
+              className="px-3 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 flex items-center text-sm"
             >
-              {t.close}
+              <RefreshCw className="h-4 w-4 mr-1" />
+              {language === 'hu' 
+                ? '🆕 Új számla generálása most' 
+                : (language === 'de' 
+                  ? '🆕 Neue Rechnung jetzt generieren' 
+                  : '🆕 Generate new invoice now')}
             </button>
-          </div>
+          )}
+          
+          {/* PDF generálás */}
+          <button
+            onClick={() => {
+              if (onGeneratePDF) {
+                onGeneratePDF(invoice);
+              }
+            }}
+            className="px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 flex items-center text-sm"
+          >
+            <Download className="h-4 w-4 mr-1" />
+            {t.downloadPdf}
+          </button>
+          
+          {/* Bezárás */}
+          <button
+            onClick={onClose}
+            className="px-3 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 text-sm ml-auto"
+          >
+            {t.close}
+          </button>
         </div>
       </div>
     </div>

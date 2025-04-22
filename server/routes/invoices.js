@@ -1389,14 +1389,22 @@ router.post('/projects/:projectId/invoices/:invoiceId/generate', async (req, res
 });
 
 // Cron job beállítása az ismétlődő számlák automatikus feldolgozásához
-// Minden nap 00:00-kor és 12:00-kor lefut
-cron.schedule('0 0,12 * * *', async () => {
+// Módosítva: Csak minden hónap 1. napján 00:00-kor fut le, nem naponta kétszer
+cron.schedule('0 0 1 * *', async () => {
   try {
-    console.log('Ismétlődő számlák automatikus feldolgozása indul...');
+    console.log('----------------------------');
+    console.log('FIGYELEM: Ismétlődő számlák automatikus generálása indul...');
+    console.log('Ez a művelet ÚJ SZÁMLÁKAT hoz létre az ismétlődő számlákból.');
+    console.log('Időpont:', new Date().toISOString());
+    console.log('----------------------------');
+    
     const count = await processRecurringInvoices();
-    console.log(`Automatikus számlafeldolgozás befejezve, ${count} számla generálva`);
+    
+    console.log('----------------------------');
+    console.log(`Automatikus számlagenerálás befejezve, ${count} új számla létrehozva`);
+    console.log('----------------------------');
   } catch (error) {
-    console.error('Hiba az automatikus számlafeldolgozás során:', error);
+    console.error('HIBA: Az automatikus számlagenerálás sikertelen volt:', error);
   }
 });
 
@@ -1404,11 +1412,19 @@ cron.schedule('0 0,12 * * *', async () => {
 // Minden nap 09:00-kor lefut
 cron.schedule('0 9 * * *', async () => {
   try {
-    console.log('Lejárt számlák ellenőrzése és emlékeztetők küldése indul...');
+    console.log('----------------------------');
+    console.log('Lejárt számlák ellenőrzése és EMLÉKEZTETŐK küldése indul...');
+    console.log('Ez a művelet NEM hoz létre új számlákat, csak emlékeztetőket küld.');
+    console.log('Időpont:', new Date().toISOString());
+    console.log('----------------------------');
+    
     const result = await checkOverdueInvoices();
+    
+    console.log('----------------------------');
     console.log(`Lejárt számla emlékeztetők küldése befejezve, ${result.sentCount} email elküldve`);
+    console.log('----------------------------');
   } catch (error) {
-    console.error('Hiba a lejárt számla emlékeztetők küldése során:', error);
+    console.error('HIBA: A lejárt számla emlékeztetők küldése sikertelen volt:', error);
   }
 });
 
@@ -1416,25 +1432,41 @@ cron.schedule('0 9 * * *', async () => {
 // Minden nap 10:00-kor lefut
 cron.schedule('0 10 * * *', async () => {
   try {
-    console.log('Hamarosan lejáró számlák ellenőrzése és emlékeztetők küldése indul...');
+    console.log('----------------------------');
+    console.log('Hamarosan lejáró számlák ellenőrzése és EMLÉKEZTETŐK küldése indul...');
+    console.log('Ez a művelet NEM hoz létre új számlákat, csak emlékeztetőket küld.');
+    console.log('Időpont:', new Date().toISOString());
+    console.log('----------------------------');
+    
     const result = await checkDueSoonInvoices();
+    
+    console.log('----------------------------');
     console.log(`Hamarosan lejáró számla emlékeztetők küldése befejezve, ${result.sentCount} email elküldve`);
+    console.log('----------------------------');
   } catch (error) {
-    console.error('Hiba a hamarosan lejáró számla emlékeztetők küldése során:', error);
+    console.error('HIBA: A hamarosan lejáró számla emlékeztetők küldése sikertelen volt:', error);
   }
 });
 
 // Cron job beállítása a domain és hosting lejárat előtti számlák generálásához
-// Minden nap 08:00-kor lefut
-cron.schedule('0 8 * * *', async () => {
+// Minden hónap 3. napján 08:00-kor fut le, nem naponta
+cron.schedule('0 8 3 * *', async () => {
   try {
+    console.log('----------------------------');
     console.log('Domain és hosting lejárat előtti számlák generálása indul...');
+    console.log('Ez a művelet ÚJ SZÁMLÁKAT hoz létre a lejárati adatok alapján.');
+    console.log('Időpont:', new Date().toISOString());
+    console.log('----------------------------');
+    
     const result = await processExpiryInvoices();
+    
+    console.log('----------------------------');
     console.log(`Lejárat előtti számlák generálása befejezve, ${result.totalGenerated} számla generálva`);
     console.log(`- Domain számlák: ${result.domainResults.generatedCount}`);
     console.log(`- Hosting számlák: ${result.hostingResults.generatedCount}`);
+    console.log('----------------------------');
   } catch (error) {
-    console.error('Hiba a lejárat előtti számlák generálása során:', error);
+    console.error('HIBA: A lejárat előtti számlák generálása sikertelen volt:', error);
   }
 });
 

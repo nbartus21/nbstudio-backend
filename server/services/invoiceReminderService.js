@@ -182,7 +182,7 @@ const generateEmailTemplate = (invoice, project, type, language = 'hu') => {
   let subject = '';
   let message = '';
 
-  // Téma és üzenet beállítása a típus alapján
+  // Téma és üzenet beállítása a típus alapján - egyértelműsítve, hogy emlékeztetőről van szó
   if (type === 'overdue') {
     subject = t.subject.overdue.replace('{invoiceNumber}', invoiceNumber);
     message = t.overdueMessage.replace('{invoiceNumber}', invoiceNumber).replace('{dueDate}', dueDate);
@@ -203,6 +203,20 @@ const generateEmailTemplate = (invoice, project, type, language = 'hu') => {
     message = t.finalReminderMessage.replace('{invoiceNumber}', invoiceNumber).replace('{dueDate}', dueDate);
   }
 
+  // FONTOS: Tegyünk hozzá egy világos jelzést az emailhez hogy ez csak emlékeztető, nem új számla
+  let reminderNotice = '';
+  if (type !== 'new') {
+    reminderNotice = `
+      <div style="margin-bottom: 20px; padding: 10px; background-color: #fff3cd; color: #856404; border-radius: 5px; border-left: 5px solid #ffeeba;">
+        <p style="font-weight: bold; margin: 0;">⚠️ ${
+          language === 'hu' ? 'Ez egy emlékeztető a már korábban kiállított számláról, nem egy új számla!' :
+          language === 'de' ? 'Dies ist eine Erinnerung an die bereits ausgestellte Rechnung, keine neue Rechnung!' :
+          'This is a reminder for an already issued invoice, not a new invoice!'
+        }</p>
+      </div>
+    `;
+  }
+
   // HTML sablon
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333;">
@@ -211,6 +225,8 @@ const generateEmailTemplate = (invoice, project, type, language = 'hu') => {
         <p>${t.greeting.replace('{clientName}', clientName)}</p>
         <p>${message}</p>
       </div>
+
+      ${reminderNotice}
 
       <div style="margin-bottom: 20px;">
         <h3 style="color: #4B5563; border-bottom: 1px solid #e5e7eb; padding-bottom: 10px;">${t.paymentDetails}</h3>

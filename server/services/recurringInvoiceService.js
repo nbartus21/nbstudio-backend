@@ -115,6 +115,9 @@ export const processRecurringInvoices = async () => {
     const now = new Date();
     console.log(`Ismétlődő számlák feldolgozása: ${now.toISOString()}`);
     
+    // FONTOS FIGYELMEZTETÉS: Ez a funkció új számlákat hoz létre, nem csak emlékeztetőket küld!
+    console.log('FIGYELEM: Ez a funkció új számlákat generál az ismétlődő beállítások alapján!');
+    
     // Keressük meg az összes projektet, amelyben van olyan ismétlődő számla, amelynek a nextDate-je lejárt
     const projects = await Project.find({
       'invoices.recurring.isRecurring': true,
@@ -124,6 +127,7 @@ export const processRecurringInvoices = async () => {
     console.log(`${projects.length} projekt talált ismétlődő számlákkal`);
     
     let generatedCount = 0;
+    const logDetails = [];
     
     // Projektenként végigmegyünk a számlákon és létrehozzuk az újakat
     for (const project of projects) {
@@ -134,16 +138,75 @@ export const processRecurringInvoices = async () => {
         new Date(inv.recurring.nextDate) <= now
       );
       
-      console.log(`${invoicesToGenerate.length} számla generálása a(z) ${project.name} projektben`);
+      console.log(`${invoicesToGenerate.length} számla generálás szükséges a(z) ${project.name} projektben`);
       
       // Minden esedékes számlához generálunk egy újat
       for (const invoice of invoicesToGenerate) {
-        await generateNewInvoiceFromRecurring(project._id, invoice);
-        generatedCount++;
+        try {
+          // Ellenőrizzük, hogy tényleg ismétlődőre van-e állítva és a következő dátum valóban lejárt-e
+          if (!invoice.recurring || !invoice.recurring.isRecurring) {
+            console.log(`A számla nem ismétlődő, átugorjuk: ${invoice.number}`);
+            continue;
+          }
+          
+          if (new Date(invoice.recurring.nextDate) > now) {
+            console.log(`A számla következő dátuma még nem érkezett el, átugorjuk: ${invoice.number}, következő dátum: ${invoice.recurring.nextDate}`);
+            continue;
+          }
+          
+          // Ellenőrizzük, hogy a végdátumot nem értük-e el
+          if (invoice.recurring.endDate && new Date(invoice.recurring.endDate) <= now) {
+            console.log(`A számla végdátuma elérve, nem generálunk többet: ${invoice.number}, végdátum: ${invoice.recurring.endDate}`);
+            
+            // Kikapcsoljuk az ismétlődést
+            invoice.recurring.isRecurring = false;
+            await project.save();
+            continue;
+          }
+          
+          // Ellenőrizzük, hogy nem fogytak-e el az ismétlődések
+          if (invoice.recurring.remainingOccurrences !== null && invoice.recurring.remainingOccurrences <= 0) {
+            console.log(`Nincs több hátralévő ismétlődés, átugorjuk: ${invoice.number}`);
+            
+            // Kikapcsoljuk az ismétlődést
+            invoice.recurring.isRecurring = false;
+            await project.save();
+            continue;
+          }
+          
+          console.log(`Új számla generálása ismétlődő számla alapján: ${invoice.number}, projektben: ${project.name}`);
+          const newInvoice = await generateNewInvoiceFromRecurring(project._id, invoice);
+          generatedCount++;
+          
+          console.log(`Új számla sikeresen generálva: ${newInvoice.number} az ismétlődő számla alapján: ${invoice.number}`);
+          
+          // Részletes információk mentése a loghoz
+          logDetails.push({
+            projectId: project._id,
+            projectName: project.name,
+            invoiceId: invoice._id,
+            invoiceNumber: invoice.number,
+            newInvoiceId: newInvoice._id,
+            newInvoiceNumber: newInvoice.number,
+            amount: newInvoice.totalAmount
+          });
+        } catch (invoiceError) {
+          console.error(`Hiba a számla generálásakor (${project.name}, ${invoice._id}):`, invoiceError);
+          
+          // Hibás számla is kerüljön be a logba
+          logDetails.push({
+            projectId: project._id,
+            projectName: project.name,
+            invoiceId: invoice._id,
+            invoiceNumber: invoice.number,
+            error: invoiceError.message
+          });
+        }
       }
     }
     
     console.log(`Sikeresen generált ${generatedCount} új számla`);
+    
     return generatedCount;
   } catch (error) {
     console.error('Hiba az ismétlődő számlák feldolgozásakor:', error);
