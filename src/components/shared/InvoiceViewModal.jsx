@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   FileText, X, Download, Printer, Share2,
   CheckCircle, AlertCircle, Clock, Mail,
-  CreditCard, RefreshCw, Bell
+  CreditCard, RefreshCw
 } from 'lucide-react';
 import { formatShortDate, debugLog } from './utils';
 import { API_URL, API_KEY } from '../../config';
@@ -273,47 +273,6 @@ const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGenerat
   };
 
   const invoiceStatus = checkInvoiceStatus();
-
-  // Emlékeztető küldése
-  const handleSendReminder = async () => {
-    debugLog('InvoiceViewModal-sendReminder', 'Sending reminder for invoice', invoice.number);
-    setLoading(true);
-
-    try {
-      // Megerősítés kérése
-      if (!confirm(language === 'hu' ? 'Biztos, hogy emlékeztetőt szeretne küldeni erről a számláról?' :
-                  (language === 'de' ? 'Sind Sie sicher, dass Sie eine Erinnerung für diese Rechnung senden möchten?' :
-                                      'Are you sure you want to send a reminder for this invoice?'))) {
-        setLoading(false);
-        return;
-      }
-
-      if (!project || !project._id) {
-        throw new Error(language === 'hu' ? 'Projekt azonosító hiányzik' : 
-                       (language === 'de' ? 'Projekt-ID fehlt' : 'Project ID is missing'));
-      }
-
-      // API hívás az emlékeztető küldéséhez az api.post segítségével, ami automatikusan hozzáadja a tokent
-      const response = await api.post(
-        `${API_URL}/projects/${project._id}/invoices/${invoice._id}/send-reminder`,
-        { language }
-      );
-
-      const data = await response.json();
-
-      // Sikeres küldés esetén értesítés
-      alert(language === 'hu' ? 'Emlékeztető sikeresen elküldve!' :
-            (language === 'de' ? 'Erinnerung erfolgreich gesendet!' :
-                                'Reminder successfully sent!'));
-    } catch (error) {
-      console.error('Error sending reminder:', error);
-      alert(language === 'hu' ? `Hiba történt: ${error.message}` :
-            (language === 'de' ? `Ein Fehler ist aufgetreten: ${error.message}` :
-                                `An error occurred: ${error.message}`));
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // Bankkártyás fizetés - eltávolítva
   const handleCardPayment = () => {
@@ -619,23 +578,6 @@ const InvoiceViewModal = ({ invoice, project, onClose, onUpdateStatus, onGenerat
         </div>
 
         <div className="flex flex-wrap gap-2 p-4 border-t bg-gray-50">
-          {/* Emlékeztető küldése */}
-          {(invoice.status !== 'fizetett' && invoice.status !== 'paid' && invoice.status !== 'bezahlt' && 
-            invoice.status !== 'törölt' && invoice.status !== 'canceled' && invoice.status !== 'storniert') && (
-            <button
-              onClick={handleSendReminder}
-              disabled={loading}
-              className="px-3 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 flex items-center text-sm"
-            >
-              <Bell className="h-4 w-4 mr-1" />
-              {language === 'hu' 
-                ? '📧 Fizetési emlékeztető küldése (nem új számla)' 
-                : (language === 'de' 
-                  ? '📧 Zahlungserinnerung senden (keine neue Rechnung)' 
-                  : '📧 Send payment reminder (not a new invoice)')}
-            </button>
-          )}
-          
           {/* Ismétlődő számla manuális generálása */}
           {invoice.recurring && invoice.recurring.isRecurring && (
             <button
